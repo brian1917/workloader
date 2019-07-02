@@ -3,11 +3,21 @@ package mode
 import (
 	"fmt"
 	"log"
+	"os"
+	"time"
 
 	"github.com/brian1917/illumioapi"
 )
 
 func modeUpdate() {
+
+	// Setup logging file
+	f, err := os.OpenFile("Workloader-Mode-Log-"+time.Now().Format("20060102_150405")+".log", os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+	log.SetOutput(f)
 
 	// Log the logonly mode
 	log.Printf("INFO - Log only mode set to %t", logOnly)
@@ -22,7 +32,7 @@ func modeUpdate() {
 	managedWklds := make(map[string]illumioapi.Workload)
 	for _, w := range wklds {
 		if w.Agent != nil {
-			managedWklds[w.Hostname] = w
+			managedWklds[w.Href] = w
 		}
 	}
 
@@ -36,21 +46,20 @@ func modeUpdate() {
 	for _, t := range targets {
 		// Get the current mode
 		var mode string
-		if managedWklds[t.workloadHostname].Agent.Config.Mode == "illuminated" && !managedWklds[t.workloadHostname].Agent.Config.LogTraffic {
+		if managedWklds[t.workloadHref].Agent.Config.Mode == "illuminated" && !managedWklds[t.workloadHref].Agent.Config.LogTraffic {
 			mode = "build"
-		} else if managedWklds[t.workloadHostname].Agent.Config.Mode == "illuminated" && managedWklds[t.workloadHostname].Agent.Config.LogTraffic {
+		} else if managedWklds[t.workloadHref].Agent.Config.Mode == "illuminated" && managedWklds[t.workloadHref].Agent.Config.LogTraffic {
 			mode = "test"
 		} else {
-			mode = managedWklds[t.workloadHostname].Agent.Config.Mode
+			mode = managedWklds[t.workloadHref].Agent.Config.Mode
 		}
-		fmt.Println(mode)
 		// Check if the current mode is NOT the target mode
 		if mode != t.targetMode {
 			// Log the change is needed
-			log.Printf("INFO - Required Change - %s - Current state: %s - Desired state: %s\r\n", managedWklds[t.workloadHostname].Hostname, mode, t.targetMode)
+			log.Printf("INFO - Required Change - %s - Current state: %s - Desired state: %s\r\n", managedWklds[t.workloadHref].Hostname, mode, t.targetMode)
 
 			// Copy workload with the right target mode and append to slice
-			w := managedWklds[t.workloadHostname]
+			w := managedWklds[t.workloadHref]
 			if t.targetMode == "build" {
 				w.Agent.Config.Mode = "illuminated"
 				w.Agent.Config.LogTraffic = false

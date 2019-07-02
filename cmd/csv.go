@@ -16,44 +16,24 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func checkLabel(label illumioapi.Label, labelMap map[string]illumioapi.Label) (illumioapi.Label, error) {
-
-	// Check if it exists or not
-	if _, ok := labelMap[label.Key+label.Value]; ok {
-		return labelMap[label.Key+label.Value], nil
-	}
-
-	// Get PCE
-	pce, err := utils.GetPCE("pce.json")
-	if err != nil {
-		return illumioapi.Label{}, err
-	}
-
-	// Create the label
-	l, _, err := illumioapi.CreateLabel(pce, illumioapi.Label{Key: label.Key, Value: label.Value})
-	if err != nil {
-		return illumioapi.Label{}, err
-	}
-	logJSON, _ := json.Marshal(illumioapi.Label{Href: l.Href, Key: label.Key, Value: label.Value})
-	log.Printf("INFO - Created Label - %s", string(logJSON))
-
-	// Append the label back to the map
-	labelMap[l.Key+l.Value] = l
-
-	return l, nil
-}
+// Global variables
+var hostCol, roleCol, appCol, envCol, locCol, intCol int
+var removeValue, csvFile string
+var umwl bool
+var pce illumioapi.PCE
+var err error
 
 func init() {
-	csvCmd.Flags().String("in", "", "Input csv file. The first row (headers) will be skipped.")
+	csvCmd.Flags().StringVar(&csvFile, "in", "", "Input csv file. The first row (headers) will be skipped.")
 	csvCmd.MarkFlagRequired("in")
-	csvCmd.Flags().String("removeValue", "", "Value in CSV used to remove existing labels. Blank values in the CSV will not change existing. If you want to delete a label do something like -removeValue delete and use delete in CSV to indicate where to delete.")
-	csvCmd.Flags().Bool("umwl", false, "Create unmanaged workloads if the host does not exist")
-	csvCmd.Flags().IntP("hostname", "n", 1, "Column number with hostname. First column is 1.")
-	csvCmd.Flags().IntP("role", "r", 2, "Column number with new role label.")
-	csvCmd.Flags().IntP("app", "a", 3, "Column number with new app label.")
-	csvCmd.Flags().IntP("env", "e", 4, "Column number with new env label.")
-	csvCmd.Flags().IntP("loc", "l", 5, "Column number with new loc label.")
-	csvCmd.Flags().IntP("ifaces", "i", 6, "Column number with network interfaces for when creating unmanaged workloads. Each interface should be of the format name:address (e.g., eth1:192.168.200.20). Separate multiple NICs by semicolons.")
+	csvCmd.Flags().StringVar(&removeValue, "removeValue", "", "Value in CSV used to remove existing labels. Blank values in the CSV will not change existing. If you want to delete a label do something like -removeValue delete and use delete in CSV to indicate where to delete.")
+	csvCmd.Flags().BoolVar(&umwl, "umwl", false, "Create unmanaged workloads if the host does not exist")
+	csvCmd.Flags().IntVarP(&hostCol, "hostname", "n", 1, "Column number with hostname. First column is 1.")
+	csvCmd.Flags().IntVarP(&roleCol, "role", "r", 2, "Column number with new role label.")
+	csvCmd.Flags().IntVarP(&appCol, "app", "a", 3, "Column number with new app label.")
+	csvCmd.Flags().IntVarP(&envCol, "env", "e", 4, "Column number with new env label.")
+	csvCmd.Flags().IntVarP(&locCol, "loc", "l", 5, "Column number with new loc label.")
+	csvCmd.Flags().IntVarP(&intCol, "ifaces", "i", 6, "Column number with network interfaces for when creating unmanaged workloads. Each interface should be of the format name:address (e.g., eth1:192.168.200.20). Separate multiple NICs by semicolons.")
 
 	csvCmd.Flags().SortFlags = false
 
@@ -82,26 +62,43 @@ Additional columns are allowed and will be ignored.
 +----------------+------+----------+------+-----+--------------------+`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		csvFile, _ := cmd.Flags().GetString("in")
-		umwl, _ := cmd.Flags().GetBool("umwl")
-		hostCol, _ := cmd.Flags().GetInt("hostname")
-		removeValue, _ := cmd.Flags().GetString("removeValue")
-		roleCol, _ := cmd.Flags().GetInt("role")
-		appCol, _ := cmd.Flags().GetInt("app")
-		envCol, _ := cmd.Flags().GetInt("env")
-		locCol, _ := cmd.Flags().GetInt("loc")
-		intCol, _ := cmd.Flags().GetInt("ifaces")
-
-		pce, err := utils.GetPCE("pce.json")
+		pce, err = utils.GetPCE("pce.json")
 		if err != nil {
 			log.Fatalf("Error getting PCE for traffic command - %s", err)
 		}
 
-		processCSV(pce, csvFile, hostCol-1, roleCol-1, appCol-1, envCol-1, locCol-1, intCol-1, removeValue, umwl)
+		processCSV()
 	},
 }
 
-func processCSV(pce illumioapi.PCE, csvFile string, hostCol, roleCol, appCol, envCol, locCol, intCol int, removeValue string, umwl bool) {
+func checkLabel(label illumioapi.Label, labelMap map[string]illumioapi.Label) (illumioapi.Label, error) {
+
+	// Check if it exists or not
+	if _, ok := labelMap[label.Key+label.Value]; ok {
+		return labelMap[label.Key+label.Value], nil
+	}
+
+	// Get PCE
+	pce, err := utils.GetPCE("pce.json")
+	if err != nil {
+		return illumioapi.Label{}, err
+	}
+
+	// Create the label
+	l, _, err := illumioapi.CreateLabel(pce, illumioapi.Label{Key: label.Key, Value: label.Value})
+	if err != nil {
+		return illumioapi.Label{}, err
+	}
+	logJSON, _ := json.Marshal(illumioapi.Label{Href: l.Href, Key: label.Key, Value: label.Value})
+	log.Printf("INFO - Created Label - %s", string(logJSON))
+
+	// Append the label back to the map
+	labelMap[l.Key+l.Value] = l
+
+	return l, nil
+}
+
+func processCSV() {
 
 	// Open CSV File
 	file, err := os.Open(csvFile)

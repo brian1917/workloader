@@ -1,7 +1,13 @@
 # Workloader
 
 ## Description
-Workloader is a tool that helps discover, label, and manage workloads in an Illumio PCE.
+Workloader is a tool that helps discover, label, and manage workloads in an Illumio PCE. Functionality includes:
+* Create labels and unmanaged workloads and label workloads from a CSV.
+* Analyze traffic in explorer to identify and label unmanaged workloads and label existing workloads.
+* Assign environment and location labels based on a workload's network.
+* Assign labels by parsing hostnames using provided regex functions.
+* Get the red/green/yellow compatability status for all workloads in IDLE mode.
+* Change the mode (idle, build, test, and enforced) of workloads.
 
 ## Binaries
 Binaries for Mac, Linux, and Windows are located in the `bin` folder of this repository.

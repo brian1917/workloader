@@ -15,19 +15,24 @@ var err error
 
 func init() {
 
-	HostnameCmd.Flags().StringP("parserfile", "p", "", "Location of CSV with regex functions and labels.")
-	HostnameCmd.Flags().String("hostfile", "", "Location of hostnames CSV to parse.")
-	HostnameCmd.Flags().StringP("role", "e", "", "Environment label.")
-	HostnameCmd.Flags().StringP("app", "a", "", "App label.")
-	HostnameCmd.Flags().StringP("env", "r", "", "Role label.")
-	HostnameCmd.Flags().StringP("loc", "l", "", "Location label.")
-	HostnameCmd.Flags().Bool("noprompt", false, "No prompting.")
-	HostnameCmd.Flags().Bool("allempty", false, "All empty.")
-	HostnameCmd.Flags().Bool("ignorematch", false, "Ignore match.")
-	HostnameCmd.Flags().Bool("nopce", false, "No PCE.")
-	HostnameCmd.Flags().Bool("verbose", false, "Verbose logging.")
-	HostnameCmd.Flags().Bool("logonly", false, "Set to only log changes. Don't update the PCE.")
+	HostnameCmd.Flags().StringVarP(&parserFile, "parserfile", "p", "", "Location of CSV with regex functions and labels.")
+	HostnameCmd.Flags().StringVar(&hostFile, "hostfile", "", "Location of hostnames CSV to parse.")
+	HostnameCmd.Flags().StringVarP(&roleFlag, "role", "e", "", "Environment label.")
+	HostnameCmd.Flags().StringVarP(&appFlag, "app", "a", "", "App label.")
+	HostnameCmd.Flags().StringVarP(&envFlag, "env", "r", "", "Role label.")
+	HostnameCmd.Flags().StringVarP(&locFlag, "loc", "l", "", "Location label.")
+	HostnameCmd.Flags().BoolVar(&noPrompt, "noprompt", false, "No prompting.")
+	HostnameCmd.Flags().BoolVar(&allEmpty, "allempty", false, "All empty.")
+	HostnameCmd.Flags().BoolVar(&ignoreMatch, "ignorematch", false, "Ignore match.")
+	HostnameCmd.Flags().BoolVar(&noPCE, "nopce", false, "No PCE.")
+	HostnameCmd.Flags().BoolVar(&debugLogging, "verbose", false, "Verbose logging.")
+	HostnameCmd.Flags().BoolVar(&logonly, "logonly", false, "Set to only log changes. Don't update the PCE.")
 	HostnameCmd.Flags().SortFlags = false
+
+	pce, err = utils.GetPCE("pce.json")
+	if err != nil {
+		log.Fatalf("[ERROR] - getting PCE for traffic command - %s", err)
+	}
 
 }
 
@@ -42,24 +47,6 @@ An input CSV specifics the regex functions to use to assign labels. An example i
 
 PLACEHOLDER FOR SAMPLE TABLE`,
 	Run: func(cmd *cobra.Command, args []string) {
-		configFile, _ = cmd.Flags().GetString("config")
-		parserFile, _ = cmd.Flags().GetString("parserfile")
-		noPrompt, _ = cmd.Flags().GetBool("noprompt")
-		hostFile, _ = cmd.Flags().GetString("hostfile")
-		allEmpty, _ = cmd.Flags().GetBool("allempty")
-		noPCE, _ = cmd.Flags().GetBool("nopce")
-		ignoreMatch, _ = cmd.Flags().GetBool("ignorematch")
-		appFlag, _ = cmd.Flags().GetString("app")
-		roleFlag, _ = cmd.Flags().GetString("role")
-		envFlag, _ = cmd.Flags().GetString("env")
-		locFlag, _ = cmd.Flags().GetString("loc")
-		logonly, _ = cmd.Flags().GetBool("logonly")
-		debugLogging, _ = cmd.Flags().GetBool("verbose")
-
-		pce, err = utils.GetPCE("pce.json")
-		if err != nil {
-			log.Fatalf("Error getting PCE for traffic command - %s", err)
-		}
 
 		hostnameParser()
 	},

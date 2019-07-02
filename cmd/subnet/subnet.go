@@ -9,22 +9,33 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var csvFile string
+var netCol, envCol, locCol int
+var auto bool
+var pce illumioapi.PCE
+var err error
+
+func init() {
+	SubnetCmd.Flags().StringVarP(&csvFile, "in", "i", "", "Input csv file. The first row (headers) will be skipped.")
+	SubnetCmd.MarkFlagRequired("in")
+	SubnetCmd.Flags().BoolVar(&auto, "auto", false, "Make changes in PCE. Default with output a log file with updates.")
+	SubnetCmd.Flags().IntVarP(&netCol, "net", "n", 1, "Column number with network. First column is 1.")
+	SubnetCmd.Flags().IntVarP(&envCol, "env", "e", 2, "Column number with new env label.")
+	SubnetCmd.Flags().IntVarP(&locCol, "loc", "l", 3, "Column number with new loc label.")
+
+	SubnetCmd.Flags().SortFlags = false
+
+	pce, err = utils.GetPCE("pce.json")
+	if err != nil {
+		log.Fatalf("Error getting PCE for traffic command - %s", err)
+	}
+
+}
+
 type match struct {
 	workload illumioapi.Workload
 	oldLoc   string
 	oldEnv   string
-}
-
-func init() {
-	SubnetCmd.Flags().StringP("in", "i", "", "Input csv file. The first row (headers) will be skipped.")
-	SubnetCmd.MarkFlagRequired("in")
-	SubnetCmd.Flags().Bool("auto", false, "Make changes in PCE. Default with output a log file with updates.")
-	SubnetCmd.Flags().IntP("net", "n", 1, "Column number with network. First column is 1.")
-	SubnetCmd.Flags().IntP("env", "e", 2, "Column number with new env label.")
-	SubnetCmd.Flags().IntP("loc", "l", 3, "Column number with new loc label.")
-
-	SubnetCmd.Flags().SortFlags = false
-
 }
 
 // SubnetCmd runs the workload identifier
@@ -49,25 +60,19 @@ using the appropriate flags. Example default:
 +----------------+------+-----+`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		csvFile, _ := cmd.Flags().GetString("in")
-		netCol, _ := cmd.Flags().GetInt("net")
-		envCol, _ := cmd.Flags().GetInt("env")
-		locCol, _ := cmd.Flags().GetInt("loc")
-		auto, _ := cmd.Flags().GetBool("auto")
-
-		pce, err := utils.GetPCE("pce.json")
-		if err != nil {
-			log.Fatalf("Error getting PCE for traffic command - %s", err)
-		}
-
-		subnetParser(pce, csvFile, netCol-1, envCol-1, locCol-1, auto)
+		subnetParser()
 	},
 }
 
-func subnetParser(pce illumioapi.PCE, file string, netCol, envCol, locCol int, auto bool) {
+func subnetParser() {
+
+	// Adjust the columns so they are one less (first column should be 0)
+	netCol = netCol - 1
+	envCol = envCol - 1
+	locCol = locCol - 1
 
 	// Parse the input CSV
-	subnetLabels := locParser(file, netCol, envCol, locCol)
+	subnetLabels := locParser(csvFile, netCol, envCol, locCol)
 
 	// GetAllWorkloads
 	wklds, _, err := illumioapi.GetAllWorkloads(pce)

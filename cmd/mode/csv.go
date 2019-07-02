@@ -9,8 +9,8 @@ import (
 )
 
 type target struct {
-	workloadHostname string
-	targetMode       string
+	workloadHref string
+	targetMode   string
 }
 
 func parseCsv(filename string) []target {
@@ -51,7 +51,7 @@ func parseCsv(filename string) []target {
 		if line[1] != "idle" && line[1] != "build" && line[1] != "test" && line[1] != "enforced" {
 			log.Fatalf("ERROR - invalid mode on line %d", i)
 		}
-		targets = append(targets, target{workloadHostname: line[0], targetMode: line[1]})
+		targets = append(targets, target{workloadHref: line[0], targetMode: line[1]})
 	}
 
 	return targets
