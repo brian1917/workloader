@@ -1,0 +1,131 @@
+{
+    "href": "/orgs/1/workloads/77d72edc-8734-4a5d-a01d-d055898e6ba1",
+    "deleted": false,
+    "name": null,
+    "description": null,
+    "hostname": "hostA",
+    "service_principal_name": null,
+    "public_ip": "192.168.100.1",
+    "distinguished_name": null,
+    "external_data_set": null,
+    "external_data_reference": null,
+    "interfaces": [
+        {
+            "name": "eth0",
+            "address": "192.168.245.132",
+            "cidr_block": 24,
+            "default_gateway_address": "192.168.245.2",
+            "link_state": null,
+            "network_id": 2,
+            "network_detection_mode": "single_private_brn",
+            "friendly_name": null
+        },
+        {
+            "name": "eth1",
+            "address": "192.168.200.30",
+            "cidr_block": 24,
+            "default_gateway_address": null,
+            "link_state": null,
+            "network_id": 2,
+            "network_detection_mode": "single_private_brn",
+            "friendly_name": null
+        }
+    ],
+    "ignored_interface_names": [],
+    "service_provider": null,
+    "data_center": null,
+    "data_center_zone": null,
+    "os_id": "centos-x86_64-7.0",
+    "os_detail": "3.10.0-957.5.1.el7.x86_64 #1 SMP Fri Feb 1 14:54:57 UTC 2019 (CentOS Linux release 7.6.1810 (Core) )",
+    "online": true,
+    "labels": [],
+    "services": {
+        "uptime_seconds": 366,
+        "created_at": "2019-07-01T15:56:51.571Z",
+        "open_service_ports": [
+            {
+                "protocol": 6,
+                "address": "0.0.0.0",
+                "port": 111,
+                "process_name": "/usr/lib/systemd/systemd",
+                "user": "root",
+                "package": "",
+                "win_service_name": null
+            },
+            {
+                "protocol": 6,
+                "address": "0.0.0.0",
+                "port": 22,
+                "process_name": "/usr/sbin/sshd",
+                "user": "root",
+                "package": "",
+                "win_service_name": null
+            },
+            {
+                "protocol": 17,
+                "address": "0.0.0.0",
+                "port": 68,
+                "process_name": "/usr/sbin/dhclient",
+                "user": "root",
+                "package": "",
+                "win_service_name": null
+            },
+            {
+                "protocol": 17,
+                "address": "0.0.0.0",
+                "port": 615,
+                "process_name": "/usr/sbin/rpcbind",
+                "user": "root",
+                "package": "",
+                "win_service_name": null
+            },
+            {
+                "protocol": 17,
+                "address": "0.0.0.0",
+                "port": 111,
+                "process_name": "/usr/lib/systemd/systemd",
+                "user": "root",
+                "package": "",
+                "win_service_name": null
+            }
+        ]
+    },
+    "agent": {
+        "config": {
+            "log_traffic": true,
+            "visibility_level": "flow_summary",
+            "mode": "illuminated"
+        },
+        "href": "/orgs/1/agents/2",
+        "status": {
+            "uid": "d7ea412c-efbf-4466-ae39-d6aadd1b35bb",
+            "instance_id": null,
+            "managed_since": "2019-07-01T15:56:50.677Z",
+            "fw_config_current": true,
+            "firewall_rule_count": 98,
+            "security_policy_refresh_at": "2019-07-01T17:16:07.498Z",
+            "security_policy_applied_at": "2019-07-01T17:16:07.498Z",
+            "security_policy_received_at": "2019-07-01T17:16:07.498Z",
+            "status": "active",
+            "agent_version": "18.2.3-4402",
+            "agent_health_errors": {
+                "errors": [],
+                "warnings": []
+            },
+            "agent_health": [],
+            "last_heartbeat_on": "2019-07-01T17:26:07.548Z",
+            "uptime_seconds": 5721,
+            "security_policy_sync_state": "applied"
+        },
+        "active_pce_fqdn": null,
+        "target_pce_fqdn": null
+    },
+    "created_at": "2019-07-01T15:56:50.615Z",
+    "created_by": {
+        "href": "/orgs/1/agents/2"
+    },
+    "updated_at": "2019-07-01T17:27:23.903Z",
+    "updated_by": {
+        "href": "/users/1"
+    }
+}

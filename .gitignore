@@ -1,0 +1,5 @@
+*.code-workspace
+*.DS_store
+test-files/*
+pce.json
+
