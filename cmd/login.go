@@ -84,6 +84,7 @@ func pceLogin(disableTLS, session bool) {
 		fmt.Println("Authenticating ...")
 		pce, err = illumioapi.PCEbuilder(fqdn, user, pwd, port, disableTLS)
 		if err != nil {
+			fmt.Println("Error logging in - see workloader.log")
 			utils.Logger.Fatalf("ERROR - building PCE - %s", err)
 		}
 	} else {
@@ -91,6 +92,7 @@ func pceLogin(disableTLS, session bool) {
 		pce = illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS}
 		pce, _, err = illumioapi.CreateAPIKey(pce, user, pwd, "Workloader", "Created by Workloader")
 		if err != nil {
+			fmt.Println("Error logging in - see workloader.log")
 			utils.Logger.Fatal(err)
 		}
 	}
