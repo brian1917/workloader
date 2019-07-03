@@ -15,15 +15,15 @@ import (
 var verbose bool
 
 func init() {
-	compatabilityCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Include full compatability JSON as 4th column in CSV output. Default is just hostname, href, and green/yellow/red status.")
+	compatibilityCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Include full compatibility JSON as 4th column in CSV output. Default is just hostname, href, and green/yellow/red status.")
 }
 
 // TrafficCmd runs the workload identifier
-var compatabilityCmd = &cobra.Command{
-	Use:   "compatability",
-	Short: "Generate a compatability report for all Idle workloads.",
+var compatibilityCmd = &cobra.Command{
+	Use:   "compatibility",
+	Short: "Generate a compatibility report for all Idle workloads.",
 	Long: `
-Generate a compatability report for all Idle workloads.`,
+Generate a compatibility report for all Idle workloads.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		pce, err := utils.GetPCE("pce.json")
@@ -31,14 +31,14 @@ Generate a compatability report for all Idle workloads.`,
 			utils.Logger.Fatalf("[ERROR] - getting PCE - %s", err)
 		}
 
-		compatabilityReport(pce)
+		compatibilityReport(pce)
 	},
 }
 
-func compatabilityReport(pce illumioapi.PCE) {
+func compatibilityReport(pce illumioapi.PCE) {
 
 	// Log command
-	utils.Logger.Println("[INFO] - running compatability command.")
+	utils.Logger.Println("[INFO] - running compatibility command.")
 
 	// Start the data slice with the headers. We will append data to this.
 	var data [][]string
@@ -63,10 +63,10 @@ func compatabilityReport(pce illumioapi.PCE) {
 			continue
 		}
 
-		// Get the compatability report and append
-		cr, _, err := illumioapi.GetCompatabilityReport(pce, w)
+		// Get the compatibility report and append
+		cr, _, err := illumioapi.GetcompatibilityReport(pce, w)
 		if err != nil {
-			utils.Logger.Fatalf("[ERROR] - getting compatability report for %s (%s) - %s", w.Hostname, w.Href, err)
+			utils.Logger.Fatalf("[ERROR] - getting compatibility report for %s (%s) - %s", w.Hostname, w.Href, err)
 		}
 
 		jsonBytes, err := json.Marshal(cr)
@@ -88,7 +88,7 @@ func compatabilityReport(pce illumioapi.PCE) {
 
 		// Create output file
 		timestamp := time.Now().Format("20060102_150405")
-		outFile, err := os.Create("compatability-report-" + timestamp + ".csv")
+		outFile, err := os.Create("compatibility-report-" + timestamp + ".csv")
 
 		if err != nil {
 			utils.Logger.Fatalf("[ERROR] - Creating file - %s\n", err)
@@ -102,13 +102,13 @@ func compatabilityReport(pce illumioapi.PCE) {
 		}
 
 		// Output status terminal
-		fmt.Printf("Compatability report generated for %d idle workloads - see %s.\r\n", len(data)-1, outFile.Name())
+		fmt.Printf("compatibility report generated for %d idle workloads - see %s.\r\n", len(data)-1, outFile.Name())
 
 		// Close the file
 		outFile.Close()
 	} else {
-		fmt.Println("No workloads with compatability report.")
-		utils.Logger.Println("[INFO] - no workloads with compatability report.")
+		fmt.Println("No workloads with compatibility report.")
+		utils.Logger.Println("[INFO] - no workloads with compatibility report.")
 	}
 
 }

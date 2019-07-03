@@ -35,7 +35,7 @@ func init() {
 	RootCmd.AddCommand(traffic.TrafficCmd)
 	RootCmd.AddCommand(subnet.SubnetCmd)
 	RootCmd.AddCommand(hostname.HostnameCmd)
-	RootCmd.AddCommand(compatabilityCmd)
+	RootCmd.AddCommand(compatibilityCmd)
 	RootCmd.AddCommand(mode.ModeCmd)
 
 	// Hidden Commands
