@@ -5,13 +5,14 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/brian1917/workloader/utils"
 )
 
 type coreService struct {
@@ -58,20 +59,20 @@ func locParser(filename string) []subnetLabel {
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			log.Fatalf("Error - Reading CSV File - %s", err)
+			utils.Logger.Fatalf("Error - Reading CSV File - %s", err)
 		}
 		//ignore CSV header
 		if i != 1 {
 
 			//make sure location label not empty
 			if line[loclabel] == "" {
-				log.Fatal("Error - Label field cannot be empty")
+				utils.Logger.Fatal("Error - Label field cannot be empty")
 			}
 
 			//Place subnet into net.IPNet data structure as part of subnetLabel struct
 			_, network, err := net.ParseCIDR(line[networks])
 			if err != nil {
-				log.Fatal("Error - The Subnet field cannot be parsed.  The format is 10.10.10.0/24")
+				utils.Logger.Fatal("Error - The Subnet field cannot be parsed.  The format is 10.10.10.0/24")
 			}
 
 			//Set struct values
@@ -127,7 +128,7 @@ func csvParser(filename string) []coreService {
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			log.Fatalf("Error - Reading CSV File - %s", err)
+			utils.Logger.Fatalf("Error - Reading CSV File - %s", err)
 		}
 
 		// Skip the header row
@@ -144,7 +145,7 @@ func csvParser(filename string) []coreService {
 				for _, strPort := range requiredPortsStr {
 					intPort, err := strconv.Atoi(strPort)
 					if err != nil {
-						log.Fatalf("ERROR - Converting required port to int on line %d - %s", i, err)
+						utils.Logger.Fatalf("ERROR - Converting required port to int on line %d - %s", i, err)
 					}
 					reqPortsInt = append(reqPortsInt, intPort)
 				}
@@ -165,7 +166,7 @@ func csvParser(filename string) []coreService {
 						for _, rangeValue := range rangePortStr {
 							value, err := strconv.Atoi(rangeValue)
 							if err != nil {
-								log.Fatalf("ERROR - Converting port range values to int on line %d - %s", i, err)
+								utils.Logger.Fatalf("ERROR - Converting port range values to int on line %d - %s", i, err)
 							}
 							rangePortInt = append(rangePortInt, value)
 						}
@@ -176,7 +177,7 @@ func csvParser(filename string) []coreService {
 					if len(rangePortInt) == 0 {
 						intPort, err := strconv.Atoi(strPort)
 						if err != nil {
-							log.Fatalf("ERROR - Converting optional port to int on line %d - %s", i, err)
+							utils.Logger.Fatalf("ERROR - Converting optional port to int on line %d - %s", i, err)
 						}
 						optPortsInt = append(optPortsInt, intPort)
 					}
@@ -187,7 +188,7 @@ func csvParser(filename string) []coreService {
 			if len(line[csvNumOptPorts]) > 0 {
 				numOptPorts, err = strconv.Atoi(line[csvNumOptPorts])
 				if err != nil {
-					log.Fatalf("ERROR - Converting number of required ports to int on line %d - %s", i, err)
+					utils.Logger.Fatalf("ERROR - Converting number of required ports to int on line %d - %s", i, err)
 				}
 			}
 
@@ -195,7 +196,7 @@ func csvParser(filename string) []coreService {
 			if len(line[csvNumFlows]) > 0 {
 				numFlows, err = strconv.Atoi(line[csvNumFlows])
 				if err != nil {
-					log.Fatalf("ERROR - Converting number of flows to int on line %d - %s", i, err)
+					utils.Logger.Fatalf("ERROR - Converting number of flows to int on line %d - %s", i, err)
 				}
 			}
 
@@ -203,7 +204,7 @@ func csvParser(filename string) []coreService {
 			if len(line[6]) > 0 {
 				numProcessesReq, err = strconv.Atoi(line[csvNumProcess])
 				if err != nil {
-					log.Fatalf("ERROR - Converting number of required consumer services to int on line %d - %s", i, err)
+					utils.Logger.Fatalf("ERROR - Converting number of required consumer services to int on line %d - %s", i, err)
 				}
 			}
 
@@ -240,7 +241,7 @@ func csvWriter(matches []result, exclWLs bool) {
 	// Always create the default file
 	defaultFile, err := os.Create("identified-workloads_" + timestamp + ".csv")
 	if err != nil {
-		log.Fatalf("ERROR - Creating file - %s\n", err)
+		utils.Logger.Fatalf("ERROR - Creating file - %s\n", err)
 	}
 	defer defaultFile.Close()
 	fmt.Fprintf(defaultFile, "ip_address,name,status,current_role,current_app,current_env,current_loc,suggested_role,suggested_app,suggested_env,suggested_loc,reason\r\n")

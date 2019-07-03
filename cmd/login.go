@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"strconv"
 	"syscall"
@@ -12,6 +11,7 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/workloader/utils"
 
 	"github.com/spf13/cobra"
 )
@@ -84,14 +84,14 @@ func pceLogin(disableTLS, session bool) {
 		fmt.Println("Authenticating ...")
 		pce, err = illumioapi.PCEbuilder(fqdn, user, pwd, port, disableTLS)
 		if err != nil {
-			log.Fatalf("ERROR - building PCE - %s", err)
+			utils.Logger.Fatalf("ERROR - building PCE - %s", err)
 		}
 	} else {
 		fmt.Println("Authenticating and generating API Credentials...")
 		pce = illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS}
 		pce, _, err = illumioapi.CreateAPIKey(pce, user, pwd, "Workloader", "Created by Workloader")
 		if err != nil {
-			log.Fatal(err)
+			utils.Logger.Fatal(err)
 		}
 	}
 

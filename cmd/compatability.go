@@ -1,8 +1,9 @@
 package cmd
 
 import (
+	"encoding/csv"
+	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
@@ -10,6 +11,12 @@ import (
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
 )
+
+var verbose bool
+
+func init() {
+	compatabilityCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Include full compatability JSON as 4th column in CSV output. Default is just hostname, href, and green/yellow/red status.")
+}
 
 // TrafficCmd runs the workload identifier
 var compatabilityCmd = &cobra.Command{
@@ -21,7 +28,7 @@ Generate a compatability report for all Idle workloads.`,
 
 		pce, err := utils.GetPCE("pce.json")
 		if err != nil {
-			log.Fatalf("Error getting PCE for traffic command - %s", err)
+			utils.Logger.Fatalf("[ERROR] - getting PCE - %s", err)
 		}
 
 		compatabilityReport(pce)
@@ -30,21 +37,22 @@ Generate a compatability report for all Idle workloads.`,
 
 func compatabilityReport(pce illumioapi.PCE) {
 
-	// Create output file
-	timestamp := time.Now().Format("20060102_150405")
-	defaultFile, err := os.Create("compatability-report-" + timestamp + ".csv")
-	if err != nil {
-		log.Fatalf("ERROR - Creating file - %s\n", err)
-	}
-	defer defaultFile.Close()
+	// Log command
+	utils.Logger.Println("[INFO] - running compatability command.")
 
-	// Print headers
-	fmt.Fprintf(defaultFile, "hostname,href,status\r\n")
+	// Start the data slice with the headers. We will append data to this.
+	var data [][]string
+	if verbose {
+		data = append(data, []string{"hostname", "href", "status", "raw_data"})
+	} else {
+		data = append(data, []string{"hostname", "href", "status"})
+	}
 
 	// Get all workloads
 	wklds, _, err := illumioapi.GetAllWorkloads(pce)
 	if err != nil {
-		log.Fatalf("ERROR - get all workloads - %s", err)
+		fmt.Println("Error - see workloader.log")
+		utils.Logger.Fatalf("[ERROR] - get all workloads - %s", err)
 	}
 
 	// Iterate through each workload
@@ -58,11 +66,49 @@ func compatabilityReport(pce illumioapi.PCE) {
 		// Get the compatability report and append
 		cr, _, err := illumioapi.GetCompatabilityReport(pce, w)
 		if err != nil {
-			log.Fatalf("ERROR - getting compatability report for %s (%s) - %s", w.Hostname, w.Href, err)
+			utils.Logger.Fatalf("[ERROR] - getting compatability report for %s (%s) - %s", w.Hostname, w.Href, err)
+		}
+
+		jsonBytes, err := json.Marshal(cr)
+		if err != nil {
+			fmt.Println("Error - see workloader.log")
+			utils.Logger.Fatalf("[ERROR] - marshaling JSON - %s", err)
 		}
 
 		// Write result
-		fmt.Fprintf(defaultFile, "%s,%s,%s\r\n", w.Hostname, w.Href, cr.QualifyStatus)
+		if verbose {
+			data = append(data, []string{w.Hostname, w.Href, cr.QualifyStatus, string(jsonBytes)})
+		} else {
+			data = append(data, []string{w.Hostname, w.Href, cr.QualifyStatus})
+		}
+	}
+
+	// If the CSV data has more than just the headers, create output file and write it.
+	if len(data) > 1 {
+
+		// Create output file
+		timestamp := time.Now().Format("20060102_150405")
+		outFile, err := os.Create("compatability-report-" + timestamp + ".csv")
+
+		if err != nil {
+			utils.Logger.Fatalf("[ERROR] - Creating file - %s\n", err)
+		}
+
+		// Write CSV data
+		writer := csv.NewWriter(outFile)
+		writer.WriteAll(data)
+		if err := writer.Error(); err != nil {
+			utils.Logger.Fatalf("[ERROR] - writing csv - %s", err)
+		}
+
+		// Output status terminal
+		fmt.Printf("Compatability report generated for %d idle workloads - see %s.\r\n", len(data)-1, outFile.Name())
+
+		// Close the file
+		outFile.Close()
+	} else {
+		fmt.Println("No workloads with compatability report.")
+		utils.Logger.Println("[INFO] - no workloads with compatability report.")
 	}
 
 }

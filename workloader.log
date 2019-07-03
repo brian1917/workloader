@@ -1,0 +1,9 @@
+[INFO] - running mode command
+[INFO] - Log only mode set to false
+[INFO] - Required Change - hostC - Current state: idle - Desired state: build
+[INFO] - Required Change - hostB - Current state: idle - Desired state: build
+[INFO] - API Responses:
+[{"href":"/orgs/1/workloads/d1e6266c-0b07-4b6e-b68f-c3f2386bdf08","status":"updated"},{"href":"/orgs/1/workloads/721d1621-31a6-40a0-a0cb-1e4b1c051210","status":"updated"}]
+[INFO] - running compatability command.
+[INFO] - running compatability command.
+[INFO] - running compatability command.

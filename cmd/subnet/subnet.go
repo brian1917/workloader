@@ -1,7 +1,6 @@
 package subnet
 
 import (
-	"log"
 	"net"
 
 	"github.com/brian1917/illumioapi"
@@ -24,11 +23,6 @@ func init() {
 	SubnetCmd.Flags().IntVarP(&locCol, "loc", "l", 3, "Column number with new loc label.")
 
 	SubnetCmd.Flags().SortFlags = false
-
-	pce, err = utils.GetPCE("pce.json")
-	if err != nil {
-		log.Fatalf("Error getting PCE for traffic command - %s", err)
-	}
 
 }
 
@@ -60,6 +54,11 @@ using the appropriate flags. Example default:
 +----------------+------+-----+`,
 	Run: func(cmd *cobra.Command, args []string) {
 
+		pce, err = utils.GetPCE("pce.json")
+		if err != nil {
+			utils.Logger.Fatalf("Error getting PCE for subnet command - %s", err)
+		}
+
 		subnetParser()
 	},
 }
@@ -77,7 +76,7 @@ func subnetParser() {
 	// GetAllWorkloads
 	wklds, _, err := illumioapi.GetAllWorkloads(pce)
 	if err != nil {
-		log.Fatalf("Error getting all workloads - %s", err)
+		utils.Logger.Fatalf("Error getting all workloads - %s", err)
 	}
 	wkldMap := make(map[string]illumioapi.Workload)
 	for _, w := range wklds {
@@ -87,7 +86,7 @@ func subnetParser() {
 	// GetAllLabels
 	labels, _, err := illumioapi.GetAllLabels(pce)
 	if err != nil {
-		log.Fatalf("Error getting all labels - %s", err)
+		utils.Logger.Fatalf("Error getting all labels - %s", err)
 	}
 	labelMap := make(map[string]illumioapi.Label)
 	for _, l := range labels {
@@ -131,10 +130,10 @@ func subnetParser() {
 		if auto {
 			api, err := illumioapi.BulkWorkload(pce, updatedWklds, "update")
 			if err != nil {
-				log.Printf("ERROR - bulk updating workloads - %s\r\n", err)
+				utils.Logger.Printf("ERROR - bulk updating workloads - %s\r\n", err)
 			}
 			for _, a := range api {
-				log.Println(a.RespBody)
+				utils.Logger.Println(a.RespBody)
 			}
 		}
 	}

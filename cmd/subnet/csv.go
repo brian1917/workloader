@@ -5,12 +5,12 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
 	"time"
 
 	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/workloader/utils"
 )
 
 // A subnet is extracted from the CSV and has an assoicated location and environment
@@ -27,7 +27,7 @@ func locParser(csvFile string, netCol, envCol, locCol int) []subnet {
 	// Open CSV File
 	file, err := os.Open(csvFile)
 	if err != nil {
-		log.Fatalf("Error opening CSV - %s", err)
+		utils.Logger.Fatalf("Error opening CSV - %s", err)
 	}
 	defer file.Close()
 	reader := csv.NewReader(bufio.NewReader(file))
@@ -46,7 +46,7 @@ func locParser(csvFile string, netCol, envCol, locCol int) []subnet {
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			log.Fatalf("Error - reading CSV file - %s", err)
+			utils.Logger.Fatalf("Error - reading CSV file - %s", err)
 		}
 
 		// Skipe the header row
@@ -56,13 +56,13 @@ func locParser(csvFile string, netCol, envCol, locCol int) []subnet {
 
 		//make sure location label not empty
 		if line[locCol] == "" {
-			log.Fatal("Error - Label field cannot be empty")
+			utils.Logger.Fatal("Error - Label field cannot be empty")
 		}
 
 		//Place subnet into net.IPNet data structure as part of subnetLabel struct
 		_, network, err := net.ParseCIDR(line[netCol])
 		if err != nil {
-			log.Fatal("Error - The Subnet field cannot be parsed.  The format is 10.10.10.0/24")
+			utils.Logger.Fatal("Error - The Subnet field cannot be parsed.  The format is 10.10.10.0/24")
 		}
 
 		//Set struct values
@@ -75,7 +75,7 @@ func csvWriter(pce illumioapi.PCE, matches []match) {
 	// Get all the labels again so we have a map
 	labels, _, err := illumioapi.GetAllLabels(pce)
 	if err != nil {
-		log.Fatalf("ERROR - Getting all labes in - %s", err)
+		utils.Logger.Fatalf("ERROR - Getting all labes in - %s", err)
 	}
 	labelMap := make(map[string]illumioapi.Label)
 	for _, l := range labels {
@@ -88,7 +88,7 @@ func csvWriter(pce illumioapi.PCE, matches []match) {
 	// Always create the default file
 	outputFile, err := os.Create("subnet-output-" + timestamp + ".csv")
 	if err != nil {
-		log.Fatalf("ERROR - Creating file - %s\n", err)
+		utils.Logger.Fatalf("ERROR - Creating file - %s\n", err)
 	}
 	defer outputFile.Close()
 

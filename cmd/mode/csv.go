@@ -3,9 +3,11 @@ package mode
 import (
 	"bufio"
 	"encoding/csv"
+	"fmt"
 	"io"
-	"log"
 	"os"
+
+	"github.com/brian1917/workloader/utils"
 )
 
 type target struct {
@@ -14,12 +16,16 @@ type target struct {
 }
 
 func parseCsv(filename string) []target {
+	// Adjust the columns so first column is really 0
+	hrefCol = hrefCol - 1
+	desiredStateCol = desiredStateCol - 1
+
 	var targets []target
 
 	// Open CSV File
 	file, err := os.Open(filename)
 	if err != nil {
-		log.Fatalf("ERROR - opening CSV - %s", err)
+		utils.Logger.Fatalf("[ERROR] - opening CSV - %s", err)
 	}
 	defer file.Close()
 
@@ -39,7 +45,8 @@ func parseCsv(filename string) []target {
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			log.Fatalf("ERROR - reading CSV file - %s", err)
+			fmt.Println("Error - see workloader.log file")
+			utils.Logger.Fatalf("[ERROR] - reading CSV file - %s", err)
 		}
 
 		// Skipe the header row
@@ -48,10 +55,11 @@ func parseCsv(filename string) []target {
 		}
 
 		// Append to our array
-		if line[1] != "idle" && line[1] != "build" && line[1] != "test" && line[1] != "enforced" {
-			log.Fatalf("ERROR - invalid mode on line %d", i)
+		if line[desiredStateCol] != "idle" && line[desiredStateCol] != "build" && line[desiredStateCol] != "test" && line[desiredStateCol] != "enforced" {
+			fmt.Println("Error - see workloader.log file")
+			utils.Logger.Fatalf("[ERROR] - invalid mode on line %d - %s not acceptable", i, line[desiredStateCol])
 		}
-		targets = append(targets, target{workloadHref: line[0], targetMode: line[1]})
+		targets = append(targets, target{workloadHref: line[hrefCol], targetMode: line[desiredStateCol]})
 	}
 
 	return targets

@@ -3,13 +3,13 @@ package hostname
 import (
 	"encoding/csv"
 	"fmt"
-	"log"
 	"os"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/workloader/utils"
 	"github.com/olekukonko/tablewriter"
 )
 
@@ -43,7 +43,7 @@ func ReadCSV(file string) [][]string {
 	defer csvfile.Close()
 
 	if err != nil {
-		log.Println(err)
+		utils.Logger.Println(err)
 		os.Exit(1)
 	}
 
@@ -52,7 +52,7 @@ func ReadCSV(file string) [][]string {
 
 	rawCSVdata, err := reader.ReadAll()
 	if err != nil {
-		log.Println(err)
+		utils.Logger.Println(err)
 		os.Exit(1)
 	}
 
@@ -65,18 +65,18 @@ func createLabels(pce illumioapi.PCE, tmplabel illumioapi.Label) illumioapi.Labe
 	newLabel, apiResp, err := illumioapi.CreateLabel(pce, tmplabel)
 
 	if conf.Logging.verbose == true {
-		log.Printf("DEBUG - Exact label does not exist for %s (%s). Creating new label... \r\n", tmplabel.Value, tmplabel.Key)
-		log.Printf("DEBUG - Create Label API HTTP Request: %s %v \r\n", apiResp.Request.Method, apiResp.Request.URL)
-		log.Printf("DEBUG - Create Label API HTTP Reqest Header: %+v \r\n", apiResp.Request.Header)
-		log.Printf("DEBUG - Create Label API HTTP Reqest Body: %+v \r\n", tmplabel)
-		log.Printf("DEBUG - Create Label API for %s (%s) Response Status Code: %d \r\n", tmplabel.Value, tmplabel.Key, apiResp.StatusCode)
-		log.Printf("DEBUG - Create Label API for %s (%s) Response Body: %s \r\n", tmplabel.Value, tmplabel.Key, apiResp.RespBody)
+		utils.Logger.Printf("DEBUG - Exact label does not exist for %s (%s). Creating new label... \r\n", tmplabel.Value, tmplabel.Key)
+		utils.Logger.Printf("DEBUG - Create Label API HTTP Request: %s %v \r\n", apiResp.Request.Method, apiResp.Request.URL)
+		utils.Logger.Printf("DEBUG - Create Label API HTTP Reqest Header: %+v \r\n", apiResp.Request.Header)
+		utils.Logger.Printf("DEBUG - Create Label API HTTP Reqest Body: %+v \r\n", tmplabel)
+		utils.Logger.Printf("DEBUG - Create Label API for %s (%s) Response Status Code: %d \r\n", tmplabel.Value, tmplabel.Key, apiResp.StatusCode)
+		utils.Logger.Printf("DEBUG - Create Label API for %s (%s) Response Body: %s \r\n", tmplabel.Value, tmplabel.Key, apiResp.RespBody)
 	}
 	if err != nil {
-		log.Printf("ERROR - %s", err)
+		utils.Logger.Printf("ERROR - %s", err)
 	}
 
-	log.Printf("INFO - CREATED LABEL %s (%s) with following HREF: %s", newLabel.Value, newLabel.Key, newLabel.Href)
+	utils.Logger.Printf("INFO - CREATED LABEL %s (%s) with following HREF: %s", newLabel.Value, newLabel.Key, newLabel.Href)
 
 	return newLabel
 }
@@ -90,7 +90,7 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 	var tmpwkld illumioapi.Workload
 
 	found := false
-	log.Printf("----------Check for Match--------")
+	utils.Logger.Printf("----------Check for Match--------")
 
 	for _, tmp := range r.regexdata {
 
@@ -103,7 +103,7 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 			match = tmpre.MatchString(wkld.Hostname)
 
 			//Provide the hostname, if we have a mtach, regex and replacement regex per label
-			log.Printf("%s - Match? %t - Using Regex: %s", wkld.Hostname, match, tmp.regex)
+			utils.Logger.Printf("%s - Match? %t - Using Regex: %s", wkld.Hostname, match, tmp.regex)
 			if match {
 				//stop searching regex for a match if one is already found
 				found = true
@@ -128,7 +128,7 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 
 						//add Key, Value and if available the Href.  Without Href we can skip if user doesnt want to new labels.
 						if lbls[label+"."+tmpstr] != "" {
-							//log.Printf("INFO - Find HREF %s %s (%s)", label, tmpstr, lbls[label+"."+tmpstr])
+							//utils.Logger.Printf("INFO - Find HREF %s %s (%s)", label, tmpstr, lbls[label+"."+tmpstr])
 							tmplabel = illumioapi.Label{Href: lbls[label+"."+tmpstr], Key: label, Value: tmpstr}
 						} else {
 
@@ -176,8 +176,8 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 				//Get the original labels and new labels to show the changes.
 				orgRole, orgApp, orgEnv, orgLoc := labelvalues(wkld.Labels)
 				role, app, env, loc := labelvalues(tmpwkld.Labels)
-				log.Printf("%s - Replacement Regex: %+v - Labels: %s - %s - %s - %s", wkld.Hostname, tmp.labelcg, role, app, env, loc)
-				log.Printf("%s - Current Labels: %s, %s, %s, %s Replaced with: %s, %s, %s, %s", tmpwkld.Hostname, orgRole, orgApp, orgEnv, orgLoc, role, app, env, loc)
+				utils.Logger.Printf("%s - Replacement Regex: %+v - Labels: %s - %s - %s - %s", wkld.Hostname, tmp.labelcg, role, app, env, loc)
+				utils.Logger.Printf("%s - Current Labels: %s, %s, %s, %s Replaced with: %s, %s, %s, %s", tmpwkld.Hostname, orgRole, orgApp, orgEnv, orgLoc, role, app, env, loc)
 			}
 		}
 	}
@@ -321,35 +321,18 @@ var conf config
 func hostnameParser() {
 
 	conf = parseConfig()
-	//Set timestamp for file usage.
 
-	//Setup Logging file
+	//Set timestamp for file usage.
 	timestamp := time.Now().Format("20060102_150405")
-	//fmt.Printf("%+v\r\n", config)
-	if len(conf.Logging.LogDirectory) > 0 && conf.Logging.LogDirectory[len(conf.Logging.LogDirectory)-1:] != string(os.PathSeparator) {
-		conf.Logging.LogDirectory = conf.Logging.LogDirectory + string(os.PathSeparator)
-	}
-	var logfile string
-	if conf.Logging.LogFile == "" {
-		logfile = conf.Logging.LogDirectory + "Illumio_Parser_Output_" + time.Now().Format("20060102_150405") + ".log"
-	} else {
-		logfile = conf.Logging.LogFile
-	}
-	f, err := os.OpenFile(logfile, os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer f.Close()
-	log.SetOutput(f)
 
 	// LOG THE MODE
-	log.Printf("INFO - Log only mode set to %t \r\n", conf.Logging.LogOnly)
-	log.Printf("INFO - Illumio and Log Settings NoPCE:%+v %+v\r\n", conf.Illumio.NoPCE, conf.Logging)
+	utils.Logger.Printf("INFO - hostparser - log only mode set to %t \r\n", conf.Logging.LogOnly)
+	utils.Logger.Printf("INFO - hostparser - Illumio and Log Settings NoPCE:%+v %+v\r\n", conf.Illumio.NoPCE, conf.Logging)
 
 	//Read the Regex Parsing CSV.   Format should be match Regex and replace regex per label {}
 	parserec := ReadCSV(conf.Parser.Parserfile)
 	if conf.Logging.verbose == true {
-		log.Printf("DEBUG - Open parser file - %s\r\n", conf.Parser.Parserfile)
+		utils.Logger.Printf("DEBUG - hostparser - open parser file - %s\r\n", conf.Parser.Parserfile)
 	}
 
 	var data regex
@@ -369,20 +352,20 @@ func hostnameParser() {
 		labels, apiResp, err := illumioapi.GetAllLabels(pce)
 		//fmt.Println(labelsAPI, apiResp, err)
 		if err != nil {
-			log.Fatal(err)
+			utils.Logger.Fatal(err)
 		}
 		if conf.Logging.verbose == true {
-			log.Printf("DEBUG - Get All Labels API HTTP Request: %s %v \r\n", apiResp.Request.Method, apiResp.Request.URL)
-			log.Printf("DEBUG - Get All Labels API HTTP Reqest Header: %v \r\n", apiResp.Request.Header)
-			log.Printf("DEBUG - Get All Labels API Response Status Code: %d \r\n", apiResp.StatusCode)
-			log.Printf("DEBUG - Get All Labels API Response Body: \r\n %s \r\n", apiResp.RespBody)
+			utils.Logger.Printf("DEBUG - Get All Labels API HTTP Request: %s %v \r\n", apiResp.Request.Method, apiResp.Request.URL)
+			utils.Logger.Printf("DEBUG - Get All Labels API HTTP Reqest Header: %v \r\n", apiResp.Request.Header)
+			utils.Logger.Printf("DEBUG - Get All Labels API Response Status Code: %d \r\n", apiResp.StatusCode)
+			utils.Logger.Printf("DEBUG - Get All Labels API Response Body: \r\n %s \r\n", apiResp.RespBody)
 		}
 		//create Label array with all the HRefs as value with label type and label key combined as the key "key.value"
 		for _, l := range labels {
 			lbls[l.Key+"."+l.Value] = l.Href
 		}
 		if conf.Logging.verbose == true {
-			log.Printf("DEBUG - Build Map of HREFs with a key that uses a label's type and value eg. 'type.value': %v \r\n", lbls)
+			utils.Logger.Printf("DEBUG - Build Map of HREFs with a key that uses a label's type and value eg. 'type.value': %v \r\n", lbls)
 
 		}
 
@@ -401,14 +384,14 @@ func hostnameParser() {
 		gatBulkupdateFile, err = os.Create("gat-bulk-umwls_" + timestamp + ".csv")
 	}
 	if err != nil {
-		log.Fatalf("ERROR - Creating file - %s\n", err)
+		utils.Logger.Fatalf("ERROR - Creating file - %s\n", err)
 	}
 	defer gatBulkupdateFile.Close()
 
 	if conf.Parser.HostnameFile != "" {
 		hostrec := ReadCSV(conf.Parser.HostnameFile)
 		if conf.Logging.verbose == true {
-			log.Printf("DEBUG - Skipping calls to PCE for workloads hostname and using CSV hostname file \r\n")
+			utils.Logger.Printf("DEBUG - Skipping calls to PCE for workloads hostname and using CSV hostname file \r\n")
 		}
 
 		for _, x := range hostrec {
@@ -428,13 +411,13 @@ func hostnameParser() {
 
 			workloads, apiResp, err := illumioapi.GetAllWorkloads(pce)
 			if conf.Logging.verbose == true {
-				log.Printf("DEBUG - Get All Workloads API HTTP Request: %s %v \r\n", apiResp.Request.Method, apiResp.Request.URL)
-				log.Printf("DEBUG - Get All Workloads API HTTP Reqest Header: %v \r\n", apiResp.Request.Header)
-				log.Printf("DEBUG - Get All Workloads API Response Status Code: %d \r\n", apiResp.StatusCode)
-				log.Printf("DEBUG - Get All Workloads API Response Body: \r\n %s \r\n", apiResp.RespBody)
+				utils.Logger.Printf("DEBUG - Get All Workloads API HTTP Request: %s %v \r\n", apiResp.Request.Method, apiResp.Request.URL)
+				utils.Logger.Printf("DEBUG - Get All Workloads API HTTP Reqest Header: %v \r\n", apiResp.Request.Header)
+				utils.Logger.Printf("DEBUG - Get All Workloads API Response Status Code: %d \r\n", apiResp.StatusCode)
+				utils.Logger.Printf("DEBUG - Get All Workloads API Response Body: \r\n %s \r\n", apiResp.RespBody)
 			}
 			if err != nil {
-				log.Fatal(err)
+				utils.Logger.Fatal(err)
 			}
 
 			//fmt.Printf("%+v\r\n", len(workloads))
@@ -512,7 +495,7 @@ func hostnameParser() {
 			// 	}
 			// }
 			if conf.Logging.verbose == true {
-				log.Printf("DEBUG - Both LogOnly is set to false and NoPCE is set to false - Creating Labels\r\n")
+				utils.Logger.Printf("DEBUG - Both LogOnly is set to false and NoPCE is set to false - Creating Labels\r\n")
 
 			}
 
@@ -527,21 +510,21 @@ func hostnameParser() {
 			//fmt.Println(apiResp, err)
 			for _, api := range apiResp {
 				if err != nil {
-					log.Fatal(err)
+					utils.Logger.Fatal(err)
 				}
 				if conf.Logging.verbose == true {
-					log.Printf("DEBUG - BulkUpdate Workloads API HTTP Request: %s %v \r\n", api.Request.Method, api.Request.URL)
-					log.Printf("DEBUG - BulkUpdate Workloads API HTTP Reqest Header: %v \r\n", api.Request.Header)
-					log.Printf("DEBUG - BulkUpdate Workloads API HTTP Body: %+v \r\n", alllabeledwrkld)
-					log.Printf("DEBUG - BulkUpdate Workloads Response Status Code: %d \r\n", api.StatusCode)
-					log.Printf("DEBUG - BulkUpdate Workloads API Response Body: \r\n %s \r\n", api.RespBody)
+					utils.Logger.Printf("DEBUG - BulkUpdate Workloads API HTTP Request: %s %v \r\n", api.Request.Method, api.Request.URL)
+					utils.Logger.Printf("DEBUG - BulkUpdate Workloads API HTTP Reqest Header: %v \r\n", api.Request.Header)
+					utils.Logger.Printf("DEBUG - BulkUpdate Workloads API HTTP Body: %+v \r\n", alllabeledwrkld)
+					utils.Logger.Printf("DEBUG - BulkUpdate Workloads Response Status Code: %d \r\n", api.StatusCode)
+					utils.Logger.Printf("DEBUG - BulkUpdate Workloads API Response Body: \r\n %s \r\n", api.RespBody)
 				}
 			}
 
 		}
 	} else {
 		if conf.Logging.verbose == true {
-			log.Printf("DEBUG - Workload Pre match prior to Regex found not Workloads\r\n")
+			utils.Logger.Printf("DEBUG - Workload Pre match prior to Regex found not Workloads\r\n")
 
 		}
 		fmt.Println("***** There were no hostnames that match in the 'parsefile'****")

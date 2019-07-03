@@ -1,7 +1,7 @@
 package mode
 
 import (
-	"log"
+	"fmt"
 
 	"github.com/brian1917/illumioapi"
 
@@ -19,17 +19,11 @@ var err error
 func init() {
 
 	ModeCmd.Flags().StringVarP(&hostFile, "input", "i", "", "Input CSV file.")
-	ModeCmd.Flags().IntVar(&hrefCol, "hrefCol", 1, "Column with HREF value. First column is 1.")
-	ModeCmd.Flags().IntVar(&desiredStateCol, "stateCol", 2, "Column with desired state value.")
-	ModeCmd.Flags().BoolVarP(&logOnly, "logonly", "l", false, "Will not make changes in PCE. Will log potential changes.")
-	ModeCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Verbose logging.")
-
+	ModeCmd.Flags().IntVar(&hrefCol, "hrefCol", 1, "Column number with href value. First column is 1.")
+	ModeCmd.Flags().IntVar(&desiredStateCol, "stateCol", 2, "Column number with desired state value.")
+	ModeCmd.Flags().BoolVarP(&logOnly, "logonly", "l", false, "Will not make changes in PCE.")
+	// ModeCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Verbose logging.")
 	ModeCmd.Flags().SortFlags = false
-
-	pce, err = utils.GetPCE("pce.json")
-	if err != nil {
-		log.Fatalf("Error getting PCE for traffic command - %s", err)
-	}
 
 }
 
@@ -38,7 +32,7 @@ var ModeCmd = &cobra.Command{
 	Use:   "mode",
 	Short: "Change the state of workloads based on a CSV input.",
 	Long: `
-Change a workload's state based on an input CSV with at least two columns: workload HREF and desired statestate.
+Change a workload's state based on an input CSV with at least two columns: workload href and desired state.
 
 The state must be either idle, build, test, or enforced.
 
@@ -52,8 +46,14 @@ An example is below:
 | /orgs/1/workloads/77d72edc-8734-4a5d-a01d-d055898e6ba1 | enforced |
 +--------------------------------------------------------+----------+
 
-If the CSV does not follow the default format (href in col 1 and state in col 2), use flags to specify columns.`,
+Use --hrefCol and --stateCol to specify the columns if not default (href=1, state=2). Additional columns will be ignored.`,
+
 	Run: func(cmd *cobra.Command, args []string) {
+		pce, err = utils.GetPCE("pce.json")
+		if err != nil {
+			fmt.Println("Error - see workloader.log file")
+			utils.Logger.Fatalf("[ERROR] - getting PCE for mode command - %s", err)
+		}
 
 		modeUpdate()
 	},

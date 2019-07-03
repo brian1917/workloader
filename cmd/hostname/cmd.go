@@ -1,8 +1,6 @@
 package hostname
 
 import (
-	"log"
-
 	"github.com/brian1917/illumioapi"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
@@ -29,11 +27,6 @@ func init() {
 	HostnameCmd.Flags().BoolVar(&logonly, "logonly", false, "Set to only log changes. Don't update the PCE.")
 	HostnameCmd.Flags().SortFlags = false
 
-	pce, err = utils.GetPCE("pce.json")
-	if err != nil {
-		log.Fatalf("[ERROR] - getting PCE for traffic command - %s", err)
-	}
-
 }
 
 // HostnameCmd runs the hostname parser
@@ -47,6 +40,11 @@ An input CSV specifics the regex functions to use to assign labels. An example i
 
 PLACEHOLDER FOR SAMPLE TABLE`,
 	Run: func(cmd *cobra.Command, args []string) {
+
+		pce, err = utils.GetPCE("pce.json")
+		if err != nil {
+			utils.Logger.Fatalf("[ERROR] - getting PCE for hostparser - %s", err)
+		}
 
 		hostnameParser()
 	},

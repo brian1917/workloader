@@ -2,8 +2,9 @@ package hostname
 
 import (
 	"fmt"
-	"os"
 	"time"
+
+	"github.com/brian1917/workloader/utils"
 )
 
 type config struct {
@@ -62,8 +63,8 @@ func parseConfig() config {
 			verbose:      debugLogging}}
 
 	if config.Illumio.NoPCE && config.Parser.HostnameFile == "" {
-		fmt.Printf("\r\nYou must use the CLI -hostfile option or configure HostfileName in the config file when not using PCE Data(no_pce=true)....r\n")
-		os.Exit(1)
+		fmt.Println("You must use the hostfile option when not using PCE Data(no_pce=true)")
+		utils.Logger.Fatalf("[ERROR] - hostparser - must use the hostfile option when not using PCE Data(no_pce=true)")
 	}
 
 	return config

@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"log"
-
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
 )
@@ -15,7 +13,7 @@ var flowCmd = &cobra.Command{
 
 		_, err := utils.GetPCE("pce.json")
 		if err != nil {
-			log.Fatalf("Error getting PCE for traffic command - %s", err)
+			utils.Logger.Fatalf("Error getting PCE for flow upload command - %s", err)
 		}
 	},
 }

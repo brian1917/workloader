@@ -2,30 +2,24 @@ package mode
 
 import (
 	"fmt"
-	"log"
-	"os"
-	"time"
 
 	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/workloader/utils"
 )
 
 func modeUpdate() {
 
-	// Setup logging file
-	f, err := os.OpenFile("Workloader-Mode-Log-"+time.Now().Format("20060102_150405")+".log", os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer f.Close()
-	log.SetOutput(f)
+	// Log start of execution
+	utils.Logger.Println("[INFO] - running mode command")
 
 	// Log the logonly mode
-	log.Printf("INFO - Log only mode set to %t", logOnly)
+	utils.Logger.Printf("[INFO] - Log only mode set to %t", logOnly)
 
 	// Get all managed workloads
 	wklds, _, err := illumioapi.GetAllWorkloads(pce)
 	if err != nil {
-		log.Fatalf("ERROR - getting all workloads - %s", err)
+		fmt.Println("Error - see workloader.log file")
+		utils.Logger.Fatalf("[ERROR] - getting all workloads - %s", err)
 	}
 
 	// Build a map of all managed workloads
@@ -56,14 +50,13 @@ func modeUpdate() {
 		// Check if the current mode is NOT the target mode
 		if mode != t.targetMode {
 			// Log the change is needed
-			log.Printf("INFO - Required Change - %s - Current state: %s - Desired state: %s\r\n", managedWklds[t.workloadHref].Hostname, mode, t.targetMode)
+			utils.Logger.Printf("[INFO] - Required Change - %s - Current state: %s - Desired state: %s\r\n", managedWklds[t.workloadHref].Hostname, mode, t.targetMode)
 
 			// Copy workload with the right target mode and append to slice
 			w := managedWklds[t.workloadHref]
 			if t.targetMode == "build" {
 				w.Agent.Config.Mode = "illuminated"
 				w.Agent.Config.LogTraffic = false
-				fmt.Println("set to false")
 			} else if t.targetMode == "test" {
 				w.Agent.Config.Mode = "illuminated"
 				w.Agent.Config.LogTraffic = true
@@ -74,15 +67,22 @@ func modeUpdate() {
 		}
 	}
 
+	// Print number requiring updates to the terminal
+	fmt.Printf("%d workloads requiring state update. See workloader.log for details.\r\n", len(workloadUpdates))
+
 	// Bulk update the workloads if we have some
 	if len(workloadUpdates) > 0 && !logOnly {
 		api, err := illumioapi.BulkWorkload(pce, workloadUpdates, "update")
 		if err != nil {
-			log.Fatalf("ERROR - running bulk update - %s", err)
+			fmt.Println("Error - see workloader.log file")
+			utils.Logger.Fatalf("[ERROR] - running bulk update - %s", err)
 		}
-		log.Println("INFO - API Responses:")
+		utils.Logger.Println("[INFO] - API Responses:")
 		for _, a := range api {
-			log.Printf(a.RespBody)
+			utils.Logger.Printf(a.RespBody)
 		}
 	}
+
+	// Print completion to the terminal
+	fmt.Printf("%d workloads updated. See workloader.log for details.\r\n", len(workloadUpdates))
 }

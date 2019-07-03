@@ -31,7 +31,6 @@ func init() {
 
 	// Available commands
 	rootCmd.AddCommand(loginCmd)
-	// rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(csvCmd)
 	rootCmd.AddCommand(traffic.TrafficCmd)
 	rootCmd.AddCommand(subnet.SubnetCmd)

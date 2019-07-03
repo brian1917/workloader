@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strings"
 
@@ -64,7 +63,7 @@ Additional columns are allowed and will be ignored.
 
 		pce, err = utils.GetPCE("pce.json")
 		if err != nil {
-			log.Fatalf("Error getting PCE for traffic command - %s", err)
+			utils.Logger.Fatalf("Error getting PCE for csv command - %s", err)
 		}
 
 		processCSV()
@@ -90,7 +89,7 @@ func checkLabel(label illumioapi.Label, labelMap map[string]illumioapi.Label) (i
 		return illumioapi.Label{}, err
 	}
 	logJSON, _ := json.Marshal(illumioapi.Label{Href: l.Href, Key: label.Key, Value: label.Value})
-	log.Printf("INFO - Created Label - %s", string(logJSON))
+	utils.Logger.Printf("INFO - Created Label - %s", string(logJSON))
 
 	// Append the label back to the map
 	labelMap[l.Key+l.Value] = l
@@ -103,7 +102,7 @@ func processCSV() {
 	// Open CSV File
 	file, err := os.Open(csvFile)
 	if err != nil {
-		log.Fatalf("Error opening CSV - %s", err)
+		utils.Logger.Fatalf("Error opening CSV - %s", err)
 	}
 	defer file.Close()
 
@@ -112,7 +111,7 @@ func processCSV() {
 	// GetAllWorkloads
 	wklds, _, err := illumioapi.GetAllWorkloads(pce)
 	if err != nil {
-		log.Fatalf("Error getting all workloads - %s", err)
+		utils.Logger.Fatalf("Error getting all workloads - %s", err)
 	}
 	wkldMap := make(map[string]illumioapi.Workload)
 	for _, w := range wklds {
@@ -122,7 +121,7 @@ func processCSV() {
 	// GetAllLabels
 	labels, _, err := illumioapi.GetAllLabels(pce)
 	if err != nil {
-		log.Fatalf("Error getting all labels - %s", err)
+		utils.Logger.Fatalf("Error getting all labels - %s", err)
 	}
 	labelMap := make(map[string]illumioapi.Label)
 	for _, l := range labels {
@@ -147,7 +146,7 @@ func processCSV() {
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			log.Fatalf("Error - reading CSV file - %s", err)
+			utils.Logger.Fatalf("Error - reading CSV file - %s", err)
 		}
 
 		// Skipe the header row
@@ -166,7 +165,7 @@ func processCSV() {
 				for _, n := range nic {
 					x := strings.Split(n, ":")
 					if len(x) != 2 {
-						log.Fatalf("ERROR - CSV line %d - Interface not provided in proper format. Example of proper format is eth1:192.168.100.20", i)
+						utils.Logger.Fatalf("ERROR - CSV line %d - Interface not provided in proper format. Example of proper format is eth1:192.168.100.20", i)
 					}
 					netInterfaces = append(netInterfaces, &illumioapi.Interface{Name: x[0], Address: x[1]})
 				}
@@ -182,7 +181,7 @@ func processCSV() {
 					// Get the label HREF
 					l, err := checkLabel(illumioapi.Label{Key: keys[i], Value: line[columns[i]]}, labelMap)
 					if err != nil {
-						log.Fatal(err)
+						utils.Logger.Fatal(err)
 					}
 					// Add that label to the new labels slice
 					labels = append(labels, &illumioapi.Label{Href: l.Href})
@@ -196,7 +195,7 @@ func processCSV() {
 
 				// If umwl flag is not set, log the entry
 			} else {
-				log.Printf("INFO - %s is not a workload. Include umwl flag to create it. Nothing done.", line[hostCol])
+				utils.Logger.Printf("INFO - %s is not a workload. Include umwl flag to create it. Nothing done.", line[hostCol])
 				continue
 			}
 		}
@@ -233,7 +232,7 @@ func processCSV() {
 				// Get the label HREF
 				l, err := checkLabel(illumioapi.Label{Key: keys[i], Value: line[columns[i]]}, labelMap)
 				if err != nil {
-					log.Fatal(err)
+					utils.Logger.Fatal(err)
 				}
 				// Add that label to the new labels slice
 				newLabels = append(newLabels, &illumioapi.Label{Href: l.Href})
@@ -255,10 +254,10 @@ func processCSV() {
 	if len(updatedWklds) > 0 {
 		api, err := illumioapi.BulkWorkload(pce, updatedWklds, "update")
 		if err != nil {
-			log.Printf("ERROR - bulk updating workloads - %s\r\n", err)
+			utils.Logger.Printf("ERROR - bulk updating workloads - %s\r\n", err)
 		}
 		for _, a := range api {
-			log.Println(a.RespBody)
+			utils.Logger.Println(a.RespBody)
 		}
 	}
 
@@ -266,10 +265,10 @@ func processCSV() {
 	if len(newUMWLs) > 0 {
 		api, err := illumioapi.BulkWorkload(pce, newUMWLs, "create")
 		if err != nil {
-			log.Printf("ERROR - bulk creating workloads - %s\r\n", err)
+			utils.Logger.Printf("ERROR - bulk creating workloads - %s\r\n", err)
 		}
 		for _, a := range api {
-			log.Println(a.RespBody)
+			utils.Logger.Println(a.RespBody)
 		}
 	}
 }

@@ -3,7 +3,6 @@ package traffic
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"strings"
 	"time"
@@ -105,13 +104,19 @@ func hostname(ipAddr string, t int) string {
 	return hostname
 }
 
+var csvFile, app, consExcl string
+var lookupTO int
+var privOnly, exclWLs bool
+var pce illumioapi.PCE
+var err error
+
 func init() {
-	TrafficCmd.Flags().StringP("in", "i", "workload-identifier-default.csv", "csv file with defined service matching criteria")
-	TrafficCmd.Flags().IntP("time", "t", 1000, "timeout to lookup hostname in ms. 0 will skip hostname lookups.")
-	TrafficCmd.Flags().StringP("app", "a", "", "app name to limit Explorer results to flows with that app as a provider or consumer. default is all apps")
-	TrafficCmd.Flags().StringP("exclConsumer", "e", "", "label to exclude as a consumer role")
-	TrafficCmd.Flags().BoolP("exclPubIPs", "p", false, "exclude public IP addresses and limit suggested workloads to the RFC 1918 address space")
-	TrafficCmd.Flags().BoolP("exclWklds", "w", false, "exclude IP addresses already assigned to workloads to suggest or verify labels")
+	TrafficCmd.Flags().StringVarP(&csvFile, "in", "i", "workload-identifier-default.csv", "csv file with defined service matching criteria")
+	TrafficCmd.Flags().IntVarP(&lookupTO, "time", "t", 1000, "timeout to lookup hostname in ms. 0 will skip hostname lookups.")
+	TrafficCmd.Flags().StringVarP(&app, "app", "a", "", "app name to limit Explorer results to flows with that app as a provider or consumer. default is all apps")
+	TrafficCmd.Flags().StringVarP(&consExcl, "exclConsumer", "e", "", "label to exclude as a consumer role")
+	TrafficCmd.Flags().BoolVarP(&privOnly, "exclPubIPs", "p", false, "exclude public IP addresses and limit suggested workloads to the RFC 1918 address space")
+	TrafficCmd.Flags().BoolVarP(&exclWLs, "exclWklds", "w", false, "exclude IP addresses already assigned to workloads to suggest or verify labels")
 
 	TrafficCmd.Flags().SortFlags = false
 
@@ -127,24 +132,18 @@ Find and label unmanaged workloads and label existing workloads based on Explore
 Use workloader csv to upload to PCE after review.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		csvFile, _ := cmd.Flags().GetString("in")
-		lookupTO, _ := cmd.Flags().GetInt("time")
-		app, _ := cmd.Flags().GetString("app")
-		consExcl, _ := cmd.Flags().GetString("exclConsumer")
-		exclWLs, _ := cmd.Flags().GetBool("exclWklds")
-		privOnly, _ := cmd.Flags().GetBool("exclPubIPs")
-
-		pce, err := utils.GetPCE("pce.json")
+		pce, err = utils.GetPCE("pce.json")
 		if err != nil {
-			log.Fatalf("Error getting PCE for traffic command - %s", err)
+			utils.Logger.Fatalf("Error getting PCE for traffic command - %s", err)
 		}
 
-		workloadIdentifier(pce, csvFile, lookupTO, app, consExcl, exclWLs, privOnly)
+		workloadIdentifier()
 	},
 }
 
-func workloadIdentifier(pce illumioapi.PCE, csvFile string, lookupTO int, app, consExcl string, exclWLs, privOnly bool) {
+func workloadIdentifier() {
 
+	utils.Logger.Println("logging from traffic")
 	// Parse the iunput CSVs
 	coreServices := csvParser(csvFile)
 
@@ -152,7 +151,7 @@ func workloadIdentifier(pce illumioapi.PCE, csvFile string, lookupTO int, app, c
 	allIPWLs := make(map[string]illumioapi.Workload)
 	wls, _, err := illumioapi.GetAllWorkloads(pce)
 	if err != nil {
-		log.Fatalf("ERROR - getting all workloads - %s", err)
+		utils.Logger.Fatalf("ERROR - getting all workloads - %s", err)
 	}
 	for _, wl := range wls {
 		for _, iface := range wl.Interfaces {
@@ -167,7 +166,7 @@ func workloadIdentifier(pce illumioapi.PCE, csvFile string, lookupTO int, app, c
 	// Get all labels and create label map
 	labels, _, err := illumioapi.GetAllLabels(pce)
 	if err != nil {
-		log.Fatalf("ERROR - getting all workloads - %s", err)
+		utils.Logger.Fatalf("ERROR - getting all workloads - %s", err)
 	}
 	allLabels := make(map[string]illumioapi.Label)
 	for _, l := range labels {
@@ -179,10 +178,10 @@ func workloadIdentifier(pce illumioapi.PCE, csvFile string, lookupTO int, app, c
 	if len(consExcl) > 0 {
 		exclLabel, _, err = illumioapi.GetLabelbyKeyValue(pce, "role", consExcl)
 		if err != nil {
-			log.Fatalf("ERROR - Getting label HREF - %s", err)
+			utils.Logger.Fatalf("ERROR - Getting label HREF - %s", err)
 		}
 		if exclLabel.Href == "" {
-			log.Fatalf("ERROR- %s does not exist as an role label.", consExcl)
+			utils.Logger.Fatalf("ERROR- %s does not exist as an role label.", consExcl)
 		}
 	}
 
@@ -198,10 +197,10 @@ func workloadIdentifier(pce illumioapi.PCE, csvFile string, lookupTO int, app, c
 	if app != "" {
 		label, _, err := illumioapi.GetLabelbyKeyValue(pce, "app", app)
 		if err != nil {
-			log.Fatalf("ERROR - Getting label HREF - %s", err)
+			utils.Logger.Fatalf("ERROR - Getting label HREF - %s", err)
 		}
 		if label.Href == "" {
-			log.Fatalf("ERROR- %s does not exist as an app label.", app)
+			utils.Logger.Fatalf("ERROR- %s does not exist as an app label.", app)
 		}
 		tq.SourcesInclude = []string{label.Href}
 	}
@@ -209,7 +208,7 @@ func workloadIdentifier(pce illumioapi.PCE, csvFile string, lookupTO int, app, c
 	// Run traffic query
 	traffic, _, err := illumioapi.GetTrafficAnalysis(pce, tq)
 	if err != nil {
-		log.Fatalf("ERROR - Making explorer API call - %s", err)
+		utils.Logger.Fatalf("ERROR - Making explorer API call - %s", err)
 	}
 
 	// If app is provided, switch to the destination include, clear the sources include, run query again, append to previous result
@@ -219,7 +218,7 @@ func workloadIdentifier(pce illumioapi.PCE, csvFile string, lookupTO int, app, c
 
 		traffic2, _, err := illumioapi.GetTrafficAnalysis(pce, tq)
 		if err != nil {
-			log.Fatalf("ERROR - Making second explorer API call - %s", err)
+			utils.Logger.Fatalf("ERROR - Making second explorer API call - %s", err)
 		}
 		traffic = append(traffic, traffic2...)
 	}
