@@ -99,6 +99,14 @@ func checkLabel(label illumioapi.Label, labelMap map[string]illumioapi.Label) (i
 
 func processCSV() {
 
+	// Adjust columns
+	hostCol := hostCol - 1
+	roleCol := roleCol - 1
+	appCol := appCol - 1
+	envCol := envCol - 1
+	locCol := locCol - 1
+	intCol := intCol - 1
+
 	// Open CSV File
 	file, err := os.Open(csvFile)
 	if err != nil {

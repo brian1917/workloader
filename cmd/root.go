@@ -37,6 +37,7 @@ func init() {
 	RootCmd.AddCommand(hostname.HostnameCmd)
 	RootCmd.AddCommand(compatibilityCmd)
 	RootCmd.AddCommand(mode.ModeCmd)
+	RootCmd.AddCommand(exportCmd)
 
 	// Hidden Commands
 	showHidden, _ := strconv.ParseBool(strings.ToLower(os.Getenv("ILLUMIO_ALL")))
