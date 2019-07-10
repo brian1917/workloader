@@ -19,7 +19,7 @@ var cfgFile, projectBase, userLicense string
 // RootCmd calls the CLI
 var RootCmd = &cobra.Command{
 	Use:   "workloader",
-	Short: "Workloader is a tool that helps discover, label, and manage workloads in an Illumio PCE.Test.",
+	Short: "Workloader is a tool that helps discover, label, and manage workloads in an Illumio PCE.",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Placeholder if we want logic in initial command
 	},
