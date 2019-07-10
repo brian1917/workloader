@@ -37,7 +37,13 @@ func exportWorkloads() {
 	// GetAllWorkloads
 	wklds, _, err := illumioapi.GetAllWorkloads(pce)
 	if err != nil {
-		utils.Logger.Fatalf("Error getting all workloads - %s", err)
+		utils.Log(1, fmt.Sprintf("getting all workloads - %s", err))
+	}
+
+	// Get LabelMap
+	labelMap, err := illumioapi.GetLabelMapH(pce)
+	if err != nil {
+		utils.Log(1, fmt.Sprintf("getting label map - %s", err))
 	}
 
 	for _, w := range wklds {
@@ -74,7 +80,7 @@ func exportWorkloads() {
 		}
 
 		// Append to data slice
-		data = append(data, []string{w.Hostname, w.Name, w.Href, strconv.FormatBool(w.Online), w.OsID, w.Role.Value, w.App.Value, w.Env.Value, w.Loc.Value, status, strings.Join(interfaces, ";"), w.PublicIP, venVersion})
+		data = append(data, []string{w.Hostname, w.Name, w.Href, strconv.FormatBool(w.Online), w.OsID, w.GetRole(labelMap).Value, w.GetApp(labelMap).Value, w.GetEnv(labelMap).Value, w.GetLoc(labelMap).Value, status, strings.Join(interfaces, ";"), w.PublicIP, venVersion})
 	}
 
 	if len(data) > 1 {

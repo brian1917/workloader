@@ -36,6 +36,14 @@ func init() {
 
 	csvCmd.Flags().SortFlags = false
 
+	// Adjust the columns by one
+	hostCol--
+	roleCol--
+	appCol--
+	envCol--
+	locCol--
+	intCol--
+
 }
 
 // TrafficCmd runs the workload identifier
@@ -99,18 +107,13 @@ func checkLabel(label illumioapi.Label, labelMap map[string]illumioapi.Label) (i
 
 func processCSV() {
 
-	// Adjust columns
-	hostCol := hostCol - 1
-	roleCol := roleCol - 1
-	appCol := appCol - 1
-	envCol := envCol - 1
-	locCol := locCol - 1
-	intCol := intCol - 1
+	// Log start of the command
+	utils.Log(0, "started CSV command")
 
 	// Open CSV File
 	file, err := os.Open(csvFile)
 	if err != nil {
-		utils.Logger.Fatalf("Error opening CSV - %s", err)
+		utils.Log(1, fmt.Sprintf("opening CSV - %s", err))
 	}
 	defer file.Close()
 
@@ -119,7 +122,7 @@ func processCSV() {
 	// GetAllWorkloads
 	wklds, _, err := illumioapi.GetAllWorkloads(pce)
 	if err != nil {
-		utils.Logger.Fatalf("Error getting all workloads - %s", err)
+		utils.Log(1, fmt.Sprintf("getting all workloads - %s", err))
 	}
 	wkldMap := make(map[string]illumioapi.Workload)
 	for _, w := range wklds {
@@ -129,7 +132,7 @@ func processCSV() {
 	// GetAllLabels
 	labels, _, err := illumioapi.GetAllLabels(pce)
 	if err != nil {
-		utils.Logger.Fatalf("Error getting all labels - %s", err)
+		utils.Logger.Fatalf("[ERROR] - getting all labels - %s", err)
 	}
 	labelMap := make(map[string]illumioapi.Label)
 	for _, l := range labels {
@@ -154,7 +157,7 @@ func processCSV() {
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			utils.Logger.Fatalf("Error - reading CSV file - %s", err)
+			utils.Logger.Fatalf("[ERROR] - reading CSV file - %s", err)
 		}
 
 		// Skipe the header row
@@ -173,7 +176,7 @@ func processCSV() {
 				for _, n := range nic {
 					x := strings.Split(n, ":")
 					if len(x) != 2 {
-						utils.Logger.Fatalf("ERROR - CSV line %d - Interface not provided in proper format. Example of proper format is eth1:192.168.100.20", i)
+						utils.Logger.Fatalf("[ERROR] - CSV line %d - Interface not provided in proper format. Example of proper format is eth1:192.168.100.20", i)
 					}
 					netInterfaces = append(netInterfaces, &illumioapi.Interface{Name: x[0], Address: x[1]})
 				}
@@ -203,7 +206,7 @@ func processCSV() {
 
 				// If umwl flag is not set, log the entry
 			} else {
-				utils.Logger.Printf("INFO - %s is not a workload. Include umwl flag to create it. Nothing done.", line[hostCol])
+				utils.Logger.Printf("[INFO] - %s is not a workload. Include umwl flag to create it. Nothing done.", line[hostCol])
 				continue
 			}
 		}
@@ -216,7 +219,8 @@ func processCSV() {
 
 		// Set slices to iterate through the 4 keys
 		columns := []int{appCol, roleCol, envCol, locCol}
-		labels := []illumioapi.Label{wkldMap[line[hostCol]].App, wkldMap[line[hostCol]].Role, wkldMap[line[hostCol]].Env, wkldMap[line[hostCol]].Loc}
+		wkld := wkldMap[line[hostCol]] // Need this since can't perform pointer method on map element
+		labels := []illumioapi.Label{wkld.GetApp(labelMap), wkld.GetRole(labelMap), wkld.GetEnv(labelMap), wkld.GetLoc(labelMap)}
 		keys := []string{"app", "role", "env", "loc"}
 
 		// Cycle through each of the four keys
@@ -279,4 +283,7 @@ func processCSV() {
 			utils.Logger.Println(a.RespBody)
 		}
 	}
+
+	// Log end
+	utils.Logger.Println("[INFO] - completed running CSV command.")
 }

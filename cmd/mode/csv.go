@@ -17,8 +17,8 @@ type target struct {
 
 func parseCsv(filename string) []target {
 	// Adjust the columns so first column is really 0
-	hrefCol = hrefCol - 1
-	desiredStateCol = desiredStateCol - 1
+	hrefCol--
+	desiredStateCol--
 
 	var targets []target
 

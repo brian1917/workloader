@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/brian1917/workloader/cmd/compatibility"
 	"github.com/brian1917/workloader/cmd/hostname"
 	"github.com/brian1917/workloader/cmd/mode"
 	"github.com/brian1917/workloader/cmd/subnet"
@@ -15,6 +16,7 @@ import (
 
 var cfgFile, projectBase, userLicense string
 
+// RootCmd calls the CLI
 var RootCmd = &cobra.Command{
 	Use:   "workloader",
 	Short: "Workloader is a tool that helps discover, label, and manage workloads in an Illumio PCE.",
@@ -35,7 +37,7 @@ func init() {
 	RootCmd.AddCommand(traffic.TrafficCmd)
 	RootCmd.AddCommand(subnet.SubnetCmd)
 	RootCmd.AddCommand(hostname.HostnameCmd)
-	RootCmd.AddCommand(compatibilityCmd)
+	RootCmd.AddCommand(compatibility.CompatibilityCmd)
 	RootCmd.AddCommand(mode.ModeCmd)
 	RootCmd.AddCommand(exportCmd)
 

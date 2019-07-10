@@ -73,13 +73,10 @@ func locParser(csvFile string, netCol, envCol, locCol int) []subnet {
 
 func csvWriter(pce illumioapi.PCE, matches []match) {
 	// Get all the labels again so we have a map
-	labels, _, err := illumioapi.GetAllLabels(pce)
+
+	labelMap, err := illumioapi.GetLabelMapH(pce)
 	if err != nil {
-		utils.Logger.Fatalf("ERROR - Getting all labes in - %s", err)
-	}
-	labelMap := make(map[string]illumioapi.Label)
-	for _, l := range labels {
-		labelMap[l.Href] = l
+		utils.Log(1, fmt.Sprintf("getting label map - %s", err))
 	}
 
 	// Get time stamp for output files
@@ -95,9 +92,7 @@ func csvWriter(pce illumioapi.PCE, matches []match) {
 	fmt.Fprintf(outputFile, "hostname,ip_address,original_loc,original_env,new_loc,new_env\r\n")
 
 	for _, m := range matches {
-		// Update the workload label
-		m.workload.RefreshLabels(labelMap)
-		fmt.Fprintf(outputFile, "%s,%s,%s,%s,%s,%s\r\n", m.workload.Hostname, m.workload.Interfaces[0].Address, m.oldLoc, m.oldEnv, m.workload.Loc.Value, m.workload.Env.Value)
+		fmt.Fprintf(outputFile, "%s,%s,%s,%s,%s,%s\r\n", m.workload.Hostname, m.workload.Interfaces[0].Address, m.oldLoc, m.oldEnv, m.workload.GetLoc(labelMap).Value, m.workload.GetEnv(labelMap).Value)
 	}
 
 }

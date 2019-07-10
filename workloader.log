@@ -1,11 +1,14 @@
-[INFO] - running mode command
-[INFO] - Log only mode set to false
-[INFO] - Required Change - hostC - Current state: idle - Desired state: build
-[INFO] - Required Change - hostB - Current state: idle - Desired state: build
-[INFO] - API Responses:
-[{"href":"/orgs/1/workloads/d1e6266c-0b07-4b6e-b68f-c3f2386bdf08","status":"updated"},{"href":"/orgs/1/workloads/721d1621-31a6-40a0-a0cb-1e4b1c051210","status":"updated"}]
+[INFO] - running compatability command..
+[ERROR] - get all workloads - get all workloads - http status code of 401.
 [INFO] - running compatability command.
+[ERROR] - get all workloads - get all workloads - http status code of 401
 [INFO] - running compatability command.
-[INFO] - running compatability command.
-[INFO] - running compatibility command.
-[INFO] - running compatibility command.
+[ERROR] - get all workloads - http status code of 401
+2019-07-09 17:45:13[INFO] - running compatability command.
+2019-07-09 17:45:13[ERROR] - get all workloads - http status code of 401
+2019-07-09 17:46:25 [INFO] - running compatability command.
+2019-07-09 17:46:25 [INFO] - 5 seconds later
+2019-07-09 17:46:25 [ERROR] - get all workloads - http status code of 401
+2019-07-09 17:47:33 [INFO] - running compatability command.
+2019-07-09 17:47:38 [INFO] - 5 seconds later
+2019-07-09 17:47:38 [ERROR] - get all workloads - http status code of 401

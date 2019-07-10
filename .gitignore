@@ -5,4 +5,5 @@ pce.json
 *.log
 *.csv
 !workloader-identifier-default.csv
+_playground/*
 
