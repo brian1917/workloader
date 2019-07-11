@@ -69,7 +69,7 @@ Additional columns are allowed and will be ignored.
 +----------------+------+----------+------+-----+--------------------+`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE("pce.json")
+		pce, err = utils.GetPCE()
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for csv command - %s", err)
 		}

@@ -24,9 +24,9 @@ var ExportCmd = &cobra.Command{
 	Short: "Create a CSV export of all workloads in the PCE.",
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE("pce.json")
+		pce, err = utils.GetPCE()
 		if err != nil {
-			utils.Logger.Fatalf("Error getting PCE for export command - %s", err)
+			utils.Log(1, fmt.Sprintf("getting PCE for export command - %s", err))
 		}
 
 		exportWorkloads()

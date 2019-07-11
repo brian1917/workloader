@@ -40,7 +40,7 @@ Find and label unmanaged workloads and label existing workloads based on Explore
 Use workloader csv to upload to PCE after review.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE("pce.json")
+		pce, err = utils.GetPCE()
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for traffic command - %s", err)
 		}

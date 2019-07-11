@@ -51,7 +51,7 @@ An input CSV specifics the regex functions to use to assign labels. An example i
 PLACEHOLDER FOR SAMPLE TABLE`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE("pce.json")
+		pce, err = utils.GetPCE()
 		if err != nil {
 			utils.Logger.Fatalf("[ERROR] - getting PCE for hostparser - %s", err)
 		}
