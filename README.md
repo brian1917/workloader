@@ -9,7 +9,7 @@ Workloader is a tool that helps discover, label, and manage workloads in an Illu
 Run `go get github.com/brian1917/workloader` or to update `go get -u github.com/brian1917/workloader`. This will download the repo and depenendies and install in your Go path to start using.
 
 ### Don't have Go installed?
-Download the binary for your operating system from the `bin` folder of this repository. Direct links for each operating systems are here: [Mac](https://github.com/brian1917/workloader/raw/master/bin/workloader-mac), [Linux](https://github.com/brian1917/workloader/raw/master/bin/workloader-linux), and [Windows](https://github.com/brian1917/workloader/raw/master/bin/workloader-windows.exe). No other installation required.
+Download the binary for your operating system from the `bin` folder of this repository. Direct links for each operating systems are here: [Mac](https://github.com/brian1917/workloader/raw/master/bin/workloader-mac), [Linux](https://github.com/brian1917/workloader/raw/master/bin/workloader-linux), and [Windows](https://github.com/brian1917/workloader/raw/master/bin/workloader-win.exe). No other installation required.
 
 
 ## Usage
