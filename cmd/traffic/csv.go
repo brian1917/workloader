@@ -5,7 +5,6 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"sort"
 	"strconv"
@@ -31,64 +30,9 @@ type coreService struct {
 	role               string
 }
 
-//struct to save subnet to location and environment labels
-type subnetLabel struct {
-	network  net.IPNet
-	locLabel string
-	envLabel string
-}
+func parseCoreServices(filename string) []coreService {
 
-// used to parse subnet to environment and location labels
-func locParser(filename string) []subnetLabel {
-	var netlabel []subnetLabel
-
-	// column in the CSV
-	networks := 0
-	loclabel := 1
-	envlabel := 2
-
-	tmpFile, _ := os.Open(filename)
-	reader := csv.NewReader(bufio.NewReader(tmpFile))
-
-	i := 0
-	for {
-
-		i++
-		tmp := subnetLabel{}
-		line, err := reader.Read()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			utils.Logger.Fatalf("Error - Reading CSV File - %s", err)
-		}
-		//ignore CSV header
-		if i != 1 {
-
-			//make sure location label not empty
-			if line[loclabel] == "" {
-				utils.Logger.Fatal("Error - Label field cannot be empty")
-			}
-
-			//Place subnet into net.IPNet data structure as part of subnetLabel struct
-			_, network, err := net.ParseCIDR(line[networks])
-			if err != nil {
-				utils.Logger.Fatal("Error - The Subnet field cannot be parsed.  The format is 10.10.10.0/24")
-			}
-
-			//Set struct values
-			tmp.network = *network
-			tmp.envLabel = line[envlabel]
-			tmp.locLabel = line[loclabel]
-			netlabel = append(netlabel, tmp)
-		}
-
-	}
-	return netlabel
-}
-
-func csvParser(filename string) []coreService {
-
-	// Set CSV columns here to avoid changing multiple locations
+	// Set CSV columns
 	csvName := 0
 	csvProvider := 1
 	csvReqPorts := 2
@@ -102,6 +46,7 @@ func csvParser(filename string) []coreService {
 	csvEnv := 10
 	csvLoc := 11
 
+	// Create slice to hold the parsed results
 	var coreServices []coreService
 
 	// Open CSV File
@@ -128,59 +73,60 @@ func csvParser(filename string) []coreService {
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			utils.Logger.Fatalf("Error - Reading CSV File - %s", err)
+			utils.Log(1, fmt.Sprintf("Reading CSV File - %s", err))
 		}
 
 		// Skip the header row
-		if i != 1 {
+		if i == 1 {
+			continue
+		}
 
-			// Set provider
-			provider := true
-			if line[csvProvider] == "0" {
-				provider = false
+		// Set provider
+		provider := true
+		if line[csvProvider] == "0" {
+			provider = false
+		}
+		// Set the required ports slice if there is any text in the field
+		if len(line[csvReqPorts]) > 0 {
+			requiredPortsStr := strings.Split(line[csvReqPorts], " ")
+			for _, strPort := range requiredPortsStr {
+				intPort, err := strconv.Atoi(strPort)
+				if err != nil {
+					utils.Log(1, fmt.Sprintf("converting required port to int on line %d - %s", i, err))
+				}
+				reqPortsInt = append(reqPortsInt, intPort)
 			}
-			// Set the required ports slice if there is any text in the field
-			if len(line[csvReqPorts]) > 0 {
-				requiredPortsStr := strings.Split(line[csvReqPorts], " ")
-				for _, strPort := range requiredPortsStr {
+		}
+
+		// Set the optional ports slice if there is any text in the field
+		if len(line[csvOptPorts]) > 0 {
+
+			// Split based on spaces
+			optPortsStr := strings.Split(line[csvOptPorts], " ")
+
+			for _, strPort := range optPortsStr {
+				rangePortInt := []int{}
+
+				// Process the entry if it a range
+				rangePortStr := strings.Split(strPort, "-")
+				if len(rangePortStr) > 1 {
+					for _, rangeValue := range rangePortStr {
+						value, err := strconv.Atoi(rangeValue)
+						if err != nil {
+							utils.Log(1, fmt.Sprintf("converting port range values to int on line %d - %s", i, err))
+						}
+						rangePortInt = append(rangePortInt, value)
+					}
+					optPortRangesInt = append(optPortRangesInt, rangePortInt)
+				}
+
+				// Process the entry if it is a single port
+				if len(rangePortInt) == 0 {
 					intPort, err := strconv.Atoi(strPort)
 					if err != nil {
-						utils.Logger.Fatalf("ERROR - Converting required port to int on line %d - %s", i, err)
+						utils.Log(1, fmt.Sprintf("converting optional port to int on line %d - %s", i, err))
 					}
-					reqPortsInt = append(reqPortsInt, intPort)
-				}
-			}
-
-			// Set the optional ports slice if there is any text in the field
-			if len(line[csvOptPorts]) > 0 {
-
-				// Split based on spaces
-				optPortsStr := strings.Split(line[csvOptPorts], " ")
-
-				for _, strPort := range optPortsStr {
-					rangePortInt := []int{}
-
-					// Process the entry if it a range
-					rangePortStr := strings.Split(strPort, "-")
-					if len(rangePortStr) > 1 {
-						for _, rangeValue := range rangePortStr {
-							value, err := strconv.Atoi(rangeValue)
-							if err != nil {
-								utils.Logger.Fatalf("ERROR - Converting port range values to int on line %d - %s", i, err)
-							}
-							rangePortInt = append(rangePortInt, value)
-						}
-						optPortRangesInt = append(optPortRangesInt, rangePortInt)
-					}
-
-					// Process the entry if it is a single port
-					if len(rangePortInt) == 0 {
-						intPort, err := strconv.Atoi(strPort)
-						if err != nil {
-							utils.Logger.Fatalf("ERROR - Converting optional port to int on line %d - %s", i, err)
-						}
-						optPortsInt = append(optPortsInt, intPort)
-					}
+					optPortsInt = append(optPortsInt, intPort)
 				}
 			}
 
@@ -188,7 +134,7 @@ func csvParser(filename string) []coreService {
 			if len(line[csvNumOptPorts]) > 0 {
 				numOptPorts, err = strconv.Atoi(line[csvNumOptPorts])
 				if err != nil {
-					utils.Logger.Fatalf("ERROR - Converting number of required ports to int on line %d - %s", i, err)
+					utils.Log(1, fmt.Sprintf("converting number of required ports to int on line %d - %s", i, err))
 				}
 			}
 
@@ -196,7 +142,7 @@ func csvParser(filename string) []coreService {
 			if len(line[csvNumFlows]) > 0 {
 				numFlows, err = strconv.Atoi(line[csvNumFlows])
 				if err != nil {
-					utils.Logger.Fatalf("ERROR - Converting number of flows to int on line %d - %s", i, err)
+					utils.Log(1, fmt.Sprintf("converting number of flows to int on line %d - %s", i, err))
 				}
 			}
 
@@ -204,7 +150,7 @@ func csvParser(filename string) []coreService {
 			if len(line[6]) > 0 {
 				numProcessesReq, err = strconv.Atoi(line[csvNumProcess])
 				if err != nil {
-					utils.Logger.Fatalf("ERROR - Converting number of required consumer services to int on line %d - %s", i, err)
+					utils.Log(1, fmt.Sprintf("converting number of required consumer services to int on line %d - %s", i, err))
 				}
 			}
 
@@ -231,42 +177,48 @@ func csvParser(filename string) []coreService {
 
 }
 
-func csvWriter(matches []result, exclWLs bool) {
+func csvWriter(results []result, exclWLs bool) {
 
-	// Get time stamp for output files
+	// Create output file
 	timestamp := time.Now().Format("20060102_150405")
-
-	var defaultFile *os.File
-
-	// Always create the default file
-	defaultFile, err := os.Create("identified-workloads_" + timestamp + ".csv")
+	outFile, err := os.Create("identified-workloads-" + timestamp + ".csv")
 	if err != nil {
-		utils.Logger.Fatalf("ERROR - Creating file - %s\n", err)
+		utils.Log(1, fmt.Sprintf("creating file - %s", err))
 	}
-	defer defaultFile.Close()
-	fmt.Fprintf(defaultFile, "ip_address,name,status,current_role,current_app,current_env,current_loc,suggested_role,suggested_app,suggested_env,suggested_loc,reason\r\n")
 
-	// Iterate through final matches
-	sort.Slice(matches, func(i, j int) bool { return matches[i].matchStatus < matches[j].matchStatus })
-	for _, m := range matches {
+	// Start the data array with headers
+	data := [][]string{[]string{"ip_address", "name", "status", "current_role", "current_app", "current_env", "current_loc", "suggested_role", "suggested_app", "suggested_env", "suggested_loc", "reason"}}
 
-		// Check if it's a workload or IP address based off the host name
+	// Sort the slice
+	sort.Slice(results, func(i, j int) bool { return results[i].matchStatus < results[j].matchStatus })
+
+	// Iterate through the results
+	for _, r := range results {
+
+		// Set status based on matchStatus code
 		var status string
 		switch {
-		case m.matchStatus == 0:
+		case r.matchStatus == 0:
 			status = "Existing workload matched to verify/assign labels."
 
-		case m.matchStatus == 1:
+		case r.matchStatus == 1:
 			status = "IP address matched to create/label UMWL"
 
-		case m.matchStatus == 2:
+		case r.matchStatus == 2:
 			status = "Existing Workload with no match."
 		}
 
-		// Write to the default CSV if UMWL, Matched excisting workload and exclude flag not set, non-matched existing workload and include flag not set.
-		if m.matchStatus == 1 || (m.matchStatus == 0 && !exclWLs) {
-			fmt.Fprintf(defaultFile, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\r\n", m.ipAddress, m.hostname, status, m.eRole, m.eApp, m.eEnv, m.eLoc, m.role, m.app, m.env, m.loc, m.reason)
-		}
-
+		// Append to data
+		data = append(data, []string{r.ipAddress, r.hostname, status, r.eRole, r.eApp, r.eEnv, r.eLoc, r.role, r.app, r.env, r.loc, r.reason})
 	}
+
+	// Write the CSV data
+	writer := csv.NewWriter(outFile)
+	writer.WriteAll(data)
+	if err := writer.Error(); err != nil {
+		utils.Log(1, fmt.Sprintf("writing csv - %s", err))
+	}
+
+	// Close the file
+	outFile.Close()
 }

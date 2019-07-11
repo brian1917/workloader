@@ -1,4 +1,4 @@
-package cmd
+package export
 
 import (
 	"encoding/csv"
@@ -14,8 +14,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// TrafficCmd runs the workload identifier
-var exportCmd = &cobra.Command{
+// Declare local global variables
+var pce illumioapi.PCE
+var err error
+
+// ExportCmd runs the workload identifier
+var ExportCmd = &cobra.Command{
 	Use:   "export",
 	Short: "Create a CSV export of all workloads in the PCE.",
 	Run: func(cmd *cobra.Command, args []string) {

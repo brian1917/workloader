@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/brian1917/workloader/utils"
 )
@@ -16,50 +17,50 @@ type target struct {
 }
 
 func parseCsv(filename string) []target {
-	// Adjust the columns so first column is really 0
+	// Adjust the columns so first column is  0
 	hrefCol--
 	desiredStateCol--
 
+	// Create our targets slice to hold results
 	var targets []target
 
-	// Open CSV File
+	// Open CSV File and create the reader
 	file, err := os.Open(filename)
 	if err != nil {
-		utils.Logger.Fatalf("[ERROR] - opening CSV - %s", err)
+		utils.Log(1, fmt.Sprintf("opening CSV - %s", err))
 	}
 	defer file.Close()
-
 	reader := csv.NewReader(bufio.NewReader(file))
 
-	// Start the counters
+	// Start the counter
 	i := 0
 
 	// Iterate through CSV entries
 	for {
 
-		// Increment the counter
-		i++
-
 		// Read the line
 		line, err := reader.Read()
 		if err == io.EOF {
 			break
-		} else if err != nil {
-			fmt.Println("Error - see workloader.log file")
-			utils.Logger.Fatalf("[ERROR] - reading CSV file - %s", err)
 		}
+		if err != nil {
+			utils.Log(1, fmt.Sprintf("reading CSV file - %s", err))
+		}
+
+		// Increment the counter
+		i++
 
 		// Skipe the header row
 		if i == 1 {
 			continue
 		}
 
-		// Append to our array
-		if line[desiredStateCol] != "idle" && line[desiredStateCol] != "build" && line[desiredStateCol] != "test" && line[desiredStateCol] != "enforced" {
-			fmt.Println("Error - see workloader.log file")
-			utils.Logger.Fatalf("[ERROR] - invalid mode on line %d - %s not acceptable", i, line[desiredStateCol])
+		// Check to make sure we have a valid build state and then append to targets slice
+		m := strings.ToLower(line[desiredStateCol])
+		if m != "idle" && m != "build" && m != "test" && m != "enforced" {
+			utils.Log(1, fmt.Sprintf("invalid mode on line %d - %s not acceptable", i, line[desiredStateCol]))
 		}
-		targets = append(targets, target{workloadHref: line[hrefCol], targetMode: line[desiredStateCol]})
+		targets = append(targets, target{workloadHref: line[hrefCol], targetMode: m})
 	}
 
 	return targets

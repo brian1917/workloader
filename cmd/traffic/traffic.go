@@ -12,6 +12,43 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var csvFile, app, consExcl string
+var lookupTO int
+var privOnly, exclWLs bool
+var pce illumioapi.PCE
+var err error
+
+func init() {
+	TrafficCmd.Flags().StringVarP(&csvFile, "in", "i", "workload-identifier-default.csv", "csv file with defined service matching criteria")
+	TrafficCmd.Flags().IntVarP(&lookupTO, "time", "t", 1000, "timeout to lookup hostname in ms. 0 will skip hostname lookups.")
+	TrafficCmd.Flags().StringVarP(&app, "app", "a", "", "app name to limit Explorer results to flows with that app as a provider or consumer. default is all apps")
+	TrafficCmd.Flags().StringVarP(&consExcl, "exclConsumer", "e", "", "label to exclude as a consumer role")
+	TrafficCmd.Flags().BoolVarP(&privOnly, "exclPubIPs", "p", false, "exclude public IP addresses and limit suggested workloads to the RFC 1918 address space")
+	TrafficCmd.Flags().BoolVarP(&exclWLs, "exclWklds", "w", false, "exclude IP addresses already assigned to workloads to suggest or verify labels")
+
+	TrafficCmd.Flags().SortFlags = false
+
+}
+
+// TrafficCmd runs the workload identifier
+var TrafficCmd = &cobra.Command{
+	Use:   "traffic",
+	Short: "Find and label unmanaged workloads and label existing workloads based on Explorer traffic and an input CSV.",
+	Long: `
+Find and label unmanaged workloads and label existing workloads based on Explorer traffic and an input CSV.
+
+Use workloader csv to upload to PCE after review.`,
+	Run: func(cmd *cobra.Command, args []string) {
+
+		pce, err = utils.GetPCE("pce.json")
+		if err != nil {
+			utils.Logger.Fatalf("Error getting PCE for traffic command - %s", err)
+		}
+
+		workloadIdentifier()
+	},
+}
+
 type result struct {
 	csname      string
 	ipAddress   string
@@ -28,23 +65,6 @@ type result struct {
 	eRole       string
 	wlHref      string
 	matchStatus int // 0 = Existing Workload Match; 1 = UMWL Match; 2 = Existing Workload No Match
-}
-
-func (m *result) subnetRelabeler(n2l []subnetLabel) {
-
-	//cycle through all the subnets to see if workload IP is within a subnet...
-	for _, nets := range n2l {
-		if nets.network.Contains(net.ParseIP(m.ipAddress)) {
-
-			//If in the subnet then get loc and env labels associated with subnet unless empty string
-			if nets.locLabel != "" {
-				m.loc = nets.locLabel
-			}
-			if nets.envLabel != "" {
-				m.env = nets.envLabel
-			}
-		}
-	}
 }
 
 // Workload Labels
@@ -104,48 +124,11 @@ func hostname(ipAddr string, t int) string {
 	return hostname
 }
 
-var csvFile, app, consExcl string
-var lookupTO int
-var privOnly, exclWLs bool
-var pce illumioapi.PCE
-var err error
-
-func init() {
-	TrafficCmd.Flags().StringVarP(&csvFile, "in", "i", "workload-identifier-default.csv", "csv file with defined service matching criteria")
-	TrafficCmd.Flags().IntVarP(&lookupTO, "time", "t", 1000, "timeout to lookup hostname in ms. 0 will skip hostname lookups.")
-	TrafficCmd.Flags().StringVarP(&app, "app", "a", "", "app name to limit Explorer results to flows with that app as a provider or consumer. default is all apps")
-	TrafficCmd.Flags().StringVarP(&consExcl, "exclConsumer", "e", "", "label to exclude as a consumer role")
-	TrafficCmd.Flags().BoolVarP(&privOnly, "exclPubIPs", "p", false, "exclude public IP addresses and limit suggested workloads to the RFC 1918 address space")
-	TrafficCmd.Flags().BoolVarP(&exclWLs, "exclWklds", "w", false, "exclude IP addresses already assigned to workloads to suggest or verify labels")
-
-	TrafficCmd.Flags().SortFlags = false
-
-}
-
-// TrafficCmd runs the workload identifier
-var TrafficCmd = &cobra.Command{
-	Use:   "traffic",
-	Short: "Find and label unmanaged workloads and label existing workloads based on Explorer traffic and an input CSV.",
-	Long: `
-Find and label unmanaged workloads and label existing workloads based on Explorer traffic and an input CSV.
-
-Use workloader csv to upload to PCE after review.`,
-	Run: func(cmd *cobra.Command, args []string) {
-
-		pce, err = utils.GetPCE("pce.json")
-		if err != nil {
-			utils.Logger.Fatalf("Error getting PCE for traffic command - %s", err)
-		}
-
-		workloadIdentifier()
-	},
-}
-
 func workloadIdentifier() {
 
 	utils.Logger.Println("logging from traffic")
 	// Parse the iunput CSVs
-	coreServices := csvParser(csvFile)
+	coreServices := parseCoreServices(csvFile)
 
 	// Get all workloads and create workload map
 	allIPWLs := make(map[string]illumioapi.Workload)

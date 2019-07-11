@@ -1,4 +1,4 @@
-package cmd
+package login
 
 import (
 	"encoding/json"
@@ -17,13 +17,14 @@ import (
 )
 
 func init() {
-	loginCmd.Flags().BoolP("disableTLS", "x", false, "Disable TLS checking to PCE.")
-	loginCmd.Flags().BoolP("session", "s", false, "Authentication will be temporary session token. No API Key will be generated.")
+	LoginCmd.Flags().BoolP("disableTLS", "x", false, "Disable TLS checking to PCE.")
+	LoginCmd.Flags().BoolP("session", "s", false, "Authentication will be temporary session token. No API Key will be generated.")
 
-	loginCmd.Flags().SortFlags = false
+	LoginCmd.Flags().SortFlags = false
 }
 
-var loginCmd = &cobra.Command{
+// LoginCmd generates the pce.json file
+var LoginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Generates a pce.json file for authentication used for all other commands.",
 	Long: `

@@ -1,4 +1,4 @@
-package cmd
+package upload
 
 import (
 	"bufio"
@@ -23,18 +23,18 @@ var pce illumioapi.PCE
 var err error
 
 func init() {
-	csvCmd.Flags().StringVar(&csvFile, "in", "", "Input csv file. The first row (headers) will be skipped.")
-	csvCmd.MarkFlagRequired("in")
-	csvCmd.Flags().StringVar(&removeValue, "removeValue", "", "Value in CSV used to remove existing labels. Blank values in the CSV will not change existing. If you want to delete a label do something like -removeValue delete and use delete in CSV to indicate where to delete.")
-	csvCmd.Flags().BoolVar(&umwl, "umwl", false, "Create unmanaged workloads if the host does not exist")
-	csvCmd.Flags().IntVarP(&hostCol, "hostname", "n", 1, "Column number with hostname. First column is 1.")
-	csvCmd.Flags().IntVarP(&roleCol, "role", "r", 2, "Column number with new role label.")
-	csvCmd.Flags().IntVarP(&appCol, "app", "a", 3, "Column number with new app label.")
-	csvCmd.Flags().IntVarP(&envCol, "env", "e", 4, "Column number with new env label.")
-	csvCmd.Flags().IntVarP(&locCol, "loc", "l", 5, "Column number with new loc label.")
-	csvCmd.Flags().IntVarP(&intCol, "ifaces", "i", 6, "Column number with network interfaces for when creating unmanaged workloads. Each interface should be of the format name:address (e.g., eth1:192.168.200.20). Separate multiple NICs by semicolons.")
+	UploadCmd.Flags().StringVar(&csvFile, "in", "", "Input csv file. The first row (headers) will be skipped.")
+	UploadCmd.MarkFlagRequired("in")
+	UploadCmd.Flags().StringVar(&removeValue, "removeValue", "", "Value in CSV used to remove existing labels. Blank values in the CSV will not change existing. If you want to delete a label do something like -removeValue delete and use delete in CSV to indicate where to delete.")
+	UploadCmd.Flags().BoolVar(&umwl, "umwl", false, "Create unmanaged workloads if the host does not exist")
+	UploadCmd.Flags().IntVarP(&hostCol, "hostname", "n", 1, "Column number with hostname. First column is 1.")
+	UploadCmd.Flags().IntVarP(&roleCol, "role", "r", 2, "Column number with new role label.")
+	UploadCmd.Flags().IntVarP(&appCol, "app", "a", 3, "Column number with new app label.")
+	UploadCmd.Flags().IntVarP(&envCol, "env", "e", 4, "Column number with new env label.")
+	UploadCmd.Flags().IntVarP(&locCol, "loc", "l", 5, "Column number with new loc label.")
+	UploadCmd.Flags().IntVarP(&intCol, "ifaces", "i", 6, "Column number with network interfaces for when creating unmanaged workloads. Each interface should be of the format name:address (e.g., eth1:192.168.200.20). Separate multiple NICs by semicolons.")
 
-	csvCmd.Flags().SortFlags = false
+	UploadCmd.Flags().SortFlags = false
 
 	// Adjust the columns by one
 	hostCol--
@@ -46,8 +46,8 @@ func init() {
 
 }
 
-// TrafficCmd runs the workload identifier
-var csvCmd = &cobra.Command{
+// UploadCmd runs the upload command
+var UploadCmd = &cobra.Command{
 	Use:   "csv",
 	Short: "Create and assign labels from a CSV file. Create and label unmanaged workloads from same CSV.",
 	Long: `
@@ -85,19 +85,13 @@ func checkLabel(label illumioapi.Label, labelMap map[string]illumioapi.Label) (i
 		return labelMap[label.Key+label.Value], nil
 	}
 
-	// Get PCE
-	pce, err := utils.GetPCE("pce.json")
-	if err != nil {
-		return illumioapi.Label{}, err
-	}
-
-	// Create the label
+	// Create the label if it doesn't exist
 	l, _, err := illumioapi.CreateLabel(pce, illumioapi.Label{Key: label.Key, Value: label.Value})
 	if err != nil {
 		return illumioapi.Label{}, err
 	}
 	logJSON, _ := json.Marshal(illumioapi.Label{Href: l.Href, Key: label.Key, Value: label.Value})
-	utils.Logger.Printf("INFO - Created Label - %s", string(logJSON))
+	utils.Log(0, fmt.Sprintf("created Label - %s", string(logJSON)))
 
 	// Append the label back to the map
 	labelMap[l.Key+l.Value] = l
@@ -116,30 +110,21 @@ func processCSV() {
 		utils.Log(1, fmt.Sprintf("opening CSV - %s", err))
 	}
 	defer file.Close()
-
 	reader := csv.NewReader(bufio.NewReader(file))
 
-	// GetAllWorkloads
-	wklds, _, err := illumioapi.GetAllWorkloads(pce)
+	// Get workload hostname map
+	wkldMap, err := illumioapi.GetWkldHostMap(pce)
 	if err != nil {
-		utils.Log(1, fmt.Sprintf("getting all workloads - %s", err))
-	}
-	wkldMap := make(map[string]illumioapi.Workload)
-	for _, w := range wklds {
-		wkldMap[w.Hostname] = w
+		utils.Log(1, fmt.Sprintf("getting workload host map - %s", err))
 	}
 
-	// GetAllLabels
-	labels, _, err := illumioapi.GetAllLabels(pce)
+	// Get label map
+	labelMap, err := illumioapi.GetLabelMapKV(pce)
 	if err != nil {
-		utils.Logger.Fatalf("[ERROR] - getting all labels - %s", err)
-	}
-	labelMap := make(map[string]illumioapi.Label)
-	for _, l := range labels {
-		labelMap[l.Key+l.Value] = l
+		utils.Log(1, fmt.Sprintf("getting label key value map - %s", err))
 	}
 
-	// Create a slice to hold the workloads we will update and create
+	// Create slices to hold the workloads we will update and create
 	updatedWklds := []illumioapi.Workload{}
 	newUMWLs := []illumioapi.Workload{}
 
@@ -156,8 +141,9 @@ func processCSV() {
 		line, err := reader.Read()
 		if err == io.EOF {
 			break
-		} else if err != nil {
-			utils.Logger.Fatalf("[ERROR] - reading CSV file - %s", err)
+		}
+		if err != nil {
+			utils.Log(1, fmt.Sprintf("reading CSV file - %s", err))
 		}
 
 		// Skipe the header row
@@ -165,7 +151,7 @@ func processCSV() {
 			continue
 		}
 
-		// Check if the workload exists
+		// Check if the workload exists. If exist, we check if UMWL is set and take action.
 		if _, ok := wkldMap[line[hostCol]]; !ok {
 
 			if umwl {
@@ -198,19 +184,18 @@ func processCSV() {
 					labels = append(labels, &illumioapi.Label{Href: l.Href})
 				}
 
-				// Add to the slice to process via bulk
+				// Add to the slice to process via bulk and go to next CSV entry
 				newUMWLs = append(newUMWLs, illumioapi.Workload{Hostname: line[hostCol], Interfaces: netInterfaces, Labels: labels})
-
-				// Once the WL is in the new slice, we can go to the next CSV entry
 				continue
 
 				// If umwl flag is not set, log the entry
 			} else {
-				utils.Logger.Printf("[INFO] - %s is not a workload. Include umwl flag to create it. Nothing done.", line[hostCol])
+				utils.Log(0, fmt.Sprintf("%s is not a workload. Include umwl flag to create it. Nothing done.", line[hostCol]))
 				continue
 			}
 		}
 
+		// Get here if the workload does exist.
 		// Create a slice told hold new labels if we need to change them
 		newLabels := []*illumioapi.Label{}
 
@@ -244,11 +229,12 @@ func processCSV() {
 				// Get the label HREF
 				l, err := checkLabel(illumioapi.Label{Key: keys[i], Value: line[columns[i]]}, labelMap)
 				if err != nil {
-					utils.Logger.Fatal(err)
+					utils.Log(1, err.Error())
 				}
 				// Add that label to the new labels slice
 				newLabels = append(newLabels, &illumioapi.Label{Href: l.Href})
 			} else {
+				// Keep the existing label if it matches
 				newLabels = append(newLabels, &illumioapi.Label{Href: labels[i].Href})
 			}
 		}
@@ -266,10 +252,10 @@ func processCSV() {
 	if len(updatedWklds) > 0 {
 		api, err := illumioapi.BulkWorkload(pce, updatedWklds, "update")
 		if err != nil {
-			utils.Logger.Printf("ERROR - bulk updating workloads - %s\r\n", err)
+			utils.Log(1, fmt.Sprintf("bulk updating workloads - %s", err))
 		}
 		for _, a := range api {
-			utils.Logger.Println(a.RespBody)
+			utils.Log(0, a.RespBody)
 		}
 	}
 
@@ -277,13 +263,13 @@ func processCSV() {
 	if len(newUMWLs) > 0 {
 		api, err := illumioapi.BulkWorkload(pce, newUMWLs, "create")
 		if err != nil {
-			utils.Logger.Printf("ERROR - bulk creating workloads - %s\r\n", err)
+			utils.Log(1, fmt.Sprintf("bulk creating workloads - %s", err))
 		}
 		for _, a := range api {
-			utils.Logger.Println(a.RespBody)
+			utils.Log(0, a.RespBody)
 		}
 	}
 
 	// Log end
-	utils.Logger.Println("[INFO] - completed running CSV command.")
+	utils.Log(0, "completed running CSV command.")
 }

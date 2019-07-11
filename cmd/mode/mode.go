@@ -50,8 +50,7 @@ Use --hrefCol and --stateCol to specify the columns if not default (href=1, stat
 	Run: func(cmd *cobra.Command, args []string) {
 		pce, err = utils.GetPCE("pce.json")
 		if err != nil {
-			fmt.Println("Error - see workloader.log file")
-			utils.Logger.Fatalf("[ERROR] - getting PCE for mode command - %s", err)
+			utils.Log(1, fmt.Sprintf("getting PCE for mode command - %s", err))
 		}
 
 		modeUpdate()
@@ -61,24 +60,15 @@ Use --hrefCol and --stateCol to specify the columns if not default (href=1, stat
 func modeUpdate() {
 
 	// Log start of execution
-	utils.Logger.Println("[INFO] - running mode command")
+	utils.Log(0, "running mode command")
 
 	// Log the logonly mode
-	utils.Logger.Printf("[INFO] - Log only mode set to %t", logOnly)
-
-	// Get all managed workloads
-	wklds, _, err := illumioapi.GetAllWorkloads(pce)
-	if err != nil {
-		fmt.Println("Error - see workloader.log file")
-		utils.Logger.Fatalf("[ERROR] - getting all workloads - %s", err)
-	}
+	utils.Log(0, fmt.Sprintf("log only mode set to %t", logOnly))
 
 	// Build a map of all managed workloads
-	managedWklds := make(map[string]illumioapi.Workload)
-	for _, w := range wklds {
-		if w.Agent != nil {
-			managedWklds[w.Href] = w
-		}
+	wkldMap, err := illumioapi.GetWkldHrefMap(pce)
+	if err != nil {
+		utils.Log(1, fmt.Sprintf("error getting workload map - %s", err))
 	}
 
 	// Get targets
@@ -89,30 +79,15 @@ func modeUpdate() {
 
 	// Cycle through each entry in the CSV
 	for _, t := range targets {
-		// Get the current mode
-		var mode string
-		if managedWklds[t.workloadHref].Agent.Config.Mode == "illuminated" && !managedWklds[t.workloadHref].Agent.Config.LogTraffic {
-			mode = "build"
-		} else if managedWklds[t.workloadHref].Agent.Config.Mode == "illuminated" && managedWklds[t.workloadHref].Agent.Config.LogTraffic {
-			mode = "test"
-		} else {
-			mode = managedWklds[t.workloadHref].Agent.Config.Mode
-		}
-		// Check if the current mode is NOT the target mode
-		if mode != t.targetMode {
-			// Log the change is needed
-			utils.Logger.Printf("[INFO] - Required Change - %s - Current state: %s - Desired state: %s\r\n", managedWklds[t.workloadHref].Hostname, mode, t.targetMode)
 
+		// Check if the mode matches the target mode
+		w := wkldMap[t.workloadHref]
+		if w.GetMode() != t.targetMode && t.targetMode != "unmanaged" {
+			// Log the change is needed
+			utils.Log(0, fmt.Sprintf("required Change - %s - current state: %s - desired state: %s\r\n", w.Hostname, w.GetMode(), t.targetMode))
 			// Copy workload with the right target mode and append to slice
-			w := managedWklds[t.workloadHref]
-			if t.targetMode == "build" {
-				w.Agent.Config.Mode = "illuminated"
-				w.Agent.Config.LogTraffic = false
-			} else if t.targetMode == "test" {
-				w.Agent.Config.Mode = "illuminated"
-				w.Agent.Config.LogTraffic = true
-			} else {
-				w.Agent.Config.Mode = t.targetMode
+			if err := w.SetMode(t.targetMode); err != nil {
+				utils.Log(1, fmt.Sprintf("error setting mode - %s", err))
 			}
 			workloadUpdates = append(workloadUpdates, w)
 		}
@@ -125,12 +100,11 @@ func modeUpdate() {
 	if len(workloadUpdates) > 0 && !logOnly {
 		api, err := illumioapi.BulkWorkload(pce, workloadUpdates, "update")
 		if err != nil {
-			fmt.Println("Error - see workloader.log file")
-			utils.Logger.Fatalf("[ERROR] - running bulk update - %s", err)
+			utils.Log(1, fmt.Sprintf("running bulk update - %s", err))
 		}
-		utils.Logger.Println("[INFO] - API Responses:")
+		utils.Log(0, fmt.Sprintf("bulk updated %d workloads. API Responses:", len(workloadUpdates)))
 		for _, a := range api {
-			utils.Logger.Printf(a.RespBody)
+			utils.Log(0, a.RespBody)
 		}
 	}
 
