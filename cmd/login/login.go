@@ -58,6 +58,9 @@ export ILLUMIO_PWD=pwd123
 //PCELogin creates a JSON file for authentication
 func PCELogin(session bool) {
 
+	// Log start
+	utils.Log(0, "login command started")
+
 	var pce illumioapi.PCE
 	var err error
 
@@ -68,12 +71,13 @@ func PCELogin(session bool) {
 	pwd := os.Getenv("ILLUMIO_PWD")
 	disableTLSStr := os.Getenv("ILLUMIO_DISABLE_TLS")
 
-	// Get pce
+	// Check if there is an existing PCE
 	existingPCE, _ := utils.GetPCE()
 
 	fmt.Println("\r\nDefault values will be shown in [brackets]. Press enter to accept default.")
 	fmt.Println("")
 
+	// FQDN - if env variable isn't set, prompt for it.
 	if fqdn == "" {
 		defaultValue := fmt.Sprintf(" [%s]", existingPCE.FQDN)
 		if existingPCE.FQDN == "" {
@@ -86,23 +90,34 @@ func PCELogin(session bool) {
 		}
 	}
 
+	// Set default port to existing PCE port
+	defaultPort := existingPCE.Port
+	// If there is no existing pce, set default to 8443
+	if defaultPort == 0 {
+		defaultPort = 8443
+	}
+	// If the FQDN is illum.io, set default to 443
+	if len(fqdn) > 10 && fqdn[len(fqdn)-9:] == ".illum.io" {
+		defaultPort = 443
+	}
+
+	// If the port environment variable isn't set, prompt for it
 	if port == 0 {
-		defaultValue := fmt.Sprintf(" [%d]", existingPCE.Port)
-		if existingPCE.Port == 0 {
-			defaultValue = fmt.Sprintf(" [%d]", 8443)
-		}
-		fmt.Print("PCE Port" + defaultValue + ": ")
+		fmt.Printf("PCE Port [%d] :", defaultPort)
 		fmt.Scanln(&port)
+		// If user accpeted default, assign it
 		if port == 0 {
-			port = existingPCE.Port
+			port = defaultPort
 		}
 	}
 
+	// User
 	if user == "" {
 		fmt.Print("Email: ")
 		fmt.Scanln(&user)
 	}
 
+	// Password
 	if pwd == "" {
 		fmt.Print("Password: ")
 		bytePassword, _ := terminal.ReadPassword(int(syscall.Stdin))
@@ -115,14 +130,14 @@ func PCELogin(session bool) {
 	if strings.ToLower(disableTLSStr) != "true" {
 		fmt.Print("Disable TLS verification (true/false) [false]: ")
 		fmt.Scanln(&disableTLSStr)
-		disableTLS, err = strconv.ParseBool(disableTLSStr)
-		if err != nil {
-			utils.Log(1, fmt.Sprintf("invalid disableTLS value - %s", err))
+		if strings.ToLower(disableTLSStr) == "true" {
+			disableTLS = true
 		}
 	} else {
 		disableTLS = true
 	}
 
+	// If session flag is set, create a PCE struct with session token
 	if session {
 		fmt.Println("Authenticating ...")
 		pce, err = illumioapi.PCEbuilder(fqdn, user, pwd, port, disableTLS)
@@ -130,6 +145,7 @@ func PCELogin(session bool) {
 			utils.Log(1, fmt.Sprintf("building PCE - %s", err))
 		}
 	} else {
+		// If session flag is not set, generate API credentials and create PCE struct
 		fmt.Println("Authenticating and generating API Credentials...")
 		pce = illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS}
 		pce, _, err = illumioapi.CreateAPIKey(pce, user, pwd, "Workloader", "Created by Workloader")
@@ -138,9 +154,13 @@ func PCELogin(session bool) {
 		}
 	}
 
+	// Write the PCE struct to a json file
 	pceFile, _ := json.MarshalIndent(pce, "", "")
 
+	// The file is either set in the ILLUMIO_PCE environment variable
 	file := os.Getenv("ILLUMIO_PCE")
+
+	// Or, we create a pce.json file in the current directory
 	if file == "" {
 		path, err := os.Getwd()
 		if err != nil {
@@ -152,5 +172,8 @@ func PCELogin(session bool) {
 	_ = ioutil.WriteFile(file, pceFile, 0644)
 
 	fmt.Printf("Created %s\r\n", file)
+
+	// Log
+	utils.Log(0, fmt.Sprintf("login successful - created %s", file))
 
 }
