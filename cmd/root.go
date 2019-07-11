@@ -6,15 +6,21 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/brian1917/workloader/cmd/hostname"
+	"github.com/brian1917/workloader/cmd/compatibility"
+	"github.com/brian1917/workloader/cmd/export"
+	"github.com/brian1917/workloader/cmd/flowupload"
+	"github.com/brian1917/workloader/cmd/hostparser"
+	"github.com/brian1917/workloader/cmd/login"
 	"github.com/brian1917/workloader/cmd/mode"
 	"github.com/brian1917/workloader/cmd/subnet"
 	"github.com/brian1917/workloader/cmd/traffic"
+	"github.com/brian1917/workloader/cmd/upload"
 	"github.com/spf13/cobra"
 )
 
 var cfgFile, projectBase, userLicense string
 
+// RootCmd calls the CLI
 var RootCmd = &cobra.Command{
 	Use:   "workloader",
 	Short: "Workloader is a tool that helps discover, label, and manage workloads in an Illumio PCE.",
@@ -30,19 +36,19 @@ func init() {
 	cobra.EnableCommandSorting = false
 
 	// Available commands
-	RootCmd.AddCommand(loginCmd)
-	RootCmd.AddCommand(csvCmd)
+	RootCmd.AddCommand(login.LoginCmd)
+	RootCmd.AddCommand(upload.UploadCmd)
 	RootCmd.AddCommand(traffic.TrafficCmd)
 	RootCmd.AddCommand(subnet.SubnetCmd)
-	RootCmd.AddCommand(hostname.HostnameCmd)
-	RootCmd.AddCommand(compatibilityCmd)
+	RootCmd.AddCommand(hostparser.HostnameCmd)
+	RootCmd.AddCommand(compatibility.CompatibilityCmd)
 	RootCmd.AddCommand(mode.ModeCmd)
-	RootCmd.AddCommand(exportCmd)
+	RootCmd.AddCommand(export.ExportCmd)
 
 	// Hidden Commands
 	showHidden, _ := strconv.ParseBool(strings.ToLower(os.Getenv("ILLUMIO_ALL")))
 	if showHidden {
-		RootCmd.AddCommand(flowCmd)
+		RootCmd.AddCommand(flowupload.FlowCmd)
 	}
 
 }

@@ -1,4 +1,4 @@
-package hostname
+package hostparser
 
 import (
 	"encoding/csv"
@@ -11,7 +11,54 @@ import (
 	"github.com/brian1917/illumioapi"
 	"github.com/brian1917/workloader/utils"
 	"github.com/olekukonko/tablewriter"
+	"github.com/spf13/cobra"
 )
+
+// Set up global variables
+var configFile, parserFile, hostFile, outputFile, appFlag, roleFlag, envFlag, locFlag string
+var debugLogging, noPrompt, logonly, allEmpty, ignoreMatch, noPCE, verbose bool
+var pce illumioapi.PCE
+var err error
+var conf config
+
+// Init function will handle flags
+func init() {
+	HostnameCmd.Flags().StringVarP(&parserFile, "parserfile", "p", "", "Location of CSV with regex functions and labels.")
+	HostnameCmd.Flags().StringVar(&hostFile, "hostfile", "", "Location of hostnames CSV to parse.")
+	HostnameCmd.Flags().StringVarP(&roleFlag, "role", "e", "", "Environment label.")
+	HostnameCmd.Flags().StringVarP(&appFlag, "app", "a", "", "App label.")
+	HostnameCmd.Flags().StringVarP(&envFlag, "env", "r", "", "Role label.")
+	HostnameCmd.Flags().StringVarP(&locFlag, "loc", "l", "", "Location label.")
+	HostnameCmd.Flags().BoolVar(&noPrompt, "noprompt", false, "No prompting.")
+	HostnameCmd.Flags().BoolVar(&allEmpty, "allempty", false, "All empty.")
+	HostnameCmd.Flags().BoolVar(&ignoreMatch, "ignorematch", false, "Ignore match.")
+	HostnameCmd.Flags().BoolVar(&noPCE, "nopce", false, "No PCE.")
+	HostnameCmd.Flags().BoolVar(&debugLogging, "verbose", false, "Verbose logging.")
+	HostnameCmd.Flags().BoolVar(&logonly, "logonly", false, "Set to only log changes. Don't update the PCE.")
+	HostnameCmd.Flags().SortFlags = false
+
+}
+
+// HostnameCmd runs the hostname parser
+var HostnameCmd = &cobra.Command{
+	Use:   "hostparser",
+	Short: "Label workloads by parsing hostnames from provided regex functions.",
+	Long: `
+Label workloads by parsing hostnames.
+
+An input CSV specifics the regex functions to use to assign labels. An example is below:
+
+PLACEHOLDER FOR SAMPLE TABLE`,
+	Run: func(cmd *cobra.Command, args []string) {
+
+		pce, err = utils.GetPCE("pce.json")
+		if err != nil {
+			utils.Logger.Fatalf("[ERROR] - getting PCE for hostparser - %s", err)
+		}
+
+		hostnameParser()
+	},
+}
 
 //data structure built from the parser.csv
 type regex struct {
@@ -24,14 +71,6 @@ type regexstruct struct {
 	labelcg map[string]string
 }
 
-//
-// type parsedlabels struct {
-// 	hostname string
-// 	loc      lbl
-// 	env      lbl
-// 	app      lbl
-// 	role     lbl
-// }
 type lbl struct {
 	href  string
 	value string
@@ -65,18 +104,18 @@ func createLabels(pce illumioapi.PCE, tmplabel illumioapi.Label) illumioapi.Labe
 	newLabel, apiResp, err := illumioapi.CreateLabel(pce, tmplabel)
 
 	if conf.Logging.verbose == true {
-		utils.Logger.Printf("DEBUG - Exact label does not exist for %s (%s). Creating new label... \r\n", tmplabel.Value, tmplabel.Key)
-		utils.Logger.Printf("DEBUG - Create Label API HTTP Request: %s %v \r\n", apiResp.Request.Method, apiResp.Request.URL)
-		utils.Logger.Printf("DEBUG - Create Label API HTTP Reqest Header: %+v \r\n", apiResp.Request.Header)
-		utils.Logger.Printf("DEBUG - Create Label API HTTP Reqest Body: %+v \r\n", tmplabel)
-		utils.Logger.Printf("DEBUG - Create Label API for %s (%s) Response Status Code: %d \r\n", tmplabel.Value, tmplabel.Key, apiResp.StatusCode)
-		utils.Logger.Printf("DEBUG - Create Label API for %s (%s) Response Body: %s \r\n", tmplabel.Value, tmplabel.Key, apiResp.RespBody)
+		utils.Log(2, fmt.Sprintf("exact label does not exist for %s (%s). Creating new label... \r\n", tmplabel.Value, tmplabel.Key))
+		utils.Log(2, fmt.Sprintf("create Label API HTTP Request: %s %v \r\n", apiResp.Request.Method, apiResp.Request.URL))
+		utils.Log(2, fmt.Sprintf("create Label API HTTP Reqest Header: %+v \r\n", apiResp.Request.Header))
+		utils.Log(2, fmt.Sprintf("create Label API HTTP Reqest Body: %+v \r\n", tmplabel))
+		utils.Log(2, fmt.Sprintf("create Label API for %s (%s) Response Status Code: %d \r\n", tmplabel.Value, tmplabel.Key, apiResp.StatusCode))
+		utils.Log(2, fmt.Sprintf("create Label API for %s (%s) Response Body: %s \r\n", tmplabel.Value, tmplabel.Key, apiResp.RespBody))
 	}
 	if err != nil {
-		utils.Logger.Printf("ERROR - %s", err)
+		utils.Log(1, err.Error())
 	}
 
-	utils.Logger.Printf("INFO - CREATED LABEL %s (%s) with following HREF: %s", newLabel.Value, newLabel.Key, newLabel.Href)
+	utils.Log(0, fmt.Sprintf("created label %s (%s) - %s", newLabel.Value, newLabel.Key, newLabel.Href))
 
 	return newLabel
 }
@@ -90,7 +129,7 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 	var tmpwkld illumioapi.Workload
 
 	found := false
-	utils.Logger.Printf("----------Check for Match--------")
+	utils.Log(0, "checking for match")
 
 	for _, tmp := range r.regexdata {
 
@@ -103,14 +142,16 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 			match = tmpre.MatchString(wkld.Hostname)
 
 			//Provide the hostname, if we have a mtach, regex and replacement regex per label
-			utils.Logger.Printf("%s - Match? %t - Using Regex: %s", wkld.Hostname, match, tmp.regex)
+			utils.Log(0, fmt.Sprintf("%s - Regex: %s - Match: %t", wkld.Hostname, tmp.regex, match))
+
 			if match {
 				//stop searching regex for a match if one is already found
 				found = true
+
 				// Copy the workload struct to save to new updated workload struct if needed.
 				tmpwkld = wkld
 
-				//Save the labels that are existing
+				// Save the labels that are existing
 				orgLabels := make(map[string]string)
 				for _, l := range wkld.Labels {
 					orgLabels[l.Key] = l.Href
@@ -118,17 +159,17 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 
 				var tmplabels []*illumioapi.Label
 				for _, label := range []string{"loc", "env", "app", "role"} {
+
 					//get the string returned from the replace regex.
 					tmpstr := strings.Trim(tmpre.ReplaceAllString(tmpwkld.Hostname, tmp.labelcg[label]), " ")
 
 					var tmplabel illumioapi.Label
 
-					//If regex produced an output add thwt a the label.
+					//If regex produced an output add that as the label.
 					if tmpstr != "" {
 
 						//add Key, Value and if available the Href.  Without Href we can skip if user doesnt want to new labels.
 						if lbls[label+"."+tmpstr] != "" {
-							//utils.Logger.Printf("INFO - Find HREF %s %s (%s)", label, tmpstr, lbls[label+"."+tmpstr])
 							tmplabel = illumioapi.Label{Href: lbls[label+"."+tmpstr], Key: label, Value: tmpstr}
 						} else {
 
@@ -140,17 +181,6 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 
 							//Build a label variable with Label type and Value but no Href due to the face its not configured on the PCE
 							tmplabel = illumioapi.Label{Key: label, Value: tmpstr}
-
-							// Copy ExternalDataSet and ExternalDataReference from original workload label data.
-							// if len(wkld.Labels) > 0 {
-							// 	for _, w := range wkld.Labels {
-
-							// 		if w.Key == label {
-							// 			tmplabel.ExternalDataSet, tmplabel.ExternalDataReference = w.ExternalDataSet, w.ExternalDataReference
-							// 		}
-							// 	}
-
-							// }
 
 						}
 						tmplabels = append(tmplabels, &tmplabel)
@@ -165,10 +195,6 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 
 					}
 
-					// for _, x := range tmplabels {
-					// 	fmt.Printf("%s %+v\r\n", wkld.Hostname, x)
-					// }
-
 					//Add Label array to the workload.
 					tmpwkld.Labels = tmplabels
 				}
@@ -181,14 +207,6 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 			}
 		}
 	}
-	// var nolabels []illumioapi.Label
-	// for key, value := range lbls {
-	// 	if value == "" {
-	// 		label := illumioapi.Label{Key: strings.Split(key, ".")[0], Value: strings.Split(key, ".")[1]}
-	// 		nolabels = append(nolabels, label)
-	// 		labeltable.Append([]string{strings.Split(key, ".")[0], strings.Split(key, ".")[1]})
-	// 	}
-	// }
 
 	//return if there was match and the updated workload
 	return match, tmpwkld
@@ -315,8 +333,6 @@ func labelhref(labels []*illumioapi.Label) (string, string, string, string) {
 	}
 	return rolehref, apphref, envhref, lochref
 }
-
-var conf config
 
 func hostnameParser() {
 

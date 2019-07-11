@@ -1,12 +1,12 @@
-package cmd
+package flowupload
 
 import (
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
 )
 
-// TrafficCmd runs the workload identifier
-var flowCmd = &cobra.Command{
+// FlowCmd uploads traffic flows for view in Illumination
+var FlowCmd = &cobra.Command{
 	Use:   "flowupload",
 	Short: "Upload flows to PCE from a CSV file.",
 	Run: func(cmd *cobra.Command, args []string) {

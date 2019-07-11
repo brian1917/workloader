@@ -1,6 +1,7 @@
 package subnet
 
 import (
+	"fmt"
 	"net"
 
 	"github.com/brian1917/illumioapi"
@@ -84,13 +85,9 @@ func subnetParser() {
 	}
 
 	// GetAllLabels
-	labels, _, err := illumioapi.GetAllLabels(pce)
+	labelMap, err := illumioapi.GetLabelMapKV(pce)
 	if err != nil {
-		utils.Logger.Fatalf("Error getting all labels - %s", err)
-	}
-	labelMap := make(map[string]illumioapi.Label)
-	for _, l := range labels {
-		labelMap[l.Key+l.Value] = l
+		utils.Log(1, fmt.Sprintf("getting label map - %s", err))
 	}
 
 	// Create a slice to store our results
@@ -106,14 +103,14 @@ func subnetParser() {
 			// Check to see if it matches
 			if nets.network.Contains(net.ParseIP(w.Interfaces[0].Address)) {
 				// Update labels (not in PCE yet, just on object)
-				if nets.loc != "" && nets.loc != w.Loc.Value {
+				if nets.loc != "" && nets.loc != w.GetLoc(labelMap).Value {
 					changed = true
-					m.oldLoc = w.Loc.Value
+					m.oldLoc = w.GetLoc(labelMap).Value
 					w.ChangeLabel(pce, "loc", nets.loc)
 				}
-				if nets.env != "" && nets.env != w.Env.Value {
+				if nets.env != "" && nets.env != w.GetEnv(labelMap).Value {
 					changed = true
-					m.oldEnv = w.Env.Value
+					m.oldEnv = w.GetEnv(labelMap).Value
 					w.ChangeLabel(pce, "env", nets.env)
 				}
 			}
