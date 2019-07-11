@@ -453,17 +453,14 @@ func hostnameParser() {
 	// Skip over printing the label table if no labels are needed to be created
 
 	//fmt.Println(conf.Logging.LogOnly, conf.Illumio.NoPCE)
+	tmplbls := make(map[string]string)
 	if len(nolabels) > 0 {
 
 		for keylabel := range nolabels {
 			key, value := strings.Split(keylabel, ".")[0], strings.Split(keylabel, ".")[1]
+			tmplbls[key] = value
 			labeltable.Append([]string{key, value})
 			//Make sure we arent only looking for an output file and we have the ability to access the PCE.
-			if !conf.Logging.LogOnly && !conf.Illumio.NoPCE {
-				l := createLabels(pce, illumioapi.Label{Key: key, Value: value})
-				lbls[key+"."+value] = l.Href
-				//tmplabel.Href = l.Href
-			}
 
 		}
 		if conf.Logging.verbose && !conf.Parser.NoPrompt {
@@ -496,9 +493,30 @@ func hostnameParser() {
 			// }
 			if conf.Logging.verbose == true {
 				utils.Logger.Printf("DEBUG - Both LogOnly is set to false and NoPCE is set to false - Creating Labels\r\n")
-
 			}
+			for key, value := range tmplbls {
+				newLabel, apiResp, err := illumioapi.CreateLabel(pce, illumioapi.Label{Key: key, Value: value})
 
+				if err != nil {
+					utils.Logger.Fatal(err)
+					//utils.Logger.Printf("ERROR - %s", err)
+				}
+				if conf.Logging.verbose == true {
+					utils.Logger.Printf("DEBUG - Exact label does not exist for %s (%s). Creating new label... \r\n", value, key)
+					utils.Logger.Printf("DEBUG - Create Label API HTTP Request: %s %v \r\n", apiResp.Request.Method, apiResp.Request.URL)
+					utils.Logger.Printf("DEBUG - Create Label API HTTP Reqest Header: %+v \r\n", apiResp.Request.Header)
+					utils.Logger.Printf("DEBUG - Create Label API HTTP Reqest Body: %+v \r\n", illumioapi.Label{Key: key, Value: value})
+					utils.Logger.Printf("DEBUG - Create Label API for %s (%s) Response Status Code: %d \r\n", value, key, apiResp.StatusCode)
+					utils.Logger.Printf("DEBUG - Create Label API for %s (%s) Response Body: %s \r\n", value, key, apiResp.RespBody)
+				}
+
+				utils.Logger.Printf("INFO - CREATED LABEL %s (%s) with following HREF: %s", newLabel.Value, newLabel.Key, newLabel.Href)
+
+				lbls[key+"."+value] = newLabel.Href
+			}
+			if conf.Logging.verbose == true {
+				utils.Logger.Printf("DEBUG - Both LogOnly is set to false and NoPCE is set to false - Updating Workload Labels\r\n")
+			}
 			for _, w := range alllabeledwrkld {
 				for _, l := range w.Labels {
 					if l.Href == "" {
@@ -507,7 +525,7 @@ func hostnameParser() {
 				}
 			}
 			apiResp, err := illumioapi.BulkWorkload(pce, alllabeledwrkld, "update")
-			//fmt.Println(apiResp, err)
+
 			for _, api := range apiResp {
 				if err != nil {
 					utils.Logger.Fatal(err)
