@@ -3,8 +3,14 @@
 ## Description
 Workloader is a tool that helps discover, label, and manage workloads in an Illumio PCE. Functionality includes:
 
-## Binaries
-Binaries for Mac, Linux, and Windows are located in the `bin` folder of this repository.
+## Installation
+
+### Have Go installed?
+Run `go get github.com/brian1917/workloader` or to update `go get -u github.com/brian1917/workloader`. This will download the repo and depenendies and install in your Go path to start using.
+
+### Don't have Go installed?
+Download the binary for your operating system (Mac, Linux, and Windows) from the `bin` folder of this repository. No other installation required.
+
 
 ## Usage
 `workloader -h`
