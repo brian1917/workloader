@@ -48,7 +48,7 @@ func init() {
 
 // UploadCmd runs the upload command
 var UploadCmd = &cobra.Command{
-	Use:   "csv",
+	Use:   "upload",
 	Short: "Create and assign labels from a CSV file. Create and label unmanaged workloads from same CSV.",
 	Long: `
 Create and assign labels from a CSV file. Create and label unmanaged workloads from same CSV.

@@ -8,7 +8,7 @@ import (
 
 	"github.com/brian1917/workloader/cmd/compatibility"
 	"github.com/brian1917/workloader/cmd/export"
-	"github.com/brian1917/workloader/cmd/hostparser"
+	"github.com/brian1917/workloader/cmd/hostparse"
 	"github.com/brian1917/workloader/cmd/login"
 	"github.com/brian1917/workloader/cmd/mode"
 	"github.com/brian1917/workloader/cmd/subnet"
@@ -44,7 +44,7 @@ func init() {
 	RootCmd.AddCommand(upload.UploadCmd)
 	RootCmd.AddCommand(traffic.TrafficCmd)
 	RootCmd.AddCommand(subnet.SubnetCmd)
-	RootCmd.AddCommand(hostparser.HostnameCmd)
+	RootCmd.AddCommand(hostparse.HostnameCmd)
 	RootCmd.AddCommand(compatibility.CompatibilityCmd)
 	RootCmd.AddCommand(mode.ModeCmd)
 

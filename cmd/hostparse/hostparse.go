@@ -1,4 +1,4 @@
-package hostparser
+package hostparse
 
 import (
 	"encoding/csv"
@@ -41,7 +41,7 @@ func init() {
 
 // HostnameCmd runs the hostname parser
 var HostnameCmd = &cobra.Command{
-	Use:   "hostparser",
+	Use:   "hostparse",
 	Short: "Label workloads by parsing hostnames from provided regex functions.",
 	Long: `
 Label workloads by parsing hostnames.
@@ -53,7 +53,7 @@ PLACEHOLDER FOR SAMPLE TABLE`,
 
 		pce, err = utils.GetPCE()
 		if err != nil {
-			utils.Logger.Fatalf("[ERROR] - getting PCE for hostparser - %s", err)
+			utils.Logger.Fatalf("[ERROR] - getting PCE for hostparse - %s", err)
 		}
 
 		hostnameParser()

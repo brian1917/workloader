@@ -1,4 +1,4 @@
-package hostparser
+package hostparse
 
 import (
 	"fmt"
