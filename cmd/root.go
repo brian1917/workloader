@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/brian1917/workloader/utils"
-
 	"github.com/brian1917/workloader/cmd/compatibility"
 	"github.com/brian1917/workloader/cmd/export"
 	"github.com/brian1917/workloader/cmd/hostparse"
@@ -19,16 +17,12 @@ import (
 
 // RootCmd calls the CLI
 var RootCmd = &cobra.Command{
-	Use:   "workloader",
-	Short: "Workloader is a tool that helps discover, label, and manage workloads in an Illumio PCE.",
+	Use: "workloader",
+	Long: `
+Workloader is a tool that helps discover, label, and manage workloads in an Illumio PCE.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Check if user is logged in
-		_, err := utils.GetPCE()
-		if err != nil {
-			fmt.Println("\r\nNo authentication file detected. Running workloader login command to create one. See workloader login -h for full details on login.")
-			login.PCELogin(false)
-		}
-		cmd.Usage()
+
+		cmd.Help()
 	},
 }
 

@@ -26,9 +26,9 @@ func init() {
 // LoginCmd generates the pce.json file
 var LoginCmd = &cobra.Command{
 	Use:   "login",
-	Short: "Generates a pce.json file for authentication used for all other commands.",
+	Short: "Verifies existing login or generates a pce.json file for authentication used for all other commands.",
 	Long: `
-Login generates a json file that is used for authentication for all other commands.
+Login verifies an existing login or generates a json file that is used for authentication for all other commands.
 
 The default file name is pce.json stored in the current directory.
 Set ILLUMIO_PCE environment variable for a custom file location, including file name.
@@ -58,11 +58,18 @@ export ILLUMIO_PWD=pwd123
 //PCELogin creates a JSON file for authentication
 func PCELogin(session bool) {
 
+	var err error
+
 	// Log start
 	utils.Log(0, "login command started")
 
-	var pce illumioapi.PCE
-	var err error
+	// Check if already logged in
+	loginCheck, pce, version := verifyLogin()
+	if loginCheck {
+		fmt.Printf("Login is still valid to %s. PCE Version %s\r\n", pce.FQDN, version.LongDisplay)
+		utils.Log(0, fmt.Sprintf("login is still valid to %s - pce version %s", pce.FQDN, version.LongDisplay))
+		return
+	}
 
 	// Get environment variables
 	fqdn := os.Getenv("ILLUMIO_FQDN")
@@ -175,5 +182,25 @@ func PCELogin(session bool) {
 
 	// Log
 	utils.Log(0, fmt.Sprintf("login successful - created %s", file))
+
+}
+
+func verifyLogin() (bool, illumioapi.PCE, illumioapi.Version) {
+	pce, err := utils.GetPCE()
+	if err != nil {
+		return false, pce, illumioapi.Version{}
+	}
+
+	u, _, err := illumioapi.Login(pce, "")
+	if u.Orgs[0].ID != pce.Org {
+		return false, pce, illumioapi.Version{}
+	}
+
+	version, err := illumioapi.GetVersion(pce)
+	if err != nil {
+		return false, pce, illumioapi.Version{}
+	}
+
+	return true, pce, version
 
 }
