@@ -23,6 +23,7 @@ type parser struct {
 	HostnameFile string `toml:"hostnamefile"`
 	OutputFile   string `toml:"outputfile"`
 	NoPrompt     bool   `toml:"noprompt"`
+	CheckCase    int    `toml:"checkcase"`
 }
 type match struct {
 	AllEmpty    bool   `toml:"allempty"`
@@ -48,7 +49,8 @@ func parseConfig() config {
 			Parserfile:   parserFile,
 			HostnameFile: hostFile,
 			OutputFile:   "hostname-parser-output-" + time.Now().Format("20060102_150405") + ".csv",
-			NoPrompt:     noPrompt},
+			NoPrompt:     noPrompt,
+			CheckCase:    updatecase},
 		Match: match{
 			AllEmpty:    allEmpty,
 			IgnoreMatch: ignoreMatch,

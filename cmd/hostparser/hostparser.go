@@ -17,6 +17,7 @@ import (
 // Set up global variables
 var configFile, parserFile, hostFile, outputFile, appFlag, roleFlag, envFlag, locFlag string
 var debugLogging, noPrompt, logonly, allEmpty, ignoreMatch, noPCE, verbose bool
+var updatecase int
 var pce illumioapi.PCE
 var err error
 var conf config
@@ -35,6 +36,7 @@ func init() {
 	HostnameCmd.Flags().BoolVar(&noPCE, "nopce", false, "No PCE.")
 	HostnameCmd.Flags().BoolVar(&debugLogging, "verbose", false, "Verbose logging.")
 	HostnameCmd.Flags().BoolVar(&logonly, "logonly", false, "Set to only log changes. Don't update the PCE.")
+	HostnameCmd.Flags().IntVar(&updatecase, "updatecase", 0, "Set 1 for uppercase labels, 2 for lowercase labels or 0 to ignore.")
 	HostnameCmd.Flags().SortFlags = false
 
 }
@@ -129,7 +131,7 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 	var tmpwkld illumioapi.Workload
 
 	found := false
-	utils.Log(0, "checking for match")
+	utils.Log(0, fmt.Sprintf("****Checking for REGEX Match against %s****", wkld.Hostname))
 
 	for _, tmp := range r.regexdata {
 
@@ -141,8 +143,10 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 			//Is there a match using the regex?
 			match = tmpre.MatchString(wkld.Hostname)
 
-			//Provide the hostname, if we have a mtach, regex and replacement regex per label
-			utils.Log(0, fmt.Sprintf("%s - Regex: %s - Match: %t", wkld.Hostname, tmp.regex, match))
+			//Report  if we have a match, regex and replacement regex per label
+			if conf.Logging.verbose {
+				utils.Log(0, fmt.Sprintf("%s - Regex: %s - Match: %t", wkld.Hostname, tmp.regex, match))
+			}
 
 			if match {
 				//stop searching regex for a match if one is already found
@@ -161,7 +165,7 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 				for _, label := range []string{"loc", "env", "app", "role"} {
 
 					//get the string returned from the replace regex.
-					tmpstr := strings.Trim(tmpre.ReplaceAllString(tmpwkld.Hostname, tmp.labelcg[label]), " ")
+					tmpstr := changecase(strings.Trim(tmpre.ReplaceAllString(tmpwkld.Hostname, tmp.labelcg[label]), " "))
 
 					var tmplabel illumioapi.Label
 
@@ -169,8 +173,8 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 					if tmpstr != "" {
 
 						//add Key, Value and if available the Href.  Without Href we can skip if user doesnt want to new labels.
-						if lbls[label+"."+tmpstr] != "" {
-							tmplabel = illumioapi.Label{Href: lbls[label+"."+tmpstr], Key: label, Value: tmpstr}
+						if lbls[label+tmpstr] != "" {
+							tmplabel = illumioapi.Label{Href: lbls[label+tmpstr], Key: label, Value: tmpstr}
 						} else {
 
 							//create an entry for the label type and value into the Href map...Href is empty to start
@@ -204,10 +208,13 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 				role, app, env, loc := labelvalues(tmpwkld.Labels)
 				utils.Logger.Printf("%s - Replacement Regex: %+v - Labels: %s - %s - %s - %s", wkld.Hostname, tmp.labelcg, role, app, env, loc)
 				utils.Logger.Printf("%s - Current Labels: %s, %s, %s, %s Replaced with: %s, %s, %s, %s", tmpwkld.Hostname, orgRole, orgApp, orgEnv, orgLoc, role, app, env, loc)
+
 			}
+		} else {
+			return match, tmpwkld
 		}
 	}
-
+	utils.Logger.Printf("%s - **** NO REGEX MATCH FOUND ****", wkld.Hostname)
 	//return if there was match and the updated workload
 	return match, tmpwkld
 }
@@ -257,7 +264,7 @@ func emptylabels(labels *match) int {
 }
 
 //Function that checks to see that labels are matching on what is configured in the Config data.  Returns true or false
-func matchworkloads(labels []*illumioapi.Label) bool {
+func matchworkloads(labels []*illumioapi.Label, lblhref map[string]illumioapi.Label) bool {
 
 	//Does the workload have 0 labels and if AllEmpty is set in Config file or if ignorematch is set.
 	if ((len(labels) < 1) && conf.Match.AllEmpty) || conf.Match.IgnoreMatch {
@@ -269,8 +276,8 @@ func matchworkloads(labels []*illumioapi.Label) bool {
 		return false
 		//Check to see if all the labels match by checking all the labels in ConfigFile agaist labels on the workload
 	} else {
-		for _, l := range labels {
-
+		for _, tmplbl := range labels {
+			l := lblhref[tmplbl.Href]
 			switch l.Key {
 			case "loc":
 				if l.Value != conf.Match.Loc {
@@ -334,6 +341,21 @@ func labelhref(labels []*illumioapi.Label) (string, string, string, string) {
 	return rolehref, apphref, envhref, lochref
 }
 
+//upperorlower function check to see if user set capitalization to ignore/no change(0 default), upper (1) or lower (2)
+func changecase(str string) string {
+
+	switch conf.Parser.CheckCase {
+	case 0:
+		return str
+	case 1:
+		return strings.ToUpper(str)
+	case 2:
+		return strings.ToLower(str)
+	default:
+		return str
+	}
+}
+
 func hostnameParser() {
 
 	conf = parseConfig()
@@ -346,9 +368,15 @@ func hostnameParser() {
 	utils.Logger.Printf("INFO - hostparser - Illumio and Log Settings NoPCE:%+v %+v\r\n", conf.Illumio.NoPCE, conf.Logging)
 
 	//Read the Regex Parsing CSV.   Format should be match Regex and replace regex per label {}
-	parserec := ReadCSV(conf.Parser.Parserfile)
-	if conf.Logging.verbose == true {
-		utils.Logger.Printf("DEBUG - hostparser - open parser file - %s\r\n", conf.Parser.Parserfile)
+	var parserec [][]string
+	if conf.Parser.Parserfile != "" {
+		parserec = ReadCSV(conf.Parser.Parserfile)
+		if conf.Logging.verbose == true {
+			utils.Logger.Printf("DEBUG - hostparser - open parser file - %s\r\n", conf.Parser.Parserfile)
+		}
+	} else {
+		fmt.Println("No Hostname parser file provide.  Please set the parser file location via --parserfile or -p ")
+		os.Exit(0)
 	}
 
 	var data regex
@@ -362,7 +390,8 @@ func hostnameParser() {
 	labeltable.SetAlignment(tablewriter.ALIGN_LEFT)
 	labeltable.SetHeader([]string{"Type", "Value"})
 
-	lbls := make(map[string]string)
+	lblskv := make(map[string]string)
+	lblshref := make(map[string]illumioapi.Label)
 	//Access PCE to get all Labels only if no_pce is not set to true in config file
 	if !conf.Illumio.NoPCE {
 		labels, apiResp, err := illumioapi.GetAllLabels(pce)
@@ -378,10 +407,12 @@ func hostnameParser() {
 		}
 		//create Label array with all the HRefs as value with label type and label key combined as the key "key.value"
 		for _, l := range labels {
-			lbls[l.Key+"."+l.Value] = l.Href
+			lblskv[l.Key+"."+changecase(l.Value)] = l.Href
+			lblshref[l.Href] = l
+
 		}
 		if conf.Logging.verbose == true {
-			utils.Logger.Printf("DEBUG - Build Map of HREFs with a key that uses a label's type and value eg. 'type.value': %v \r\n", lbls)
+			utils.Logger.Printf("DEBUG - Build Map of HREFs with a key that uses a label's type and value eg. 'type.value': %v \r\n", lblskv)
 
 		}
 
@@ -412,7 +443,7 @@ func hostnameParser() {
 
 		for _, x := range hostrec {
 
-			match, labeledwrkld := data.RelabelFromHostname(illumioapi.Workload{Hostname: x[0]}, lbls, nolabels)
+			match, labeledwrkld := data.RelabelFromHostname(illumioapi.Workload{Hostname: x[0]}, lblskv, nolabels)
 			if match {
 				role, app, env, loc := labelvalues(labeledwrkld.Labels)
 				fmt.Fprintf(gatBulkupdateFile, "%s,%s,%s,%s,%s,%s\r\n", labeledwrkld.Hostname, role, app, env, loc, labeledwrkld.Href)
@@ -426,7 +457,7 @@ func hostnameParser() {
 		if !conf.Illumio.NoPCE {
 
 			workloads, apiResp, err := illumioapi.GetAllWorkloads(pce)
-			if conf.Logging.verbose == true {
+			if conf.Logging.verbose {
 				utils.Logger.Printf("DEBUG - Get All Workloads API HTTP Request: %s %v \r\n", apiResp.Request.Method, apiResp.Request.URL)
 				utils.Logger.Printf("DEBUG - Get All Workloads API HTTP Reqest Header: %v \r\n", apiResp.Request.Header)
 				utils.Logger.Printf("DEBUG - Get All Workloads API Response Status Code: %d \r\n", apiResp.StatusCode)
@@ -439,9 +470,10 @@ func hostnameParser() {
 			//fmt.Printf("%+v\r\n", len(workloads))
 			fmt.Fprintf(gatBulkupdateFile, "hostname,role.app,env,loc,href\r\n")
 			for _, w := range workloads {
+
 				//fmt.Println(w.Hostname)
-				if matchworkloads(w.Labels) {
-					match, labeledwrkld := data.RelabelFromHostname(w, lbls, nolabels)
+				if matchworkloads(w.Labels, lblshref) {
+					match, labeledwrkld := data.RelabelFromHostname(w, lblskv, nolabels)
 					if match {
 						role, app, env, loc := labelvalues(labeledwrkld.Labels)
 						fmt.Fprintf(gatBulkupdateFile, "%s,%s,%s,%s,%s,%s\r\n", labeledwrkld.Hostname, role, app, env, loc, labeledwrkld.Href)
@@ -461,20 +493,13 @@ func hostnameParser() {
 
 	}
 
-	// for _, w := range alllabeledwrkld {
-	// 	for k, l := range w.Labels {
-	// 		fmt.Printf("%+v %+v %d\r\n", l.Href, l.Value, k)
-	// 	}
-	// }
-	// Skip over printing the label table if no labels are needed to be created
-
-	//fmt.Println(conf.Logging.LogOnly, conf.Illumio.NoPCE)
-	tmplbls := make(map[string]string)
+	//Capture all the labels that need to be created and make them ready for display.
+	var tmplbls []illumioapi.Label
 	if len(nolabels) > 0 {
 
 		for keylabel := range nolabels {
 			key, value := strings.Split(keylabel, ".")[0], strings.Split(keylabel, ".")[1]
-			tmplbls[key] = value
+			tmplbls = append(tmplbls, illumioapi.Label{Value: value, Key: key})
 			labeltable.Append([]string{key, value})
 			//Make sure we arent only looking for an output file and we have the ability to access the PCE.
 
@@ -495,48 +520,49 @@ func hostnameParser() {
 
 		//check if noprompt is set to true or logging changes only....Skip bulk upload of workload labels.
 		if !conf.Parser.NoPrompt && !conf.Logging.LogOnly {
-			fmt.Print("**** Parsing the hostname provided these labels.  Do you want to update the Labels and Workloads(yes/no)? ")
+			// if conf.Logging.verbose {
+			// 	fmt.Printf("**** Parsing the hostname provided these updated labels.\r\n ")
+			// }
+			fmt.Printf("Do you want to update Workloads and potentially create new labels(yes/no)? ")
 			fmt.Scanln(&response)
 		} else {
 			response = "yes"
 		}
 
 		if response == "yes" && (!conf.Logging.LogOnly && !conf.Illumio.NoPCE) {
-			// for _, w := range alllabeledwrkld {
-			// 	for k, l := range w.Labels {
-			// 		fmt.Printf("%+v %+v %d\r\n", l.Href, l.Value, k)
-			// 	}
-			// }
+
 			if conf.Logging.verbose == true {
+				utils.Logger.Printf("DEBUG - *********************************LABEL CREATION***************************************\r\n")
 				utils.Logger.Printf("DEBUG - Both LogOnly is set to false and NoPCE is set to false - Creating Labels\r\n")
 			}
-			for key, value := range tmplbls {
-				newLabel, apiResp, err := illumioapi.CreateLabel(pce, illumioapi.Label{Key: key, Value: value})
+			for _, lbl := range tmplbls {
+				newLabel, apiResp, err := illumioapi.CreateLabel(pce, lbl)
 
 				if err != nil {
 					utils.Logger.Fatal(err)
 					//utils.Logger.Printf("ERROR - %s", err)
 				}
 				if conf.Logging.verbose == true {
-					utils.Logger.Printf("DEBUG - Exact label does not exist for %s (%s). Creating new label... \r\n", value, key)
+					utils.Logger.Printf("DEBUG - Exact label does not exist for %s (%s). Creating new label... \r\n", lbl.Value, lbl.Value)
 					utils.Logger.Printf("DEBUG - Create Label API HTTP Request: %s %v \r\n", apiResp.Request.Method, apiResp.Request.URL)
 					utils.Logger.Printf("DEBUG - Create Label API HTTP Reqest Header: %+v \r\n", apiResp.Request.Header)
-					utils.Logger.Printf("DEBUG - Create Label API HTTP Reqest Body: %+v \r\n", illumioapi.Label{Key: key, Value: value})
-					utils.Logger.Printf("DEBUG - Create Label API for %s (%s) Response Status Code: %d \r\n", value, key, apiResp.StatusCode)
-					utils.Logger.Printf("DEBUG - Create Label API for %s (%s) Response Body: %s \r\n", value, key, apiResp.RespBody)
+					utils.Logger.Printf("DEBUG - Create Label API HTTP Reqest Body: %+v \r\n", illumioapi.Label{Key: lbl.Value, Value: lbl.Value})
+					utils.Logger.Printf("DEBUG - Create Label API for %s (%s) Response Status Code: %d \r\n", lbl.Value, lbl.Value, apiResp.StatusCode)
+					utils.Logger.Printf("DEBUG - Create Label API for %s (%s) Response Body: %s \r\n", lbl.Value, lbl.Key, apiResp.RespBody)
 				}
 
 				utils.Logger.Printf("INFO - CREATED LABEL %s (%s) with following HREF: %s", newLabel.Value, newLabel.Key, newLabel.Href)
 
-				lbls[key+"."+value] = newLabel.Href
+				lblskv[lbl.Key+"."+lbl.Value] = newLabel.Href
 			}
 			if conf.Logging.verbose == true {
+				utils.Logger.Printf("DEBUG - *********************************WORKLOAD BULK UPDATE***************************************\r\n")
 				utils.Logger.Printf("DEBUG - Both LogOnly is set to false and NoPCE is set to false - Updating Workload Labels\r\n")
 			}
 			for _, w := range alllabeledwrkld {
 				for _, l := range w.Labels {
 					if l.Href == "" {
-						l.Href = lbls[l.Key+"."+l.Value]
+						l.Href = lblskv[l.Key+"."+l.Value]
 					}
 				}
 			}
@@ -558,7 +584,7 @@ func hostnameParser() {
 		}
 	} else {
 		if conf.Logging.verbose == true {
-			utils.Logger.Printf("DEBUG - Workload Pre match prior to Regex found not Workloads\r\n")
+			utils.Logger.Printf("DEBUG - NO WORKLOAD WERE EITHER FOUND OR MATCHED REGEX\r\n")
 
 		}
 		fmt.Println("***** There were no hostnames that match in the 'parsefile'****")
