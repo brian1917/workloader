@@ -11,6 +11,7 @@ import (
 	"github.com/brian1917/workloader/cmd/flowupload"
 	"github.com/brian1917/workloader/cmd/hostparser"
 	"github.com/brian1917/workloader/cmd/login"
+	"github.com/brian1917/workloader/cmd/mislabel"
 	"github.com/brian1917/workloader/cmd/mode"
 	"github.com/brian1917/workloader/cmd/subnet"
 	"github.com/brian1917/workloader/cmd/traffic"
@@ -44,6 +45,7 @@ func init() {
 	RootCmd.AddCommand(compatibility.CompatibilityCmd)
 	RootCmd.AddCommand(mode.ModeCmd)
 	RootCmd.AddCommand(export.ExportCmd)
+	RootCmd.AddCommand(mislabel.MisLabelCmd)
 
 	// Hidden Commands
 	showHidden, _ := strconv.ParseBool(strings.ToLower(os.Getenv("ILLUMIO_ALL")))
