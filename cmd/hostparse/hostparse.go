@@ -176,10 +176,10 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 					//If regex produced an output add that as the label.
 					if tmpstr != "" {
 
-						//add Key, Value and if available the Href.  Without Href we can skip if user doesnt want to new labels.
-						if lbls[label+tmpstr] != "" {
-							tmplabel = illumioapi.Label{Href: lbls[label+tmpstr], Key: label, Value: tmpstr}
-						} else {
+						  //add Key, Value and if available the Href.  Without Href we can skip if user doesnt want to new labels.
+						  if lbls[label+"."+tmpstr] != "" {
+                            tmplabel = illumioapi.Label{Href: lbls[label+tmpstr], Key: label, Value: tmpstr}
+                        } else {
 
 							//create an entry for the label type and value into the Href map...Href is empty to start
 							lbls[label+"."+tmpstr] = ""
