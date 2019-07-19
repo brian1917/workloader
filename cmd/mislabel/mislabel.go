@@ -53,6 +53,7 @@ func misLabel() {
 
 	hrefwkld, _ := illumioapi.GetWkldHrefMap(pce)
 	for _, w := range hrefwkld {
+		unmatched := false
 		if !ignorewkld[w.Href] {
 			tq := illumioapi.TrafficQuery{
 				StartTime:      time.Date(2013, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -76,17 +77,22 @@ func misLabel() {
 			}
 			dstwkld := make(map[string]string)
 			for _, ta := range traffic {
-				fmt.Println(w.Hostname, ta.Dst.Workload.Hostname)
-				if ta.Dst.Workload != nil {
-					if w.GetApp(labelmap).Value != ta.Dst.Workload.GetApp(labelmap).Value && w.GetEnv(labelmap).Value != ta.Dst.Workload.GetEnv(labelmap).Value {
-						if ignoreloc {
-							if w.GetLoc(labelmap).Value != ta.Dst.Workload.GetLoc(labelmap).Value {
-								fmt.Println("match")
-								dstwkld[ta.Dst.Workload.Hostname] = w.Hostname
+				if ta.Dst.Workload == nil {
+					fmt.Println(ta.Dst)
+				} else {
+
+					if ta.Dst.Workload != nil {
+						if w.GetApp(labelmap).Value != ta.Dst.Workload.GetApp(labelmap).Value && w.GetEnv(labelmap).Value != ta.Dst.Workload.GetEnv(labelmap).Value {
+							if ignoreloc {
+								if w.GetLoc(labelmap).Value != ta.Dst.Workload.GetLoc(labelmap).Value {
+									fmt.Println(w.Hostname, ta.Dst.Workload.Hostname)
+									fmt.Println("match")
+									dstwkld[ta.Dst.Workload.Hostname] = w.Hostname
+								}
+							} else {
+								ignorewkld[ta.Dst.Workload.Href] = true
+								//continue
 							}
-						} else {
-							ignorewkld[ta.Dst.Workload.Href] = true
-							//continue
 						}
 					}
 				}
