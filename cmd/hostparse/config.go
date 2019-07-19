@@ -23,6 +23,7 @@ type parser struct {
 	HostnameFile string `toml:"hostnamefile"`
 	OutputFile   string `toml:"outputfile"`
 	NoPrompt     bool   `toml:"noprompt"`
+	CheckCase    int    `toml:"checkcase"`
 }
 type match struct {
 	AllEmpty    bool   `toml:"allempty"`
@@ -36,7 +37,7 @@ type logging struct {
 	LogOnly      bool   `toml:"log_only"`
 	LogDirectory string `toml:"log_directory"`
 	LogFile      string `toml:"log_file"`
-	verbose      bool
+	debug        bool
 }
 
 func parseConfig() config {
@@ -48,7 +49,8 @@ func parseConfig() config {
 			Parserfile:   parserFile,
 			HostnameFile: hostFile,
 			OutputFile:   "hostname-parser-output-" + time.Now().Format("20060102_150405") + ".csv",
-			NoPrompt:     noPrompt},
+			NoPrompt:     noPrompt,
+			CheckCase:    updatecase},
 		Match: match{
 			AllEmpty:    allEmpty,
 			IgnoreMatch: ignoreMatch,
@@ -60,7 +62,7 @@ func parseConfig() config {
 			LogOnly:      logonly,
 			LogDirectory: "",
 			LogFile:      "workloader-hostname-log-" + time.Now().Format("20060102_150405") + ".csv",
-			verbose:      debugLogging}}
+			debug:        debugLogging}}
 
 	if config.Illumio.NoPCE && config.Parser.HostnameFile == "" {
 		fmt.Println("You must use the hostfile option when not using PCE Data(no_pce=true)")
@@ -68,5 +70,4 @@ func parseConfig() config {
 	}
 
 	return config
-
 }
