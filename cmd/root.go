@@ -7,11 +7,11 @@ import (
 	"github.com/brian1917/workloader/cmd/compatibility"
 	"github.com/brian1917/workloader/cmd/export"
 	"github.com/brian1917/workloader/cmd/hostparse"
+	"github.com/brian1917/workloader/cmd/importer"
 	"github.com/brian1917/workloader/cmd/login"
 	"github.com/brian1917/workloader/cmd/mode"
 	"github.com/brian1917/workloader/cmd/subnet"
 	"github.com/brian1917/workloader/cmd/traffic"
-	"github.com/brian1917/workloader/cmd/upload"
 	"github.com/spf13/cobra"
 )
 
@@ -35,7 +35,7 @@ func init() {
 	// Available commands
 	RootCmd.AddCommand(login.LoginCmd)
 	RootCmd.AddCommand(export.ExportCmd)
-	RootCmd.AddCommand(upload.UploadCmd)
+	RootCmd.AddCommand(importer.ImportCmd)
 	RootCmd.AddCommand(traffic.TrafficCmd)
 	RootCmd.AddCommand(subnet.SubnetCmd)
 	RootCmd.AddCommand(hostparse.HostnameCmd)
