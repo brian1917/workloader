@@ -23,9 +23,9 @@ Usage:
   workloader [command]
 
 Available Commands:
-  login         Generates a pce.json file for authentication used for all other commands.
+  login         Verifies existing login or generates a pce.json file for authentication used for all other commands.
   export        Create a CSV export of all workloads in the PCE.
-  upload        Create and assign labels from a CSV file. Create and label unmanaged workloads from same CSV.
+  import        Create and assign labels from a CSV file. Create and label unmanaged workloads from same CSV.
   traffic       Find and label unmanaged workloads and label existing workloads based on Explorer traffic and an input CSV.
   subnet        Assign environment and location labels based on a workload's network.
   hostparse     Label workloads by parsing hostnames from provided regex functions.
