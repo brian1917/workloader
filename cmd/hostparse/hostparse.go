@@ -43,18 +43,20 @@ func init() {
 
 // HostnameCmd runs the hostname parser
 var HostnameCmd = &cobra.Command{
-	Use:   "hostparser",
+	Use:   "hostparse",
 	Short: "Label workloads by parsing hostnames from provided regex functions.",
 	Long: `
 Label workloads by parsing hostnames.
 An input CSV specifics the regex functions to use to assign labels. An example is below:
-+-----------------------------------+-------+-----------+-----------+-----------+---------------+
-|REGEX								|	ROLE|APP		|ENV		|LOC		|	sample		|
-+-----------------------------------+-------+-----------+-----------+-----------+---------------+
-|(dc)-(\w*)(\d+)					|	DC	|INFRA		|CORE		|POD$3		|eg. dc-pod2	|
-+-----------------------------------+-------+-----------+-----------+-----------+---------------+
-|(h)(1)-(\w*)-([s])(\d+)			|	WEB	|	${3}	|SITE${5}	|Amazon		|eg. h1-app-s1	|
-+-----------------------------------+-------+-----------+-----------+-----------+---------------+`,
+
++-------------------------+------+-------+----------+--------+---------------+
+|          REGEX          | ROLE |  APP  |   ENV    |  LOC   |    SAMPLE     |
++-------------------------+------+-------+----------+--------+---------------+
+| (dc)-(\w*)(\d+)         | DC   | INFRA | CORE     | POD{3} | dc-pod2       |
+| (h)(1)-(\w*)-([s])(\d+) | WEB  | ${3}  | SITE${5} | AMAZON | h1-app-s1     |
++-------------------------+------+-------+----------+--------+---------------+
+
+`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		pce, err = utils.GetPCE()
@@ -176,10 +178,10 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 					//If regex produced an output add that as the label.
 					if tmpstr != "" {
 
-						  //add Key, Value and if available the Href.  Without Href we can skip if user doesnt want to new labels.
-						  if lbls[label+"."+tmpstr] != "" {
-                            tmplabel = illumioapi.Label{Href: lbls[label+tmpstr], Key: label, Value: tmpstr}
-                        } else {
+						//add Key, Value and if available the Href.  Without Href we can skip if user doesnt want to new labels.
+						if lbls[label+"."+tmpstr] != "" {
+							tmplabel = illumioapi.Label{Href: lbls[label+tmpstr], Key: label, Value: tmpstr}
+						} else {
 
 							//create an entry for the label type and value into the Href map...Href is empty to start
 							lbls[label+"."+tmpstr] = ""
