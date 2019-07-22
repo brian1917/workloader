@@ -126,7 +126,7 @@ func hostname(ipAddr string, t int) string {
 
 func workloadIdentifier() {
 
-	utils.Logger.Println("logging from traffic")
+	utils.Log(0, "started traffic command")
 	// Parse the iunput CSVs
 	coreServices := parseCoreServices(csvFile)
 
@@ -134,7 +134,7 @@ func workloadIdentifier() {
 	allIPWLs := make(map[string]illumioapi.Workload)
 	wls, _, err := illumioapi.GetAllWorkloads(pce)
 	if err != nil {
-		utils.Logger.Fatalf("ERROR - getting all workloads - %s", err)
+		utils.Log(1, fmt.Sprintf("getting all workloads - %s", err))
 	}
 	for _, wl := range wls {
 		for _, iface := range wl.Interfaces {
@@ -149,7 +149,7 @@ func workloadIdentifier() {
 	// Get all labels and create label map
 	labels, _, err := illumioapi.GetAllLabels(pce)
 	if err != nil {
-		utils.Logger.Fatalf("ERROR - getting all workloads - %s", err)
+		utils.Log(1, fmt.Sprintf("getting all workloads - %s", err))
 	}
 	allLabels := make(map[string]illumioapi.Label)
 	for _, l := range labels {
@@ -161,10 +161,10 @@ func workloadIdentifier() {
 	if len(consExcl) > 0 {
 		exclLabel, _, err = illumioapi.GetLabelbyKeyValue(pce, "role", consExcl)
 		if err != nil {
-			utils.Logger.Fatalf("ERROR - Getting label HREF - %s", err)
+			utils.Log(1, fmt.Sprintf("getting label HREF - %s", err))
 		}
 		if exclLabel.Href == "" {
-			utils.Logger.Fatalf("ERROR- %s does not exist as an role label.", consExcl)
+			utils.Log(1, fmt.Sprintf("%s does not exist as an role label.", consExcl))
 		}
 	}
 
@@ -180,10 +180,10 @@ func workloadIdentifier() {
 	if app != "" {
 		label, _, err := illumioapi.GetLabelbyKeyValue(pce, "app", app)
 		if err != nil {
-			utils.Logger.Fatalf("ERROR - Getting label HREF - %s", err)
+			utils.Log(1, fmt.Sprintf("getting label HREF - %s", err))
 		}
 		if label.Href == "" {
-			utils.Logger.Fatalf("ERROR- %s does not exist as an app label.", app)
+			utils.Log(1, fmt.Sprintf("%s does not exist as an app label.", app))
 		}
 		tq.SourcesInclude = []string{label.Href}
 	}
@@ -191,7 +191,7 @@ func workloadIdentifier() {
 	// Run traffic query
 	traffic, _, err := illumioapi.GetTrafficAnalysis(pce, tq)
 	if err != nil {
-		utils.Logger.Fatalf("ERROR - Making explorer API call - %s", err)
+		utils.Log(1, fmt.Sprintf("making explorer API call - %s", err))
 	}
 
 	// If app is provided, switch to the destination include, clear the sources include, run query again, append to previous result
@@ -201,7 +201,7 @@ func workloadIdentifier() {
 
 		traffic2, _, err := illumioapi.GetTrafficAnalysis(pce, tq)
 		if err != nil {
-			utils.Logger.Fatalf("ERROR - Making second explorer API call - %s", err)
+			utils.Log(1, fmt.Sprintf("making second explorer API call - %s", err))
 		}
 		traffic = append(traffic, traffic2...)
 	}
