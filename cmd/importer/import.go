@@ -119,7 +119,7 @@ func processCSV() {
 	}
 
 	// Get label map
-	labelMap, err := illumioapi.GetLabelMapKV(pce)
+	labelMap, _, err := illumioapi.GetLabelMapKV(pce)
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("getting label key value map - %s", err))
 	}
