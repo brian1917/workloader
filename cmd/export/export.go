@@ -45,7 +45,7 @@ func exportWorkloads() {
 	}
 
 	// Get LabelMap
-	labelMap, err := illumioapi.GetLabelMapH(pce)
+	labelMap, _, err := illumioapi.GetLabelMapH(pce)
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("getting label map - %s", err))
 	}

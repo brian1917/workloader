@@ -74,7 +74,7 @@ func locParser(csvFile string, netCol, envCol, locCol int) []subnet {
 func csvWriter(pce illumioapi.PCE, matches []match) {
 	// Get all the labels again so we have a map
 
-	labelMap, err := illumioapi.GetLabelMapH(pce)
+	labelMap, _, err := illumioapi.GetLabelMapH(pce)
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("getting label map - %s", err))
 	}
