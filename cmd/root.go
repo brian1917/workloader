@@ -40,9 +40,9 @@ func init() {
 	RootCmd.AddCommand(traffic.TrafficCmd)
 	RootCmd.AddCommand(subnet.SubnetCmd)
 	RootCmd.AddCommand(hostparse.HostnameCmd)
+	RootCmd.AddCommand(mislabel.MisLabelCmd)
 	RootCmd.AddCommand(compatibility.CompatibilityCmd)
 	RootCmd.AddCommand(mode.ModeCmd)
-	RootCmd.AddCommand(mislabel.MisLabelCmd)
 }
 
 // Execute is called by the CLI main function to initiate the Cobra application
