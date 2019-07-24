@@ -7,4 +7,4 @@ pce.json
 !workloader-identifier-default.csv
 !*parser-table.csv*
 _playground/*
-
+.vscode/*

@@ -9,6 +9,7 @@ import (
 	"github.com/brian1917/workloader/cmd/hostparse"
 	"github.com/brian1917/workloader/cmd/importer"
 	"github.com/brian1917/workloader/cmd/login"
+	"github.com/brian1917/workloader/cmd/mislabel"
 	"github.com/brian1917/workloader/cmd/mode"
 	"github.com/brian1917/workloader/cmd/subnet"
 	"github.com/brian1917/workloader/cmd/traffic"
@@ -41,7 +42,7 @@ func init() {
 	RootCmd.AddCommand(hostparse.HostnameCmd)
 	RootCmd.AddCommand(compatibility.CompatibilityCmd)
 	RootCmd.AddCommand(mode.ModeCmd)
-
+	RootCmd.AddCommand(mislabel.MisLabelCmd)
 }
 
 // Execute is called by the CLI main function to initiate the Cobra application
