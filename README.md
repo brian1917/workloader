@@ -29,6 +29,7 @@ Available Commands:
   traffic       Find and label unmanaged workloads and label existing workloads based on Explorer traffic and an input CSV.
   subnet        Assign environment and location labels based on a workload's network.
   hostparse     Label workloads by parsing hostnames from provided regex functions.
+  mislabel      Display workloads that have no intra App-Group communications to identify potentially mislabled workloads.
   compatibility Generate a compatibility report for all Idle workloads.
   mode          Change the state of workloads based on a CSV input.
   help          Help about any command
