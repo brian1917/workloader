@@ -26,51 +26,52 @@ var MisLabelCmd = &cobra.Command{
 	Short: "Display all workloads that have no intra App-Group communications.",
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE("pce.json")
+		pce, err = utils.GetPCE()
 		if err != nil {
-			utils.Logger.Fatalf("Error getting PCE for mislabel command - %s", err)
+			utils.Log(1, fmt.Sprintf("error getting pce - %s", err))
 		}
 
 		misLabel()
 	},
 }
 
-//misLabel - Figure out if worklaods in an app-group only communicate outside the app-group.
+//misLabel determines if workloads in an app-group only communicate outside the app-group.
 func misLabel() {
 
 	debug := true
 	ignoreloc := false
 
+	// Get the labelMap
 	labelmap, err := illumioapi.GetLabelMapH(pce)
-	//fmt.Println(labelsAPI, apiResp, err)
 	if err != nil {
-		utils.Logger.Fatal(err)
-	}
-	if debug == true {
-		utils.Log(2, fmt.Sprintf("Get All Labels in a map using HREF as key.\r\n"))
+		utils.Log(1, fmt.Sprintf("getting labelmap - %s", err))
 	}
 
+	if debug == true {
+		utils.Log(2, fmt.Sprintf("got href label map with %d entries", len(labelmap)))
+	}
+
+	// Build the traffic query struct
 	tq := illumioapi.TrafficQuery{
 		StartTime:      time.Date(2013, 1, 1, 0, 0, 0, 0, time.UTC),
 		EndTime:        time.Now(),
 		PolicyStatuses: []string{"allowed", "potentially_blocked", "blocked"},
-		//SourcesInclude: []string{w.Href},
-		MaxFLows: 100000}
+		MaxFLows:       100000}
 
-	// If an app is provided, run with that app as the consumer.
-	// tq.SourcesInclude = []string{w}
-
+	// Get traffic from explorer API
 	traffic, apiResp, err := illumioapi.GetTrafficAnalysis(pce, tq)
 	if err != nil {
-		utils.Logger.Fatal(err)
+		utils.Log(1, fmt.Sprintf("error making traffic api call - %s", err))
 	}
-	fmt.Println(len(traffic))
-	if debug == true {
+
+	// Eventually move this into an api debug function
+	if debug {
 		utils.Log(2, fmt.Sprintf("Get All Labels API HTTP Request: %s %v \r\n", apiResp.Request.Method, apiResp.Request.URL))
 		utils.Log(2, fmt.Sprintf("Get All Labels API HTTP Reqest Header: %v \r\n", apiResp.Request.Header))
 		utils.Log(2, fmt.Sprintf("Get All Labels API Response Status Code: %d \r\n", apiResp.StatusCode))
 		utils.Log(0, fmt.Sprintf("Get All Labels API Response Body: \r\n %s \r\n", apiResp.RespBody))
 	}
+
 	srcwkld := make(map[string]bool)
 	dstwkld := make(map[string]bool)
 	for _, ta := range traffic {
