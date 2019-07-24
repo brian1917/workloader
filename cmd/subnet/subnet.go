@@ -85,7 +85,7 @@ func subnetParser() {
 	}
 
 	// GetAllLabels
-	labelMap, err := illumioapi.GetLabelMapKV(pce)
+	labelMap, _, err := illumioapi.GetLabelMapKV(pce)
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("getting label map - %s", err))
 	}

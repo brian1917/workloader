@@ -1,7 +1,12 @@
 package mislabel
 
 import (
+	"bufio"
+	"encoding/csv"
 	"fmt"
+	"io"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/brian1917/illumioapi"
@@ -9,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var envFlag, appFlag, locFlag string
+var envFlag, appFlag, locFlag, exclWkldFile, exclPortFile string
 var pce illumioapi.PCE
 var err error
 
@@ -17,102 +22,179 @@ func init() {
 	MisLabelCmd.Flags().StringVarP(&appFlag, "app", "a", "", "App label.")
 	MisLabelCmd.Flags().StringVarP(&envFlag, "env", "r", "", "Role label.")
 	MisLabelCmd.Flags().StringVarP(&locFlag, "loc", "l", "", "Location label.")
+	MisLabelCmd.Flags().StringVarP(&exclWkldFile, "wExclude", "w", "", "File location of hostnames to exclude as orphans.")
+	MisLabelCmd.Flags().StringVarP(&exclPortFile, "pExclude", "p", "", "File location of ports to exclude in traffic query.")
 	MisLabelCmd.Flags().SortFlags = false
 }
 
 // MisLabelCmd Finds workloads that have no communications within an App-Group....
 var MisLabelCmd = &cobra.Command{
 	Use:   "mislabel",
-	Short: "Display all workloads that have no intra App-Group communications.",
+	Short: "Display workloads that have no intra App-Group communications to identify potentially mislabled workloads.",
+	Long: `
+	Display workloads that have no intra App-Group communications to identify potentially mislabled workloads.
+	
+	The explorer query will ignore traffic on UDP ports 5355 (DNSCache) and 137, 138, 139 (NETBIOS). To customize this list, use the --pExclude (-p) flag to pass in a CSV with no headers and two columns. First column is port number and second column is protocol number (TCP is 6 and UDP is 17). CSV should include above mentioned ports if you wish to exclude them.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE("pce.json")
+		pce, err = utils.GetPCE()
 		if err != nil {
-			utils.Logger.Fatalf("Error getting PCE for mislabel command - %s", err)
+			utils.Log(1, fmt.Sprintf("error getting pce - %s", err))
 		}
 
 		misLabel()
 	},
 }
 
-//misLabel - Figure out if worklaods in an app-group only communicate outside the app-group.
+func getExclHosts(filename string) map[string]bool {
+	// Open CSV File
+	csvFile, _ := os.Open(filename)
+	reader := csv.NewReader(bufio.NewReader(csvFile))
+
+	exclHosts := make(map[string]bool)
+
+	for {
+		line, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			utils.Log(1, fmt.Sprintf("Reading CSV File - %s", err))
+		}
+		exclHosts[line[0]] = true
+	}
+
+	return exclHosts
+}
+
+func getExclPorts(filename string) [][2]int {
+	// Open CSV File
+	csvFile, _ := os.Open(filename)
+	reader := csv.NewReader(bufio.NewReader(csvFile))
+
+	exclPorts := [][2]int{}
+
+	n := 0
+	for {
+		n++
+		line, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			utils.Log(1, fmt.Sprintf("Reading CSV File - %s", err))
+		}
+
+		port, err := strconv.Atoi(line[0])
+		if err != nil {
+			utils.Log(1, fmt.Sprintf("Non-integer port value on line %d - %s", n, err))
+		}
+		protocol, err := strconv.Atoi(line[1])
+		if err != nil {
+			utils.Log(1, fmt.Sprintf("Non-integer protocol value on line %d - %s", n, err))
+		}
+
+		exclPorts = append(exclPorts, [2]int{port, protocol})
+	}
+
+	return exclPorts
+}
+
+//misLabel determines if workloads in an app-group only communicate outside the app-group.
 func misLabel() {
 
+	// Log start
+	utils.Log(0, "started mislabel command")
 	debug := true
 	ignoreloc := false
 
-	labelmap, err := illumioapi.GetLabelMapH(pce)
-	//fmt.Println(labelsAPI, apiResp, err)
-	if err != nil {
-		utils.Logger.Fatal(err)
-	}
+	// Get the labelMap
+	labelmap, apiResp, err := illumioapi.GetLabelMapH(pce)
 	if debug == true {
-		utils.Log(2, fmt.Sprintf("Get All Labels in a map using HREF as key.\r\n"))
+		utils.Log(2, fmt.Sprintf("get href label map returned %d entries", len(labelmap)))
+		utils.LogAPIResp("getLabelMap", apiResp)
+	}
+	if err != nil {
+		utils.Log(1, fmt.Sprintf("getting labelmap - %s", err))
 	}
 
+	// Get all workloads
+	wklds, _, err := illumioapi.GetAllWorkloads(pce)
+	if err != nil {
+		utils.Log(1, fmt.Sprintf("error getting all workloads - %s", err))
+	}
+
+	// Get ports we should ignore
+	exclPorts := [][2]int{[2]int{5355, 17}, [2]int{137, 17}, [2]int{138, 17}, [2]int{139, 17}}
+	if exclPortFile != "" {
+		exclPorts = getExclPorts(exclPortFile)
+	}
+
+	// Build the traffic query struct
 	tq := illumioapi.TrafficQuery{
-		StartTime:      time.Date(2013, 1, 1, 0, 0, 0, 0, time.UTC),
-		EndTime:        time.Now(),
-		PolicyStatuses: []string{"allowed", "potentially_blocked", "blocked"},
-		//SourcesInclude: []string{w.Href},
-		MaxFLows: 100000}
+		StartTime:        time.Date(2013, 1, 1, 0, 0, 0, 0, time.UTC),
+		EndTime:          time.Now(),
+		PolicyStatuses:   []string{"allowed", "potentially_blocked", "blocked"},
+		PortRangeExclude: exclPorts,
+		MaxFLows:         100000}
 
-	// If an app is provided, run with that app as the consumer.
-	// tq.SourcesInclude = []string{w}
-
+	// Get traffic
 	traffic, apiResp, err := illumioapi.GetTrafficAnalysis(pce, tq)
 	if err != nil {
-		utils.Logger.Fatal(err)
+		utils.Log(1, fmt.Sprintf("error making traffic api call - %s", err))
 	}
-	fmt.Println(len(traffic))
-	if debug == true {
-		utils.Log(2, fmt.Sprintf("Get All Labels API HTTP Request: %s %v \r\n", apiResp.Request.Method, apiResp.Request.URL))
-		utils.Log(2, fmt.Sprintf("Get All Labels API HTTP Reqest Header: %v \r\n", apiResp.Request.Header))
-		utils.Log(2, fmt.Sprintf("Get All Labels API Response Status Code: %d \r\n", apiResp.StatusCode))
-		utils.Log(0, fmt.Sprintf("Get All Labels API Response Body: \r\n %s \r\n", apiResp.RespBody))
+	if debug {
+		utils.LogAPIResp("GetTrafficAnalysis", apiResp)
 	}
-	srcwkld := make(map[string]bool)
-	dstwkld := make(map[string]bool)
+
+	// nonOrphans will hold workloads that are not orphans
+	nonOrphpans := make(map[string]bool)
+
+	// Iterate through each traffic entry
 	for _, ta := range traffic {
-		if ta.Src.Workload != nil {
-			if ta.Dst.Workload != nil {
-				if ta.Src.Workload.GetApp(labelmap).Value == ta.Dst.Workload.GetApp(labelmap).Value && ta.Src.Workload.GetEnv(labelmap).Value == ta.Dst.Workload.GetEnv(labelmap).Value {
-					if !ignoreloc {
-						if ta.Src.Workload.GetLoc(labelmap).Value == ta.Dst.Workload.GetLoc(labelmap).Value {
-							srcwkld[ta.Src.Workload.Href] = true
-							dstwkld[ta.Dst.Workload.Href] = true
-						}
 
-					} else {
-						srcwkld[ta.Src.Workload.Href] = true
-						dstwkld[ta.Dst.Workload.Href] = true
-					}
-				} else {
-					if !srcwkld[ta.Src.Workload.Href] {
-						srcwkld[ta.Src.Workload.Href] = false
-					}
-					if !dstwkld[ta.Dst.Workload.Href] {
-						dstwkld[ta.Dst.Workload.Href] = false
-					}
-				}
-			} else if !srcwkld[ta.Src.Workload.Href] {
-				srcwkld[ta.Src.Workload.Href] = false
-			}
-		} else if !dstwkld[ta.Dst.Workload.Href] {
-			dstwkld[ta.Dst.Workload.Href] = false
+		// If the source or destination is not a workload, we are done with this traffic entry
+		if ta.Src.Workload == nil || ta.Dst.Workload == nil {
+			continue
+		}
+
+		// If source and destination are the same, we are done with this traffic entry
+		if ta.Src.Workload.Href == ta.Dst.Workload.Href {
+			continue
+		}
+
+		// Get the App Groups
+		srcAppGroup := ta.Src.Workload.GetAppGroupL(labelmap)
+		dstAppGroup := ta.Dst.Workload.GetAppGroupL(labelmap)
+		if ignoreloc {
+			srcAppGroup = ta.Src.Workload.GetAppGroup(labelmap)
+			dstAppGroup = ta.Dst.Workload.GetAppGroup(labelmap)
+		}
+
+		// If the app groups are the same, mark the source and destination as true and stop processing
+		if srcAppGroup == dstAppGroup && srcAppGroup != "NO APP GROUP" {
+			nonOrphpans[ta.Src.Workload.Href] = true
+			nonOrphpans[ta.Dst.Workload.Href] = true
+			continue
 		}
 	}
 
-	wkldmap, err := illumioapi.GetWkldHrefMap(pce)
+	// Get the excluded workload list
+	exclWklds := make(map[string]bool)
+	if exclWkldFile != "" {
+		exclWklds = getExclHosts(exclWkldFile)
+	}
 
-	for k, v := range srcwkld {
-		if !v {
-			fmt.Println(wkldmap[k].Hostname)
+	// Iterate through each workload. If it's an orphan and not in our exclude list, add it to the slice.
+	var orphanWklds []illumioapi.Workload
+	for _, w := range wklds {
+		if !nonOrphpans[w.Href] && !exclWklds[w.Hostname] {
+			orphanWklds = append(orphanWklds, w)
 		}
 	}
-	for k, v := range dstwkld {
-		if !v {
-			fmt.Println(wkldmap[k].Hostname)
-		}
+
+	// Print each orphan
+	for _, w := range orphanWklds {
+		fmt.Println(w.Hostname)
 	}
 }

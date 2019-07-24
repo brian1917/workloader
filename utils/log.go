@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 	"time"
+
+	"github.com/brian1917/illumioapi"
 )
 
 // Logger is the global logger for Workloader
@@ -49,4 +51,14 @@ func Log(t int, msg string) {
 		Logger.Printf("%s - %s\r\n", logType, msg)
 	}
 
+}
+
+// LogAPIResp will log the HTTP Requset, Request Header, Response Status Code, and Response Body
+// The callType should be the name of call: GetAllLabels, GetAllWorkloads, etc. This is just for logging purposes and any string will be accepted.
+// The log type will be DEBUG.
+func LogAPIResp(callType string, apiResp illumioapi.APIResponse) {
+	Log(2, fmt.Sprintf("%s HTTP Request: %s %v \r\n", callType, apiResp.Request.Method, apiResp.Request.URL))
+	Log(2, fmt.Sprintf("%s Reqest Header: %v \r\n", callType, apiResp.Request.Header))
+	Log(2, fmt.Sprintf("%s Response Status Code: %d \r\n", callType, apiResp.StatusCode))
+	Log(2, fmt.Sprintf("%s Response Body: \r\n %s \r\n", callType, apiResp.RespBody))
 }
