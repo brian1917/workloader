@@ -1,4 +1,4 @@
-package upload
+package importer
 
 import (
 	"bufio"
@@ -23,18 +23,18 @@ var pce illumioapi.PCE
 var err error
 
 func init() {
-	UploadCmd.Flags().StringVar(&csvFile, "in", "", "Input csv file. The first row (headers) will be skipped.")
-	UploadCmd.MarkFlagRequired("in")
-	UploadCmd.Flags().StringVar(&removeValue, "removeValue", "", "Value in CSV used to remove existing labels. Blank values in the CSV will not change existing. If you want to delete a label do something like -removeValue delete and use delete in CSV to indicate where to delete.")
-	UploadCmd.Flags().BoolVar(&umwl, "umwl", false, "Create unmanaged workloads if the host does not exist")
-	UploadCmd.Flags().IntVarP(&hostCol, "hostname", "n", 1, "Column number with hostname. First column is 1.")
-	UploadCmd.Flags().IntVarP(&roleCol, "role", "r", 2, "Column number with new role label.")
-	UploadCmd.Flags().IntVarP(&appCol, "app", "a", 3, "Column number with new app label.")
-	UploadCmd.Flags().IntVarP(&envCol, "env", "e", 4, "Column number with new env label.")
-	UploadCmd.Flags().IntVarP(&locCol, "loc", "l", 5, "Column number with new loc label.")
-	UploadCmd.Flags().IntVarP(&intCol, "ifaces", "i", 6, "Column number with network interfaces for when creating unmanaged workloads. Each interface should be of the format name:address (e.g., eth1:192.168.200.20). Separate multiple NICs by semicolons.")
+	ImportCmd.Flags().StringVar(&csvFile, "in", "", "Input csv file. The first row (headers) will be skipped.")
+	ImportCmd.MarkFlagRequired("in")
+	ImportCmd.Flags().StringVar(&removeValue, "removeValue", "", "Value in CSV used to remove existing labels. Blank values in the CSV will not change existing. If you want to delete a label do something like -removeValue delete and use delete in CSV to indicate where to delete.")
+	ImportCmd.Flags().BoolVar(&umwl, "umwl", false, "Create unmanaged workloads if the host does not exist")
+	ImportCmd.Flags().IntVarP(&hostCol, "hostname", "n", 1, "Column number with hostname. First column is 1.")
+	ImportCmd.Flags().IntVarP(&roleCol, "role", "r", 2, "Column number with new role label.")
+	ImportCmd.Flags().IntVarP(&appCol, "app", "a", 3, "Column number with new app label.")
+	ImportCmd.Flags().IntVarP(&envCol, "env", "e", 4, "Column number with new env label.")
+	ImportCmd.Flags().IntVarP(&locCol, "loc", "l", 5, "Column number with new loc label.")
+	ImportCmd.Flags().IntVarP(&intCol, "ifaces", "i", 6, "Column number with network interfaces for when creating unmanaged workloads. Each interface should be of the format name:address (e.g., eth1:192.168.200.20). Separate multiple NICs by semicolons.")
 
-	UploadCmd.Flags().SortFlags = false
+	ImportCmd.Flags().SortFlags = false
 
 	// Adjust the columns by one
 	hostCol--
@@ -46,9 +46,9 @@ func init() {
 
 }
 
-// UploadCmd runs the upload command
-var UploadCmd = &cobra.Command{
-	Use:   "csv",
+// ImportCmd runs the upload command
+var ImportCmd = &cobra.Command{
+	Use:   "import",
 	Short: "Create and assign labels from a CSV file. Create and label unmanaged workloads from same CSV.",
 	Long: `
 Create and assign labels from a CSV file. Create and label unmanaged workloads from same CSV.
@@ -69,7 +69,7 @@ Additional columns are allowed and will be ignored.
 +----------------+------+----------+------+-----+--------------------+`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE("pce.json")
+		pce, err = utils.GetPCE()
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for csv command - %s", err)
 		}

@@ -48,7 +48,7 @@ An example is below:
 Use --hrefCol and --stateCol to specify the columns if not default (href=1, state=2). Additional columns will be ignored.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
-		pce, err = utils.GetPCE("pce.json")
+		pce, err = utils.GetPCE()
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("getting PCE for mode command - %s", err))
 		}

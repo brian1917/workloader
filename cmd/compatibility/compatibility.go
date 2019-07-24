@@ -28,7 +28,7 @@ var CompatibilityCmd = &cobra.Command{
 Generate a compatibility report for all Idle workloads.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE("pce.json")
+		pce, err = utils.GetPCE()
 		if err != nil {
 			utils.Logger.Fatalf("[ERROR] - getting PCE - %s", err)
 		}

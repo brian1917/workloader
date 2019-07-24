@@ -1,4 +1,4 @@
-package hostparser
+package hostparse
 
 import (
 	"fmt"
@@ -70,5 +70,4 @@ func parseConfig() config {
 	}
 
 	return config
-
 }

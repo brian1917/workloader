@@ -11,7 +11,7 @@ var FlowCmd = &cobra.Command{
 	Short: "Upload flows to PCE from a CSV file.",
 	Run: func(cmd *cobra.Command, args []string) {
 
-		_, err := utils.GetPCE("pce.json")
+		_, err := utils.GetPCE()
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for flow upload command - %s", err)
 		}

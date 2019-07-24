@@ -55,7 +55,7 @@ using the appropriate flags. Example default:
 +----------------+------+-----+`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE("pce.json")
+		pce, err = utils.GetPCE()
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for subnet command - %s", err)
 		}
