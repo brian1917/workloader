@@ -39,9 +39,8 @@ var MisLabelCmd = &cobra.Command{
 func misLabel() {
 
 	debug := true
-	ignoreloc := true
+	ignoreloc := false
 
-	ignorewkld := make(map[string]bool)
 	labelmap, err := illumioapi.GetLabelMapH(pce)
 	//fmt.Println(labelsAPI, apiResp, err)
 	if err != nil {
@@ -51,52 +50,69 @@ func misLabel() {
 		utils.Log(2, fmt.Sprintf("Get All Labels in a map using HREF as key.\r\n"))
 	}
 
-	hrefwkld, _ := illumioapi.GetWkldHrefMap(pce)
-	for _, w := range hrefwkld {
-		unmatched := false
-		if !ignorewkld[w.Href] {
-			tq := illumioapi.TrafficQuery{
-				StartTime:      time.Date(2013, 1, 1, 0, 0, 0, 0, time.UTC),
-				EndTime:        time.Date(2020, 12, 30, 0, 0, 0, 0, time.UTC),
-				PolicyStatuses: []string{"allowed", "potentially_blocked", "blocked"},
-				SourcesInclude: []string{w.Href},
-				MaxFLows:       100000}
+	tq := illumioapi.TrafficQuery{
+		StartTime:      time.Date(2013, 1, 1, 0, 0, 0, 0, time.UTC),
+		EndTime:        time.Now(),
+		PolicyStatuses: []string{"allowed", "potentially_blocked", "blocked"},
+		//SourcesInclude: []string{w.Href},
+		MaxFLows: 100000}
 
-			// If an app is provided, run with that app as the consumer.
-			// tq.SourcesInclude = []string{w}
+	// If an app is provided, run with that app as the consumer.
+	// tq.SourcesInclude = []string{w}
 
-			traffic, apiResp, err := illumioapi.GetTrafficAnalysis(pce, tq)
-			if err != nil {
-				utils.Logger.Fatal(err)
-			}
-			if debug == true {
-				utils.Log(2, fmt.Sprintf("Get All Labels API HTTP Request: %s %v \r\n", apiResp.Request.Method, apiResp.Request.URL))
-				utils.Log(2, fmt.Sprintf("Get All Labels API HTTP Reqest Header: %v \r\n", apiResp.Request.Header))
-				utils.Log(2, fmt.Sprintf("Get All Labels API Response Status Code: %d \r\n", apiResp.StatusCode))
-				utils.Log(0, fmt.Sprintf("Get All Labels API Response Body: \r\n %s \r\n", apiResp.RespBody))
-			}
-			dstwkld := make(map[string]string)
-			for _, ta := range traffic {
-				if ta.Dst.Workload == nil {
-					fmt.Println(ta.Dst)
-				} else {
-
-					if ta.Dst.Workload != nil {
-						if w.GetApp(labelmap).Value != ta.Dst.Workload.GetApp(labelmap).Value && w.GetEnv(labelmap).Value != ta.Dst.Workload.GetEnv(labelmap).Value {
-							if ignoreloc {
-								if w.GetLoc(labelmap).Value != ta.Dst.Workload.GetLoc(labelmap).Value {
-									fmt.Println(w.Hostname, ta.Dst.Workload.Hostname)
-									fmt.Println("match")
-									dstwkld[ta.Dst.Workload.Hostname] = w.Hostname
-								}
-							} else {
-								ignorewkld[ta.Dst.Workload.Href] = true
-								//continue
-							}
+	traffic, apiResp, err := illumioapi.GetTrafficAnalysis(pce, tq)
+	if err != nil {
+		utils.Logger.Fatal(err)
+	}
+	fmt.Println(len(traffic))
+	if debug == true {
+		utils.Log(2, fmt.Sprintf("Get All Labels API HTTP Request: %s %v \r\n", apiResp.Request.Method, apiResp.Request.URL))
+		utils.Log(2, fmt.Sprintf("Get All Labels API HTTP Reqest Header: %v \r\n", apiResp.Request.Header))
+		utils.Log(2, fmt.Sprintf("Get All Labels API Response Status Code: %d \r\n", apiResp.StatusCode))
+		utils.Log(0, fmt.Sprintf("Get All Labels API Response Body: \r\n %s \r\n", apiResp.RespBody))
+	}
+	srcwkld := make(map[string]bool)
+	dstwkld := make(map[string]bool)
+	for _, ta := range traffic {
+		if ta.Src.Workload != nil {
+			if ta.Dst.Workload != nil {
+				if ta.Src.Workload.GetApp(labelmap).Value == ta.Dst.Workload.GetApp(labelmap).Value && ta.Src.Workload.GetEnv(labelmap).Value == ta.Dst.Workload.GetEnv(labelmap).Value {
+					if !ignoreloc {
+						if ta.Src.Workload.GetLoc(labelmap).Value == ta.Dst.Workload.GetLoc(labelmap).Value {
+							srcwkld[ta.Src.Workload.Href] = true
+							dstwkld[ta.Dst.Workload.Href] = true
 						}
+
+					} else {
+						srcwkld[ta.Src.Workload.Href] = true
+						dstwkld[ta.Dst.Workload.Href] = true
+					}
+				} else {
+					if !srcwkld[ta.Src.Workload.Href] {
+						srcwkld[ta.Src.Workload.Href] = false
+					}
+					if !dstwkld[ta.Dst.Workload.Href] {
+						dstwkld[ta.Dst.Workload.Href] = false
 					}
 				}
+			} else if !srcwkld[ta.Src.Workload.Href] {
+				srcwkld[ta.Src.Workload.Href] = false
 			}
+		} else if !dstwkld[ta.Dst.Workload.Href] {
+			dstwkld[ta.Dst.Workload.Href] = false
+		}
+	}
+
+	wkldmap, err := illumioapi.GetWkldHrefMap(pce)
+
+	for k, v := range srcwkld {
+		if !v {
+			fmt.Println(wkldmap[k].Hostname)
+		}
+	}
+	for k, v := range dstwkld {
+		if !v {
+			fmt.Println(wkldmap[k].Hostname)
 		}
 	}
 }
