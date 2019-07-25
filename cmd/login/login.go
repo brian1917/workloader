@@ -23,7 +23,7 @@ var session, remove, clear bool
 func init() {
 	LoginCmd.Flags().BoolVarP(&session, "session", "s", false, "Authentication will be temporary session token. No API Key will be generated.")
 	LoginCmd.Flags().BoolVarP(&remove, "remove", "r", false, "Remove existing JSON authentication file.")
-	LoginCmd.Flags().BoolVarP(&clear, "clear", "x", false, "Remove existing JSON authentication file and clear all workloader generated API credentials from the PCE.")
+	LoginCmd.Flags().BoolVarP(&clear, "clear", "x", false, "Remove existing JSON authentication file and clear all Workloader generated API credentials from the PCE.")
 
 	LoginCmd.Flags().SortFlags = false
 }
