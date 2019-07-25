@@ -17,8 +17,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Set global variables for flags
+var session, remove, clear bool
+
 func init() {
-	LoginCmd.Flags().BoolP("session", "s", false, "Authentication will be temporary session token. No API Key will be generated.")
+	LoginCmd.Flags().BoolVarP(&session, "session", "s", false, "Authentication will be temporary session token. No API Key will be generated.")
+	LoginCmd.Flags().BoolVarP(&remove, "remove", "r", false, "Remove existing JSON authentication file.")
+	LoginCmd.Flags().BoolVarP(&clear, "clear", "x", false, "Remove existing JSON authentication file and clear all workloader generated API credentials from the PCE.")
 
 	LoginCmd.Flags().SortFlags = false
 }
@@ -29,6 +34,7 @@ var LoginCmd = &cobra.Command{
 	Short: "Verifies existing login or generates a pce.json file for authentication used for all other commands.",
 	Long: `
 Login verifies an existing login or generates a json file that is used for authentication for all other commands.
+If the --remove (-r) flag or --clear (-c) flag is set, the login sequence will not run.
 
 The default file name is pce.json stored in the current directory.
 Set ILLUMIO_PCE environment variable for a custom file location, including file name.
@@ -48,15 +54,24 @@ export ILLUMIO_USER=joe@test.com
 export ILLUMIO_PWD=pwd123
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-
-		session, _ := cmd.Flags().GetBool("session")
-
-		PCELogin(session)
+		if remove && clear {
+			fmt.Println("Remove flag is redundant Clear flag includes remove functionality.")
+			clear = false
+		}
+		if remove {
+			removeJSONFile()
+		}
+		if clear {
+			clearAPIKeys()
+		}
+		if !remove && !clear {
+			PCELogin()
+		}
 	},
 }
 
 //PCELogin creates a JSON file for authentication
-func PCELogin(session bool) {
+func PCELogin() {
 
 	var err error
 
@@ -164,24 +179,12 @@ func PCELogin(session bool) {
 	// Write the PCE struct to a json file
 	pceFile, _ := json.MarshalIndent(pce, "", "")
 
-	// The file is either set in the ILLUMIO_PCE environment variable
-	file := os.Getenv("ILLUMIO_PCE")
+	_ = ioutil.WriteFile(getJSONFileLoc(), pceFile, 0644)
 
-	// Or, we create a pce.json file in the current directory
-	if file == "" {
-		path, err := os.Getwd()
-		if err != nil {
-			utils.Log(1, fmt.Sprintf("getting current directory value - %s", err))
-		}
-		file = path + "/pce.json"
-	}
-
-	_ = ioutil.WriteFile(file, pceFile, 0644)
-
-	fmt.Printf("Created %s\r\n", file)
+	fmt.Printf("Created %s\r\n", getJSONFileLoc())
 
 	// Log
-	utils.Log(0, fmt.Sprintf("login successful - created %s", file))
+	utils.Log(0, fmt.Sprintf("login successful - created %s", getJSONFileLoc()))
 
 }
 
@@ -203,4 +206,72 @@ func verifyLogin() (bool, illumioapi.PCE, illumioapi.Version) {
 
 	return true, pce, version
 
+}
+
+func removeJSONFile() {
+
+	utils.Log(0, "running login remove ...")
+
+	utils.Log(0, fmt.Sprintf("location of authentication file is %s", getJSONFileLoc()))
+
+	if _, err := os.Stat(getJSONFileLoc()); os.IsNotExist(err) {
+		utils.Log(0, "authentication file does not exist")
+		return
+	}
+
+	if err := os.Remove(getJSONFileLoc()); err != nil {
+		utils.Log(1, fmt.Sprintf("error deleting file - %s", err))
+	}
+
+	utils.Log(0, fmt.Sprintf("successfully deleted %s", getJSONFileLoc()))
+
+}
+
+func clearAPIKeys() {
+
+	// Log start of command
+	utils.Log(0, "running login clear...")
+
+	// Get the PCE
+	pce, err := utils.GetPCE()
+	if err != nil {
+		utils.Log(1, err.Error())
+	}
+
+	// Get all API Keys
+	apiKeys, _, err := illumioapi.GetAllAPIKeys(pce)
+	if err != nil {
+		utils.Log(1, err.Error())
+	}
+
+	// Delete the API keys that are from Workloader
+	for _, a := range apiKeys {
+		if a.Name == "Workloader" {
+			_, err := illumioapi.DeleteHref(pce, a.Href)
+			if err != nil {
+				utils.Log(1, err.Error())
+			}
+			utils.Log(0, fmt.Sprintf("deleted %s", a.Href))
+		}
+	}
+
+	// Remove the jsonFile
+	removeJSONFile()
+}
+
+func getJSONFileLoc() string {
+
+	// The file is either set in the ILLUMIO_PCE environment variable
+	file := os.Getenv("ILLUMIO_PCE")
+
+	// Or, we create a pce.json file in the current directory
+	if file == "" {
+		path, err := os.Getwd()
+		if err != nil {
+			utils.Log(1, fmt.Sprintf("getting current directory value - %s", err))
+		}
+		file = path + "/pce.json"
+	}
+
+	return file
 }
