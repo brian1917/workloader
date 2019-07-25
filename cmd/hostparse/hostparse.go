@@ -49,12 +49,13 @@ var HostnameCmd = &cobra.Command{
 Label workloads by parsing hostnames.
 An input CSV specifics the regex functions to use to assign labels. An example is below:
 
-+-------------------------+------+-------+----------+--------+---------------+
-|          REGEX          | ROLE |  APP  |   ENV    |  LOC   |    SAMPLE     |
-+-------------------------+------+-------+----------+--------+---------------+
-| (dc)-(\w*)(\d+)         | DC   | INFRA | CORE     | POD{3} | dc-pod2       |
-| (h)(1)-(\w*)-([s])(\d+) | WEB  | ${3}  | SITE${5} | AMAZON | h1-app-s1     |
-+-------------------------+------+-------+----------+--------+---------------+
++-------------------------+------+-------+----------+--------+----------------------+
+|          REGEX          | ROLE |  APP  |   ENV    |  LOC   |    SAMPLE    	 	|
++-------------------------+------+-------+----------+--------+----------------------+
+| (dc)-(\w*)(\d+)         | DC   | INFRA | ${2}    	| POD{3} | dc-pod2      		|
+| (h)(1)-(\w*)-([s])(\d+) | WEB  | ${3}  | SITE${5} | AMAZON | h1-app-s1     		|
+| (\w*).(\w*).(\w*).(\w*) | ${1} | ${2}  | PROD		| Boston | web.app1.it.com     	|
++-------------------------+------+-------+----------+--------+----------------------+
 
 `,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -90,7 +91,8 @@ func ReadCSV(file string) [][]string {
 	defer csvfile.Close()
 
 	if err != nil {
-		utils.Logger.Println(err)
+		utils.Log(0, fmt.Sprint(err))
+		//utils.Logger.Println(err)
 		os.Exit(1)
 	}
 
@@ -99,7 +101,7 @@ func ReadCSV(file string) [][]string {
 
 	rawCSVdata, err := reader.ReadAll()
 	if err != nil {
-		utils.Logger.Println(err)
+		utils.Log(0, fmt.Sprint(err))
 		os.Exit(1)
 	}
 
