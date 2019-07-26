@@ -1,6 +1,6 @@
 ﻿REGEX,ROLE,APP,ENV,LOC,
-(dc)--(\w*)(\d+),DC,INFRA,CORE,POD$3,eg. dc-pod2
-(dc)-(\w*)(\d+),DC,INFRA,CORE,POD$3,eg. dc-pod2
+(dc)--(\w*)(\d+),DC,INFRA,CORE,pod$3,eg. dc-pod2
+(dc)-(\w*)(\d+),DC,INFRA,CORE,pod$3,eg. dc-pod2
 (h)(1)-(\w*)-([s])(\d+),WEB,${3},SITE${5},Amazon,eg. h1-app-s1
 (h)(2)-(\w*)-([s])(\d+),WEB,${3},SITE${5},Amazon,eg. h2-app-s1
 (h)(3)-(\w*)-([s])(\d+),APP,${3},SITE${5},Amazon,eg. h2-app-s1

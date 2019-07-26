@@ -16,7 +16,7 @@ import (
 
 // Set up global variables
 var configFile, parserFile, hostFile, outputFile, appFlag, roleFlag, envFlag, locFlag string
-var debugLogging, noPrompt, logonly, allEmpty, ignoreMatch, noPCE, verbose bool
+var debugLogging, noPrompt, logonly, allEmpty, ignoreMatch, noPCE, verbose, name bool
 var updatecase int
 var pce illumioapi.PCE
 var err error
@@ -36,6 +36,7 @@ func init() {
 	HostnameCmd.Flags().BoolVar(&noPCE, "nopce", false, "No PCE.")
 	HostnameCmd.Flags().BoolVar(&debugLogging, "debug", false, "Debug logging.")
 	HostnameCmd.Flags().BoolVar(&logonly, "logonly", false, "Set to only log changes. Don't update the PCE.")
+	HostnameCmd.Flags().BoolVar(&name, "name", false, "Search Name field of workload. Defaults to Hostname.")
 	HostnameCmd.Flags().IntVar(&updatecase, "updatecase", 1, "Set 1 for uppercase labels(default), 2 for lowercase labels or 0 to ignore.")
 	HostnameCmd.Flags().SortFlags = false
 
@@ -131,7 +132,7 @@ func createLabels(pce illumioapi.PCE, tmplabel illumioapi.Label) illumioapi.Labe
 }
 
 // RelabelFromHostname function - Regex method to provide labels for the hostname provided
-func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]string, nolabels map[string]string) (bool, illumioapi.Workload) {
+func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]string, nolabels map[string]string) (bool, illumioapi.Workload, string) {
 
 	//var templabels []string
 	var match bool
@@ -139,7 +140,24 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 	var tmpwkld illumioapi.Workload
 
 	found := false
-	utils.Log(0, fmt.Sprintf("REGEX Match For - %s", wkld.Hostname))
+
+	var searchname string
+	if conf.Parser.Name {
+		searchname = wkld.Name
+	} else {
+		searchname = wkld.Hostname
+	}
+
+	if searchname == "" {
+		found = true
+		if conf.Parser.Name {
+			utils.Log(2, fmt.Sprintf("No Name string configured on the workload.  Hostname - %s\r\n", wkld.Hostname))
+		} else {
+			utils.Log(2, fmt.Sprintf("No Hostname string configured on the workload. Name - %s\r\n", wkld.Name))
+		}
+	} else {
+		utils.Log(0, fmt.Sprintf("REGEX Match For - %s", searchname))
+	}
 
 	for _, tmp := range r.regexdata {
 
@@ -149,17 +167,17 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 			tmpre := regexp.MustCompile(tmp.regex)
 
 			//Is there a match using the regex?
-			match = tmpre.MatchString(wkld.Hostname)
+			match = tmpre.MatchString(searchname)
 
 			//Report  if we have a match, regex and replacement regex per label
 			if conf.Logging.debug && !match {
-				utils.Log(2, fmt.Sprintf("%s - Regex: %s - Match: %t", wkld.Hostname, tmp.regex, match))
+				utils.Log(2, fmt.Sprintf("%s - Regex: %s - Match: %t", searchname, tmp.regex, match))
 			}
 
 			if match {
 				//stop searching regex for a match if one is already found
 				found = true
-				utils.Log(0, fmt.Sprintf("%s - Regex: %s - Match: %t", wkld.Hostname, tmp.regex, match))
+				utils.Log(0, fmt.Sprintf("%s - Regex: %s - Match: %t", searchname, tmp.regex, match))
 				// Copy the workload struct to save to new updated workload struct if needed.
 				tmpwkld = wkld
 
@@ -173,7 +191,7 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 				for _, label := range []string{"loc", "env", "app", "role"} {
 
 					//get the string returned from the replace regex.
-					tmpstr := changecase(strings.Trim(tmpre.ReplaceAllString(tmpwkld.Hostname, tmp.labelcg[label]), " "))
+					tmpstr := changecase(strings.Trim(tmpre.ReplaceAllString(searchname, tmp.labelcg[label]), " "))
 
 					var tmplabel illumioapi.Label
 
@@ -214,17 +232,17 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 				//Get the original labels and new labels to show the changes.
 				orgRole, orgApp, orgEnv, orgLoc := labelvalues(wkld.Labels)
 				role, app, env, loc := labelvalues(tmpwkld.Labels)
-				utils.Log(0, fmt.Sprintf("%s - Replacement Regex: %+v - Labels: %s - %s - %s - %s", wkld.Hostname, tmp.labelcg, role, app, env, loc))
-				utils.Log(0, fmt.Sprintf("%s - Current Labels: %s, %s, %s, %s Replaced with: %s, %s, %s, %s", tmpwkld.Hostname, orgRole, orgApp, orgEnv, orgLoc, role, app, env, loc))
+				utils.Log(0, fmt.Sprintf("%s - Replacement Regex: %+v - Labels: %s - %s - %s - %s", searchname, tmp.labelcg, role, app, env, loc))
+				utils.Log(0, fmt.Sprintf("%s - Current Labels: %s, %s, %s, %s Replaced with: %s, %s, %s, %s", searchname, orgRole, orgApp, orgEnv, orgLoc, role, app, env, loc))
 
 			}
 		} else {
-			return match, tmpwkld
+			return match, tmpwkld, searchname
 		}
 	}
-	utils.Log(0, fmt.Sprintf("**** NO REGEX MATCH FOUND **** - %s -", wkld.Hostname))
-	//return if there was match and the updated workload
-	return match, tmpwkld
+	utils.Log(0, fmt.Sprintf("**** NO REGEX MATCH FOUND **** - %s -", searchname))
+	//return there was no match for that hostname
+	return match, tmpwkld, searchname
 }
 
 //Load the Regex CSV Into the parser struct -
@@ -237,7 +255,7 @@ func (r *regex) load(data [][]string) {
 		//ignore header
 		if c != 0 {
 
-			//Array order 0-LOC,1-ENV,2-APP,3-APP
+			//Array order 0-Role,1-App,2-Env,3-Loc
 			tmpmap := make(map[string]string)
 			for x, lbl := range []string{"role", "app", "env", "loc"} {
 				//place CSV column in map
@@ -415,7 +433,7 @@ func hostnameParser() {
 		}
 		//create Label array with all the HRefs as value with label type and label key combined as the key "key.value"
 		for _, l := range labels {
-			lblskv[l.Key+"."+changecase(l.Value)] = l.Href
+			lblskv[l.Key+"."+l.Value] = l.Href
 			lblshref[l.Href] = l
 
 		}
@@ -451,11 +469,11 @@ func hostnameParser() {
 
 		for _, x := range hostrec {
 
-			match, labeledwrkld := data.RelabelFromHostname(illumioapi.Workload{Hostname: x[0]}, lblskv, nolabels)
+			match, labeledwrkld, searchname := data.RelabelFromHostname(illumioapi.Workload{Hostname: x[0]}, lblskv, nolabels)
 			if match {
 				role, app, env, loc := labelvalues(labeledwrkld.Labels)
-				fmt.Fprintf(gatBulkupdateFile, "%s,%s,%s,%s,%s,%s\r\n", labeledwrkld.Hostname, role, app, env, loc, labeledwrkld.Href)
-				matchtable.Append([]string{labeledwrkld.Hostname, role, app, env, loc})
+				fmt.Fprintf(gatBulkupdateFile, "%s,%s,%s,%s,%s,%s\r\n", searchname, role, app, env, loc, labeledwrkld.Href)
+				matchtable.Append([]string{searchname, role, app, env, loc})
 			}
 			alllabeledwrkld = append(alllabeledwrkld, labeledwrkld)
 		}
@@ -482,11 +500,11 @@ func hostnameParser() {
 
 				//fmt.Println(w.Hostname)
 				if matchworkloads(w.Labels, lblshref) {
-					match, labeledwrkld := data.RelabelFromHostname(w, lblskv, nolabels)
+					match, labeledwrkld, searchname := data.RelabelFromHostname(w, lblskv, nolabels)
 					if match {
 						role, app, env, loc := labelvalues(labeledwrkld.Labels)
-						fmt.Fprintf(gatBulkupdateFile, "%s,%s,%s,%s,%s,%s\r\n", labeledwrkld.Hostname, role, app, env, loc, labeledwrkld.Href)
-						matchtable.Append([]string{labeledwrkld.Hostname, role, app, env, loc})
+						fmt.Fprintf(gatBulkupdateFile, "%s,%s,%s,%s,%s,%s\r\n", searchname, role, app, env, loc, labeledwrkld.Href)
+						matchtable.Append([]string{searchname, role, app, env, loc})
 						alllabeledwrkld = append(alllabeledwrkld, labeledwrkld)
 
 					}
@@ -513,7 +531,7 @@ func hostnameParser() {
 			//Make sure we arent only looking for an output file and we have the ability to access the PCE.
 
 		}
-		if conf.Logging.debug && !conf.Parser.NoPrompt {
+		if !conf.Parser.NoPrompt {
 			labeltable.Render()
 			fmt.Print("***** Above Labels Not Configured on the PCE ***** \r\n")
 
@@ -523,7 +541,7 @@ func hostnameParser() {
 	var response string
 	// Print table with all the workloads and the new labels.
 	if len(alllabeledwrkld) > 0 {
-		if conf.Logging.debug && !conf.Parser.NoPrompt {
+		if !conf.Parser.NoPrompt {
 			matchtable.Render()
 		}
 
