@@ -162,9 +162,10 @@ func PCELogin() {
 	// If session flag is set, create a PCE struct with session token
 	if session {
 		fmt.Println("Authenticating ...")
-		pce, err = illumioapi.PCEbuilder(fqdn, user, pwd, port, disableTLS)
+		pce := illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS}
+		_, err := pce.Login(user, pwd)
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("building PCE - %s", err))
+			utils.Log(1, fmt.Sprintf("logging into PCE - %s", err))
 		}
 	} else {
 		// If session flag is not set, generate API credentials and create PCE struct
@@ -194,7 +195,7 @@ func verifyLogin() (bool, illumioapi.PCE, illumioapi.Version) {
 		return false, pce, illumioapi.Version{}
 	}
 
-	u, _, err := pce.Login("")
+	u, err := pce.Login("", "")
 	if u.Orgs[0].ID != pce.Org {
 		return false, pce, illumioapi.Version{}
 	}
