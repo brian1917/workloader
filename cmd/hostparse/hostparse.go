@@ -23,7 +23,8 @@ type config struct {
 }
 
 type illumio struct {
-	NoPCE bool `toml:"no_pce"`
+	NoPCE     bool `toml:"no_pce"`
+	UpdatePCE bool
 }
 
 type parser struct {
@@ -63,13 +64,14 @@ func parseConfig() config {
 
 	config := config{
 		Illumio: illumio{
-			NoPCE: noPCE},
+			NoPCE:     noPCE,
+			UpdatePCE: updatepce},
 		Parser: parser{
 			Parserfile:   parserFile,
 			HostnameFile: hostFile,
 			OutputFile:   "hostname-parser-output-" + time.Now().Format("20060102_150405") + ".csv",
 			NoPrompt:     noPrompt,
-			CheckCase:    updatecase,
+			CheckCase:    capitalize,
 			Name:         name},
 		Match: match{
 			IgnoreMatch: ignoreMatch,
@@ -78,16 +80,16 @@ func parseConfig() config {
 			Loc:         locFlag,
 			Role:        roleFlag},
 		Logging: logging{
-			LogOnly: logonly,
-			debug:   debugLogging}}
+			//	LogOnly: logonly,
+			debug: debugLogging}}
 
 	return config
 }
 
 // Set up global variables
 var configFile, parserFile, hostFile, outputFile, appFlag, roleFlag, envFlag, locFlag string
-var debugLogging, noPrompt, logonly, ignoreMatch, noPCE, verbose, name bool
-var updatecase int
+var debugLogging, noPrompt, updatepce, logonly, ignoreMatch, noPCE, verbose, name bool
+var capitalize int
 var pce illumioapi.PCE
 var err error
 var conf config
@@ -104,10 +106,11 @@ func init() {
 	//HostnameCmd.Flags().BoolVar(&allEmpty, "allempty", false, "Parse all PCE workloads that have zero labels assigned.")
 	HostnameCmd.Flags().BoolVar(&ignoreMatch, "ignorematch", false, "Parse all PCE workloads no matter what labels are assigned.")
 	HostnameCmd.Flags().BoolVar(&noPCE, "nopce", false, "No PCE.")
-	HostnameCmd.Flags().BoolVar(&debugLogging, "debug", false, "Debug logging.")
-	HostnameCmd.Flags().BoolVar(&logonly, "logonly", false, "Set to only log changes. Don't update the PCE.")
+	HostnameCmd.Flags().BoolVar(&updatepce, "updatepce", false, "Does the script update the PCE with the Labels parsed from the host(name)?")
+	HostnameCmd.Flags().BoolVar(&debugLogging, "debug", false, "Debug logging turned on.")
+	//HostnameCmd.Flags().BoolVar(&logonly, "logonly", false, "Set to only log changes. Don't update the PCE.")
 	HostnameCmd.Flags().BoolVar(&name, "name", false, "Search Name field of workload instead of Hostname. Defaults to Hostname.")
-	HostnameCmd.Flags().IntVar(&updatecase, "updatecase", 1, "Set 1 for uppercase labels(default), 2 for lowercase labels or 0 to leave capitalization alone.")
+	HostnameCmd.Flags().IntVar(&capitalize, "capitalize", 1, "Set 1 for uppercase labels(default), 2 for lowercase labels or 0 to leave capitalization alone.")
 	HostnameCmd.Flags().SortFlags = false
 
 }
@@ -493,7 +496,7 @@ func hostnameParser() {
 
 	//Access PCE to get all Labels only if no_pce is not set to true in config file
 	if !conf.Illumio.NoPCE {
-		labels, apiResp, err := illumioapi.GetAllLabels(pce)
+		labels, apiResp, err := pce.GetAllLabels()
 		//fmt.Println(labelsAPI, apiResp, err)
 		if err != nil {
 			utils.Logger.Fatal(err)
@@ -564,7 +567,7 @@ func hostnameParser() {
 		//Access PCE to get all Workloads.  Check rally should never get to this if no hostfile is configured...just extra error checking
 		if !conf.Illumio.NoPCE {
 
-			workloads, apiResp, err := illumioapi.GetAllWorkloads(pce)
+			workloads, apiResp, err := pce.GetAllWorkloads()
 			if conf.Logging.debug {
 				utils.Log(2, fmt.Sprintf("Get All Workloads API HTTP Request: %s %v", apiResp.Request.Method, apiResp.Request.URL))
 				utils.Log(2, fmt.Sprintf("Get All Workloads API HTTP Reqest Header: %v", apiResp.Request.Header))
@@ -631,14 +634,14 @@ func hostnameParser() {
 			response = "yes"
 		}
 
-		if response == "yes" && (!conf.Logging.LogOnly && !conf.Illumio.NoPCE) {
+		if response == "yes" && (conf.Illumio.UpdatePCE && !conf.Illumio.NoPCE) {
 
 			if conf.Logging.debug {
 				utils.Log(2, fmt.Sprintf("*********************************LABEL CREATION***************************************"))
 				utils.Log(2, fmt.Sprintf("Both LogOnly is set to false and NoPCE is set to false - Creating Labels"))
 			}
 			for _, lbl := range tmplbls {
-				newLabel, apiResp, err := illumioapi.CreateLabel(pce, lbl)
+				newLabel, apiResp, err := pce.CreateLabel(lbl)
 
 				if err != nil {
 					utils.Log(1, fmt.Sprint(err))
@@ -667,7 +670,7 @@ func hostnameParser() {
 					}
 				}
 			}
-			apiResp, err := illumioapi.BulkWorkload(pce, alllabeledwrkld, "update")
+			apiResp, err := pce.BulkWorkload(alllabeledwrkld, "update")
 
 			c := 1
 			for _, api := range apiResp {
