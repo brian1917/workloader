@@ -109,7 +109,7 @@ func misLabel() {
 	ignoreloc := false
 
 	// Get the labelMap
-	labelmap, apiResp, err := illumioapi.GetLabelMapH(pce)
+	labelmap, apiResp, err := pce.GetLabelMapH()
 	if debug == true {
 		utils.Log(2, fmt.Sprintf("get href label map returned %d entries", len(labelmap)))
 		utils.LogAPIResp("getLabelMap", apiResp)
@@ -119,7 +119,7 @@ func misLabel() {
 	}
 
 	// Get all workloads
-	wklds, _, err := illumioapi.GetAllWorkloads(pce)
+	wklds, _, err := pce.GetAllWorkloads()
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("error getting all workloads - %s", err))
 	}
@@ -139,7 +139,7 @@ func misLabel() {
 		MaxFLows:         100000}
 
 	// Get traffic
-	traffic, apiResp, err := illumioapi.GetTrafficAnalysis(pce, tq)
+	traffic, apiResp, err := pce.GetTrafficAnalysis(tq)
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("error making traffic api call - %s", err))
 	}

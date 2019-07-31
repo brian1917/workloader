@@ -86,7 +86,7 @@ func checkLabel(label illumioapi.Label, labelMap map[string]illumioapi.Label) (i
 	}
 
 	// Create the label if it doesn't exist
-	l, _, err := illumioapi.CreateLabel(pce, illumioapi.Label{Key: label.Key, Value: label.Value})
+	l, _, err := pce.CreateLabel(illumioapi.Label{Key: label.Key, Value: label.Value})
 	if err != nil {
 		return illumioapi.Label{}, err
 	}
@@ -113,13 +113,13 @@ func processCSV() {
 	reader := csv.NewReader(bufio.NewReader(file))
 
 	// Get workload hostname map
-	wkldMap, err := illumioapi.GetWkldHostMap(pce)
+	wkldMap, err := pce.GetWkldHostMap()
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("getting workload host map - %s", err))
 	}
 
 	// Get label map
-	labelMap, _, err := illumioapi.GetLabelMapKV(pce)
+	labelMap, _, err := pce.GetLabelMapKV()
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("getting label key value map - %s", err))
 	}
@@ -250,7 +250,7 @@ func processCSV() {
 
 	// Bulk update if we have workloads that need updating
 	if len(updatedWklds) > 0 {
-		api, err := illumioapi.BulkWorkload(pce, updatedWklds, "update")
+		api, err := pce.BulkWorkload(updatedWklds, "update")
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("bulk updating workloads - %s", err))
 		}
@@ -261,7 +261,7 @@ func processCSV() {
 
 	// Bulk create if we have new workloads
 	if len(newUMWLs) > 0 {
-		api, err := illumioapi.BulkWorkload(pce, newUMWLs, "create")
+		api, err := pce.BulkWorkload(newUMWLs, "create")
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("bulk creating workloads - %s", err))
 		}

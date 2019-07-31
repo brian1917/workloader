@@ -75,7 +75,7 @@ func subnetParser() {
 	subnetLabels := locParser(csvFile, netCol, envCol, locCol)
 
 	// GetAllWorkloads
-	wklds, _, err := illumioapi.GetAllWorkloads(pce)
+	wklds, _, err := pce.GetAllWorkloads()
 	if err != nil {
 		utils.Logger.Fatalf("Error getting all workloads - %s", err)
 	}
@@ -85,7 +85,7 @@ func subnetParser() {
 	}
 
 	// GetAllLabels
-	labelMap, _, err := illumioapi.GetLabelMapKV(pce)
+	labelMap, _, err := pce.GetLabelMapKV()
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("getting label map - %s", err))
 	}
@@ -125,7 +125,7 @@ func subnetParser() {
 	if len(updatedWklds) > 0 {
 		csvWriter(pce, matches)
 		if auto {
-			api, err := illumioapi.BulkWorkload(pce, updatedWklds, "update")
+			api, err := pce.BulkWorkload(updatedWklds, "update")
 			if err != nil {
 				utils.Logger.Printf("ERROR - bulk updating workloads - %s\r\n", err)
 			}

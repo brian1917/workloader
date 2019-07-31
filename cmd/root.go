@@ -13,6 +13,7 @@ import (
 	"github.com/brian1917/workloader/cmd/mode"
 	"github.com/brian1917/workloader/cmd/subnet"
 	"github.com/brian1917/workloader/cmd/traffic"
+	"github.com/brian1917/workloader/cmd/upgrade"
 	"github.com/spf13/cobra"
 )
 
@@ -43,6 +44,7 @@ func init() {
 	RootCmd.AddCommand(mislabel.MisLabelCmd)
 	RootCmd.AddCommand(compatibility.CompatibilityCmd)
 	RootCmd.AddCommand(mode.ModeCmd)
+	RootCmd.AddCommand(upgrade.UpgradeCmd)
 }
 
 // Execute is called by the CLI main function to initiate the Cobra application

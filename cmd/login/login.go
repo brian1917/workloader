@@ -170,7 +170,7 @@ func PCELogin() {
 		// If session flag is not set, generate API credentials and create PCE struct
 		fmt.Println("Authenticating and generating API Credentials...")
 		pce = illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS}
-		pce, _, err = illumioapi.CreateAPIKey(pce, user, pwd, "Workloader", "Created by Workloader")
+		pce, _, err = pce.CreateAPIKey(user, pwd, "Workloader", "Created by Workloader")
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("error generating API key - %s", err))
 		}
@@ -194,12 +194,12 @@ func verifyLogin() (bool, illumioapi.PCE, illumioapi.Version) {
 		return false, pce, illumioapi.Version{}
 	}
 
-	u, _, err := illumioapi.Login(pce, "")
+	u, _, err := pce.Login("")
 	if u.Orgs[0].ID != pce.Org {
 		return false, pce, illumioapi.Version{}
 	}
 
-	version, err := illumioapi.GetVersion(pce)
+	version, err := pce.GetVersion()
 	if err != nil {
 		return false, pce, illumioapi.Version{}
 	}
@@ -239,7 +239,7 @@ func clearAPIKeys() {
 	}
 
 	// Get all API Keys
-	apiKeys, _, err := illumioapi.GetAllAPIKeys(pce)
+	apiKeys, _, err := pce.GetAllAPIKeys()
 	if err != nil {
 		utils.Log(1, err.Error())
 	}
@@ -247,7 +247,7 @@ func clearAPIKeys() {
 	// Delete the API keys that are from Workloader
 	for _, a := range apiKeys {
 		if a.Name == "Workloader" {
-			_, err := illumioapi.DeleteHref(pce, a.Href)
+			_, err := pce.DeleteHref(a.Href)
 			if err != nil {
 				utils.Log(1, err.Error())
 			}

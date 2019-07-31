@@ -66,7 +66,7 @@ func modeUpdate() {
 	utils.Log(0, fmt.Sprintf("log only mode set to %t", logOnly))
 
 	// Build a map of all managed workloads
-	wkldMap, err := illumioapi.GetWkldHrefMap(pce)
+	wkldMap, err := pce.GetWkldHrefMap()
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("error getting workload map - %s", err))
 	}
@@ -98,7 +98,7 @@ func modeUpdate() {
 
 	// Bulk update the workloads if we have some
 	if len(workloadUpdates) > 0 && !logOnly {
-		api, err := illumioapi.BulkWorkload(pce, workloadUpdates, "update")
+		api, err := pce.BulkWorkload(workloadUpdates, "update")
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("running bulk update - %s", err))
 		}

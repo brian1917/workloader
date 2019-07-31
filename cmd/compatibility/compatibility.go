@@ -51,7 +51,7 @@ func compatibilityReport() {
 	}
 
 	// Get all workloads
-	wklds, _, err := illumioapi.GetAllWorkloads(pce)
+	wklds, _, err := pce.GetAllWorkloads()
 	if err != nil {
 		utils.Log(1, err.Error())
 	}
@@ -65,7 +65,7 @@ func compatibilityReport() {
 		}
 
 		// Get the compatibility report and append
-		cr, _, err := illumioapi.GetcompatibilityReport(pce, w)
+		cr, _, err := pce.GetCompatibilityReport(w)
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("getting compatibility report for %s (%s) - %s", w.Hostname, w.Href, err))
 		}

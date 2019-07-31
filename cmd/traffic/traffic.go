@@ -132,7 +132,7 @@ func workloadIdentifier() {
 
 	// Get all workloads and create workload map
 	allIPWLs := make(map[string]illumioapi.Workload)
-	wls, _, err := illumioapi.GetAllWorkloads(pce)
+	wls, _, err := pce.GetAllWorkloads()
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("getting all workloads - %s", err))
 	}
@@ -147,7 +147,7 @@ func workloadIdentifier() {
 	}
 
 	// Get all labels and create label map
-	labels, _, err := illumioapi.GetAllLabels(pce)
+	labels, _, err := pce.GetAllLabels()
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("getting all workloads - %s", err))
 	}
@@ -159,7 +159,7 @@ func workloadIdentifier() {
 	// Get the label if we are going to do a consumer exclude
 	var exclLabel illumioapi.Label
 	if len(consExcl) > 0 {
-		exclLabel, _, err = illumioapi.GetLabelbyKeyValue(pce, "role", consExcl)
+		exclLabel, _, err = pce.GetLabelbyKeyValue("role", consExcl)
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("getting label HREF - %s", err))
 		}
@@ -178,7 +178,7 @@ func workloadIdentifier() {
 
 	// If an app is provided, adjust query to include it
 	if app != "" {
-		label, _, err := illumioapi.GetLabelbyKeyValue(pce, "app", app)
+		label, _, err := pce.GetLabelbyKeyValue("app", app)
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("getting label HREF - %s", err))
 		}
@@ -189,7 +189,7 @@ func workloadIdentifier() {
 	}
 
 	// Run traffic query
-	traffic, _, err := illumioapi.GetTrafficAnalysis(pce, tq)
+	traffic, _, err := pce.GetTrafficAnalysis(tq)
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("making explorer API call - %s", err))
 	}
@@ -199,7 +199,7 @@ func workloadIdentifier() {
 		tq.DestinationsInclude = tq.SourcesInclude
 		tq.SourcesInclude = []string{}
 
-		traffic2, _, err := illumioapi.GetTrafficAnalysis(pce, tq)
+		traffic2, _, err := pce.GetTrafficAnalysis(tq)
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("making second explorer API call - %s", err))
 		}

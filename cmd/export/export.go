@@ -39,13 +39,13 @@ func exportWorkloads() {
 	data := [][]string{[]string{"hostname", "name", "href", "online", "os_id", "role", "app", "env", "loc", "status", "interfaces", "public_ip", "ven_version"}}
 
 	// GetAllWorkloads
-	wklds, _, err := illumioapi.GetAllWorkloads(pce)
+	wklds, _, err := pce.GetAllWorkloads()
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("getting all workloads - %s", err))
 	}
 
 	// Get LabelMap
-	labelMap, _, err := illumioapi.GetLabelMapH(pce)
+	labelMap, _, err := pce.GetLabelMapH()
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("getting label map - %s", err))
 	}
