@@ -103,12 +103,10 @@ func init() {
 	HostnameCmd.Flags().StringVarP(&envFlag, "env", "r", "", "Role label.")
 	HostnameCmd.Flags().StringVarP(&locFlag, "loc", "l", "", "Location label.")
 	HostnameCmd.Flags().BoolVar(&noPrompt, "noprompt", false, "No Prompt or output.  Used for automatation in a script.")
-	//HostnameCmd.Flags().BoolVar(&allEmpty, "allempty", false, "Parse all PCE workloads that have zero labels assigned.")
 	HostnameCmd.Flags().BoolVar(&ignoreMatch, "ignorematch", false, "Parse all PCE workloads no matter what labels are assigned.")
 	HostnameCmd.Flags().BoolVar(&noPCE, "nopce", false, "No PCE.")
 	HostnameCmd.Flags().BoolVar(&updatepce, "updatepce", false, "Does the script update the PCE with the Labels parsed from the host(name)?")
 	HostnameCmd.Flags().BoolVar(&debugLogging, "debug", false, "Debug logging turned on.")
-	//HostnameCmd.Flags().BoolVar(&logonly, "logonly", false, "Set to only log changes. Don't update the PCE.")
 	HostnameCmd.Flags().BoolVar(&name, "name", false, "Search Name field of workload instead of Hostname. Defaults to Hostname.")
 	HostnameCmd.Flags().IntVar(&capitalize, "capitalize", 1, "Set 1 for uppercase labels(default), 2 for lowercase labels or 0 to leave capitalization alone.")
 	HostnameCmd.Flags().SortFlags = false
