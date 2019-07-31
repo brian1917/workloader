@@ -1,6 +1,6 @@
 ﻿REGEX,ROLE,APP,ENV,LOC,
-(dc)--(\w*)(\d+),DC,INFRA,CORE,POD$3,eg. dc-pod2
-(dc)-(\w*)(\d+),DC,INFRA,CORE,POD$3,eg. dc-pod2
+(dc)--(\w*)(\d+),DC,INFRA,CORE,pod$3,eg. dc-pod2
+(dc)-(\w*)(\d+),DC,INFRA,CORE,pod$3,eg. dc-pod2
 (h)(1)-(\w*)-([s])(\d+),WEB,${3},SITE${5},Amazon,eg. h1-app-s1
 (h)(2)-(\w*)-([s])(\d+),WEB,${3},SITE${5},Amazon,eg. h2-app-s1
 (h)(3)-(\w*)-([s])(\d+),APP,${3},SITE${5},Amazon,eg. h2-app-s1
@@ -25,7 +25,7 @@
 (D)(\d{2})(P)([A-Z]{3})([A-Z]{2})\d+,${5},${4},${3},${1}${2},
 (D)(\d{2})([A-Z]{2})(\d{2})([A-Z]{2})\d+,${5},${3},${4},${1}${2},
 (DW)(\d{2})([A-Za-z]{2})(\d{2})([A-Za-z]{2})\d+,${5},${3},${2}_${4},${1},DW00RE01AG01
-([A-Za-z0-9]*)(\.)([A-Za-z0-9]*)(\.)([A-Za-z0-9]*)\.\w+,${1},${2},,,Web.App1.Illumio.com
+([A-Za-z0-9]*)\.([A-Za-z0-9]*)\.([A-Za-z0-9]*)\.\w+,${1},${2},,,Web.App1.Illumio.com
 (DV)(\d)(WS)(\d{2})(SSIS),DATABASE,APP-$5,$1-DEV,WAP,
 (DV)(\d)(WS)(\d{2})(SSO),APP,ADD_WSUS_MAA,DEV,WAP,
 (\w*)\.(\w*),Cool,${1},${2},,
