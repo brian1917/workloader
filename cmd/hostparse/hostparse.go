@@ -47,16 +47,13 @@ type logging struct {
 
 //pasrseConfig - Function to load all the options into a global variable.
 //
-//  NoPCE - If set to true then never call PCE APIs to get or update date
 //  ParseFile - File that has the Regex to match with as well as Results of parsing for each label
 //  HostFile - If not using PCE workloads you can load a file with hostnames
-//  OutputFile - Name of the file that will be built  - Currently static - no way to set
 //  NoPrompt - If no user interaction (confirmation questions) is required this will perform all tasks as YES
-//  CheckCase - Will make resulting Labels Upper=0, Lower=1 or use the match results output
-//  Name - Parsing will be done on either the Hostname or Name field.  Default to Hostname
+//  CheckCase - Will make resulting Labels Upper=0, Lower=1 or Leave the characters as they are
 //  IgnoreMatch - Normally we need workloads to have no labels or specific labels.  This will ignore that and parse all PCE workloads
 //  Role,App,Env,Loc - Labels that will be used to match workloads to have their names parsed...if left blank then looking for workloads without any labels.
-//  LogOnly - Will not push any changes back to the PCE.  It will pull data from the PCE.  NoPce will stop even that.
+//  UpdatePCE - Will not push any changes back to the PCE.  It will pull data from the PCE.
 //  Debug - This will enable debug Logging.
 func parseConfig() config {
 
@@ -179,6 +176,7 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 	//var templabels []string
 	var match bool
 
+	// Copy the workload struct to save to new updated workload struct if needed.
 	tmpwkld := wkld
 
 	var searchname string
@@ -212,10 +210,11 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 			utils.Log(2, fmt.Sprintf("%s - Regex: %s - Match: %t", searchname, tmp.regex, match))
 		}
 
+		// if the Regex matches the hostname string cycle through the label types and extract the desired labels.
+		// Makes sure the labels have the right capitalization. Write the old labels and new labels to the output file
+		// keep all the labels that arent currently configured on the PCE to be added if NOPrompt or UpdatePCE
 		if match {
-
 			utils.Log(0, fmt.Sprintf("%s - Regex: %s - Match: %t", searchname, tmp.regex, match))
-			// Copy the workload struct to save to new updated workload struct if needed.
 			// Save the labels that are existing
 			orgLabels := make(map[string]*illumioapi.Label)
 			for _, l := range wkld.Labels {
@@ -276,6 +275,8 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 				utils.Log(0, fmt.Sprintf("%s - Replacement Regex: %+v - Labels: %s - %s - %s - %s", searchname, tmp.labelcg, role, app, env, loc))
 			}
 			utils.Log(0, fmt.Sprintf("%s - Current Labels: %s, %s, %s, %s Replaced with: %s, %s, %s, %s", searchname, orgRole, orgApp, orgEnv, orgLoc, role, app, env, loc))
+
+			// Write out ALL the hostnames with new and old labels in output file
 			fmt.Fprintf(outputfile, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\r\n", tmpwkld.Hostname, role, app, env, loc, tmpwkld.Href, orgRole, orgApp, orgEnv, orgLoc, tmp.regex, tmp.labelcg)
 			return match, tmpwkld
 		}
