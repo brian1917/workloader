@@ -36,14 +36,6 @@ func init() {
 
 	ImportCmd.Flags().SortFlags = false
 
-	// Adjust the columns by one
-	hostCol--
-	roleCol--
-	appCol--
-	envCol--
-	locCol--
-	intCol--
-
 }
 
 // ImportCmd runs the upload command
@@ -78,17 +70,18 @@ Additional columns are allowed and will be ignored.
 	},
 }
 
-func checkLabel(label illumioapi.Label, labelMap map[string]illumioapi.Label) (illumioapi.Label, error) {
+func checkLabel(label illumioapi.Label, labelMap map[string]illumioapi.Label) illumioapi.Label {
 
 	// Check if it exists or not
 	if _, ok := labelMap[label.Key+label.Value]; ok {
-		return labelMap[label.Key+label.Value], nil
+		return labelMap[label.Key+label.Value]
 	}
 
 	// Create the label if it doesn't exist
-	l, _, err := pce.CreateLabel(illumioapi.Label{Key: label.Key, Value: label.Value})
+	l, a, err := pce.CreateLabel(illumioapi.Label{Key: label.Key, Value: label.Value})
+	utils.LogAPIResp("CreateLabel", a)
 	if err != nil {
-		return illumioapi.Label{}, err
+		utils.Log(1, err.Error())
 	}
 	logJSON, _ := json.Marshal(illumioapi.Label{Href: l.Href, Key: label.Key, Value: label.Value})
 	utils.Log(0, fmt.Sprintf("created Label - %s", string(logJSON)))
@@ -96,7 +89,7 @@ func checkLabel(label illumioapi.Label, labelMap map[string]illumioapi.Label) (i
 	// Append the label back to the map
 	labelMap[l.Key+l.Value] = l
 
-	return l, nil
+	return l
 }
 
 func processCSV() {
@@ -104,15 +97,26 @@ func processCSV() {
 	// Log start of the command
 	utils.Log(0, "started CSV command")
 
+	// Adjust the columns by one
+	hostCol--
+	roleCol--
+	appCol--
+	envCol--
+	locCol--
+	intCol--
+
+	// If debug, log the columns
+	utils.Log(2, fmt.Sprintf("CSV Columns. All values should be 1 less than user-provided. Host: %d; Role: %d; App: %d; Env: %d; Loc: %d; Interface: %d", hostCol, roleCol, appCol, envCol, locCol, intCol))
+
 	// Open CSV File
 	file, err := os.Open(csvFile)
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("opening CSV - %s", err))
 	}
 	defer file.Close()
-	reader := csv.NewReader(bufio.NewReader(file))
+	reader := csv.NewReader(utils.ClearBOM(bufio.NewReader(file)))
 
-	// Get workload hostname map
+	// Get workload hostname map -- NEED DEBUG LOGGING HERE
 	wkldMap, err := pce.GetWkldHostMap()
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("getting workload host map - %s", err))
@@ -157,7 +161,6 @@ func processCSV() {
 			if umwl {
 				// Create the network interfaces
 				netInterfaces := []*illumioapi.Interface{}
-				fmt.Println(intCol)
 				nic := strings.Split(line[intCol], ";")
 				for _, n := range nic {
 					x := strings.Split(n, ":")
@@ -176,10 +179,8 @@ func processCSV() {
 						continue
 					}
 					// Get the label HREF
-					l, err := checkLabel(illumioapi.Label{Key: keys[i], Value: line[columns[i]]}, labelMap)
-					if err != nil {
-						utils.Logger.Fatal(err)
-					}
+					l := checkLabel(illumioapi.Label{Key: keys[i], Value: line[columns[i]]}, labelMap)
+
 					// Add that label to the new labels slice
 					labels = append(labels, &illumioapi.Label{Href: l.Href})
 				}
@@ -226,11 +227,9 @@ func processCSV() {
 			if labels[i].Value != line[columns[i]] {
 				// Change the change flag
 				change = true
+
 				// Get the label HREF
-				l, err := checkLabel(illumioapi.Label{Key: keys[i], Value: line[columns[i]]}, labelMap)
-				if err != nil {
-					utils.Log(1, err.Error())
-				}
+				l := checkLabel(illumioapi.Label{Key: keys[i], Value: line[columns[i]]}, labelMap)
 				// Add that label to the new labels slice
 				newLabels = append(newLabels, &illumioapi.Label{Href: l.Href})
 			} else {
