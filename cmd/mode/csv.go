@@ -30,7 +30,7 @@ func parseCsv(filename string) []target {
 		utils.Log(1, fmt.Sprintf("opening CSV - %s", err))
 	}
 	defer file.Close()
-	reader := csv.NewReader(bufio.NewReader(file))
+	reader := csv.NewReader(utils.ClearBOM(bufio.NewReader(file)))
 
 	// Start the counter
 	i := 0
