@@ -171,7 +171,7 @@ func ReadCSV(file string) [][]string {
 }
 
 // RelabelFromHostname function - Regex method to provide labels for the hostname provided
-func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]string, nolabels map[string]string, outputfile *os.File) (bool, illumioapi.Workload) {
+func (r *regex) RelabelFromHostname(failedPCE bool, wkld illumioapi.Workload, lbls map[string]string, nolabels map[string]string, outputfile *os.File) (bool, illumioapi.Workload) {
 
 	//var templabels []string
 	var match bool
@@ -241,8 +241,14 @@ func (r *regex) RelabelFromHostname(wkld illumioapi.Workload, lbls map[string]st
 						lbls[label+"."+tmpstr] = ""
 
 						//create a list of labels that arent currently configured on the PCE that the replacement regex  wants.
-						nolabels[label+"."+tmpstr] = ""
-
+						//only get labels for workloads that have HREFs...
+						if conf.Illumio.UpdatePCE || !failedPCE {
+							if tmpwkld.Href != "" {
+								nolabels[label+"."+tmpstr] = ""
+							}
+						} else {
+							nolabels[label+"."+tmpstr] = ""
+						}
 						//Build a label variable with Label type and Value but no Href due to the face its not configured on the PCE
 						tmplabel = illumioapi.Label{Key: label, Value: tmpstr}
 
@@ -585,23 +591,6 @@ func hostnameParser() {
 	} else {
 		wkld = workloads
 	}
-	//Parse hostname and update nolabel map with labels that arent on the pce.
-	// 		match, samelbls, labeledwrkld := data.RelabelFromHostname(tmpwkld, lblskv, nolabels)
-	// 		role, app, env, loc := labelvalues(labeledwrkld.Labels)
-	// 		if samelbls {
-	// 			utils.Log(0, fmt.Sprintf("Workload Labels unchanged :"))
-	// 		}
-	// 		if match {
-
-	// 			matchtable.Append([]string{row[0], row[0], role, app, env, loc})
-	// 		}
-	// 		fmt.Fprintf(gatBulkupdateFile, "%s,%s,%s,%s,%s,%s\r\n", row[0], role, app, env, loc, labeledwrkld.Href)
-	// 		alllabeledwrkld = append(alllabeledwrkld, labeledwrkld)
-	// 	}
-
-	// } else {
-	// 	//Access PCE to get all Workloads.  Check rally should never get to this if no hostfile is configured...just extra error checking
-	// 	if !conf.Illumio.NoPCE {
 
 	// 		//Cycle through all the workloads
 	for _, w := range wkld {
@@ -611,7 +600,7 @@ func hostnameParser() {
 		updateLabels(&w, lblshref)
 		if matchworkloads(w.Labels, lblshref) {
 
-			match, labeledwrkld := data.RelabelFromHostname(w, lblskv, nolabels, gatBulkupdateFile)
+			match, labeledwrkld := data.RelabelFromHostname(failedPCE, w, lblskv, nolabels, gatBulkupdateFile)
 			orgRole, orgApp, orgEnv, orgLoc := labelvalues(w.Labels)
 			role, app, env, loc := labelvalues(labeledwrkld.Labels)
 
