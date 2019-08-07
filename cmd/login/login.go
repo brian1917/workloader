@@ -19,6 +19,7 @@ import (
 
 // Set global variables for flags
 var session, remove, clear bool
+var debug bool
 
 func init() {
 	LoginCmd.Flags().BoolVarP(&session, "session", "s", false, "Authentication will be temporary session token. No API Key will be generated.")
@@ -54,6 +55,9 @@ export ILLUMIO_USER=joe@test.com
 export ILLUMIO_PWD=pwd123
 `,
 	Run: func(cmd *cobra.Command, args []string) {
+
+		debug = true
+
 		if remove && clear {
 			fmt.Println("Remove flag is redundant Clear flag includes remove functionality.")
 			clear = false
@@ -72,8 +76,8 @@ export ILLUMIO_PWD=pwd123
 
 //PCELogin creates a JSON file for authentication
 func PCELogin() {
-
 	var err error
+	var pce illumioapi.PCE
 
 	// Log start
 	utils.Log(0, "login command started")
@@ -101,6 +105,7 @@ func PCELogin() {
 
 	// FQDN - if env variable isn't set, prompt for it.
 	if fqdn == "" {
+		// Set default value if there is an existing and no longer valid pce.json file
 		defaultValue := fmt.Sprintf(" [%s]", existingPCE.FQDN)
 		if existingPCE.FQDN == "" {
 			defaultValue = ""
@@ -122,7 +127,6 @@ func PCELogin() {
 	if len(fqdn) > 10 && fqdn[len(fqdn)-9:] == ".illum.io" {
 		defaultPort = 443
 	}
-
 	// If the port environment variable isn't set, prompt for it
 	if port == 0 {
 		fmt.Printf("PCE Port [%d] :", defaultPort)
@@ -160,10 +164,11 @@ func PCELogin() {
 	}
 
 	// If session flag is set, create a PCE struct with session token
+	var userLogin illumioapi.UserLogin
 	if session {
 		fmt.Println("Authenticating ...")
-		pce := illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS}
-		_, err := pce.Login(user, pwd)
+		pce = illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS}
+		userLogin, _, err = pce.Login(user, pwd)
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("logging into PCE - %s", err))
 		}
@@ -171,35 +176,31 @@ func PCELogin() {
 		// If session flag is not set, generate API credentials and create PCE struct
 		fmt.Println("Authenticating and generating API Credentials...")
 		pce = illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS}
-		pce, _, err = pce.CreateAPIKey(user, pwd, "Workloader", "Created by Workloader")
+		userLogin, _, err = pce.LoginAPIKey(user, pwd, "Workloader", "Created by Workloader")
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("error generating API key - %s", err))
 		}
 	}
 
 	// Write the PCE struct to a json file
-	pceFile, _ := json.MarshalIndent(pce, "", "")
-
+	pceFile, _ := json.MarshalIndent(utils.UserInfo{PCE: pce, User: illumioapi.UserLogin{FullName: userLogin.FullName, Orgs: userLogin.Orgs, Href: userLogin.Href}}, "", "    ")
 	_ = ioutil.WriteFile(getJSONFileLoc(), pceFile, 0644)
 
-	fmt.Printf("Created %s\r\n", getJSONFileLoc())
-
 	// Log
+	fmt.Printf("Created %s\r\n", getJSONFileLoc())
 	utils.Log(0, fmt.Sprintf("login successful - created %s", getJSONFileLoc()))
 
 }
 
 func verifyLogin() (bool, illumioapi.PCE, illumioapi.Version) {
+
+	// Get the PCE
 	pce, err := utils.GetPCE()
 	if err != nil {
 		return false, pce, illumioapi.Version{}
 	}
 
-	u, err := pce.Login("", "")
-	if u.Orgs[0].ID != pce.Org {
-		return false, pce, illumioapi.Version{}
-	}
-
+	// If the pce is the same and still works, get the version.
 	version, err := pce.GetVersion()
 	if err != nil {
 		return false, pce, illumioapi.Version{}
@@ -211,7 +212,7 @@ func verifyLogin() (bool, illumioapi.PCE, illumioapi.Version) {
 
 func removeJSONFile() {
 
-	utils.Log(0, "running login remove ...")
+	utils.Log(0, "login remove started...")
 
 	utils.Log(0, fmt.Sprintf("location of authentication file is %s", getJSONFileLoc()))
 
@@ -231,7 +232,7 @@ func removeJSONFile() {
 func clearAPIKeys() {
 
 	// Log start of command
-	utils.Log(0, "running login clear...")
+	utils.Log(0, "login clear started...")
 
 	// Get the PCE
 	pce, err := utils.GetPCE()
@@ -240,7 +241,11 @@ func clearAPIKeys() {
 	}
 
 	// Get all API Keys
-	apiKeys, _, err := pce.GetAllAPIKeys()
+	user, err := utils.GetUser()
+	if err != nil {
+		utils.Log(1, err.Error())
+	}
+	apiKeys, _, err := pce.GetAllAPIKeys(user.Href)
 	if err != nil {
 		utils.Log(1, err.Error())
 	}
