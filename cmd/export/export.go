@@ -17,6 +17,12 @@ import (
 // Declare local global variables
 var pce illumioapi.PCE
 var err error
+var debug bool
+
+// Init function takes care of flags
+func init() {
+	ExportCmd.Flags().BoolVar(&debug, "debug", false, "Debug level logging for troubleshooting.")
+}
 
 // ExportCmd runs the workload identifier
 var ExportCmd = &cobra.Command{
@@ -35,17 +41,26 @@ var ExportCmd = &cobra.Command{
 
 func exportWorkloads() {
 
+	// Log command execution
+	utils.Log(0, "running export command")
+
 	// Start the data slice with headers
 	data := [][]string{[]string{"hostname", "name", "href", "online", "os_id", "role", "app", "env", "loc", "status", "interfaces", "public_ip", "ven_version"}}
 
 	// GetAllWorkloads
-	wklds, _, err := pce.GetAllWorkloads()
+	wklds, a, err := pce.GetAllWorkloads()
+	if debug {
+		utils.LogAPIResp("GetAllWorkloads", a)
+	}
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("getting all workloads - %s", err))
 	}
 
 	// Get LabelMap
-	labelMap, _, err := pce.GetLabelMapH()
+	labelMap, a, err := pce.GetLabelMapH()
+	if debug {
+		utils.LogAPIResp("GetLabelMapH", a)
+	}
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("getting label map - %s", err))
 	}
@@ -102,7 +117,15 @@ func exportWorkloads() {
 		if err := writer.Error(); err != nil {
 			utils.Logger.Fatalf("[ERROR] - writing csv - %s", err)
 		}
+
+		// Log command execution
+		fmt.Printf("Exported %d workloads - see %s.\r\n", len(data)-1, outFile.Name())
+		utils.Log(0, fmt.Sprintf("exported %d workloads - see %s", len(data)-1, outFile.Name()))
+
+	} else {
+		// Log command execution for 0 results
+		fmt.Println("No workloads in PCE.")
+		utils.Log(0, "no workloads in PCE.")
 	}
 
-	fmt.Printf("Exported %d workloads.\r\n", len(data)-1)
 }

@@ -11,12 +11,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var verbose bool
+var verbose, debug bool
 var pce illumioapi.PCE
 var err error
 
 func init() {
 	CompatibilityCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Include full compatibility JSON as 4th column in CSV output. Default is just hostname, href, and green/yellow/red status.")
+	CompatibilityCmd.Flags().BoolVar(&debug, "debug", false, "Debug level logging for troubleshooting.")
 }
 
 // CompatibilityCmd runs the workload identifier
@@ -50,7 +51,10 @@ func compatibilityReport() {
 	}
 
 	// Get all workloads
-	wklds, _, err := pce.GetAllWorkloads()
+	wklds, a, err := pce.GetAllWorkloads()
+	if debug {
+		utils.LogAPIResp("GetAllWorkloadsH", a)
+	}
 	if err != nil {
 		utils.Log(1, err.Error())
 	}
@@ -65,6 +69,9 @@ func compatibilityReport() {
 
 		// Get the compatibility report and append
 		cr, a, err := pce.GetCompatibilityReport(w)
+		if debug {
+			utils.LogAPIResp("GetCompatibilityReport", a)
+		}
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("getting compatibility report for %s (%s) - %s", w.Hostname, w.Href, err))
 		}
@@ -94,17 +101,16 @@ func compatibilityReport() {
 			utils.Log(1, fmt.Sprintf("writing csv - %s", err))
 		}
 
-		// Output status terminal
-		fmt.Printf("Compatibility report generated for %d idle workloads - see %s.\r\n", len(data)-1, outFile.Name())
-
 		// Close the file
 		outFile.Close()
+
+		// Log completion of command
+		fmt.Printf("Compatibility report generated for %d idle workloads - see %s.\r\n", len(data)-1, outFile.Name())
+		utils.Log(0, fmt.Sprintf("compatibility report generated for %d idle workloads - see %s.\r\n", len(data)-1, outFile.Name()))
+
 	} else {
 		fmt.Println("No workloads with compatibility report.")
 		utils.Log(0, "no workloads with compatibility report.")
 	}
-
-	// Log Completed
-	utils.Log(0, "completed running compatability command.")
 
 }
