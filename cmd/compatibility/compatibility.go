@@ -2,7 +2,6 @@ package compatibility
 
 import (
 	"encoding/csv"
-	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -65,19 +64,14 @@ func compatibilityReport() {
 		}
 
 		// Get the compatibility report and append
-		cr, _, err := pce.GetCompatibilityReport(w)
+		cr, a, err := pce.GetCompatibilityReport(w)
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("getting compatibility report for %s (%s) - %s", w.Hostname, w.Href, err))
 		}
 
-		jsonBytes, err := json.Marshal(cr)
-		if err != nil {
-			utils.Log(1, fmt.Sprintf("marshaling JSON - %s", err))
-		}
-
 		// Write result
 		if verbose {
-			data = append(data, []string{w.Hostname, w.Href, cr.QualifyStatus, string(jsonBytes)})
+			data = append(data, []string{w.Hostname, w.Href, cr.QualifyStatus, a.RespBody})
 		} else {
 			data = append(data, []string{w.Hostname, w.Href, cr.QualifyStatus})
 		}
