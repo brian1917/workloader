@@ -1,10 +1,9 @@
 package login
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -15,11 +14,14 @@ import (
 	"github.com/brian1917/workloader/utils"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // Set global variables for flags
 var session, remove, clear bool
 var debug bool
+var configFilePath string
+var err error
 
 func init() {
 	LoginCmd.Flags().BoolVarP(&session, "session", "s", false, "Authentication will be temporary session token. No API Key will be generated.")
@@ -54,9 +56,16 @@ export ILLUMIO_PORT=8443
 export ILLUMIO_USER=joe@test.com
 export ILLUMIO_PWD=pwd123
 `,
+	PreRun: func(cmd *cobra.Command, args []string) {
+		configFilePath, err = filepath.Abs(viper.ConfigFileUsed())
+		if err != nil {
+			utils.Log(1, err.Error())
+		}
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 
-		debug = true
+		// Get the debug value from viper
+		debug = viper.Get("debug").(bool)
 
 		if remove && clear {
 			fmt.Println("Remove flag is redundant Clear flag includes remove functionality.")
@@ -83,7 +92,7 @@ func PCELogin() {
 	utils.Log(0, "login command started")
 
 	// Check if already logged in
-	loginCheck, pce, version := verifyLogin()
+	loginCheck, existingPCE, version := verifyLogin()
 	if loginCheck {
 		fmt.Printf("Login is still valid to %s. PCE Version %s\r\n", pce.FQDN, version.LongDisplay)
 		utils.Log(0, fmt.Sprintf("login is still valid to %s - pce version %s", pce.FQDN, version.LongDisplay))
@@ -97,15 +106,13 @@ func PCELogin() {
 	pwd := os.Getenv("ILLUMIO_PWD")
 	disableTLSStr := os.Getenv("ILLUMIO_DISABLE_TLS")
 
-	// Check if there is an existing PCE
-	existingPCE, _ := utils.GetPCE()
-
+	// Start user prompt
 	fmt.Println("\r\nDefault values will be shown in [brackets]. Press enter to accept default.")
 	fmt.Println("")
 
 	// FQDN - if env variable isn't set, prompt for it.
 	if fqdn == "" {
-		// Set default value if there is an existing and no longer valid pce.json file
+		// Set default value if there is an existing and no longer valid config file
 		defaultValue := fmt.Sprintf(" [%s]", existingPCE.FQDN)
 		if existingPCE.FQDN == "" {
 			defaultValue = ""
@@ -129,7 +136,7 @@ func PCELogin() {
 	}
 	// If the port environment variable isn't set, prompt for it
 	if port == 0 {
-		fmt.Printf("PCE Port [%d] :", defaultPort)
+		fmt.Printf("PCE Port [%d]: ", defaultPort)
 		fmt.Scanln(&port)
 		// If user accpeted default, assign it
 		if port == 0 {
@@ -165,10 +172,16 @@ func PCELogin() {
 
 	// If session flag is set, create a PCE struct with session token
 	var userLogin illumioapi.UserLogin
+	var api []illumioapi.APIResponse
 	if session {
 		fmt.Println("Authenticating ...")
 		pce = illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS}
-		userLogin, _, err = pce.Login(user, pwd)
+		userLogin, api, err = pce.Login(user, pwd)
+		if debug {
+			for _, a := range api {
+				utils.LogAPIResp("Login", a)
+			}
+		}
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("logging into PCE - %s", err))
 		}
@@ -176,20 +189,33 @@ func PCELogin() {
 		// If session flag is not set, generate API credentials and create PCE struct
 		fmt.Println("Authenticating and generating API Credentials...")
 		pce = illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS}
-		userLogin, _, err = pce.LoginAPIKey(user, pwd, "Workloader", "Created by Workloader")
+		userLogin, api, err = pce.LoginAPIKey(user, pwd, "Workloader", "Created by Workloader")
+		if debug {
+			for _, a := range api {
+				utils.LogAPIResp("LoginAPIKey", a)
+			}
+		}
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("error generating API key - %s", err))
 		}
 	}
 
-	// Write the PCE struct to a json file
-	pceFile, _ := json.MarshalIndent(utils.UserInfo{PCE: pce, User: illumioapi.UserLogin{FullName: userLogin.FullName, Orgs: userLogin.Orgs, Href: userLogin.Href}}, "", "    ")
-	_ = ioutil.WriteFile(getJSONFileLoc(), pceFile, 0644)
+	// Write the login configuration
+	viper.Set("fqdn", pce.FQDN)
+	viper.Set("port", pce.Port)
+	viper.Set("org", pce.Org)
+	viper.Set("user", pce.User)
+	viper.Set("key", pce.Key)
+	viper.Set("disableTLSChecking", pce.DisableTLSChecking)
+	viper.Set("userHref", userLogin.Href)
+
+	if err := viper.WriteConfig(); err != nil {
+		utils.Log(1, err.Error())
+	}
 
 	// Log
-	fmt.Printf("Created %s\r\n", getJSONFileLoc())
-	utils.Log(0, fmt.Sprintf("login successful - created %s", getJSONFileLoc()))
-
+	fmt.Printf("Created %s\r\n", configFilePath)
+	utils.Log(0, fmt.Sprintf("login successful - created %s", configFilePath))
 }
 
 func verifyLogin() (bool, illumioapi.PCE, illumioapi.Version) {
@@ -214,25 +240,19 @@ func removeJSONFile() {
 
 	utils.Log(0, "login remove started...")
 
-	utils.Log(0, fmt.Sprintf("location of authentication file is %s", getJSONFileLoc()))
+	utils.Log(0, fmt.Sprintf("location of authentication file is %s", configFilePath))
 
-	if _, err := os.Stat(getJSONFileLoc()); os.IsNotExist(err) {
-		utils.Log(0, "authentication file does not exist")
-		return
-	}
-
-	if err := os.Remove(getJSONFileLoc()); err != nil {
+	if err := os.Remove(configFilePath); err != nil {
 		utils.Log(1, fmt.Sprintf("error deleting file - %s", err))
 	}
 
-	utils.Log(0, fmt.Sprintf("successfully deleted %s", getJSONFileLoc()))
-
+	utils.Log(0, fmt.Sprintf("successfully deleted %s", configFilePath))
 }
 
 func clearAPIKeys() {
 
 	// Log start of command
-	utils.Log(0, "login clear started...")
+	utils.Log(0, "login clear started to delete all workloader API keys and remove config file...")
 
 	// Get the PCE
 	pce, err := utils.GetPCE()
@@ -241,11 +261,7 @@ func clearAPIKeys() {
 	}
 
 	// Get all API Keys
-	user, err := utils.GetUser()
-	if err != nil {
-		utils.Log(1, err.Error())
-	}
-	apiKeys, _, err := pce.GetAllAPIKeys(user.Href)
+	apiKeys, _, err := pce.GetAllAPIKeys(viper.Get("userhref").(string))
 	if err != nil {
 		utils.Log(1, err.Error())
 	}
@@ -262,22 +278,9 @@ func clearAPIKeys() {
 	}
 
 	// Remove the jsonFile
-	removeJSONFile()
-}
-
-func getJSONFileLoc() string {
-
-	// The file is either set in the ILLUMIO_PCE environment variable
-	file := os.Getenv("ILLUMIO_PCE")
-
-	// Or, we create a pce.json file in the current directory
-	if file == "" {
-		path, err := os.Getwd()
-		if err != nil {
-			utils.Log(1, fmt.Sprintf("getting current directory value - %s", err))
-		}
-		file = path + "/pce.json"
+	utils.Log(0, fmt.Sprintf("location of authentication file is %s", configFilePath))
+	if err := os.Remove(configFilePath); err != nil {
+		utils.Log(1, fmt.Sprintf("error deleting file - %s", err))
 	}
-
-	return file
+	utils.Log(0, fmt.Sprintf("successfully deleted %s", configFilePath))
 }

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/brian1917/workloader/utils"
+
 	"github.com/brian1917/workloader/cmd/compatibility"
 	"github.com/brian1917/workloader/cmd/export"
 	"github.com/brian1917/workloader/cmd/hostparse"
@@ -15,6 +17,7 @@ import (
 	"github.com/brian1917/workloader/cmd/traffic"
 	"github.com/brian1917/workloader/cmd/upgrade"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // RootCmd calls the CLI
@@ -22,11 +25,19 @@ var RootCmd = &cobra.Command{
 	Use: "workloader",
 	Long: `
 Workloader is a tool that helps discover, label, and manage workloads in an Illumio PCE.`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		viper.Set("debug", debug)
+		if err := viper.WriteConfig(); err != nil {
+			utils.Log(1, err.Error())
+		}
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 
 		cmd.Help()
 	},
 }
+
+var debug bool
 
 // Init builds the commands
 func init() {
@@ -45,6 +56,19 @@ func init() {
 	RootCmd.AddCommand(compatibility.CompatibilityCmd)
 	RootCmd.AddCommand(mode.ModeCmd)
 	RootCmd.AddCommand(upgrade.UpgradeCmd)
+
+	// Setup Viper
+	viper.SetConfigType("yaml")
+
+	if os.Getenv("ILLUMIO_CONFIG") != "" {
+		viper.SetConfigFile(os.Getenv("ILLUMIO_CONFIG"))
+	} else {
+		viper.SetConfigFile("./pce.yaml")
+	}
+	viper.ReadInConfig()
+
+	// Debug persistent flag passed into viper
+	RootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug level logging for troubleshooting.")
 }
 
 // Execute is called by the CLI main function to initiate the Cobra application

@@ -9,6 +9,7 @@ import (
 	"github.com/brian1917/illumioapi"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var verbose, debug bool
@@ -17,7 +18,6 @@ var err error
 
 func init() {
 	CompatibilityCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Include full compatibility JSON as 4th column in CSV output. Default is just hostname, href, and green/yellow/red status.")
-	CompatibilityCmd.Flags().BoolVar(&debug, "debug", false, "Debug level logging for troubleshooting.")
 }
 
 // CompatibilityCmd runs the workload identifier
@@ -33,6 +33,9 @@ Generate a compatibility report for all Idle workloads.`,
 			utils.Logger.Fatalf("[ERROR] - getting PCE - %s", err)
 		}
 
+		// Get the debug value from viper
+		debug = viper.Get("debug").(bool)
+
 		compatibilityReport()
 	},
 }
@@ -40,7 +43,7 @@ Generate a compatibility report for all Idle workloads.`,
 func compatibilityReport() {
 
 	// Log command
-	utils.Log(0, "running compatability command.")
+	utils.Log(0, "running compatability command")
 
 	// Start the data slice with the headers. We will append data to this.
 	var data [][]string
@@ -89,7 +92,7 @@ func compatibilityReport() {
 
 		// Create output file
 		timestamp := time.Now().Format("20060102_150405")
-		outFile, err := os.Create("compatibility-report-" + timestamp + ".csv")
+		outFile, err := os.Create("workloader-compatibility-report-" + timestamp + ".csv")
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("creating file - %s", err))
 		}
@@ -106,7 +109,7 @@ func compatibilityReport() {
 
 		// Log completion of command
 		fmt.Printf("Compatibility report generated for %d idle workloads - see %s.\r\n", len(data)-1, outFile.Name())
-		utils.Log(0, fmt.Sprintf("compatibility report generated for %d idle workloads - see %s.\r\n", len(data)-1, outFile.Name()))
+		utils.Log(0, fmt.Sprintf("compatibility report generated for %d idle workloads - see %s", len(data)-1, outFile.Name()))
 
 	} else {
 		fmt.Println("No workloads with compatibility report.")

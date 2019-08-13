@@ -13,12 +13,13 @@ import (
 
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // Global variables
 var hostCol, roleCol, appCol, envCol, locCol, intCol int
 var removeValue, csvFile string
-var umwl bool
+var umwl, debug bool
 var pce illumioapi.PCE
 var err error
 
@@ -66,6 +67,9 @@ Additional columns are allowed and will be ignored.
 			utils.Logger.Fatalf("Error getting PCE for csv command - %s", err)
 		}
 
+		// Get the debug value from viper
+		debug = viper.Get("debug").(bool)
+
 		processCSV()
 	},
 }
@@ -79,7 +83,9 @@ func checkLabel(label illumioapi.Label, labelMap map[string]illumioapi.Label) il
 
 	// Create the label if it doesn't exist
 	l, a, err := pce.CreateLabel(illumioapi.Label{Key: label.Key, Value: label.Value})
-	utils.LogAPIResp("CreateLabel", a)
+	if debug {
+		utils.LogAPIResp("CreateLabel", a)
+	}
 	if err != nil {
 		utils.Log(1, err.Error())
 	}
@@ -95,7 +101,12 @@ func checkLabel(label illumioapi.Label, labelMap map[string]illumioapi.Label) il
 func processCSV() {
 
 	// Log start of the command
-	utils.Log(0, "started CSV command")
+	utils.Log(0, "started import command")
+
+	// If debug, log the columns before adjusting by 1
+	if debug {
+		utils.Log(2, fmt.Sprintf("CSV Columns. Host: %d; Role: %d; App: %d; Env: %d; Loc: %d; Interface: %d", hostCol, roleCol, appCol, envCol, locCol, intCol))
+	}
 
 	// Adjust the columns by one
 	hostCol--
@@ -105,9 +116,6 @@ func processCSV() {
 	locCol--
 	intCol--
 
-	// If debug, log the columns
-	utils.Log(2, fmt.Sprintf("CSV Columns. All values should be 1 less than user-provided. Host: %d; Role: %d; App: %d; Env: %d; Loc: %d; Interface: %d", hostCol, roleCol, appCol, envCol, locCol, intCol))
-
 	// Open CSV File
 	file, err := os.Open(csvFile)
 	if err != nil {
@@ -116,14 +124,20 @@ func processCSV() {
 	defer file.Close()
 	reader := csv.NewReader(utils.ClearBOM(bufio.NewReader(file)))
 
-	// Get workload hostname map -- NEED DEBUG LOGGING HERE
-	wkldMap, err := pce.GetWkldHostMap()
+	// Get workload hostname map
+	wkldMap, a, err := pce.GetWkldHostMap()
+	if debug {
+		utils.LogAPIResp("GetWkldHostMap", a)
+	}
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("getting workload host map - %s", err))
 	}
 
 	// Get label map
-	labelMap, _, err := pce.GetLabelMapKV()
+	labelMap, a, err := pce.GetLabelMapKV()
+	if debug {
+		utils.LogAPIResp("GetLabelMapKV", a)
+	}
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("getting label key value map - %s", err))
 	}
@@ -165,7 +179,7 @@ func processCSV() {
 				for _, n := range nic {
 					x := strings.Split(n, ":")
 					if len(x) != 2 {
-						utils.Logger.Fatalf("[ERROR] - CSV line %d - Interface not provided in proper format. Example of proper format is eth1:192.168.100.20", i)
+						utils.Log(1, fmt.Sprintf("CSV line %d - Interface not provided in proper format. Example of proper format is eth1:192.168.100.20", i))
 					}
 					netInterfaces = append(netInterfaces, &illumioapi.Interface{Name: x[0], Address: x[1]})
 				}
@@ -250,6 +264,11 @@ func processCSV() {
 	// Bulk update if we have workloads that need updating
 	if len(updatedWklds) > 0 {
 		api, err := pce.BulkWorkload(updatedWklds, "update")
+		if debug {
+			for _, a := range api {
+				utils.LogAPIResp("BulkWorkloadUpdate", a)
+			}
+		}
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("bulk updating workloads - %s", err))
 		}
@@ -261,6 +280,11 @@ func processCSV() {
 	// Bulk create if we have new workloads
 	if len(newUMWLs) > 0 {
 		api, err := pce.BulkWorkload(newUMWLs, "create")
+		if debug {
+			for _, a := range api {
+				utils.LogAPIResp("BulkWorkloadCreate", a)
+			}
+		}
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("bulk creating workloads - %s", err))
 		}
@@ -270,5 +294,5 @@ func processCSV() {
 	}
 
 	// Log end
-	utils.Log(0, "completed running CSV command.")
+	utils.Log(0, "completed running import command")
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // Declare local global variables
@@ -19,21 +20,20 @@ var pce illumioapi.PCE
 var err error
 var debug bool
 
-// Init function takes care of flags
-func init() {
-	ExportCmd.Flags().BoolVar(&debug, "debug", false, "Debug level logging for troubleshooting.")
-}
-
 // ExportCmd runs the workload identifier
 var ExportCmd = &cobra.Command{
 	Use:   "export",
 	Short: "Create a CSV export of all workloads in the PCE.",
 	Run: func(cmd *cobra.Command, args []string) {
 
+		// Get the PCE
 		pce, err = utils.GetPCE()
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("getting PCE for export command - %s", err))
+			utils.Log(1, err.Error())
 		}
+
+		// Get the debug value from viper
+		debug = viper.Get("debug").(bool)
 
 		exportWorkloads()
 	},
