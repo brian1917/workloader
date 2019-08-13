@@ -1,8 +1,0 @@
-debug: false
-disabletlschecking: true
-fqdn: snc.poc.segmentationpov.com
-key: 3033500858fe6b4469ebc5b6a15bf622a54da684c0b3b01b5ebff7bc3654295e
-org: 1
-port: 8443
-user: api_1537960e57bff6d9f
-userhref: /users/1
