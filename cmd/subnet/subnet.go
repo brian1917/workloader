@@ -1,19 +1,37 @@
 package subnet
 
 import (
+	"bufio"
+	"encoding/csv"
 	"fmt"
+	"io"
 	"net"
+	"os"
+	"time"
 
 	"github.com/brian1917/illumioapi"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var csvFile string
 var netCol, envCol, locCol int
-var auto bool
+var auto, debug bool
 var pce illumioapi.PCE
 var err error
+
+type match struct {
+	workload illumioapi.Workload
+	oldLoc   string
+	oldEnv   string
+}
+
+type subnet struct {
+	network net.IPNet
+	loc     string
+	env     string
+}
 
 func init() {
 	SubnetCmd.Flags().StringVarP(&csvFile, "in", "i", "", "Input csv file. The first row (headers) will be skipped.")
@@ -25,12 +43,6 @@ func init() {
 
 	SubnetCmd.Flags().SortFlags = false
 
-}
-
-type match struct {
-	workload illumioapi.Workload
-	oldLoc   string
-	oldEnv   string
 }
 
 // SubnetCmd runs the workload identifier
@@ -60,11 +72,70 @@ using the appropriate flags. Example default:
 			utils.Logger.Fatalf("Error getting PCE for subnet command - %s", err)
 		}
 
+		// Get the debug value from viper
+		debug = viper.Get("debug").(bool)
+
 		subnetParser()
 	},
 }
 
+// locParser used to parse subnet to environment and location labels
+func locParser(csvFile string, netCol, envCol, locCol int) []subnet {
+	var results []subnet
+
+	// Open CSV File
+	file, err := os.Open(csvFile)
+	if err != nil {
+		utils.Logger.Fatalf("Error opening CSV - %s", err)
+	}
+	defer file.Close()
+	reader := csv.NewReader(bufio.NewReader(file))
+
+	// Start the counter
+	i := 0
+
+	// Iterate through CSV entries
+	for {
+
+		// Increment the counter
+		i++
+
+		// Read the line
+		line, err := reader.Read()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			utils.Logger.Fatalf("Error - reading CSV file - %s", err)
+		}
+
+		// Skipe the header row
+		if i == 1 {
+			continue
+		}
+
+		//make sure location label not empty
+		if line[locCol] == "" {
+			utils.Logger.Fatal("Error - Label field cannot be empty")
+		}
+
+		//Place subnet into net.IPNet data structure as part of subnetLabel struct
+		_, network, err := net.ParseCIDR(line[netCol])
+		if err != nil {
+			utils.Logger.Fatal("Error - The Subnet field cannot be parsed.  The format is 10.10.10.0/24")
+		}
+
+		//Set struct values
+		results = append(results, subnet{network: *network, env: line[envCol], loc: line[locCol]})
+	}
+	return results
+}
+
 func subnetParser() {
+
+	// If debug, log the columns before adjusting by 1
+	if debug {
+		utils.Log(2, fmt.Sprintf("CSV Columns. Network: %d; Env: %d; Loc: %d", netCol, envCol, locCol))
+	}
 
 	// Adjust the columns so they are one less (first column should be 0)
 	netCol = netCol - 1
@@ -75,17 +146,19 @@ func subnetParser() {
 	subnetLabels := locParser(csvFile, netCol, envCol, locCol)
 
 	// GetAllWorkloads
-	wklds, _, err := pce.GetAllWorkloads()
+	wklds, a, err := pce.GetAllWorkloads()
+	if debug {
+		utils.LogAPIResp("GetAllWorkloads", a)
+	}
 	if err != nil {
 		utils.Logger.Fatalf("Error getting all workloads - %s", err)
 	}
-	wkldMap := make(map[string]illumioapi.Workload)
-	for _, w := range wklds {
-		wkldMap[w.Hostname] = w
-	}
 
 	// GetAllLabels
-	labelMap, _, err := pce.GetLabelMapKV()
+	labelMap, a, err := pce.GetLabelMapKV()
+	if debug {
+		utils.LogAPIResp("GetLabelMapKV", a)
+	}
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("getting label map - %s", err))
 	}
@@ -93,6 +166,9 @@ func subnetParser() {
 	// Create a slice to store our results
 	updatedWklds := []illumioapi.Workload{}
 	matches := []match{}
+
+	// Start our data slice with the headers
+	data := [][]string{[]string{"hostname", "ip_address", "original_loc", "original_env", "new_loc", "new_env"}}
 
 	// Iterate through workloads
 	for _, w := range wklds {
@@ -123,7 +199,25 @@ func subnetParser() {
 
 	// Bulk update if we have workloads that need updating
 	if len(updatedWklds) > 0 {
-		csvWriter(pce, matches)
+
+		// Add the matches to our data slices
+		for _, m := range matches {
+			data = append(data, []string{m.workload.Hostname, m.workload.Interfaces[0].Address, m.oldLoc, m.oldEnv, m.workload.GetLoc(labelMap).Value, m.workload.GetEnv(labelMap).Value})
+		}
+
+		// If data slice is more than just the headers, write the data
+		if len(data) > 1 {
+
+			// Create the output file
+			outFile, err := os.Create("workloader-subnet-output-" + time.Now().Format("20060102_150405") + ".csv")
+			if err != nil {
+				utils.Log(1, err.Error())
+			}
+			writer := csv.NewWriter(outFile)
+			writer.WriteAll(data)
+		}
+
+		// If auto is flagged, run the update -- NEED PROMPT HERE
 		if auto {
 			api, err := pce.BulkWorkload(updatedWklds, "update")
 			if err != nil {

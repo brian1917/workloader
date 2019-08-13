@@ -25,12 +25,12 @@ var CompatibilityCmd = &cobra.Command{
 	Use:   "compatibility",
 	Short: "Generate a compatibility report for all Idle workloads.",
 	Long: `
-Generate a compatibility report for all Idle workloads.`,
+Generate a compatibility report for all Idle workloads. The update-pce and auto flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		pce, err = utils.GetPCE()
 		if err != nil {
-			utils.Logger.Fatalf("[ERROR] - getting PCE - %s", err)
+			utils.Log(1, err.Error())
 		}
 
 		// Get the debug value from viper

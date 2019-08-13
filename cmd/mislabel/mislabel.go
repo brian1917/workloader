@@ -12,16 +12,16 @@ import (
 	"github.com/brian1917/illumioapi"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
-var envFlag, appFlag, locFlag, exclWkldFile, exclPortFile string
+var appFlag, exclWkldFile, exclPortFile string
+var debug, ignoreLoc bool
 var pce illumioapi.PCE
 var err error
 
 func init() {
 	MisLabelCmd.Flags().StringVarP(&appFlag, "app", "a", "", "App label.")
-	MisLabelCmd.Flags().StringVarP(&envFlag, "env", "r", "", "Role label.")
-	MisLabelCmd.Flags().StringVarP(&locFlag, "loc", "l", "", "Location label.")
 	MisLabelCmd.Flags().StringVarP(&exclWkldFile, "wExclude", "w", "", "File location of hostnames to exclude as orphans.")
 	MisLabelCmd.Flags().StringVarP(&exclPortFile, "pExclude", "p", "", "File location of ports to exclude in traffic query.")
 	MisLabelCmd.Flags().SortFlags = false
@@ -34,13 +34,20 @@ var MisLabelCmd = &cobra.Command{
 	Long: `
 	Display workloads that have no intra App-Group communications to identify potentially mislabled workloads.
 	
-	The explorer query will ignore traffic on UDP ports 5355 (DNSCache) and 137, 138, 139 (NETBIOS). To customize this list, use the --pExclude (-p) flag to pass in a CSV with no headers and two columns. First column is port number and second column is protocol number (TCP is 6 and UDP is 17). CSV should include above ports to exclude them.`,
+	The default Explorer query will look at all data. Explorer API has a max of 100,000 records. If you're query will exceed this, use the app flag to work through application labels. The app flag will get all traffic where that app is the source or destination (in 2 separate queries).
+	
+	The explorer query will ignore traffic on UDP ports 5355 (DNSCache) and 137, 138, 139 (NETBIOS). To customize this list, use the --pExclude (-p) flag to pass in a CSV with no headers and two columns. First column is port number and second column is protocol number (TCP is 6 and UDP is 17). CSV should include above ports to exclude them.
+	
+	The --update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		pce, err = utils.GetPCE()
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("error getting pce - %s", err))
 		}
+
+		// Get the debug value from viper
+		debug = viper.Get("debug").(bool)
 
 		misLabel()
 	},
@@ -105,24 +112,6 @@ func misLabel() {
 
 	// Log start
 	utils.Log(0, "started mislabel command")
-	debug := true
-	ignoreloc := false
-
-	// Get the labelMap
-	labelmap, apiResp, err := pce.GetLabelMapH()
-	if debug == true {
-		utils.Log(2, fmt.Sprintf("get href label map returned %d entries", len(labelmap)))
-		utils.LogAPIResp("getLabelMap", apiResp)
-	}
-	if err != nil {
-		utils.Log(1, fmt.Sprintf("getting labelmap - %s", err))
-	}
-
-	// Get all workloads
-	wklds, _, err := pce.GetAllWorkloads()
-	if err != nil {
-		utils.Log(1, fmt.Sprintf("error getting all workloads - %s", err))
-	}
 
 	// Get ports we should ignore
 	exclPorts := [][2]int{[2]int{5355, 17}, [2]int{137, 17}, [2]int{138, 17}, [2]int{139, 17}}
@@ -138,17 +127,54 @@ func misLabel() {
 		PortRangeExclude: exclPorts,
 		MaxFLows:         100000}
 
+	// If app flag is set, adjust tq struct
+	if appFlag != "" {
+		l, a, err := pce.GetLabelbyKeyValue("app", appFlag)
+		if debug {
+			utils.LogAPIResp("GetLabelbyKeyValue", a)
+		}
+		if err != nil {
+			utils.Log(1, err.Error())
+		}
+		tq.SourcesInclude = []string{l.Href}
+	}
+
 	// Get traffic
 	traffic, apiResp, err := pce.GetTrafficAnalysis(tq)
+	if debug {
+		utils.LogAPIResp("GetTrafficAnalysis", apiResp)
+	}
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("error making traffic api call - %s", err))
 	}
-	if debug {
-		utils.LogAPIResp("GetTrafficAnalysis", apiResp)
+
+	// If app flag is set, edit tq stuct, run again and append.
+	// We will have duplicate entries here, but it won't matter with logic.
+	if appFlag != "" {
+		tq.DestinationsInclude = tq.SourcesInclude
+		tq.SourcesInclude = []string{}
+		traffic2, apiResp, err := pce.GetTrafficAnalysis(tq)
+		if debug {
+			utils.LogAPIResp("GetTrafficAnalysis", apiResp)
+		}
+		if err != nil {
+			utils.Log(1, fmt.Sprintf("error making traffic api call - %s", err))
+		}
+		traffic = append(traffic, traffic2...)
 	}
 
 	// nonOrphans will hold workloads that are not orphans
 	nonOrphpans := make(map[string]bool)
+
+	// Get the Href label map
+	labelmap, apiResp, err := pce.GetLabelMapH()
+	if debug {
+		utils.Log(2, fmt.Sprintf("get href label map returned %d entries", len(labelmap)))
+		utils.LogAPIResp("getLabelMap", apiResp)
+	}
+	if err != nil {
+		utils.Log(1, fmt.Sprintf("getting labelmap - %s", err))
+	}
 
 	// Iterate through each traffic entry
 	for _, ta := range traffic {
@@ -166,7 +192,7 @@ func misLabel() {
 		// Get the App Groups
 		srcAppGroup := ta.Src.Workload.GetAppGroupL(labelmap)
 		dstAppGroup := ta.Dst.Workload.GetAppGroupL(labelmap)
-		if ignoreloc {
+		if ignoreLoc {
 			srcAppGroup = ta.Src.Workload.GetAppGroup(labelmap)
 			dstAppGroup = ta.Dst.Workload.GetAppGroup(labelmap)
 		}
@@ -185,7 +211,15 @@ func misLabel() {
 		exclWklds = getExclHosts(exclWkldFile)
 	}
 
-	// Iterate through each workload. If it's an orphan and not in our exclude list, add it to the slice.
+	// Get all workloads. Iterate through each workload. If it's an orphan and not in our exclude list, add it to the slice.
+	wklds, a, err := pce.GetAllWorkloads()
+	if debug {
+		utils.LogAPIResp("GetAllWorkloads", a)
+	}
+	if err != nil {
+		utils.Log(1, err.Error())
+	}
+
 	var orphanWklds []illumioapi.Workload
 	for _, w := range wklds {
 		if !nonOrphpans[w.Href] && !exclWklds[w.Hostname] {
@@ -193,8 +227,30 @@ func misLabel() {
 		}
 	}
 
-	// Print each orphan
+	// Create CSV output - start data slice with headers
+	data := [][]string{[]string{"hostname", "role", "app", "env", "loc"}}
 	for _, w := range orphanWklds {
-		fmt.Println(w.Hostname)
+		data = append(data, []string{w.Hostname, w.GetRole(labelmap).Value, w.GetApp(labelmap).Value, w.GetEnv(labelmap).Value, w.GetLoc(labelmap).Value})
 	}
+
+	if len(data) > 1 {
+		// Create output file
+		outFile, err := os.Create("workloader-mislabel-" + time.Now().Format("20060102_150405") + ".csv")
+		if err != nil {
+			utils.Log(1, fmt.Sprintf("creating CSV - %s\n", err))
+		}
+
+		// Write CSV data
+		writer := csv.NewWriter(outFile)
+		writer.WriteAll(data)
+		if err := writer.Error(); err != nil {
+			utils.Log(1, fmt.Sprintf("writing CSV - %s\n", err))
+		}
+
+		// Log complete
+		utils.Log(0, fmt.Sprintf("mislabel complete - %d workloads identified in %s", len(data)-1, outFile.Name()))
+	}
+
+	// Log if we don't find any
+	utils.Log(0, "mislabel complete - 0 workloads identified")
 }

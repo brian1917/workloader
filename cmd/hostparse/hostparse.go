@@ -12,25 +12,19 @@ import (
 	"github.com/brian1917/workloader/utils"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 //Data Structure for all the options of the hostparse function in workloader.
 type config struct {
-	Illumio illumio `toml:"illumio"`
-	Parser  parser  `toml:"parser"`
-	Match   match   `toml:"match"`
-	Logging logging `toml:"logging"`
-}
-
-type illumio struct {
-	UpdatePCE bool
+	Parser parser `toml:"parser"`
+	Match  match  `toml:"match"`
 }
 
 type parser struct {
 	Parserfile   string `toml:"parserfile"`
 	HostnameFile string `toml:"hostnamefile"`
 	OutputFile   string `toml:"outputfile"`
-	NoPrompt     bool   `toml:"noprompt"`
 	CheckCase    int    `toml:"checkcase"`
 }
 type match struct {
@@ -39,10 +33,6 @@ type match struct {
 	Env         string `toml:"env"`
 	Loc         string `toml:"loc"`
 	Role        string `toml:"role"`
-}
-type logging struct {
-	//LogOnly bool `toml:"log_only"`
-	debug bool
 }
 
 //pasrseConfig - Function to load all the options into a global variable.
@@ -58,29 +48,24 @@ type logging struct {
 func parseConfig() config {
 
 	config := config{
-		Illumio: illumio{
-			UpdatePCE: updatepce},
 		Parser: parser{
 			Parserfile:   parserFile,
 			HostnameFile: hostFile,
-			OutputFile:   "hostname-parser-output-" + time.Now().Format("20060102_150405") + ".csv",
-			NoPrompt:     noPrompt,
+			OutputFile:   "workloader-hostparse-" + time.Now().Format("20060102_150405") + ".csv",
 			CheckCase:    capitalize},
 		Match: match{
 			IgnoreMatch: ignoreMatch,
 			App:         appFlag,
 			Env:         envFlag,
 			Loc:         locFlag,
-			Role:        roleFlag},
-		Logging: logging{
-			debug: debugLogging}}
+			Role:        roleFlag}}
 
 	return config
 }
 
 // Set up global variables
 var parserFile, hostFile, appFlag, roleFlag, envFlag, locFlag string
-var debugLogging, noPrompt, updatepce, ignoreMatch bool
+var debug, noPrompt, updatePCE, ignoreMatch bool
 var capitalize int
 var pce illumioapi.PCE
 var err error
@@ -94,10 +79,7 @@ func init() {
 	HostnameCmd.Flags().StringVarP(&appFlag, "app", "a", "", "App label.")
 	HostnameCmd.Flags().StringVarP(&envFlag, "env", "r", "", "Role label.")
 	HostnameCmd.Flags().StringVarP(&locFlag, "loc", "l", "", "Location label.")
-	HostnameCmd.Flags().BoolVar(&noPrompt, "noprompt", false, "No Prompt or output.  Used for automatation in a script.")
 	HostnameCmd.Flags().BoolVar(&ignoreMatch, "ignorematch", false, "Parse all PCE workloads no matter what labels are assigned.")
-	HostnameCmd.Flags().BoolVar(&updatepce, "updatepce", false, "Does the script update the PCE with the Labels parsed from the host(name)?")
-	HostnameCmd.Flags().BoolVar(&debugLogging, "debug", false, "Debug logging turned on.")
 	HostnameCmd.Flags().IntVar(&capitalize, "capitalize", 1, "Set 1 for uppercase labels(default), 2 for lowercase labels or 0 to leave capitalization alone.")
 	HostnameCmd.Flags().SortFlags = false
 
@@ -124,8 +106,13 @@ An input CSV specifics the regex functions to use to assign labels. An example i
 
 		pce, err = utils.GetPCE()
 		if err != nil {
-			utils.Logger.Fatalf("[ERROR] - getting PCE for hostparser - %s", err)
+			utils.Log(1, err.Error())
 		}
+
+		// Get persistent flags from Viper
+		debug = viper.Get("debug").(bool)
+		updatePCE = viper.Get("update_pce").(bool)
+		noPrompt = viper.Get("no_prompt").(bool)
 
 		hostnameParser()
 	},
@@ -206,7 +193,7 @@ func (r *regex) RelabelFromHostname(failedPCE bool, wkld illumioapi.Workload, lb
 		match = tmpre.MatchString(searchname)
 
 		//Report  if we have a match, regex and replacement regex per label
-		if conf.Logging.debug && !match {
+		if debug && !match {
 			utils.Log(2, fmt.Sprintf("%s - Regex: %s - Match: %t", searchname, tmp.regex, match))
 		}
 
@@ -242,7 +229,7 @@ func (r *regex) RelabelFromHostname(failedPCE bool, wkld illumioapi.Workload, lb
 
 						//create a list of labels that arent currently configured on the PCE that the replacement regex  wants.
 						//only get labels for workloads that have HREFs...
-						if conf.Illumio.UpdatePCE || !failedPCE {
+						if updatePCE || !failedPCE {
 							if tmpwkld.Href != "" {
 								nolabels[label+"."+tmpstr] = ""
 							}
@@ -277,7 +264,7 @@ func (r *regex) RelabelFromHostname(failedPCE bool, wkld illumioapi.Workload, lb
 			orgRole, orgApp, orgEnv, orgLoc := labelvalues(wkld.Labels)
 			role, app, env, loc := labelvalues(tmpwkld.Labels)
 
-			if conf.Logging.debug {
+			if debug {
 				utils.Log(0, fmt.Sprintf("%s - Replacement Regex: %+v - Labels: %s - %s - %s - %s", searchname, tmp.labelcg, role, app, env, loc))
 			}
 			utils.Log(0, fmt.Sprintf("%s - Current Labels: %s, %s, %s, %s Replaced with: %s, %s, %s, %s", searchname, orgRole, orgApp, orgEnv, orgLoc, role, app, env, loc))
@@ -461,24 +448,20 @@ func changecase(str string) string {
 
 //hostnameParser - Main function to parse hostnames either on the PCE on in a hostfile using regex file and created labels from results.
 func hostnameParser() {
+	// Log the start of the command
+	utils.Log(0, "started hostparse command")
 
 	//Load All the options into the conf variable.
 	conf = parseConfig()
 
-	// LOG THE MODE
-	utils.Log(0, fmt.Sprintf("***************************************************************************************************************************"))
-	utils.Log(0, fmt.Sprintf("                                                      HOSTPARSE"))
-	utils.Log(0, fmt.Sprintf("***************************************************************************************************************************"))
-
-	if conf.Logging.debug {
-		//utils.Log(0, fmt.Sprintf("hostparser - 'nopce' set to %t", conf.Illumio.NoPCE))
-		utils.Log(0, fmt.Sprintf("hostparser - 'updatepce' set to %t ", conf.Illumio.UpdatePCE))
-		utils.Log(0, fmt.Sprintf("hostparser - 'ignorematch' set to %t", conf.Match.IgnoreMatch))
-		utils.Log(0, fmt.Sprintf("hostparser - 'role,app,env,loc' set to %s - %s - %s - %s", conf.Match.Role, conf.Match.App, conf.Match.Env, conf.Match.Loc))
-		utils.Log(0, fmt.Sprintf("hostparser - 'capitalize' set to %d", conf.Parser.CheckCase))
-		utils.Log(0, fmt.Sprintf("hostparser - 'hostfle' set to %s", conf.Parser.HostnameFile))
-		utils.Log(0, fmt.Sprintf("hostparser - 'parsefile' set to %s", conf.Parser.Parserfile))
-		utils.Log(0, fmt.Sprintf("hostparser - 'noprompt' set to %t", conf.Parser.NoPrompt))
+	if debug {
+		utils.Log(0, fmt.Sprintf("updatepce set to %t ", updatePCE))
+		utils.Log(0, fmt.Sprintf("ignorematch set to %t", conf.Match.IgnoreMatch))
+		utils.Log(0, fmt.Sprintf("role,app,env,loc set to %s - %s - %s - %s", conf.Match.Role, conf.Match.App, conf.Match.Env, conf.Match.Loc))
+		utils.Log(0, fmt.Sprintf("capitalize set to %d", conf.Parser.CheckCase))
+		utils.Log(0, fmt.Sprintf("hostfle set to %s", conf.Parser.HostnameFile))
+		utils.Log(0, fmt.Sprintf("parsefile set to %s", conf.Parser.Parserfile))
+		utils.Log(0, fmt.Sprintf("noprompt set to %t", noPrompt))
 
 	}
 
@@ -486,7 +469,7 @@ func hostnameParser() {
 	var parserec [][]string
 	if conf.Parser.Parserfile != "" {
 		parserec = ReadCSV(conf.Parser.Parserfile)
-		if conf.Logging.debug {
+		if debug {
 			utils.Log(2, fmt.Sprintf("hostparser - open parser file - %s", conf.Parser.Parserfile))
 		}
 	} else {
@@ -511,28 +494,23 @@ func hostnameParser() {
 	failedPCE := false
 	//Access PCE to get all Labels only if no_pce is not set to true in config file
 	labels, apiResp, err := pce.GetAllLabels()
-	//fmt.Println(labelsAPI, apiResp, err)
+	if debug {
+		utils.LogAPIResp("GetAllLabels", apiResp)
+	}
 	if err != nil {
-		conf.Logging.debug = true
-		conf.Illumio.UpdatePCE = false
+		debug = true
+		updatePCE = false
 		failedPCE = true
 		utils.Log(0, fmt.Sprintf("Error accessing PCE API - Skipping further PCE API calls"))
-		if conf.Logging.debug {
+		if debug {
 			utils.Log(2, fmt.Sprintf("Get All Labels Error: %s", err))
-		}
-	} else {
-		if conf.Logging.debug {
-			utils.Log(2, fmt.Sprintf("Get All Labels API HTTP Request: %s %v", apiResp.Request.Method, apiResp.Request.URL))
-			utils.Log(2, fmt.Sprintf("Get All Labels API HTTP Reqest Header: %v", apiResp.Request.Header))
-			utils.Log(2, fmt.Sprintf("Get All Labels API Response Status Code: %d", apiResp.StatusCode))
-			utils.Log(2, fmt.Sprintf("Get All Labels API Response Body: \r\n %s", apiResp.RespBody))
 		}
 	}
 	var workloads []illumioapi.Workload
 
 	if !failedPCE {
 		workloads, apiResp, err = pce.GetAllWorkloads()
-		if conf.Logging.debug {
+		if debug {
 			utils.Log(2, fmt.Sprintf("Get All Workloads API HTTP Request: %s %v", apiResp.Request.Method, apiResp.Request.URL))
 			utils.Log(2, fmt.Sprintf("Get All Workloads API HTTP Reqest Header: %v", apiResp.Request.Header))
 			utils.Log(2, fmt.Sprintf("Get All Workloads API Response Status Code: %d", apiResp.StatusCode))
@@ -553,7 +531,7 @@ func hostnameParser() {
 	}
 
 	//create Label array with all the HRefs as value with label type and label key combined as the key "key.value"
-	if conf.Logging.debug && !failedPCE {
+	if debug && !failedPCE {
 		utils.Log(2, fmt.Sprintf("Build Map of HREFs with a key that uses a label's type and value eg. 'type.value': %v", lblskv))
 
 	}
@@ -608,7 +586,7 @@ func hostnameParser() {
 				if labeledwrkld.Href != "" && !(role == orgRole && app == orgApp && env == orgEnv && loc == orgLoc) {
 					matchtable.Append([]string{labeledwrkld.Hostname, role, app, env, loc, orgRole, orgApp, orgEnv, orgLoc})
 					alllabeledwrkld = append(alllabeledwrkld, labeledwrkld)
-				} else if labeledwrkld.Href == "" && !conf.Illumio.UpdatePCE {
+				} else if labeledwrkld.Href == "" && !updatePCE {
 					matchtable.Append([]string{labeledwrkld.Hostname, role, app, env, loc, orgRole, orgApp, orgEnv, orgLoc})
 					utils.Log(0, fmt.Sprintf("SKIPING UPDATE - %s - No Workload on the PCE", labeledwrkld.Hostname))
 				} else {
@@ -632,7 +610,7 @@ func hostnameParser() {
 			//Make sure we arent only looking for an output file and we have the ability to access the PCE.
 
 		}
-		if !conf.Parser.NoPrompt {
+		if !noPrompt {
 			labeltable.Render()
 			fmt.Print("***** Above Labels Not Configured on the PCE ***** \r\n")
 		}
@@ -641,15 +619,15 @@ func hostnameParser() {
 	var response string
 	// Print table with all the workloads and the new labels.
 	if len(alllabeledwrkld) > 0 {
-		if !conf.Parser.NoPrompt {
+		if !noPrompt {
 			matchtable.Render()
 
 		}
 		response = "no"
 		//check if noprompt is set to true or you want to update....Skip bulk upload of workload labels.
-		if conf.Parser.NoPrompt {
+		if noPrompt {
 			response = "yes"
-		} else if conf.Illumio.UpdatePCE {
+		} else if updatePCE {
 			fmt.Printf("Do you want to update Workloads and potentially create new labels(yes/no)? ")
 			fmt.Scanln(&response)
 		} else {
@@ -659,7 +637,7 @@ func hostnameParser() {
 		//If updating is selected and the NOPCE option has not been invoked then update labels and workloads.
 		if response == "yes" && !failedPCE {
 
-			if conf.Logging.debug {
+			if debug {
 				utils.Log(2, fmt.Sprintf("*********************************LABEL CREATION***************************************"))
 			}
 			for _, lbl := range tmplbls {
@@ -669,7 +647,7 @@ func hostnameParser() {
 					utils.Log(1, fmt.Sprint(err))
 
 				}
-				if conf.Logging.debug {
+				if debug {
 					utils.Log(2, fmt.Sprintf("Exact label does not exist for %s (%s). Creating new label... ", lbl.Value, lbl.Value))
 					utils.Log(2, fmt.Sprintf("Create Label API HTTP Request: %s %v", apiResp.Request.Method, apiResp.Request.URL))
 					utils.Log(2, fmt.Sprintf("Create Label API HTTP Reqest Header: %+v", apiResp.Request.Header))
@@ -681,7 +659,7 @@ func hostnameParser() {
 				}
 				lblskv[lbl.Key+"."+lbl.Value] = newLabel.Href
 			}
-			if conf.Logging.debug {
+			if debug {
 				utils.Log(2, fmt.Sprintf("*********************************WORKLOAD BULK UPDATE***************************************"))
 			}
 			for _, w := range alllabeledwrkld {
@@ -709,7 +687,7 @@ func hostnameParser() {
 				if err != nil {
 					utils.Logger.Fatal(err)
 				}
-				if conf.Logging.debug {
+				if debug {
 					utils.Log(2, fmt.Sprintf("BulkUpdate Workloads API HTTP Request: %s %v", api.Request.Method, api.Request.URL))
 					utils.Log(2, fmt.Sprintf("BulkUpdate Workloads API HTTP Reqest Header: %v", api.Request.Header))
 					utils.Log(2, fmt.Sprintf("BulkUpdate Workloads API HTTP Body: %+v", alllabeledwrkld))
@@ -727,7 +705,7 @@ func hostnameParser() {
 
 		utils.Log(0, fmt.Sprintf("No Workloads will me updated  -  Check the output file"))
 
-		if !conf.Parser.NoPrompt && !failedPCE {
+		if !noPrompt && !failedPCE {
 			fmt.Println("***** There were no hostnames that needed updating or matched an entry in the 'parsefile'****")
 		} else if failedPCE {
 			fmt.Println("**** PCE Error **** Cannot update Labels or Hostnames to Upload **** Check Output file ****")

@@ -181,7 +181,7 @@ func csvWriter(results []result, exclWLs bool) {
 
 	// Create output file
 	timestamp := time.Now().Format("20060102_150405")
-	outFile, err := os.Create("identified-workloads-" + timestamp + ".csv")
+	outFile, err := os.Create("workloader-traffic-" + timestamp + ".csv")
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("creating file - %s", err))
 	}

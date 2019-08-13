@@ -6,15 +6,18 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/brian1917/illumioapi"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // Set global variables for flags
 var targetVersion, hostFile, loc, env, app, role string
-var noPrompt, logOnly bool
+var debug, updatePCE, noPrompt bool
 var pce illumioapi.PCE
 var err error
 
@@ -27,8 +30,6 @@ func init() {
 	UpgradeCmd.Flags().StringVarP(&env, "env", "e", "", "Environment Label. Blank means all environments.")
 	UpgradeCmd.Flags().StringVarP(&app, "app", "a", "", "Application Label. Blank means all applications.")
 	UpgradeCmd.Flags().StringVarP(&role, "role", "r", "", "Role Label. Blank means all roles.")
-	UpgradeCmd.Flags().BoolVar(&logOnly, "logonly", false, "Will only log changes that would occur. No VENS will be upgraded.")
-	UpgradeCmd.Flags().BoolVar(&noPrompt, "noprompt", false, "Will run the upgrades with no confirmation prompts.")
 	UpgradeCmd.Flags().SortFlags = false
 
 }
@@ -44,13 +45,17 @@ If a host file is used, the label flags are ignored.
 
 All workloads will be upgraded if there is no hostfile and no provided labels.
 
-You will be prompted with the number of VENs that will be upgraded before upgrading in the PCE unless the --noprompt flag is set.`,
-
+Default output is a CSV file with what would be upgraded. Use the --update-pce command to run the upgrades with a user prompt confirmation. Use --update-pce and --no-prompt to run upgrade with no prompts.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		pce, err = utils.GetPCE()
 		if err != nil {
 			utils.Log(1, err.Error())
 		}
+
+		// Get persistent flags from Viper
+		debug = viper.Get("debug").(bool)
+		updatePCE = viper.Get("update_pce").(bool)
+		noPrompt = viper.Get("no_prompt").(bool)
 
 		wkldUpgrade()
 	},
@@ -59,13 +64,19 @@ You will be prompted with the number of VENs that will be upgraded before upgrad
 func wkldUpgrade() {
 
 	// Get all workloads
-	wklds, _, err := pce.GetAllWorkloads()
+	wklds, a, err := pce.GetAllWorkloads()
+	if debug {
+		utils.LogAPIResp("GetAllWorkloads", a)
+	}
 	if err != nil {
 		utils.Log(1, err.Error())
 	}
 
 	// Get label map
-	labelMap, _, err := pce.GetLabelMapH()
+	labelMap, a, err := pce.GetLabelMapH()
+	if debug {
+		utils.LogAPIResp("GetAllWorkloads", a)
+	}
 	if err != nil {
 		utils.Log(1, err.Error())
 	}
@@ -126,32 +137,57 @@ func wkldUpgrade() {
 		}
 	}
 
-	// Get our confirmation
-	proceed := false
-	if !noPrompt && !logOnly {
-		fmt.Printf("This will update %d VENs. Please type \"yes\" to continue: ", len(targetWklds))
-		var promptStr string
-		fmt.Scanln(&promptStr)
-		if promptStr == "yes" {
-			proceed = true
+	// Create a CSV wtih the upgrades
+	outFile, err := os.Create("workloader-upgrade-" + time.Now().Format("20060102_150405") + ".csv")
+	if err != nil {
+		utils.Log(1, fmt.Sprintf("creating CSV - %s\n", err))
+	}
+
+	// Build the data slice for writing
+	data := [][]string{[]string{"hostname", "href", "role", "app", "env", "loc", "current_ven_version", "targeted_ven_version"}}
+	for _, t := range targetWklds {
+		data = append(data, []string{t.Hostname, t.Href, t.GetRole(labelMap).Value, t.GetApp(labelMap).Value, t.GetEnv(labelMap).Value, t.GetLoc(labelMap).Value, t.Agent.Status.AgentVersion, targetVersion})
+	}
+
+	// Write CSV data
+	writer := csv.NewWriter(outFile)
+	writer.WriteAll(data)
+	if err := writer.Error(); err != nil {
+		utils.Log(1, fmt.Sprintf("writing CSV - %s\n", err))
+	}
+
+	// If updatePCE is disabled, we are just going to alert the user what will happen and log
+	if !updatePCE {
+		utils.Log(0, fmt.Sprintf("upgrade identified %d workloads requiring VEN update - see %s for details.", len(targetWklds), outFile.Name()))
+		fmt.Printf("Upgrade identified %d workloads requiring VEN update. See %s for details. To do the upgrade, run again using --update-pce flag. The --auto flag will bypass the prompt if used with --update-pce.\r\n", len(targetWklds), outFile.Name())
+		utils.Log(0, "completed running upgrade command")
+		return
+	}
+
+	// If updatePCE is set, but not noPrompt, we will prompt the user.
+	if updatePCE && !noPrompt {
+		var prompt string
+		fmt.Printf("Upgrade identified %d workloads requiring VEN updates. See %s for details. Do you want to run the upgrade? (yes/no)? ", len(targetWklds), outFile.Name())
+		fmt.Scanln(&prompt)
+		if strings.ToLower(prompt) != "yes" {
+			utils.Log(0, fmt.Sprintf("upgrade identified %d workloads requiring VEN update - see %s for details. user denied prompt", len(targetWklds), outFile.Name()))
+			fmt.Println("Prompt denied.")
+			utils.Log(0, "completed running import command")
+			return
 		}
 	}
 
-	// If we have permission, cycle through our target workloads and run the upgrade
-	if proceed {
-		for _, t := range targetWklds {
-
-			// Log the current version
-			utils.Log(0, fmt.Sprintf("%s to be upgraded from %s to %s.", t.Hostname, t.Agent.Status.AgentVersion, targetVersion))
-
-			// Run the upgrade if log only is not set
-			if !logOnly {
-				apiResp, err := pce.WorkloadUpgrade(t.Href, targetVersion)
-				if err != nil {
-					utils.Log(1, err.Error())
-				}
-				utils.Log(0, fmt.Sprintf("%s ven upgrade to %s received status code of %d", t.Hostname, targetVersion, apiResp.StatusCode))
-			}
+	// We will only get here if we have need to run the upgrade
+	for _, t := range targetWklds {
+		// Log the current version
+		utils.Log(0, fmt.Sprintf("%s to be upgraded from %s to %s.", t.Hostname, t.Agent.Status.AgentVersion, targetVersion))
+		a, err := pce.WorkloadUpgrade(t.Href, targetVersion)
+		if debug {
+			utils.LogAPIResp("WorkloadUpgrade", a)
+		}
+		utils.Log(0, fmt.Sprintf("%s ven upgrade to %s received status code of %d", t.Hostname, targetVersion, a.StatusCode))
+		if err != nil {
+			utils.Log(1, err.Error())
 		}
 	}
 }

@@ -24,6 +24,8 @@ var debug bool
 var ExportCmd = &cobra.Command{
 	Use:   "export",
 	Short: "Create a CSV export of all workloads in the PCE.",
+	Long: `
+Create a CSV export of all workloads in the PCE. The update-pce and auto flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
@@ -74,7 +76,6 @@ func exportWorkloads() {
 
 		// Set up variables
 		interfaces := []string{}
-		status := ""
 		venVersion := ""
 
 		// Get interfaces
@@ -82,45 +83,34 @@ func exportWorkloads() {
 			interfaces = append(interfaces, i.Name+":"+i.Address+"/"+strconv.Itoa(i.CidrBlock))
 		}
 
-		// Set status and VEN version
+		// Set VEN version
 		if w.Agent == nil || w.Agent.Href == "" {
-			status = "Unmanaged"
 			venVersion = "Unmanaged"
 		} else {
-			status = w.Agent.Config.Mode
 			venVersion = w.Agent.Status.AgentVersion
-			if w.Agent.Config.Mode == "illuminated" && !w.Agent.Config.LogTraffic {
-				status = "Build"
-			}
-
-			if w.Agent.Config.Mode == "illuminated" && w.Agent.Config.LogTraffic {
-				status = "Test"
-			}
 		}
 
 		// Append to data slice
-		data = append(data, []string{w.Hostname, w.Name, w.Href, strconv.FormatBool(w.Online), w.OsID, w.GetRole(labelMap).Value, w.GetApp(labelMap).Value, w.GetEnv(labelMap).Value, w.GetLoc(labelMap).Value, status, strings.Join(interfaces, ";"), w.PublicIP, venVersion})
+		data = append(data, []string{w.Hostname, w.Name, w.Href, strconv.FormatBool(w.Online), w.OsID, w.GetRole(labelMap).Value, w.GetApp(labelMap).Value, w.GetEnv(labelMap).Value, w.GetLoc(labelMap).Value, w.GetMode(), strings.Join(interfaces, ";"), w.PublicIP, venVersion})
 	}
 
 	if len(data) > 1 {
 		// Create output file
-		timestamp := time.Now().Format("20060102_150405")
-		outFile, err := os.Create("workloads-export-" + timestamp + ".csv")
-
+		outFile, err := os.Create("workloader-export-" + time.Now().Format("20060102_150405") + ".csv")
 		if err != nil {
-			utils.Logger.Fatalf("[ERROR] - Creating file - %s\n", err)
+			utils.Log(1, fmt.Sprintf("creating CSV - %s\n", err))
 		}
 
 		// Write CSV data
 		writer := csv.NewWriter(outFile)
 		writer.WriteAll(data)
 		if err := writer.Error(); err != nil {
-			utils.Logger.Fatalf("[ERROR] - writing csv - %s", err)
+			utils.Log(1, fmt.Sprintf("writing CSV - %s\n", err))
 		}
 
 		// Log command execution
-		fmt.Printf("Exported %d workloads - see %s.\r\n", len(data)-1, outFile.Name())
-		utils.Log(0, fmt.Sprintf("exported %d workloads - see %s", len(data)-1, outFile.Name()))
+		fmt.Printf("Exported %d workloads to %s.\r\n", len(data)-1, outFile.Name())
+		utils.Log(0, fmt.Sprintf("exported %d workloads to %s", len(data)-1, outFile.Name()))
 
 	} else {
 		// Log command execution for 0 results

@@ -10,11 +10,12 @@ import (
 	"github.com/brian1917/illumioapi"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var csvFile, app, consExcl string
 var lookupTO int
-var privOnly, exclWLs bool
+var privOnly, exclWLs, debug bool
 var pce illumioapi.PCE
 var err error
 
@@ -37,13 +38,16 @@ var TrafficCmd = &cobra.Command{
 	Long: `
 Find and label unmanaged workloads and label existing workloads based on Explorer traffic and an input CSV.
 
-Use workloader csv to upload to PCE after review.`,
+The --update-pce and --no-prompt flags are ignored for this command. Use workloader import to upload to PCE after review.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		pce, err = utils.GetPCE()
 		if err != nil {
-			utils.Logger.Fatalf("Error getting PCE for traffic command - %s", err)
+			utils.Log(1, err.Error())
 		}
+
+		// Get the debug value from viper
+		debug = viper.Get("debug").(bool)
 
 		workloadIdentifier()
 	},
@@ -132,7 +136,10 @@ func workloadIdentifier() {
 
 	// Get all workloads and create workload map
 	allIPWLs := make(map[string]illumioapi.Workload)
-	wls, _, err := pce.GetAllWorkloads()
+	wls, a, err := pce.GetAllWorkloads()
+	if debug {
+		utils.LogAPIResp("GetAllWorkloads", a)
+	}
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("getting all workloads - %s", err))
 	}
@@ -147,13 +154,12 @@ func workloadIdentifier() {
 	}
 
 	// Get all labels and create label map
-	labels, _, err := pce.GetAllLabels()
-	if err != nil {
-		utils.Log(1, fmt.Sprintf("getting all workloads - %s", err))
+	labelMap, a, err := pce.GetLabelMapH()
+	if debug {
+		utils.LogAPIResp("GetLabelMapH", a)
 	}
-	allLabels := make(map[string]illumioapi.Label)
-	for _, l := range labels {
-		allLabels[l.Href] = l
+	if err != nil {
+		utils.Log(1, err.Error())
 	}
 
 	// Get the label if we are going to do a consumer exclude
@@ -178,7 +184,10 @@ func workloadIdentifier() {
 
 	// If an app is provided, adjust query to include it
 	if app != "" {
-		label, _, err := pce.GetLabelbyKeyValue("app", app)
+		label, a, err := pce.GetLabelbyKeyValue("app", app)
+		if debug {
+			utils.LogAPIResp("GetLabelbyKeyValue", a)
+		}
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("getting label HREF - %s", err))
 		}
@@ -189,7 +198,10 @@ func workloadIdentifier() {
 	}
 
 	// Run traffic query
-	traffic, _, err := pce.GetTrafficAnalysis(tq)
+	traffic, a, err := pce.GetTrafficAnalysis(tq)
+	if debug {
+		utils.LogAPIResp("GetTrafficAnalysis", a)
+	}
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("making explorer API call - %s", err))
 	}
@@ -198,8 +210,10 @@ func workloadIdentifier() {
 	if app != "" {
 		tq.DestinationsInclude = tq.SourcesInclude
 		tq.SourcesInclude = []string{}
-
-		traffic2, _, err := pce.GetTrafficAnalysis(tq)
+		traffic2, a, err := pce.GetTrafficAnalysis(tq)
+		if debug {
+			utils.LogAPIResp("GetTrafficAnalysis", a)
+		}
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("making second explorer API call - %s", err))
 		}
@@ -247,7 +261,7 @@ func workloadIdentifier() {
 						}
 					}
 					// Populate existing label information
-					r.existingLabels(allIPWLs, allLabels)
+					r.existingLabels(allIPWLs, labelMap)
 
 					// Append results to a new array if RFC 1918 and that's all we want OR we don't care about RFC 1918.
 					if rfc1918(r.ipAddress) && privOnly || !privOnly {
@@ -263,4 +277,6 @@ func workloadIdentifier() {
 	if len(results) > 0 {
 		csvWriter(finalMatches, exclWLs)
 	}
+
+	utils.Log(0, "traffic command completed")
 }

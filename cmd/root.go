@@ -27,6 +27,8 @@ var RootCmd = &cobra.Command{
 Workloader is a tool that helps discover, label, and manage workloads in an Illumio PCE.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		viper.Set("debug", debug)
+		viper.Set("update_pce", updatePCE)
+		viper.Set("no_prompt", noPrompt)
 		if err := viper.WriteConfig(); err != nil {
 			utils.Log(1, err.Error())
 		}
@@ -37,7 +39,7 @@ Workloader is a tool that helps discover, label, and manage workloads in an Illu
 	},
 }
 
-var debug bool
+var updatePCE, noPrompt, debug bool
 
 // Init builds the commands
 func init() {
@@ -67,7 +69,9 @@ func init() {
 	}
 	viper.ReadInConfig()
 
-	// Debug persistent flag passed into viper
+	// Persistent flags that will be passed into root command pre-run.
+	RootCmd.PersistentFlags().BoolVar(&updatePCE, "update-pce", false, "Command will prompt user before making changes in the PCE. Default will always just log potentialy changes. Flag has not effect on commands that do not alter PCE.")
+	RootCmd.PersistentFlags().BoolVar(&noPrompt, "no-prompt", false, "When used with update-pce it removes the user prompt step and automatically updates the PCE")
 	RootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug level logging for troubleshooting.")
 }
 

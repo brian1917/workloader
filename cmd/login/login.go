@@ -55,6 +55,8 @@ export ILLUMIO_FQDN=pce.demo.com
 export ILLUMIO_PORT=8443
 export ILLUMIO_USER=joe@test.com
 export ILLUMIO_PWD=pwd123
+
+The --update-pce and --no-prompt flags are ignored for this command.
 `,
 	PreRun: func(cmd *cobra.Command, args []string) {
 		configFilePath, err = filepath.Abs(viper.ConfigFileUsed())

@@ -19,7 +19,7 @@ import (
 // Global variables
 var hostCol, roleCol, appCol, envCol, locCol, intCol int
 var removeValue, csvFile string
-var umwl, debug bool
+var umwl, debug, updatePCE, noPrompt bool
 var pce illumioapi.PCE
 var err error
 
@@ -69,6 +69,8 @@ Additional columns are allowed and will be ignored.
 
 		// Get the debug value from viper
 		debug = viper.Get("debug").(bool)
+		updatePCE = viper.Get("update_pce").(bool)
+		noPrompt = viper.Get("no_prompt").(bool)
 
 		processCSV()
 	},
@@ -261,7 +263,28 @@ func processCSV() {
 
 	}
 
-	// Bulk update if we have workloads that need updating
+	// If updatePCE is disabled, we are just going to alert the user what will happen and log
+	if !updatePCE {
+		utils.Log(0, fmt.Sprintf("import identified %d workloads requiring update and %d unmanaged workloads to be created", len(updatedWklds), len(newUMWLs)))
+		fmt.Printf("Import identified %d workloads requiring update and %d unmanaged workloads to be created. To do the import, run again using --update-pce flag. The --auto flag will bypass the prompt if used with --update-pce.\r\n", len(updatedWklds), len(newUMWLs))
+		utils.Log(0, "completed running import command")
+		return
+	}
+
+	// If updatePCE is set, but not noPrompt, we will prompt the user.
+	if updatePCE && !noPrompt {
+		var prompt string
+		fmt.Printf("Import will update %d workloads and create %d unmanaged workloads. Do you want to run the import (yes/no)? ", len(updatedWklds), len(newUMWLs))
+		fmt.Scanln(&prompt)
+		if strings.ToLower(prompt) != "yes" {
+			utils.Log(0, fmt.Sprintf("import identified %d workloads requiring update and %d unmanaged workloads to be created. user denied prompt", len(updatedWklds), len(newUMWLs)))
+			fmt.Println("Prompt denied.")
+			utils.Log(0, "completed running import command")
+			return
+		}
+	}
+
+	// We will only get here if updatePCE and noPrompt is set OR the user accepted the prompt
 	if len(updatedWklds) > 0 {
 		api, err := pce.BulkWorkload(updatedWklds, "update")
 		if debug {
@@ -272,9 +295,7 @@ func processCSV() {
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("bulk updating workloads - %s", err))
 		}
-		for _, a := range api {
-			utils.Log(0, a.RespBody)
-		}
+		utils.Log(0, fmt.Sprintf("bulk update workload successful for %d workloads", len(updatedWklds)))
 	}
 
 	// Bulk create if we have new workloads
@@ -288,9 +309,7 @@ func processCSV() {
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("bulk creating workloads - %s", err))
 		}
-		for _, a := range api {
-			utils.Log(0, a.RespBody)
-		}
+		utils.Log(0, fmt.Sprintf("bulk create workload successful for %d unmanaged workloads", len(newUMWLs)))
 	}
 
 	// Log end

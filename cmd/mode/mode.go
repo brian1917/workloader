@@ -11,11 +11,12 @@ import (
 	"github.com/brian1917/illumioapi"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // Set global variables for flags
 var hostFile string
-var logOnly, verbose bool
+var logOnly, verbose, debug bool
 var hrefCol, desiredStateCol int
 var pce illumioapi.PCE
 var err error
@@ -58,6 +59,9 @@ Use --hrefCol and --stateCol to specify the columns if not default (href=1, stat
 			utils.Log(1, fmt.Sprintf("getting PCE for mode command - %s", err))
 		}
 
+		// Get the debug value from viper
+		debug = viper.Get("debug").(bool)
+
 		modeUpdate()
 	},
 }
@@ -68,6 +72,12 @@ type target struct {
 }
 
 func parseCsv(filename string) []target {
+
+	// If debug, log the columns before adjusting by 1
+	if debug {
+		utils.Log(2, fmt.Sprintf("CSV Columns. Href: %d; DesiredState: %d", hrefCol, desiredStateCol))
+	}
+
 	// Adjust the columns so first column is  0
 	hrefCol--
 	desiredStateCol--
@@ -126,7 +136,10 @@ func modeUpdate() {
 	utils.Log(0, fmt.Sprintf("log only mode set to %t", logOnly))
 
 	// Build a map of all managed workloads
-	wkldMap, err := pce.GetWkldHrefMap()
+	wkldMap, a, err := pce.GetWkldHrefMap()
+	if debug {
+		utils.LogAPIResp("GetWkldHrefMap", a)
+	}
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("error getting workload map - %s", err))
 	}
@@ -159,12 +172,22 @@ func modeUpdate() {
 	// Bulk update the workloads if we have some
 	if len(workloadUpdates) > 0 && !logOnly {
 		api, err := pce.BulkWorkload(workloadUpdates, "update")
+		if debug {
+			for _, a := range api {
+				utils.LogAPIResp("BulkWorkloadUpdate", a)
+			}
+		}
+
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("running bulk update - %s", err))
 		}
+
+		// Log successful run.
 		utils.Log(0, fmt.Sprintf("bulk updated %d workloads. API Responses:", len(workloadUpdates)))
-		for _, a := range api {
-			utils.Log(0, a.RespBody)
+		if !debug {
+			for _, a := range api {
+				utils.Log(0, a.RespBody)
+			}
 		}
 	}
 
