@@ -17,16 +17,9 @@ import (
 
 //Data Structure for all the options of the hostparse function in workloader.
 type config struct {
-	Parser parser `toml:"parser"`
-	Match  match  `toml:"match"`
+	Match match `toml:"match"`
 }
 
-type parser struct {
-	Parserfile   string `toml:"parserfile"`
-	HostnameFile string `toml:"hostnamefile"`
-	OutputFile   string `toml:"outputfile"`
-	CheckCase    int    `toml:"checkcase"`
-}
 type match struct {
 	IgnoreMatch bool   `toml:"ignorematch"`
 	App         string `toml:"app"`
@@ -45,26 +38,9 @@ type match struct {
 //  Role,App,Env,Loc - Labels that will be used to match workloads to have their names parsed...if left blank then looking for workloads without any labels.
 //  UpdatePCE - Will not push any changes back to the PCE.  It will pull data from the PCE.
 //  Debug - This will enable debug Logging.
-func parseConfig() config {
-
-	config := config{
-		Parser: parser{
-			Parserfile:   parserFile,
-			HostnameFile: hostFile,
-			OutputFile:   "workloader-hostparse-" + time.Now().Format("20060102_150405") + ".csv",
-			CheckCase:    capitalize},
-		Match: match{
-			IgnoreMatch: ignoreMatch,
-			App:         appFlag,
-			Env:         envFlag,
-			Loc:         locFlag,
-			Role:        roleFlag}}
-
-	return config
-}
 
 // Set up global variables
-var parserFile, hostFile, appFlag, roleFlag, envFlag, locFlag string
+var parserFile, hostFile, appFlag, roleFlag, envFlag, locFlag, outputFile string
 var debug, noPrompt, updatePCE, ignoreMatch bool
 var capitalize int
 var pce illumioapi.PCE
@@ -343,7 +319,7 @@ func updateLabels(w *illumioapi.Workload, lblhref map[string]illumioapi.Label) {
 func matchworkloads(labels []*illumioapi.Label, lblhref map[string]illumioapi.Label) bool {
 
 	//Does the workload have 0 labels or if ignorematch is set.
-	if (len(labels) < 1) || conf.Match.IgnoreMatch {
+	if (len(labels) < 1) || ignoreMatch {
 		return true
 
 	} else if len(labels) < 1 { //if AllEmpty not set but workload has 0 labels return false
@@ -356,19 +332,19 @@ func matchworkloads(labels []*illumioapi.Label, lblhref map[string]illumioapi.La
 			l := lblhref[tmplbl.Href]
 			switch l.Key {
 			case "loc":
-				if l.Value != conf.Match.Loc {
+				if l.Value != locFlag {
 					return false
 				}
 			case "env":
-				if l.Value != conf.Match.Env {
+				if l.Value != envFlag {
 					return false
 				}
 			case "app":
-				if l.Value != conf.Match.App {
+				if l.Value != appFlag {
 					return false
 				}
 			case "role":
-				if l.Value != conf.Match.Role {
+				if l.Value != roleFlag {
 					return false
 				}
 			}
@@ -434,7 +410,7 @@ func labelhref(labels []*illumioapi.Label) (string, string, string, string) {
 //changecase - upperorlower function check to see if user set capitalization to ignore/no change(0 default), upper (1) or lower (2)
 func changecase(str string) string {
 
-	switch conf.Parser.CheckCase {
+	switch capitalize {
 	case 0:
 		return str
 	case 1:
@@ -451,26 +427,33 @@ func hostnameParser() {
 	// Log the start of the command
 	utils.Log(0, "started hostparse command")
 
-	//Load All the options into the conf variable.
-	conf = parseConfig()
+	conf = config{Match: match{
+		IgnoreMatch: ignoreMatch,
+		App:         appFlag,
+		Env:         envFlag,
+		Loc:         locFlag,
+		Role:        roleFlag}}
+
+	// Set output file
+	outputFile = "workloader-hostparse-" + time.Now().Format("20060102_150405") + ".csv"
 
 	if debug {
 		utils.Log(0, fmt.Sprintf("updatepce set to %t ", updatePCE))
-		utils.Log(0, fmt.Sprintf("ignorematch set to %t", conf.Match.IgnoreMatch))
-		utils.Log(0, fmt.Sprintf("role,app,env,loc set to %s - %s - %s - %s", conf.Match.Role, conf.Match.App, conf.Match.Env, conf.Match.Loc))
-		utils.Log(0, fmt.Sprintf("capitalize set to %d", conf.Parser.CheckCase))
-		utils.Log(0, fmt.Sprintf("hostfle set to %s", conf.Parser.HostnameFile))
-		utils.Log(0, fmt.Sprintf("parsefile set to %s", conf.Parser.Parserfile))
+		utils.Log(0, fmt.Sprintf("ignorematch set to %t", ignoreMatch))
+		utils.Log(0, fmt.Sprintf("role,app,env,loc set to %s - %s - %s - %s", roleFlag, appFlag, envFlag, locFlag))
+		utils.Log(0, fmt.Sprintf("capitalize set to %d", capitalize))
+		utils.Log(0, fmt.Sprintf("hostfle set to %s", hostFile))
+		utils.Log(0, fmt.Sprintf("parsefile set to %s", parserFile))
 		utils.Log(0, fmt.Sprintf("noprompt set to %t", noPrompt))
 
 	}
 
 	//Read the Regex Parsing CSV.   Format should be match Regex and replace regex per label {}
 	var parserec [][]string
-	if conf.Parser.Parserfile != "" {
-		parserec = ReadCSV(conf.Parser.Parserfile)
+	if parserFile != "" {
+		parserec = ReadCSV(parserFile)
 		if debug {
-			utils.Log(2, fmt.Sprintf("hostparser - open parser file - %s", conf.Parser.Parserfile))
+			utils.Log(2, fmt.Sprintf("hostparser - open parser file - %s", parserFile))
 		}
 	} else {
 		fmt.Println("No Hostname parser file provide.  Please set the parser file location via --parserfile or -p ")
@@ -542,7 +525,7 @@ func hostnameParser() {
 
 	//Create output file
 	var gatBulkupdateFile *os.File
-	gatBulkupdateFile, err = os.Create(conf.Parser.OutputFile)
+	gatBulkupdateFile, err = os.Create(outputFile)
 	if err != nil {
 		utils.Logger.Fatalf("ERROR - Creating file - %s\n", err)
 	}
@@ -551,9 +534,9 @@ func hostnameParser() {
 	fmt.Fprintf(gatBulkupdateFile, "hostname,role,app,env,loc,href,prev-role,prev-app,prev-env,prev-loc,regex\r\n")
 
 	var wkld []illumioapi.Workload
-	if conf.Parser.HostnameFile != "" {
+	if hostFile != "" {
 		wkldsHN := workloadHostname(workloads)
-		hostrec := ReadCSV(conf.Parser.HostnameFile)
+		hostrec := ReadCSV(hostFile)
 		var tmpwkld illumioapi.Workload
 		for c, row := range hostrec {
 			if c != 0 {
@@ -570,7 +553,7 @@ func hostnameParser() {
 		wkld = workloads
 	}
 
-	// 		//Cycle through all the workloads
+	//Cycle through all the workloads
 	for _, w := range wkld {
 
 		//Check to see
