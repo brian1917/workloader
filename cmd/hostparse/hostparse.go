@@ -28,20 +28,9 @@ type match struct {
 	Role        string `toml:"role"`
 }
 
-//pasrseConfig - Function to load all the options into a global variable.
-//
-//  ParseFile - File that has the Regex to match with as well as Results of parsing for each label
-//  HostFile - If not using PCE workloads you can load a file with hostnames
-//  NoPrompt - If no user interaction (confirmation questions) is required this will perform all tasks as YES
-//  CheckCase - Will make resulting Labels Upper=0, Lower=1 or Leave the characters as they are
-//  IgnoreMatch - Normally we need workloads to have no labels or specific labels.  This will ignore that and parse all PCE workloads
-//  Role,App,Env,Loc - Labels that will be used to match workloads to have their names parsed...if left blank then looking for workloads without any labels.
-//  UpdatePCE - Will not push any changes back to the PCE.  It will pull data from the PCE.
-//  Debug - This will enable debug Logging.
-
 // Set up global variables
 var parserFile, hostFile, appFlag, roleFlag, envFlag, locFlag, outputFile string
-var debug, noPrompt, updatePCE, ignoreMatch bool
+var debug, noPrompt, updatePCE, allWklds bool
 var capitalize int
 var pce illumioapi.PCE
 var err error
@@ -49,14 +38,14 @@ var conf config
 
 // Init function will handle flags
 func init() {
-	HostnameCmd.Flags().StringVarP(&parserFile, "parserfile", "p", "", "Location of CSV with regex functions and labels.")
-	HostnameCmd.Flags().StringVar(&hostFile, "hostfile", "", "Location of hostnames CSV to parse.")
-	HostnameCmd.Flags().StringVarP(&roleFlag, "role", "e", "", "Environment label.")
-	HostnameCmd.Flags().StringVarP(&appFlag, "app", "a", "", "App label.")
-	HostnameCmd.Flags().StringVarP(&envFlag, "env", "r", "", "Role label.")
-	HostnameCmd.Flags().StringVarP(&locFlag, "loc", "l", "", "Location label.")
-	HostnameCmd.Flags().BoolVar(&ignoreMatch, "ignorematch", false, "Parse all PCE workloads no matter what labels are assigned.")
-	HostnameCmd.Flags().IntVar(&capitalize, "capitalize", 1, "Set 1 for uppercase labels(default), 2 for lowercase labels or 0 to leave capitalization alone.")
+	HostnameCmd.Flags().StringVarP(&parserFile, "parserfile", "p", "", "Location of CSV file that has the regex functions and labels.")
+	HostnameCmd.Flags().StringVar(&hostFile, "hostfile", "", "Location of optional CSV file with target hostnames parse. Used instead of getting workloads from the PCE.")
+	HostnameCmd.Flags().StringVarP(&roleFlag, "role", "r", "", "Role label to identify workloads to parse hostnames. No value will look for workloads with no role label.")
+	HostnameCmd.Flags().StringVarP(&appFlag, "app", "a", "", "Application label to identify workloads to parse hostnames. No value will look for workloads with no application label.")
+	HostnameCmd.Flags().StringVarP(&envFlag, "env", "e", "", "Environment label to identify workloads to parse hostnames. No value will look for workloads with no environment label.")
+	HostnameCmd.Flags().StringVarP(&locFlag, "loc", "l", "", "Location label to identify workloads to parse hostnames. No value will look for workloads with no location label.")
+	HostnameCmd.Flags().BoolVar(&allWklds, "allworkloads", false, "Parse all PCE workloads no matter what labels are assigned. Individual label flags are ignored if set.")
+	HostnameCmd.Flags().IntVar(&capitalize, "capitalize", 1, "Set 1 for uppercase labels(default), 2 for lowercase labels or 0 to leave capitalization as is in parsed hostname.")
 	HostnameCmd.Flags().SortFlags = false
 
 }
@@ -67,6 +56,7 @@ var HostnameCmd = &cobra.Command{
 	Short: "Label workloads by parsing hostnames from provided regex functions.",
 	Long: `
 Label workloads by parsing hostnames.
+
 An input CSV specifics the regex functions to use to assign labels. An example is below:
 
 +-------------------------+------+-------+----------+--------+----------------------+
@@ -319,7 +309,7 @@ func updateLabels(w *illumioapi.Workload, lblhref map[string]illumioapi.Label) {
 func matchworkloads(labels []*illumioapi.Label, lblhref map[string]illumioapi.Label) bool {
 
 	//Does the workload have 0 labels or if ignorematch is set.
-	if (len(labels) < 1) || ignoreMatch {
+	if (len(labels) < 1) || allWklds {
 		return true
 
 	} else if len(labels) < 1 { //if AllEmpty not set but workload has 0 labels return false
@@ -428,7 +418,7 @@ func hostnameParser() {
 	utils.Log(0, "started hostparse command")
 
 	conf = config{Match: match{
-		IgnoreMatch: ignoreMatch,
+		IgnoreMatch: allWklds,
 		App:         appFlag,
 		Env:         envFlag,
 		Loc:         locFlag,
@@ -439,7 +429,7 @@ func hostnameParser() {
 
 	if debug {
 		utils.Log(0, fmt.Sprintf("updatepce set to %t ", updatePCE))
-		utils.Log(0, fmt.Sprintf("ignorematch set to %t", ignoreMatch))
+		utils.Log(0, fmt.Sprintf("ignorematch set to %t", allWklds))
 		utils.Log(0, fmt.Sprintf("role,app,env,loc set to %s - %s - %s - %s", roleFlag, appFlag, envFlag, locFlag))
 		utils.Log(0, fmt.Sprintf("capitalize set to %d", capitalize))
 		utils.Log(0, fmt.Sprintf("hostfle set to %s", hostFile))
