@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,7 +17,7 @@ import (
 )
 
 // Set up global variables
-var parserFile, hostFile, appFlag, roleFlag, envFlag, locFlag, outputFile string
+var parserFile, hostFile, appFlag, roleFlag, envFlag, locFlag, outputFileName string
 var debug, noPrompt, updatePCE, allWklds bool
 var capitalize int
 var pce illumioapi.PCE
@@ -30,7 +31,7 @@ func init() {
 	HostnameCmd.Flags().StringVarP(&appFlag, "app", "a", "", "Application label to identify workloads to parse hostnames. No value will look for workloads with no application label.")
 	HostnameCmd.Flags().StringVarP(&envFlag, "env", "e", "", "Environment label to identify workloads to parse hostnames. No value will look for workloads with no environment label.")
 	HostnameCmd.Flags().StringVarP(&locFlag, "loc", "l", "", "Location label to identify workloads to parse hostnames. No value will look for workloads with no location label.")
-	HostnameCmd.Flags().BoolVar(&allWklds, "allworkloads", false, "Parse all PCE workloads no matter what labels are assigned. Individual label flags are ignored if set.")
+	HostnameCmd.Flags().BoolVar(&allWklds, "all", false, "Parse all PCE workloads no matter what labels are assigned. Individual label flags are ignored if set.")
 	HostnameCmd.Flags().IntVar(&capitalize, "capitalize", 1, "Set 1 for uppercase labels(default), 2 for lowercase labels or 0 to leave capitalization as is in parsed hostname.")
 	HostnameCmd.Flags().SortFlags = false
 
@@ -320,28 +321,27 @@ func hostnameParser() {
 	utils.Log(0, "started hostparse command")
 
 	// Set output file
-	outputFile = "workloader-hostparse-" + time.Now().Format("20060102_150405") + ".csv"
+	outputFileName = "workloader-hostparse-" + time.Now().Format("20060102_150405") + ".csv"
 
+	// Log configuration
 	if debug {
-		utils.Log(0, fmt.Sprintf("updatepce set to %t ", updatePCE))
-		utils.Log(0, fmt.Sprintf("ignorematch set to %t", allWklds))
-		utils.Log(0, fmt.Sprintf("role,app,env,loc set to %s - %s - %s - %s", roleFlag, appFlag, envFlag, locFlag))
-		utils.Log(0, fmt.Sprintf("capitalize set to %d", capitalize))
-		utils.Log(0, fmt.Sprintf("hostfle set to %s", hostFile))
-		utils.Log(0, fmt.Sprintf("parsefile set to %s", parserFile))
-		utils.Log(0, fmt.Sprintf("noprompt set to %t", noPrompt))
-
+		name := []string{"update-pce", "no-prompt", "all", "role", "app", "env", "loc", "capitalize", "hostfile", "parsefile"}
+		value := []string{strconv.FormatBool(updatePCE), strconv.FormatBool(noPrompt), strconv.FormatBool(allWklds), roleFlag, appFlag, envFlag, locFlag, strconv.Itoa(capitalize), hostFile, parserFile}
+		for i, n := range name {
+			utils.Log(0, fmt.Sprintf("%s set to %s ", n, value[i]))
+		}
 	}
 
 	//Read the Regex Parsing CSV.   Format should be match Regex and replace regex per label {}
 	var parserec [][]string
-	if parserFile != "" {
-		parserec = ReadCSV(parserFile)
-		if debug {
-			utils.Log(2, fmt.Sprintf("hostparser - open parser file - %s", parserFile))
-		}
-	} else {
+
+	// If no parserFile, log fatal the error. Otherwise, open it.
+	if parserFile == "" {
 		utils.Log(1, "no Hostname parser file provide - set the parser file location via --parserfile (-p) ")
+	}
+	parserec = ReadCSV(parserFile)
+	if debug {
+		utils.Log(2, fmt.Sprintf("hostparser - open parser file - %s", parserFile))
 	}
 
 	var data regex
@@ -378,10 +378,7 @@ func hostnameParser() {
 	if !failedPCE {
 		workloads, apiResp, err = pce.GetAllWorkloads()
 		if debug {
-			utils.Log(2, fmt.Sprintf("Get All Workloads API HTTP Request: %s %v", apiResp.Request.Method, apiResp.Request.URL))
-			utils.Log(2, fmt.Sprintf("Get All Workloads API HTTP Reqest Header: %v", apiResp.Request.Header))
-			utils.Log(2, fmt.Sprintf("Get All Workloads API Response Status Code: %d", apiResp.StatusCode))
-			utils.Log(2, fmt.Sprintf("Get All Workloads API Response Body: \r\n %s", apiResp.RespBody))
+			utils.LogAPIResp("GetAllWorkloads", apiResp)
 		}
 		if err != nil {
 			utils.Log(2, fmt.Sprintf("Get All Workloads Error: %s", err))
@@ -408,14 +405,14 @@ func hostnameParser() {
 	nolabels := make(map[string]string)
 
 	//Create output file
-	var gatBulkupdateFile *os.File
-	gatBulkupdateFile, err = os.Create(outputFile)
+	var outputFile *os.File
+	outputFile, err = os.Create(outputFileName)
 	if err != nil {
 		utils.Logger.Fatalf("ERROR - Creating file - %s\n", err)
 	}
-	defer gatBulkupdateFile.Close()
+	defer outputFile.Close()
 
-	fmt.Fprintf(gatBulkupdateFile, "hostname,role,app,env,loc,href,prev-role,prev-app,prev-env,prev-loc,regex\r\n")
+	fmt.Fprintf(outputFile, "hostname,role,app,env,loc,href,prev-role,prev-app,prev-env,prev-loc,regex\r\n")
 
 	var wkld []illumioapi.Workload
 	if hostFile != "" {
@@ -451,7 +448,7 @@ func hostnameParser() {
 		updateLabels(&w, lblshref)
 		if w.LabelsMatch(roleFlag, appFlag, envFlag, locFlag, lblshref) || allWklds {
 
-			match, labeledwrkld := data.RelabelFromHostname(failedPCE, w, lblskv, nolabels, gatBulkupdateFile)
+			match, labeledwrkld := data.RelabelFromHostname(failedPCE, w, lblskv, nolabels, outputFile)
 			orgRole, orgApp, orgEnv, orgLoc := labelvalues(w.Labels)
 			role, app, env, loc := labelvalues(labeledwrkld.Labels)
 
@@ -517,16 +514,12 @@ func hostnameParser() {
 				newLabel, apiResp, err := pce.CreateLabel(lbl)
 
 				if err != nil {
-					utils.Log(1, fmt.Sprint(err))
+					utils.Log(1, err.Error())
 
 				}
 				if debug {
 					utils.Log(2, fmt.Sprintf("Exact label does not exist for %s (%s). Creating new label... ", lbl.Value, lbl.Value))
-					utils.Log(2, fmt.Sprintf("Create Label API HTTP Request: %s %v", apiResp.Request.Method, apiResp.Request.URL))
-					utils.Log(2, fmt.Sprintf("Create Label API HTTP Reqest Header: %+v", apiResp.Request.Header))
-					utils.Log(2, fmt.Sprintf("Create Label API HTTP Reqest Body: %+v", illumioapi.Label{Key: lbl.Value, Value: lbl.Value}))
-					utils.Log(2, fmt.Sprintf("Create Label API for %s (%s) Response Status Code: %d", lbl.Value, lbl.Value, apiResp.StatusCode))
-					utils.Log(2, fmt.Sprintf("Create Label API for %s (%s) Response Body: %s", lbl.Value, lbl.Key, apiResp.RespBody))
+					utils.LogAPIResp("CreateLabel", apiResp)
 				} else {
 					utils.Log(0, fmt.Sprintf("CREATED LABEL %s (%s) with following HREF: %s", newLabel.Value, newLabel.Key, newLabel.Href))
 				}
@@ -546,36 +539,24 @@ func hostnameParser() {
 			apiResp, err := pce.BulkWorkload(alllabeledwrkld, "update")
 
 			//get number of workloads to update
-			wkldcount := len(alllabeledwrkld) - 1
-			c := 1
-			cprime := 0
-			for _, api := range apiResp {
-				//Is the number of workloads less than 1000 then set the end number to # wkdls
-				if int(c/wkldcount) < 999 {
-					cprime = int(wkldcount / c)
-					// when workloads are greater than 999 then make numbers function of 1000
-				} else {
-					cprime = 999
-				}
-				if err != nil {
-					utils.Logger.Fatal(err)
-				}
+			utils.Log(0, fmt.Sprintf("running bulk update on %d workloads. batches run in 1,0000 workload chunks", len(alllabeledwrkld)))
+			for i, api := range apiResp {
 				if debug {
-					utils.Log(2, fmt.Sprintf("BulkUpdate Workloads API HTTP Request: %s %v", api.Request.Method, api.Request.URL))
-					utils.Log(2, fmt.Sprintf("BulkUpdate Workloads API HTTP Reqest Header: %v", api.Request.Header))
-					utils.Log(2, fmt.Sprintf("BulkUpdate Workloads API HTTP Body: %+v", alllabeledwrkld))
-					utils.Log(2, fmt.Sprintf("BulkUpdate Workloads Response Status Code: %d", api.StatusCode))
-					utils.Log(2, fmt.Sprintf("BulkUpdate Workloads API Response Body: \r\n %s", api.RespBody))
-				} else {
-					utils.Log(0, fmt.Sprintf("BULKWORKLOAD UPDATE %d-%d workloads:", c, c+cprime))
+					utils.LogAPIResp("BulkWorkloadUpdate", api)
 				}
-				c += 1000
+				// Log our error if there is an error
+				if err != nil {
+					utils.Log(0, err.Error())
+				}
+				// If not doing debug level logging, log each complete api
+				if !debug {
+					utils.Log(0, fmt.Sprintf("bulkworkload update batch %d completed", i))
+				}
 			}
 
 		}
 	} else {
 		//Make sure to put NO MATCHES into output file
-
 		utils.Log(0, fmt.Sprintf("No Workloads will me updated  -  Check the output file"))
 
 		if !noPrompt && !failedPCE {
