@@ -313,13 +313,11 @@ func matchworkloads(labels []*illumioapi.Label, lblhref map[string]illumioapi.La
 		return true
 	}
 
-	if len(labels) < 1 { //if AllEmpty not set but workload has 0 labels return false
+	//if # labels of the workload <> labels configured in ConfigFile then return false
+	if len(labels) != emptylabels(&conf.Match) {
 		return false
 	}
 
-	if len(labels) != emptylabels(&conf.Match) { //if # labels of the workload <> labels configured in ConfigFile then return false
-		return false
-	}
 	//Check to see if all the labels match by checking all the labels in ConfigFile agaist labels on the workload
 	for _, tmplbl := range labels {
 		l := lblhref[tmplbl.Href]
