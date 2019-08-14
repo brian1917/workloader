@@ -311,38 +311,38 @@ func matchworkloads(labels []*illumioapi.Label, lblhref map[string]illumioapi.La
 	//Does the workload have 0 labels or if ignorematch is set.
 	if (len(labels) < 1) || allWklds {
 		return true
+	}
 
-	} else if len(labels) < 1 { //if AllEmpty not set but workload has 0 labels return false
+	if len(labels) < 1 { //if AllEmpty not set but workload has 0 labels return false
 		return false
-	} else if len(labels) != emptylabels(&conf.Match) { //if # labels of the workload <> labels configured in ConfigFile then return false
+	}
+
+	if len(labels) != emptylabels(&conf.Match) { //if # labels of the workload <> labels configured in ConfigFile then return false
 		return false
-		//Check to see if all the labels match by checking all the labels in ConfigFile agaist labels on the workload
-	} else {
-		for _, tmplbl := range labels {
-			l := lblhref[tmplbl.Href]
-			switch l.Key {
-			case "loc":
-				if l.Value != locFlag {
-					return false
-				}
-			case "env":
-				if l.Value != envFlag {
-					return false
-				}
-			case "app":
-				if l.Value != appFlag {
-					return false
-				}
-			case "role":
-				if l.Value != roleFlag {
-					return false
-				}
+	}
+	//Check to see if all the labels match by checking all the labels in ConfigFile agaist labels on the workload
+	for _, tmplbl := range labels {
+		l := lblhref[tmplbl.Href]
+		switch l.Key {
+		case "loc":
+			if l.Value != locFlag {
+				return false
+			}
+		case "env":
+			if l.Value != envFlag {
+				return false
+			}
+		case "app":
+			if l.Value != appFlag {
+				return false
+			}
+		case "role":
+			if l.Value != roleFlag {
+				return false
 			}
 		}
-		return true
 	}
-	//return if match = 0 or 1 as boolean
-
+	return true
 }
 
 //labelvalues - Return all the Label values from the labels of a workload
