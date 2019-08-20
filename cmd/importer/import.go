@@ -22,13 +22,14 @@ var removeValue, csvFile string
 var umwl, debug, updatePCE, noPrompt bool
 var pce illumioapi.PCE
 var err error
+var labelMapKV, labelMapHref map[string]illumioapi.Label
 
 func init() {
 	ImportCmd.Flags().StringVar(&csvFile, "in", "", "Input csv file. The first row (headers) will be skipped.")
 	ImportCmd.MarkFlagRequired("in")
 	ImportCmd.Flags().StringVar(&removeValue, "removeValue", "", "Value in CSV used to remove existing labels. Blank values in the CSV will not change existing. If you want to delete a label do something like -removeValue delete and use delete in CSV to indicate where to delete.")
 	ImportCmd.Flags().BoolVar(&umwl, "umwl", false, "Create unmanaged workloads if the host does not exist")
-	ImportCmd.Flags().IntVarP(&hostCol, "hostname", "n", 1, "Column number with hostname. First column is 1.")
+	ImportCmd.Flags().IntVarP(&hostCol, "match", "n", 1, "Column number with hostname or Href to match workloads. If you have HREF, we recommend using that. First column is 1.")
 	ImportCmd.Flags().IntVarP(&roleCol, "role", "r", 2, "Column number with new role label.")
 	ImportCmd.Flags().IntVarP(&appCol, "app", "a", 3, "Column number with new app label.")
 	ImportCmd.Flags().IntVarP(&envCol, "env", "e", 4, "Column number with new env label.")
@@ -46,7 +47,9 @@ var ImportCmd = &cobra.Command{
 	Long: `
 Create and assign labels from a CSV file. Create and label unmanaged workloads from same CSV.
 
-The default input style is below. Using this command with the --umwl flag will label workloads and create unmanaged workloads.
+The default input style is below. The input should have a header row. Headers do not matter but the first row will be skipped.
+
+Using this command with the --umwl flag will label workloads and create unmanaged workloads.
 
 The interface column will be ignored for managed workloads.
 
@@ -76,11 +79,11 @@ Additional columns are allowed and will be ignored.
 	},
 }
 
-func checkLabel(label illumioapi.Label, labelMap map[string]illumioapi.Label) illumioapi.Label {
+func checkLabel(label illumioapi.Label) illumioapi.Label {
 
 	// Check if it exists or not
-	if _, ok := labelMap[label.Key+label.Value]; ok {
-		return labelMap[label.Key+label.Value]
+	if _, ok := labelMapKV[label.Key+label.Value]; ok {
+		return labelMapKV[label.Key+label.Value]
 	}
 
 	// Create the label if it doesn't exist
@@ -95,7 +98,8 @@ func checkLabel(label illumioapi.Label, labelMap map[string]illumioapi.Label) il
 	utils.Log(0, fmt.Sprintf("created Label - %s", string(logJSON)))
 
 	// Append the label back to the map
-	labelMap[l.Key+l.Value] = l
+	labelMapKV[l.Key+l.Value] = l
+	labelMapHref[l.Href] = l
 
 	return l
 }
@@ -126,7 +130,7 @@ func processCSV() {
 	defer file.Close()
 	reader := csv.NewReader(utils.ClearBOM(bufio.NewReader(file)))
 
-	// Get workload hostname map
+	// Get workload map. Build based off hostname and and Href so we can look up either.
 	wkldMap, a, err := pce.GetWkldHostMap()
 	if debug {
 		utils.LogAPIResp("GetWkldHostMap", a)
@@ -134,14 +138,24 @@ func processCSV() {
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("getting workload host map - %s", err))
 	}
+	for _, w := range wkldMap {
+		wkldMap[w.Href] = w
+	}
 
 	// Get label map
-	labelMap, a, err := pce.GetLabelMapKV()
+	labelMapKV, a, err = pce.GetLabelMapKV()
 	if debug {
 		utils.LogAPIResp("GetLabelMapKV", a)
 	}
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("getting label key value map - %s", err))
+	}
+	labelMapHref, a, err = pce.GetLabelMapH()
+	if debug {
+		utils.LogAPIResp("GetLabelMapH", a)
+	}
+	if err != nil {
+		utils.Log(1, fmt.Sprintf("getting label href map - %s", err))
 	}
 
 	// Create slices to hold the workloads we will update and create
@@ -166,8 +180,14 @@ func processCSV() {
 			utils.Log(1, fmt.Sprintf("reading CSV file - %s", err))
 		}
 
-		// Skipe the header row
+		// Skip the header row
 		if i == 1 {
+			continue
+		}
+
+		if line[hostCol] == "" {
+			utils.Log(0, fmt.Sprintf("CSV line %d - the match column cannot be blank - hostname or href required.", i))
+			fmt.Printf("Skipping CSV line %d - the match column cannot be blank - hostname or href required.\r\n", i)
 			continue
 		}
 
@@ -181,9 +201,19 @@ func processCSV() {
 				for _, n := range nic {
 					x := strings.Split(n, ":")
 					if len(x) != 2 {
-						utils.Log(1, fmt.Sprintf("CSV line %d - Interface not provided in proper format. Example of proper format is eth1:192.168.100.20", i))
+						utils.Log(0, fmt.Sprintf("CSV line %d - Interface not provided in proper format. Example of proper format is eth1:192.168.100.20. Workload created without an interface.", i))
 					}
-					netInterfaces = append(netInterfaces, &illumioapi.Interface{Name: x[0], Address: x[1]})
+					skip := false
+					for _, n := range netInterfaces {
+						// Skip it if it already is in our array. Put in to account for a GAT export bug.
+						if n.Name == x[0] && n.Address == x[1] {
+							skip = true
+						}
+					}
+					if !skip {
+						netInterfaces = append(netInterfaces, &illumioapi.Interface{Name: x[0], Address: x[1]})
+					}
+
 				}
 
 				// Create the labels slice
@@ -195,7 +225,7 @@ func processCSV() {
 						continue
 					}
 					// Get the label HREF
-					l := checkLabel(illumioapi.Label{Key: keys[i], Value: line[columns[i]]}, labelMap)
+					l := checkLabel(illumioapi.Label{Key: keys[i], Value: line[columns[i]]})
 
 					// Add that label to the new labels slice
 					labels = append(labels, &illumioapi.Label{Href: l.Href})
@@ -222,7 +252,7 @@ func processCSV() {
 		// Set slices to iterate through the 4 keys
 		columns := []int{appCol, roleCol, envCol, locCol}
 		wkld := wkldMap[line[hostCol]] // Need this since can't perform pointer method on map element
-		labels := []illumioapi.Label{wkld.GetApp(labelMap), wkld.GetRole(labelMap), wkld.GetEnv(labelMap), wkld.GetLoc(labelMap)}
+		labels := []illumioapi.Label{wkld.GetApp(labelMapHref), wkld.GetRole(labelMapHref), wkld.GetEnv(labelMapHref), wkld.GetLoc(labelMapHref)}
 		keys := []string{"app", "role", "env", "loc"}
 
 		// Cycle through each of the four keys
@@ -241,11 +271,12 @@ func processCSV() {
 
 			// If the workload's  value does not equal what's in the CSV
 			if labels[i].Value != line[columns[i]] {
+				fmt.Printf("Value of label[i].Value: %s\r\n", labels[i].Value)
+				fmt.Printf("Value of line[columns[i]]: %s\r\n", line[columns[i]])
 				// Change the change flag
 				change = true
-
 				// Get the label HREF
-				l := checkLabel(illumioapi.Label{Key: keys[i], Value: line[columns[i]]}, labelMap)
+				l := checkLabel(illumioapi.Label{Key: keys[i], Value: line[columns[i]]})
 				// Add that label to the new labels slice
 				newLabels = append(newLabels, &illumioapi.Label{Href: l.Href})
 			} else {
@@ -261,6 +292,13 @@ func processCSV() {
 			updatedWklds = append(updatedWklds, w)
 		}
 
+	}
+
+	// End run if we have nothing to do
+	if len(updatedWklds) == 0 && len(newUMWLs) == 0 {
+		fmt.Println("Nothing to be done.")
+		utils.Log(0, "nothing to be done. completed running import command.")
+		return
 	}
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
