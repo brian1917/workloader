@@ -15,13 +15,13 @@ import (
 	"github.com/spf13/viper"
 )
 
-var appFlag, exclWkldFile, exclPortFile string
+var appFlag, exclWkldFile, exclPortFile, outFormat string
 var debug, ignoreLoc bool
 var pce illumioapi.PCE
 var err error
 
 func init() {
-	MisLabelCmd.Flags().StringVarP(&appFlag, "app", "a", "", "App label.")
+	MisLabelCmd.Flags().StringVarP(&appFlag, "app", "a", "", "App label to limit Explorer query.")
 	MisLabelCmd.Flags().StringVarP(&exclWkldFile, "wExclude", "w", "", "File location of hostnames to exclude as orphans.")
 	MisLabelCmd.Flags().StringVarP(&exclPortFile, "pExclude", "p", "", "File location of ports to exclude in traffic query.")
 	MisLabelCmd.Flags().SortFlags = false
@@ -32,13 +32,13 @@ var MisLabelCmd = &cobra.Command{
 	Use:   "mislabel",
 	Short: "Display workloads that have no intra App-Group communications to identify potentially mislabled workloads.",
 	Long: `
-	Display workloads that have no intra App-Group communications to identify potentially mislabled workloads.
+Display workloads that have no intra App-Group communications to identify potentially mislabled workloads.
 	
-	The default Explorer query will look at all data. Explorer API has a max of 100,000 records. If you're query will exceed this, use the app flag to work through application labels. The app flag will get all traffic where that app is the source or destination (in 2 separate queries).
+The default Explorer query will look at all data. Explorer API has a max of 100,000 records. If you're query will exceed this, use the app flag to work through application labels. The app flag will get all traffic where that app is the source or destination (in 2 separate queries).
 	
-	The explorer query will ignore traffic on UDP ports 5355 (DNSCache) and 137, 138, 139 (NETBIOS). To customize this list, use the --pExclude (-p) flag to pass in a CSV with no headers and two columns. First column is port number and second column is protocol number (TCP is 6 and UDP is 17). CSV should include above ports to exclude them.
+The explorer query will ignore traffic on UDP ports 5355 (DNSCache) and 137, 138, 139 (NETBIOS). To customize this list, use the --pExclude (-p) flag to pass in a CSV with no headers and two columns. First column is port number and second column is protocol number (TCP is 6 and UDP is 17). CSV should include above ports to exclude them.
 	
-	The --update-pce and --no-prompt flags are ignored for this command.`,
+The --update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		pce, err = utils.GetPCE()
@@ -48,6 +48,7 @@ var MisLabelCmd = &cobra.Command{
 
 		// Get the debug value from viper
 		debug = viper.Get("debug").(bool)
+		outFormat = viper.Get("output_format").(string)
 
 		misLabel()
 	},
@@ -211,7 +212,7 @@ func misLabel() {
 		exclWklds = getExclHosts(exclWkldFile)
 	}
 
-	// Get all workloads. Iterate through each workload. If it's an orphan and not in our exclude list, add it to the slice.
+	// Get all workloads.
 	wklds, a, err := pce.GetAllWorkloads()
 	if debug {
 		utils.LogAPIResp("GetAllWorkloads", a)
@@ -220,9 +221,25 @@ func misLabel() {
 		utils.Log(1, err.Error())
 	}
 
-	var orphanWklds []illumioapi.Workload
+	// Build a map of app groups and their count
+	appGroupCount := make(map[string]int)
 	for _, w := range wklds {
-		if !nonOrphpans[w.Href] && !exclWklds[w.Hostname] {
+		appGrp := w.GetAppGroupL(labelmap)
+		if ignoreLoc {
+			appGrp = w.GetAppGroup(labelmap)
+		}
+		appGroupCount[appGrp] = appGroupCount[appGrp] + 1
+	}
+
+	// Iterate through each workload. If it's an orphan and not in our exclude list and not the only workload in the app group, add it to the slice.
+	// We need to iterate two separate times because we need the complete list processed to get our count above
+	orphanWklds := []illumioapi.Workload{}
+	for _, w := range wklds {
+		appGrp := w.GetAppGroupL(labelmap)
+		if ignoreLoc {
+			appGrp = w.GetAppGroup(labelmap)
+		}
+		if !nonOrphpans[w.Href] && !exclWklds[w.Hostname] && appGroupCount[appGrp] > 1 {
 			orphanWklds = append(orphanWklds, w)
 		}
 	}
@@ -234,23 +251,12 @@ func misLabel() {
 	}
 
 	if len(data) > 1 {
-		// Create output file
-		outFile, err := os.Create("workloader-mislabel-" + time.Now().Format("20060102_150405") + ".csv")
-		if err != nil {
-			utils.Log(1, fmt.Sprintf("creating CSV - %s\n", err))
-		}
-
-		// Write CSV data
-		writer := csv.NewWriter(outFile)
-		writer.WriteAll(data)
-		if err := writer.Error(); err != nil {
-			utils.Log(1, fmt.Sprintf("writing CSV - %s\n", err))
-		}
-
-		// Log complete
-		utils.Log(0, fmt.Sprintf("mislabel complete - %d workloads identified in %s", len(data)-1, outFile.Name()))
+		fmt.Printf("\r\n%d potentially mislabeled workloads detected.\r\n", len(data)-1)
+		utils.WriteOutput(data, fmt.Sprintf("workloader-mislabel-%s-.csv", time.Now().Format("20060102_150405")))
+		utils.Log(0, fmt.Sprintf("mislabel complete - %d workloads identified", len(data)-1))
+	} else {
+		// Log if we don't find any
+		fmt.Println("\r\n0 potentially mislabeled workloads detected.")
+		utils.Log(0, "mislabel complete - 0 workloads identified")
 	}
-
-	// Log if we don't find any
-	utils.Log(0, "mislabel complete - 0 workloads identified")
 }
