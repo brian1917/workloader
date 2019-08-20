@@ -198,22 +198,26 @@ func processCSV() {
 				// Create the network interfaces
 				netInterfaces := []*illumioapi.Interface{}
 				nic := strings.Split(line[intCol], ";")
-				for _, n := range nic {
-					x := strings.Split(n, ":")
-					if len(x) != 2 {
-						utils.Log(0, fmt.Sprintf("CSV line %d - Interface not provided in proper format. Example of proper format is eth1:192.168.100.20. Workload created without an interface.", i))
-						continue
-					}
-					skip := false
-
-					for _, n := range netInterfaces {
-						// Skip it if it already is in our array. Put in to account for a GAT export bug.
-						if n.Name == x[0] && n.Address == x[1] {
-							skip = true
+				if len(nic) == 0 {
+					utils.Log(0, fmt.Sprintf("CSV line %d - Interface not provided. Workload created without an interface.", i))
+				}
+				if len(nic) > 0 {
+					for _, n := range nic {
+						x := strings.Split(n, ":")
+						if len(x) != 2 {
+							utils.Log(0, fmt.Sprintf("CSV line %d - Interface not provided in proper format. Example of proper format is eth1:192.168.100.20. Workload created without an interface.", i))
 						}
-					}
-					if !skip {
-						netInterfaces = append(netInterfaces, &illumioapi.Interface{Name: x[0], Address: x[1]})
+						skip := false
+
+						for _, n := range netInterfaces {
+							// Skip it if it already is in our array. Put in to account for a GAT export bug.
+							if n.Name == x[0] && n.Address == x[1] {
+								skip = true
+							}
+						}
+						if !skip {
+							netInterfaces = append(netInterfaces, &illumioapi.Interface{Name: x[0], Address: x[1]})
+						}
 					}
 
 				}
