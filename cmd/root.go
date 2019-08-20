@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/brian1917/workloader/utils"
 
@@ -29,9 +30,17 @@ Workloader is a tool that helps discover, label, and manage workloads in an Illu
 		viper.Set("debug", debug)
 		viper.Set("update_pce", updatePCE)
 		viper.Set("no_prompt", noPrompt)
+
+		//Output format
+		outFormat = strings.ToLower(outFormat)
+		if outFormat != "both" && outFormat != "stdout" && outFormat != "csv" {
+			utils.Log(1, "Invalid out - must be csv, stdout, or both.")
+		}
+		viper.Set("output_format", outFormat)
 		if err := viper.WriteConfig(); err != nil {
 			utils.Log(1, err.Error())
 		}
+
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 
@@ -40,6 +49,7 @@ Workloader is a tool that helps discover, label, and manage workloads in an Illu
 }
 
 var updatePCE, noPrompt, debug bool
+var outFormat string
 
 // Init builds the commands
 func init() {
@@ -73,6 +83,9 @@ func init() {
 	RootCmd.PersistentFlags().BoolVar(&updatePCE, "update-pce", false, "Command will prompt user before making changes in the PCE. Default will always just log potentialy changes. Flag has not effect on commands that do not alter PCE.")
 	RootCmd.PersistentFlags().BoolVar(&noPrompt, "no-prompt", false, "When used with update-pce it removes the user prompt step and automatically updates the PCE")
 	RootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug level logging for troubleshooting.")
+	RootCmd.PersistentFlags().StringVar(&outFormat, "out", "both", "Output format. 3 options: csv, stdout, both")
+
+	RootCmd.Flags().SortFlags = false
 }
 
 // Execute is called by the CLI main function to initiate the Cobra application
