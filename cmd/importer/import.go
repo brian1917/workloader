@@ -208,11 +208,12 @@ func processCSV() {
 							utils.Log(0, fmt.Sprintf("CSV line %d - Interface not provided in proper format. Example of proper format is eth1:192.168.100.20. Workload created without an interface.", i))
 						}
 						skip := false
-
-						for _, n := range netInterfaces {
-							// Skip it if it already is in our array. Put in to account for a GAT export bug.
-							if n.Name == x[0] && n.Address == x[1] {
-								skip = true
+						if len(netInterfaces) > 0 {
+							for _, n := range netInterfaces {
+								// Skip it if it already is in our array. Put in to account for a GAT export bug.
+								if n.Name == x[0] && n.Address == x[1] {
+									skip = true
+								}
 							}
 						}
 						if !skip {
