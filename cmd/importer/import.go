@@ -104,6 +104,16 @@ func checkLabel(label illumioapi.Label) illumioapi.Label {
 	return l
 }
 
+// ContainsStr hecks if an integer is in a slice
+func containsStr(strSlice []string, searchStr string) bool {
+	for _, value := range strSlice {
+		if value == searchStr {
+			return true
+		}
+	}
+	return false
+}
+
 func processCSV() {
 
 	// Log start of the command
@@ -195,32 +205,17 @@ func processCSV() {
 		if _, ok := wkldMap[line[hostCol]]; !ok {
 
 			if umwl {
-				// Create the network interfaces
 				netInterfaces := []*illumioapi.Interface{}
-				nic := strings.Split(line[intCol], ";")
-				if len(line[intCol]) < 5 {
-					utils.Log(0, fmt.Sprintf("CSV line %d - Interface not provided. Workload created without an interface.", i))
-				}
-				if len(line[intCol]) > 5 {
+				// Check to see if anything is provided in the interface column.
+				if strings.Count(line[intCol], ":") < 1 && strings.Count(line[intCol], ".") < 3 {
+					utils.Log(0, fmt.Sprintf("CSV line %d - Valid interface format (e.g., eth1:192.168.200.20) not provided. Workload created without an interface.", i))
+				} else {
+					// Create the network interfaces
+					nic := strings.Split(line[intCol], ";")
 					for _, n := range nic {
 						x := strings.Split(n, ":")
-						if len(x) != 2 {
-							utils.Log(0, fmt.Sprintf("CSV line %d - Interface not provided in proper format. Example of proper format is eth1:192.168.100.20. Workload created without an interface.", i))
-						}
-						skip := false
-						if len(netInterfaces) > 0 {
-							for _, n := range netInterfaces {
-								// Skip it if it already is in our array. Put in to account for a GAT export bug.
-								if n.Name == x[0] && n.Address == x[1] {
-									skip = true
-								}
-							}
-						}
-						if !skip {
-							netInterfaces = append(netInterfaces, &illumioapi.Interface{Name: x[0], Address: x[1]})
-						}
+						netInterfaces = append(netInterfaces, &illumioapi.Interface{Name: x[0], Address: x[1]})
 					}
-
 				}
 
 				// Create the labels slice
@@ -240,8 +235,6 @@ func processCSV() {
 
 				// Add to the slice to process via bulk and go to next CSV entry
 				newUMWLs = append(newUMWLs, illumioapi.Workload{Hostname: line[hostCol], Interfaces: netInterfaces, Labels: labels})
-				continue
-
 				// If umwl flag is not set, log the entry
 			} else {
 				utils.Log(0, fmt.Sprintf("%s is not a workload. Include umwl flag to create it. Nothing done.", line[hostCol]))
@@ -278,8 +271,6 @@ func processCSV() {
 
 			// If the workload's  value does not equal what's in the CSV
 			if labels[i].Value != line[columns[i]] {
-				fmt.Printf("Value of label[i].Value: %s\r\n", labels[i].Value)
-				fmt.Printf("Value of line[columns[i]]: %s\r\n", line[columns[i]])
 				// Change the change flag
 				change = true
 				// Get the label HREF

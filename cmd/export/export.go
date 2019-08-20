@@ -80,6 +80,9 @@ func exportWorkloads() {
 
 		// Get interfaces
 		for _, i := range w.Interfaces {
+			if i.CidrBlock == 0 {
+				i.CidrBlock = 32
+			}
 			interfaces = append(interfaces, i.Name+":"+i.Address+"/"+strconv.Itoa(i.CidrBlock))
 		}
 
