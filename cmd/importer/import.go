@@ -198,10 +198,10 @@ func processCSV() {
 				// Create the network interfaces
 				netInterfaces := []*illumioapi.Interface{}
 				nic := strings.Split(line[intCol], ";")
-				if len(nic) == 0 {
+				if len(line[intCol]) < 5 {
 					utils.Log(0, fmt.Sprintf("CSV line %d - Interface not provided. Workload created without an interface.", i))
 				}
-				if len(nic) > 0 {
+				if len(line[intCol]) > 5 {
 					for _, n := range nic {
 						x := strings.Split(n, ":")
 						if len(x) != 2 {
