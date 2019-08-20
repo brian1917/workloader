@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/brian1917/illumioapi"
@@ -17,7 +18,7 @@ import (
 
 var csvFile string
 var netCol, envCol, locCol int
-var auto, debug bool
+var auto, debug, updatePCE, noPrompt bool
 var pce illumioapi.PCE
 var err error
 
@@ -72,8 +73,10 @@ using the appropriate flags. Example default:
 			utils.Logger.Fatalf("Error getting PCE for subnet command - %s", err)
 		}
 
-		// Get the debug value from viper
+		// Get Viper configuration
 		debug = viper.Get("debug").(bool)
+		updatePCE = viper.Get("update_pce").(bool)
+		noPrompt = viper.Get("no_prompt").(bool)
 
 		subnetParser()
 	},
@@ -167,9 +170,6 @@ func subnetParser() {
 	updatedWklds := []illumioapi.Workload{}
 	matches := []match{}
 
-	// Start our data slice with the headers
-	data := [][]string{[]string{"hostname", "ip_address", "original_loc", "original_env", "new_loc", "new_env"}}
-
 	// Iterate through workloads
 	for _, w := range wklds {
 		m := match{}
@@ -200,32 +200,57 @@ func subnetParser() {
 	// Bulk update if we have workloads that need updating
 	if len(updatedWklds) > 0 {
 
-		// Add the matches to our data slices
+		// Print number of workloads requiring update to the terminal
+		fmt.Printf("%d workloads requiring label update.\r\n", len(updatedWklds))
+
+		// Create our data slice
+		data := [][]string{[]string{"hostname", "href", "ip_address", "role", "app", "original_env", "original_loc", "new_loc", "new_env"}}
 		for _, m := range matches {
-			data = append(data, []string{m.workload.Hostname, m.workload.Interfaces[0].Address, m.oldLoc, m.oldEnv, m.workload.GetLoc(labelMap).Value, m.workload.GetEnv(labelMap).Value})
+			data = append(data, []string{m.workload.Hostname, m.workload.Href, m.workload.Interfaces[0].Address, m.workload.GetRole(labelMap).Value, m.workload.GetApp(labelMap).Value, m.oldLoc, m.oldEnv, m.workload.GetLoc(labelMap).Value, m.workload.GetEnv(labelMap).Value})
 		}
 
-		// If data slice is more than just the headers, write the data
-		if len(data) > 1 {
+		utils.WriteOutput(data, "workloader-subnet-output-"+time.Now().Format("20060102_150405")+".csv")
 
-			// Create the output file
-			outFile, err := os.Create("workloader-subnet-output-" + time.Now().Format("20060102_150405") + ".csv")
-			if err != nil {
-				utils.Log(1, err.Error())
-			}
-			writer := csv.NewWriter(outFile)
-			writer.WriteAll(data)
+		// If updatePCE is disabled, we are just going to alert the user what will happen and log
+		if !updatePCE {
+			utils.Log(0, fmt.Sprintf("%d workloads requiring mode change.", len(data)-1))
+			fmt.Printf("Subnet identified %d workloads requiring label change. To update their labels, run again using --update-pce flag. The --auto flag will bypass the prompt if used with --update-pce.\r\n", len(data)-1)
+			utils.Log(0, "completed running subnet command")
+			return
 		}
 
-		// If auto is flagged, run the update -- NEED PROMPT HERE
-		if auto {
-			api, err := pce.BulkWorkload(updatedWklds, "update")
-			if err != nil {
-				utils.Logger.Printf("ERROR - bulk updating workloads - %s\r\n", err)
+		// If updatePCE is set, but not noPrompt, we will prompt the user.
+		if updatePCE && !noPrompt {
+			var prompt string
+			fmt.Printf("Subnet will change the labels of %d workloads. Do you want to run the change (yes/no)? ", len(data)-1)
+			fmt.Scanln(&prompt)
+			if strings.ToLower(prompt) != "yes" {
+				utils.Log(0, fmt.Sprintf("subnet identified %d workloads requiring label change. user denied prompt", len(data)-1))
+				fmt.Println("Prompt denied.")
+				utils.Log(0, "completed running subnet command")
+				return
 			}
+		}
+
+		// If we get here, user accepted prompt or no-prompt was set.
+		api, err := pce.BulkWorkload(updatedWklds, "update")
+		if debug {
 			for _, a := range api {
-				utils.Logger.Println(a.RespBody)
+				utils.LogAPIResp("BulkWorkloadUpdate", a)
 			}
 		}
+		if err != nil {
+			utils.Log(1, fmt.Sprintf("running bulk update - %s", err))
+		}
+		// Log successful run.
+		utils.Log(0, fmt.Sprintf("bulk updated %d workloads.", len(updatedWklds)))
+		if !debug {
+			for _, a := range api {
+				utils.Log(0, a.RespBody)
+			}
+		}
+	} else {
+		fmt.Println("no workloads identified for label change")
+		utils.Log(0, "submet completed running without identifying any workloads requiring change.")
 	}
 }

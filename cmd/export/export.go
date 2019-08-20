@@ -1,9 +1,7 @@
 package export
 
 import (
-	"encoding/csv"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -19,6 +17,7 @@ import (
 var pce illumioapi.PCE
 var err error
 var debug bool
+var outFormat string
 
 // ExportCmd runs the workload identifier
 var ExportCmd = &cobra.Command{
@@ -34,8 +33,9 @@ Create a CSV export of all workloads in the PCE. The update-pce and auto flags a
 			utils.Log(1, err.Error())
 		}
 
-		// Get the debug value from viper
+		// Get the viper values
 		debug = viper.Get("debug").(bool)
+		outFormat = viper.Get("output_format").(string)
 
 		exportWorkloads()
 	},
@@ -95,23 +95,9 @@ func exportWorkloads() {
 	}
 
 	if len(data) > 1 {
-		// Create output file
-		outFile, err := os.Create("workloader-export-" + time.Now().Format("20060102_150405") + ".csv")
-		if err != nil {
-			utils.Log(1, fmt.Sprintf("creating CSV - %s\n", err))
-		}
-
-		// Write CSV data
-		writer := csv.NewWriter(outFile)
-		writer.WriteAll(data)
-		if err := writer.Error(); err != nil {
-			utils.Log(1, fmt.Sprintf("writing CSV - %s\n", err))
-		}
-
-		// Log command execution
-		fmt.Printf("Exported %d workloads to %s.\r\n", len(data)-1, outFile.Name())
-		utils.Log(0, fmt.Sprintf("exported %d workloads to %s", len(data)-1, outFile.Name()))
-
+		fmt.Printf("\r\n%d workloads exported.\r\n", len(data)-1)
+		utils.WriteOutput(data, fmt.Sprintf("workloader-export-%s-.csv", time.Now().Format("20060102_150405")))
+		utils.Log(0, fmt.Sprintf("export complete - %d workloads exported", len(data)-1))
 	} else {
 		// Log command execution for 0 results
 		fmt.Println("No workloads in PCE.")
