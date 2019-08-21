@@ -65,7 +65,9 @@ The default import format is below. It matches the first 6 columns of the worklo
 +-------------------+--------------------------------------------------------+------+----------+------+-----+---------------------------------------+
 | AssetMgt.db.prod  | /orgs/1/workloads/17589443-7731-488f-b57a-f26c9d9e9eff | DB   | ASSETMGT | PROD | BOS | eth0:192.168.200.15                   |
 | AssetMgt.web.prod | /orgs/1/workloads/12384475-7491-428e-b47c-f36c5d8e9eff | WEB  | ASSETMGT | PROD | BOS | eth0:192.168.200.15;eth1:10.10.100.22 |
-+-------------------+--------------------------------------------------------+------+----------+------+-----+---------------------------------------+`,
++-------------------+--------------------------------------------------------+------+----------+------+-----+---------------------------------------+
+
+Import will create labels even without --update-pce. Workloads will not be created without --update-pce.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 
