@@ -47,7 +47,7 @@ func exportWorkloads() {
 	utils.Log(0, "running export command")
 
 	// Start the data slice with headers
-	data := [][]string{[]string{"hostname", "name", "href", "online", "os_id", "role", "app", "env", "loc", "status", "interfaces", "public_ip", "ven_version"}}
+	data := [][]string{[]string{"hostname", "href", "role", "app", "env", "loc", "interfaces", "name", "public_ip", "mode", "online", "os_id", "ven_version"}}
 
 	// GetAllWorkloads
 	wklds, a, err := pce.GetAllWorkloads()
@@ -80,10 +80,11 @@ func exportWorkloads() {
 
 		// Get interfaces
 		for _, i := range w.Interfaces {
-			if i.CidrBlock == 0 {
-				i.CidrBlock = 32
+			ipAddress := fmt.Sprintf("%s:%s", i.Name, i.Address)
+			if i.CidrBlock != nil {
+				ipAddress = fmt.Sprintf("%s:%s/%s", i.Name, i.Address, strconv.Itoa(*i.CidrBlock))
 			}
-			interfaces = append(interfaces, i.Name+":"+i.Address+"/"+strconv.Itoa(i.CidrBlock))
+			interfaces = append(interfaces, ipAddress)
 		}
 
 		// Set VEN version
@@ -94,7 +95,7 @@ func exportWorkloads() {
 		}
 
 		// Append to data slice
-		data = append(data, []string{w.Hostname, w.Name, w.Href, strconv.FormatBool(w.Online), w.OsID, w.GetRole(labelMap).Value, w.GetApp(labelMap).Value, w.GetEnv(labelMap).Value, w.GetLoc(labelMap).Value, w.GetMode(), strings.Join(interfaces, ";"), w.PublicIP, venVersion})
+		data = append(data, []string{w.Hostname, w.Href, w.GetRole(labelMap).Value, w.GetApp(labelMap).Value, w.GetEnv(labelMap).Value, w.GetLoc(labelMap).Value, strings.Join(interfaces, ";"), w.Name, w.PublicIP, w.GetMode(), strconv.FormatBool(w.Online), w.OsID, venVersion})
 	}
 
 	if len(data) > 1 {

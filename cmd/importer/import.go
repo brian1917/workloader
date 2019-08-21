@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/brian1917/illumioapi"
@@ -17,7 +18,7 @@ import (
 )
 
 // Global variables
-var hostCol, roleCol, appCol, envCol, locCol, intCol int
+var matchCol, roleCol, appCol, envCol, locCol, intCol int
 var removeValue, csvFile string
 var umwl, debug, updatePCE, noPrompt bool
 var pce illumioapi.PCE
@@ -29,12 +30,12 @@ func init() {
 	ImportCmd.MarkFlagRequired("in")
 	ImportCmd.Flags().StringVar(&removeValue, "removeValue", "", "Value in CSV used to remove existing labels. Blank values in the CSV will not change existing. If you want to delete a label do something like -removeValue delete and use delete in CSV to indicate where to delete.")
 	ImportCmd.Flags().BoolVar(&umwl, "umwl", false, "Create unmanaged workloads if the host does not exist")
-	ImportCmd.Flags().IntVarP(&hostCol, "match", "n", 1, "Column number with hostname or Href to match workloads. If you have HREF, we recommend using that. First column is 1.")
-	ImportCmd.Flags().IntVarP(&roleCol, "role", "r", 2, "Column number with new role label.")
-	ImportCmd.Flags().IntVarP(&appCol, "app", "a", 3, "Column number with new app label.")
-	ImportCmd.Flags().IntVarP(&envCol, "env", "e", 4, "Column number with new env label.")
-	ImportCmd.Flags().IntVarP(&locCol, "loc", "l", 5, "Column number with new loc label.")
-	ImportCmd.Flags().IntVarP(&intCol, "ifaces", "i", 6, "Column number with network interfaces for when creating unmanaged workloads. Each interface should be of the format name:address (e.g., eth1:192.168.200.20). Separate multiple NICs by semicolons.")
+	ImportCmd.Flags().IntVarP(&matchCol, "match", "m", 2, "Column number with hostname or Href to match workloads. If you have HREF, we recommend using that. First column is 1.")
+	ImportCmd.Flags().IntVarP(&roleCol, "role", "r", 3, "Column number with new role label.")
+	ImportCmd.Flags().IntVarP(&appCol, "app", "a", 4, "Column number with new app label.")
+	ImportCmd.Flags().IntVarP(&envCol, "env", "e", 5, "Column number with new env label.")
+	ImportCmd.Flags().IntVarP(&locCol, "loc", "l", 6, "Column number with new loc label.")
+	ImportCmd.Flags().IntVarP(&intCol, "ifaces", "i", 7, "Column number with network interfaces for when creating unmanaged workloads. Each interface should be of the format name:address (e.g., eth1:192.168.200.20). Separate multiple NICs by semicolons.")
 
 	ImportCmd.Flags().SortFlags = false
 
@@ -45,24 +46,27 @@ var ImportCmd = &cobra.Command{
 	Use:   "import",
 	Short: "Create and assign labels from a CSV file. Create and label unmanaged workloads from same CSV.",
 	Long: `
-Create and assign labels from a CSV file. Create and label unmanaged workloads from same CSV.
+Create and assign labels from a CSV file and create and label unmanaged workloads from same CSV.
 
-The default input style is below. The input should have a header row. Headers do not matter but the first row will be skipped.
+The input should have a header row as the first row will be skipped.
 
-Using this command with the --umwl flag will label workloads and create unmanaged workloads.
+Using the --umwl flag create unmanaged workloads when a match is not found.
 
-The interface column will be ignored for managed workloads.
-
-You can override column numbers with provided flags. The first column is 1.
+Interfaces should be in the format of "eth0:192.168.200.20" and multiple interfaces should be separated by a semicolon with no spaces.
 
 Additional columns are allowed and will be ignored.
 
-+----------------+------+----------+------+-----+--------------------+
-|      host      | role |   app    | env  | loc |     interface      |
-+----------------+------+----------+------+-----+--------------------+
-| Asset-Mgt-db-1 | DB   | ASSETMGT | PROD | BOS | eth0:192.168.100.2 |
-| Asset-Mgt-db-2 | DB   | ASSETMGT | PROD | BOS | eth0:192.168.100.3 |
-+----------------+------+----------+------+-----+--------------------+`,
+The match can be either hostname or href. If matching on href, the --umwl flag will automatically be disabled.
+
+The default import format is below. It matches the first 6 columns of the workloader export command so you can easily export workloads, edit, and reimport.
+
++-------------------+--------------------------------------------------------+------+----------+------+-----+---------------------------------------+
+|       host        |                          href                          | role |   app    | env  | loc |              interfaces               |
++-------------------+--------------------------------------------------------+------+----------+------+-----+---------------------------------------+
+| AssetMgt.db.prod  | /orgs/1/workloads/17589443-7731-488f-b57a-f26c9d9e9eff | DB   | ASSETMGT | PROD | BOS | eth0:192.168.200.15                   |
+| AssetMgt.web.prod | /orgs/1/workloads/12384475-7491-428e-b47c-f36c5d8e9eff | WEB  | ASSETMGT | PROD | BOS | eth0:192.168.200.15;eth1:10.10.100.22 |
++-------------------+--------------------------------------------------------+------+----------+------+-----+---------------------------------------+`,
+
 	Run: func(cmd *cobra.Command, args []string) {
 
 		pce, err = utils.GetPCE()
@@ -121,11 +125,11 @@ func processCSV() {
 
 	// If debug, log the columns before adjusting by 1
 	if debug {
-		utils.Log(2, fmt.Sprintf("CSV Columns. Host: %d; Role: %d; App: %d; Env: %d; Loc: %d; Interface: %d", hostCol, roleCol, appCol, envCol, locCol, intCol))
+		utils.Log(2, fmt.Sprintf("CSV Columns. Host: %d; Role: %d; App: %d; Env: %d; Loc: %d; Interface: %d", matchCol, roleCol, appCol, envCol, locCol, intCol))
 	}
 
 	// Adjust the columns by one
-	hostCol--
+	matchCol--
 	roleCol--
 	appCol--
 	envCol--
@@ -195,27 +199,32 @@ func processCSV() {
 			continue
 		}
 
-		if line[hostCol] == "" {
+		if i == 2 && strings.Contains(line[matchCol], "/workloads/") {
+			umwl = false
+		}
+
+		if line[matchCol] == "" {
 			utils.Log(0, fmt.Sprintf("CSV line %d - the match column cannot be blank - hostname or href required.", i))
 			fmt.Printf("Skipping CSV line %d - the match column cannot be blank - hostname or href required.\r\n", i)
 			continue
 		}
 
 		// Check if the workload exists. If exist, we check if UMWL is set and take action.
-		if _, ok := wkldMap[line[hostCol]]; !ok {
-
+		if _, ok := wkldMap[line[matchCol]]; !ok {
+			var netInterfaces []*illumioapi.Interface
 			if umwl {
-				netInterfaces := []*illumioapi.Interface{}
-				// Check to see if anything is provided in the interface column.
-				if strings.Count(line[intCol], ":") < 1 && strings.Count(line[intCol], ".") < 3 {
-					utils.Log(0, fmt.Sprintf("CSV line %d - Valid interface format (e.g., eth1:192.168.200.20) not provided. Workload created without an interface.", i))
-				} else {
+				if len(line[intCol]) > 0 {
 					// Create the network interfaces
-					nic := strings.Split(line[intCol], ";")
-					for _, n := range nic {
-						x := strings.Split(n, ":")
-						netInterfaces = append(netInterfaces, &illumioapi.Interface{Name: x[0], Address: x[1]})
+					nics := strings.Split(line[intCol], ";")
+					for _, n := range nics {
+						ipInterface, err := userInputConvert(n)
+						if err != nil {
+							utils.Log(1, err.Error())
+						}
+						netInterfaces = append(netInterfaces, &ipInterface)
 					}
+				} else {
+					utils.Log(0, fmt.Sprintf("CSV line - %d - no interface provided for unmanaged workload.", i))
 				}
 
 				// Create the labels slice
@@ -234,10 +243,23 @@ func processCSV() {
 				}
 
 				// Add to the slice to process via bulk and go to next CSV entry
-				newUMWLs = append(newUMWLs, illumioapi.Workload{Hostname: line[hostCol], Interfaces: netInterfaces, Labels: labels})
-				// If umwl flag is not set, log the entry
+				w := illumioapi.Workload{Hostname: line[matchCol], Interfaces: netInterfaces, Labels: labels}
+				newUMWLs = append(newUMWLs, w)
+
+				// Log the entry
+				x := []string{}
+				for _, i := range netInterfaces {
+					if i.CidrBlock != nil {
+						x = append(x, i.Name+":"+i.Address+"/"+strconv.Itoa(*i.CidrBlock))
+					} else {
+						x = append(x, i.Name+":"+i.Address)
+					}
+				}
+				utils.Log(0, fmt.Sprintf("CSV line %d - %s to be created - %s (role), %s (app), %s (env), %s(loc) - interfaces: %s", i, w.Hostname, w.GetRole(labelMapHref).Value, w.GetApp(labelMapHref).Value, w.GetEnv(labelMapHref).Value, w.GetLoc(labelMapHref).Value, strings.Join(x, ";")))
+				continue
 			} else {
-				utils.Log(0, fmt.Sprintf("%s is not a workload. Include umwl flag to create it. Nothing done.", line[hostCol]))
+				// If umwl flag is not set, log the entry
+				utils.Log(0, fmt.Sprintf("CSV line %d - %s is not a workload. Include umwl flag to create it. Nothing done.", i, line[matchCol]))
 				continue
 			}
 		}
@@ -251,7 +273,7 @@ func processCSV() {
 
 		// Set slices to iterate through the 4 keys
 		columns := []int{appCol, roleCol, envCol, locCol}
-		wkld := wkldMap[line[hostCol]] // Need this since can't perform pointer method on map element
+		wkld := wkldMap[line[matchCol]] // Need this since can't perform pointer method on map element
 		labels := []illumioapi.Label{wkld.GetApp(labelMapHref), wkld.GetRole(labelMapHref), wkld.GetEnv(labelMapHref), wkld.GetLoc(labelMapHref)}
 		keys := []string{"app", "role", "env", "loc"}
 
@@ -266,6 +288,8 @@ func processCSV() {
 			// If the value is the delete value, we turn on the change flag and go to next key
 			if line[columns[i]] == removeValue {
 				change = true
+				// Log change required
+				utils.Log(0, fmt.Sprintf("%s requiring removal of %s label.", line[matchCol], keys[i]))
 				continue
 			}
 
@@ -273,6 +297,8 @@ func processCSV() {
 			if labels[i].Value != line[columns[i]] {
 				// Change the change flag
 				change = true
+				// Log change required
+				utils.Log(0, fmt.Sprintf("%s requiring %s update from %s to %s.", line[matchCol], keys[i], labels[i].Value, line[columns[i]]))
 				// Get the label HREF
 				l := checkLabel(illumioapi.Label{Key: keys[i], Value: line[columns[i]]})
 				// Add that label to the new labels slice
@@ -283,11 +309,76 @@ func processCSV() {
 			}
 		}
 
+		// We need to check if interfaces have changed
+		if wkld.GetMode() == "unmanaged" {
+			// If IP address is provided, check it out
+			if len(line[intCol]) > 0 {
+				// Build out the netInterfaces slice provided by the user
+				netInterfaces := []*illumioapi.Interface{}
+				nics := strings.Split(line[intCol], ";")
+				for _, n := range nics {
+					ipInterface, err := userInputConvert(n)
+					if err != nil {
+						utils.Log(1, err.Error())
+					}
+					netInterfaces = append(netInterfaces, &ipInterface)
+				}
+
+				// Build some maps
+				userMap := make(map[string]bool)
+				wkldIntMap := make(map[string]bool)
+				for _, w := range wkld.Interfaces {
+					cidrText := "nil"
+					if w.CidrBlock != nil {
+						cidrText = strconv.Itoa(*w.CidrBlock)
+					}
+					wkldIntMap[w.Address+cidrText+w.Name] = true
+				}
+				for _, u := range netInterfaces {
+					cidrText := "nil"
+					if u.CidrBlock != nil {
+						cidrText = strconv.Itoa(*u.CidrBlock)
+					}
+					userMap[u.Address+cidrText+u.Name] = true
+				}
+
+				updateInterfaces := false
+				// Are all workload interfaces in spreadsheet?
+				for _, w := range wkld.Interfaces {
+					cidrText := "nil"
+					if w.CidrBlock != nil {
+						cidrText = strconv.Itoa(*w.CidrBlock)
+					}
+					if !userMap[w.Address+cidrText+w.Name] {
+						updateInterfaces = true
+						change = true
+						utils.Log(0, fmt.Sprintf("CSV line %d - Interface not in user provided data - IP: %s, CIDR: %s, Name: %s", i, w.Address, cidrText, w.Name))
+					}
+				}
+
+				// Are all user interfaces on workload?
+				for _, u := range netInterfaces {
+					cidrText := "nil"
+					if u.CidrBlock != nil {
+						cidrText = strconv.Itoa(*u.CidrBlock)
+					}
+					if !wkldIntMap[u.Address+cidrText+u.Name] {
+						updateInterfaces = true
+						change = true
+						utils.Log(0, fmt.Sprintf("CSV line %d - User provided interface not in workload - IP: %s, CIDR: %s, Name: %s", i, u.Address, cidrText, u.Name))
+					}
+				}
+
+				if updateInterfaces {
+					wkld.Interfaces = netInterfaces
+				}
+			}
+		}
+
 		// If change was flagged, get the workload, update the labels, append to updated slice.
 		if change {
-			w := wkldMap[line[hostCol]]
-			w.Labels = newLabels
-			updatedWklds = append(updatedWklds, w)
+			wkld.Labels = newLabels
+			updatedWklds = append(updatedWklds, wkld)
 		}
 
 	}
