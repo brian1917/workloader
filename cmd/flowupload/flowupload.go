@@ -32,7 +32,7 @@ var FlowUpload = &cobra.Command{
 	Long: `
 Upload flows from CSV file to the PCE
 	
-The CSV requires 4 columns without a header row: src, dst, port, protocol. The protocol should be in numeric format (TCP=6 and UDP=17).
+The CSV requires 4 columns WITHOUT a header row: src, dst, port, protocol. The protocol should be in numeric format (TCP=6 and UDP=17).
 
 Example input:
 
