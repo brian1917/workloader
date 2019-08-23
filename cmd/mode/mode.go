@@ -178,11 +178,14 @@ func modeUpdate() {
 		}
 	}
 
-	// Print number requiring updates to the terminal
-	fmt.Printf("%d workloads requiring state update.\r\n", len(data)-1)
+	// Process output
+	if len(workloadUpdates) == 0 {
+		fmt.Println("0 workloads requiring state update.")
+	}
 
 	if len(workloadUpdates) > 0 {
-		utils.WriteOutput(data, fmt.Sprintf("workloader-mode-%s-.csv", time.Now().Format("20060102_150405")))
+		utils.WriteOutput(data, data, fmt.Sprintf("workloader-mode-%s-.csv", time.Now().Format("20060102_150405")))
+		fmt.Printf("%d workloads requiring state update.\r\n", len(data)-1)
 
 		// If updatePCE is disabled, we are just going to alert the user what will happen and log
 		if !updatePCE {

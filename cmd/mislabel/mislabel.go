@@ -251,8 +251,8 @@ func misLabel() {
 	}
 
 	if len(data) > 1 {
+		utils.WriteOutput(data, data, fmt.Sprintf("workloader-mislabel-%s-.csv", time.Now().Format("20060102_150405")))
 		fmt.Printf("\r\n%d potentially mislabeled workloads detected.\r\n", len(data)-1)
-		utils.WriteOutput(data, fmt.Sprintf("workloader-mislabel-%s-.csv", time.Now().Format("20060102_150405")))
 		utils.Log(0, fmt.Sprintf("mislabel complete - %d workloads identified", len(data)-1))
 	} else {
 		// Log if we don't find any

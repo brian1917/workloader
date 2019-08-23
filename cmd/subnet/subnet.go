@@ -200,16 +200,16 @@ func subnetParser() {
 	// Bulk update if we have workloads that need updating
 	if len(updatedWklds) > 0 {
 
-		// Print number of workloads requiring update to the terminal
-		fmt.Printf("%d workloads requiring label update.\r\n", len(updatedWklds))
-
 		// Create our data slice
 		data := [][]string{[]string{"hostname", "href", "ip_address", "role", "app", "original_env", "original_loc", "new_loc", "new_env"}}
 		for _, m := range matches {
 			data = append(data, []string{m.workload.Hostname, m.workload.Href, m.workload.Interfaces[0].Address, m.workload.GetRole(labelMap).Value, m.workload.GetApp(labelMap).Value, m.oldLoc, m.oldEnv, m.workload.GetLoc(labelMap).Value, m.workload.GetEnv(labelMap).Value})
 		}
 
-		utils.WriteOutput(data, "workloader-subnet-output-"+time.Now().Format("20060102_150405")+".csv")
+		utils.WriteOutput(data, data, "workloader-subnet-output-"+time.Now().Format("20060102_150405")+".csv")
+
+		// Print number of workloads requiring update to the terminal
+		fmt.Printf("%d workloads requiring label update.\r\n", len(updatedWklds))
 
 		// If updatePCE is disabled, we are just going to alert the user what will happen and log
 		if !updatePCE {
