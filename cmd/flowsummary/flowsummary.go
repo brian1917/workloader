@@ -41,6 +41,24 @@ var FlowSummaryCmd = &cobra.Command{
 	Long: `
 Summarize flows by port and protocol between app groups.
 
+The start and end dates are set as midnight on those specific dates based on the America/New_York time zone.
+
+Example output will look like the following:
++---------------------------+---------------------------+----------------------+----------------------------------+----------------------+
+|       SRC APP GROUP       |       DST APP GROUP       | ALLOWED FLOW SUMMARY | POTENTIALLY BLOCKED FLOW SUMMARY | BLOCKED FLOW SUMMARY |
++---------------------------+---------------------------+----------------------+----------------------------------+----------------------+
+| 9.9.9.9                   | Ordering | Production     |                      | 443 TCP (14 flows)               |                      |
++---------------------------+---------------------------+----------------------+----------------------------------+----------------------+
+| 85.151.14.15              | Ordering | Production     |                      | 443 TCP (28 flows)               |                      |
++---------------------------+---------------------------+----------------------+----------------------------------+----------------------+
+| Ordering | Development    | Ordering | Development    |                      | 5432 TCP (168 flows);8080        |                      |
+|                           |                           |                      | TCP (168 flows);8070 TCP (168    |                      |
+|                           |                           |                      | flows)                           |                      |
++---------------------------+---------------------------+----------------------+----------------------------------+----------------------+
+| Ordering | Production     | Point-of-Sale | Staging   |                      | 5432 TCP (56 flows)              |                      |
++---------------------------+---------------------------+----------------------+----------------------------------+----------------------+
+
+
 The --update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
@@ -56,20 +74,22 @@ The --update-pce and --no-prompt flags are ignored for this command.`,
 	},
 }
 
-type entry struct {
+// A summary consists of a common policy status, source app group, and destination app group.
+type summary struct {
 	policyStatus string
 	srcAppGroup  string
 	dstAppGroup  string
 }
 
-type writeResult struct {
+// A svcSummary consists of a port and protocol and flow count
+type svcSummary struct {
 	portProto string
 	count     int
 }
 
 func flowSummary() {
 
-	// Build Policy Status
+	// Build policy status slice
 	var pStatus []string
 	if !exclAllowed {
 		pStatus = append(pStatus, "allowed")
@@ -81,10 +101,35 @@ func flowSummary() {
 		pStatus = append(pStatus, "blocked")
 	}
 
+	// Get current location and time zone (EDT vs. EST)
+	loc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		utils.Log(1, err.Error())
+	}
+	zone, _ := time.Now().In(loc).Zone()
+
+	utc, err := time.LoadLocation("UTC")
+	if err != nil {
+		utils.Log(1, err.Error())
+	}
+
+	// Get the state and end date
+	startDate, err := time.Parse(fmt.Sprintf("2006-01-02 MST"), fmt.Sprintf("%s %s", start, zone))
+	if err != nil {
+		utils.Log(1, err.Error())
+	}
+	startDate = startDate.In(utc)
+
+	endDate, err := time.Parse(fmt.Sprintf("2006-01-02 MST"), fmt.Sprintf("%s %s", end, zone))
+	if err != nil {
+		utils.Log(1, err.Error())
+	}
+	endDate = endDate.In(utc)
+
 	// Create the default query struct
 	tq := illumioapi.TrafficQuery{
-		StartTime:      time.Date(2013, 1, 1, 0, 0, 0, 0, time.UTC),
-		EndTime:        time.Date(2020, 12, 30, 0, 0, 0, 0, time.UTC),
+		StartTime:      startDate,
+		EndTime:        endDate,
 		PolicyStatuses: pStatus,
 		MaxFLows:       100000}
 
@@ -139,7 +184,7 @@ func flowSummary() {
 	protoMap := illumioapi.ProtocolList()
 
 	// Build the map of results
-	entryMap := make(map[entry]map[string]int)
+	entryMap := make(map[summary]map[string]int)
 
 	// Cycle through the traffic results and build what we need
 	for _, t := range traffic {
@@ -166,7 +211,7 @@ func flowSummary() {
 		}
 
 		// Check if we already have this result captured. If we do, increment the flow counter
-		entry := entry{srcAppGroup: srcAppGroup, dstAppGroup: dstAppGroup, policyStatus: t.PolicyDecision}
+		entry := summary{srcAppGroup: srcAppGroup, dstAppGroup: dstAppGroup, policyStatus: t.PolicyDecision}
 		if _, ok := entryMap[entry]; !ok {
 			entryMap[entry] = make(map[string]int)
 		}
@@ -178,10 +223,10 @@ func flowSummary() {
 	data := [][]string{[]string{"src_app_group", "dst_app_group", "allowed_flow_summary", "potentially_blocked_flow_summary", "blocked_flow_summary"}}
 
 	for e, v := range entryMap {
-		x := []writeResult{}
+		x := []svcSummary{}
 		var portProtos []string
 		for a, b := range v {
-			x = append(x, writeResult{portProto: a, count: b})
+			x = append(x, svcSummary{portProto: a, count: b})
 
 		}
 		sort.Slice(x, func(i, j int) bool {
