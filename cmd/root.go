@@ -9,6 +9,7 @@ import (
 
 	"github.com/brian1917/workloader/cmd/compatibility"
 	"github.com/brian1917/workloader/cmd/export"
+	"github.com/brian1917/workloader/cmd/flowsummary"
 	"github.com/brian1917/workloader/cmd/flowupload"
 	"github.com/brian1917/workloader/cmd/hostparse"
 	"github.com/brian1917/workloader/cmd/importer"
@@ -70,6 +71,7 @@ func init() {
 	RootCmd.AddCommand(mode.ModeCmd)
 	RootCmd.AddCommand(upgrade.UpgradeCmd)
 	RootCmd.AddCommand(flowupload.FlowUpload)
+	RootCmd.AddCommand(flowsummary.FlowSummaryCmd)
 
 	// Setup Viper
 	viper.SetConfigType("yaml")
