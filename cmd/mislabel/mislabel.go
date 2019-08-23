@@ -24,6 +24,7 @@ func init() {
 	MisLabelCmd.Flags().StringVarP(&appFlag, "app", "a", "", "App label to limit Explorer query.")
 	MisLabelCmd.Flags().StringVarP(&exclWkldFile, "wExclude", "w", "", "File location of hostnames to exclude as orphans.")
 	MisLabelCmd.Flags().StringVarP(&exclPortFile, "pExclude", "p", "", "File location of ports to exclude in traffic query.")
+	MisLabelCmd.Flags().BoolVar(&ignoreLoc, "ignore-location", false, "Do not use location in comparing app groups.")
 	MisLabelCmd.Flags().SortFlags = false
 }
 

@@ -59,7 +59,6 @@ Example input:
 func uploadFlows() {
 	// Log start
 	utils.Log(0, "started flowupload command")
-
 	// Upload flows
 	f, a, err := pce.UploadTraffic(csvFile)
 	if debug {
