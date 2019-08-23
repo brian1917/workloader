@@ -96,8 +96,8 @@ func PCELogin() {
 	// Check if already logged in
 	loginCheck, existingPCE, version := verifyLogin()
 	if loginCheck {
-		fmt.Printf("Login is still valid to %s. PCE Version %s\r\n", pce.FQDN, version.LongDisplay)
-		utils.Log(0, fmt.Sprintf("login is still valid to %s - pce version %s", pce.FQDN, version.LongDisplay))
+		fmt.Printf("Login is still valid to %s. PCE Version %s\r\n", existingPCE.FQDN, version.LongDisplay)
+		utils.Log(0, fmt.Sprintf("login is still valid to %s - pce version %s", existingPCE.FQDN, version.LongDisplay))
 		return
 	}
 
