@@ -71,8 +71,8 @@ func uploadFlows() {
 	}
 
 	// Log response
-	utils.Log(0, fmt.Sprintf("%d flows received\r\n", f.NumFlowsReceived))
-	utils.Log(0, fmt.Sprintf("%d flows failed\r\n", f.NumFlowsFailed))
+	utils.Log(0, fmt.Sprintf("%d flows received", f.NumFlowsReceived))
+	utils.Log(0, fmt.Sprintf("%d flows failed", f.NumFlowsFailed))
 	fmt.Printf("%d flows received\r\n", f.NumFlowsReceived)
 	fmt.Printf("%d flows failed\r\n", f.NumFlowsFailed)
 	if f.NumFlowsFailed > 0 {
@@ -80,7 +80,7 @@ func uploadFlows() {
 		for _, ff := range f.FailedFlows {
 			failedFlow = append(failedFlow, *ff)
 		}
-		utils.Log(0, fmt.Sprintf("failed flows: %s\r\n", strings.Join(failedFlow, ",")))
+		utils.Log(0, fmt.Sprintf("failed flows: %s", strings.Join(failedFlow, ",")))
 		fmt.Printf("Failed flows: %s\r\n", strings.Join(failedFlow, ","))
 	}
 }
