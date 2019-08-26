@@ -8,6 +8,7 @@ import (
 	"github.com/brian1917/workloader/utils"
 
 	"github.com/brian1917/workloader/cmd/compatibility"
+	"github.com/brian1917/workloader/cmd/dupecheck"
 	"github.com/brian1917/workloader/cmd/export"
 	"github.com/brian1917/workloader/cmd/flowsummary"
 	"github.com/brian1917/workloader/cmd/flowupload"
@@ -72,6 +73,7 @@ func init() {
 	RootCmd.AddCommand(upgrade.UpgradeCmd)
 	RootCmd.AddCommand(flowupload.FlowUpload)
 	RootCmd.AddCommand(flowsummary.FlowSummaryCmd)
+	RootCmd.AddCommand(dupecheck.DupeCheckCmd)
 
 	// Setup Viper
 	viper.SetConfigType("yaml")

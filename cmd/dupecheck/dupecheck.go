@@ -1,7 +1,10 @@
 package dupecheck
 
 import (
+	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/brian1917/illumioapi"
 	"github.com/brian1917/workloader/utils"
@@ -16,26 +19,9 @@ var err error
 // DupeCheckCmd summarizes flows
 var DupeCheckCmd = &cobra.Command{
 	Use:   "dupecheck",
-	Short: "Looks for duplicate hostnames and IP addresses in the PCE.",
+	Short: "Identifies duplicate hostnames and IP addresses in the PCE.",
 	Long: `
-Looks for duplicate hostnames and IP addresses in the PCE.
-
-Output will look like the following:
-
-+---------------------------+---------------------------+----------------------+----------------------------------+----------------------+
-|       SRC APP GROUP       |       DST APP GROUP       | ALLOWED FLOW SUMMARY | POTENTIALLY BLOCKED FLOW SUMMARY | BLOCKED FLOW SUMMARY |
-+---------------------------+---------------------------+----------------------+----------------------------------+----------------------+
-| 9.9.9.9                   | Ordering | Production     |                      | 443 TCP (14 flows)               |                      |
-+---------------------------+---------------------------+----------------------+----------------------------------+----------------------+
-| 85.151.14.15              | Ordering | Production     |                      | 443 TCP (28 flows)               |                      |
-+---------------------------+---------------------------+----------------------+----------------------------------+----------------------+
-| Ordering | Development    | Ordering | Development    |                      | 5432 TCP (168 flows);8080        |                      |
-|                           |                           |                      | TCP (168 flows);8070 TCP (168    |                      |
-|                           |                           |                      | flows)                           |                      |
-+---------------------------+---------------------------+----------------------+----------------------------------+----------------------+
-| Ordering | Production     | Point-of-Sale | Staging   |                      | 5432 TCP (56 flows)              |                      |
-+---------------------------+---------------------------+----------------------+----------------------------------+----------------------+
-
+Identifies duplicate hostnames and IP addresses in the PCE.
 
 The --update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -64,14 +50,31 @@ func dupeCheck() {
 
 	// Check for duplicate IPs
 	dupeIPs, dupeIPMap := DupeIPCheck(pce, wklds)
-
 	if dupeIPs {
 		data := [][]string{[]string{"ip_addess", "hostnames"}}
 		for i, h := range dupeIPMap {
 			data = append(data, []string{i, strings.Join(h, ";")})
 		}
+		utils.WriteOutput(data, data, fmt.Sprintf(fmt.Sprintf("workloader-dupeIPs-%s.csv", time.Now().Format("20060102_150405"))))
+		fmt.Printf("%d duplicate IP addresses found.\r\n", len(dupeIPMap))
+	} else {
+		utils.Log(0, "no duplicate IPs found")
+		fmt.Println("No duplicate IPs found.")
 	}
 
+	// Check for duplicate hostnames
+	dupeHostnames, dupeHostMap := DupeHostnameCheck(pce, wklds)
+	if dupeHostnames {
+		data := [][]string{[]string{"hostname", "occurrences"}}
+		for h, o := range dupeHostMap {
+			data = append(data, []string{h, strconv.Itoa(o)})
+		}
+		utils.WriteOutput(data, data, fmt.Sprintf(fmt.Sprintf("workloader-dupe-hostnames-%s.csv", time.Now().Format("20060102_150405"))))
+		fmt.Printf("%d duplicate hostnames found.\r\n", len(dupeHostMap))
+	} else {
+		utils.Log(0, "no duplicate hostnames found")
+		fmt.Println("No duplicate hostnames found.")
+	}
 }
 
 // DupeIPCheck looks for an duplicate IP addresses in a PCE.
