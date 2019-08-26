@@ -19,12 +19,8 @@ var err error
 
 func init() {
 
-	loc, err := time.LoadLocation("UTC")
-	if err != nil {
-		utils.Log(1, err.Error())
-	}
 	FlowSummaryCmd.Flags().StringVar(&app, "app", "", "app name to limit Explorer results to flows with that app as a provider or consumer. default is all apps.")
-	FlowSummaryCmd.Flags().StringVar(&start, "start", time.Date(time.Now().Year()-5, time.Now().Month(), time.Now().Day(), 0, 0, 0, 0, loc).Format("2006-01-02"), "start date in the format of yyyy-mm-dd")
+	FlowSummaryCmd.Flags().StringVar(&start, "start", time.Date(time.Now().Year()-5, time.Now().Month(), time.Now().Day(), 0, 0, 0, 0, time.UTC).Format("2006-01-02"), "start date in the format of yyyy-mm-dd")
 	FlowSummaryCmd.Flags().StringVar(&end, "end", time.Now().Add(time.Hour*24).Format("2006-01-02"), "end date in the format of yyyy-mm-dd")
 	FlowSummaryCmd.Flags().BoolVar(&exclAllowed, "exclude-allowed", false, "excludes allowed traffic flows.")
 	FlowSummaryCmd.Flags().BoolVar(&exclPotentiallyBlocked, "exclude-potentially-blocked", false, "excludes potentially blocked traffic flows.")
@@ -118,13 +114,13 @@ func flowSummary() {
 	if err != nil {
 		utils.Log(1, err.Error())
 	}
-	// startDate = startDate.In(utc)
+	startDate = startDate.In(time.UTC)
 
 	endDate, err := time.Parse(fmt.Sprintf("2006-01-02 MST"), fmt.Sprintf("%s %s", end, "UTC"))
 	if err != nil {
 		utils.Log(1, err.Error())
 	}
-	// endDate = endDate.In(utc)
+	endDate = endDate.In(time.UTC)
 
 	// Create the default query struct
 	tq := illumioapi.TrafficQuery{
