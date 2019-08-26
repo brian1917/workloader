@@ -101,12 +101,12 @@ func flowSummary() {
 		pStatus = append(pStatus, "blocked")
 	}
 
-	// Get current location and time zone (EDT vs. EST)
-	loc, err := time.LoadLocation("America/New_York")
-	if err != nil {
-		utils.Log(1, err.Error())
-	}
-	zone, _ := time.Now().In(loc).Zone()
+	// // Get current location and time zone (EDT vs. EST)
+	// loc, err := time.LoadLocation("America/New_York")
+	// if err != nil {
+	// 	utils.Log(1, err.Error())
+	// }
+	// zone, _ := time.Now().In(loc).Zone()
 
 	utc, err := time.LoadLocation("UTC")
 	if err != nil {
@@ -114,13 +114,13 @@ func flowSummary() {
 	}
 
 	// Get the state and end date
-	startDate, err := time.Parse(fmt.Sprintf("2006-01-02 MST"), fmt.Sprintf("%s %s", start, zone))
+	startDate, err := time.Parse(fmt.Sprintf("2006-01-02 MST"), fmt.Sprintf("%s %s", start, "UTC"))
 	if err != nil {
 		utils.Log(1, err.Error())
 	}
 	startDate = startDate.In(utc)
 
-	endDate, err := time.Parse(fmt.Sprintf("2006-01-02 MST"), fmt.Sprintf("%s %s", end, zone))
+	endDate, err := time.Parse(fmt.Sprintf("2006-01-02 MST"), fmt.Sprintf("%s %s", end, "UTC"))
 	if err != nil {
 		utils.Log(1, err.Error())
 	}
