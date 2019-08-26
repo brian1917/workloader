@@ -65,7 +65,6 @@ using the appropriate flags. Example default:
 | 10.0.0.0/8     | PROD | BOS |
 | 192.168.0.0/16 | DEV  | NYC |
 +----------------+------+-----+`,
-	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 
 		pce, err = utils.GetPCE()
@@ -74,6 +73,10 @@ using the appropriate flags. Example default:
 		}
 
 		// Get CSV file
+		if len(args) != 1 {
+			fmt.Println("Command requires 1 argument for the csv file. See usage help.")
+			os.Exit(0)
+		}
 		csvFile = args[0]
 
 		// Get Viper configuration

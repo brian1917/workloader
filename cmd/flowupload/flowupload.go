@@ -2,6 +2,7 @@ package flowupload
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/brian1917/illumioapi"
@@ -34,7 +35,6 @@ Example input:
 | 192.168.200.22 | 192.168.200.23 | 8080 | 17 |
 +----------------+----------------+------+----+`,
 
-	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 
 		pce, err = utils.GetPCE()
@@ -43,6 +43,10 @@ Example input:
 		}
 
 		// Get csv file
+		if len(args) != 1 {
+			fmt.Println("Command requires 1 argument for the csv file. See usage help.")
+			os.Exit(0)
+		}
 		csvFile = args[0]
 
 		// Get the debug value from viper

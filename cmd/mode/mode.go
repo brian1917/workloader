@@ -52,7 +52,6 @@ An example is below:
 
 Use --hrefCol and --stateCol to specify the columns if not default (href=1, state=2). Additional columns will be ignored.`,
 
-	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		pce, err = utils.GetPCE()
 		if err != nil {
@@ -60,6 +59,10 @@ Use --hrefCol and --stateCol to specify the columns if not default (href=1, stat
 		}
 
 		// Set the hostfile
+		if len(args) != 1 {
+			fmt.Println("Command requires 1 argument for the csv file. See usage help.")
+			os.Exit(0)
+		}
 		csvFile = args[0]
 
 		// Get Viper configuration

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"strings"
 	"time"
 
@@ -38,7 +39,6 @@ var TrafficCmd = &cobra.Command{
 Find and label unmanaged workloads and label existing workloads based on Explorer traffic and an input CSV.
 
 The --update-pce and --no-prompt flags are ignored for this command. Use workloader import to upload to PCE after review.`,
-	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 
 		pce, err = utils.GetPCE()
@@ -47,6 +47,10 @@ The --update-pce and --no-prompt flags are ignored for this command. Use workloa
 		}
 
 		// Get CSV File
+		if len(args) != 1 {
+			fmt.Println("Command requires 1 argument for the csv file. See usage help.")
+			os.Exit(0)
+		}
 		csvFile = args[0]
 
 		// Get the debug value from viper

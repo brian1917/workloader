@@ -64,7 +64,6 @@ The default import format is below. It matches the first 6 columns of the worklo
 
 Import will create labels even without --update-pce. Workloads will not be created/updated without --update-pce.`,
 
-	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 
 		pce, err = utils.GetPCE()
@@ -73,6 +72,10 @@ Import will create labels even without --update-pce. Workloads will not be creat
 		}
 
 		// Set the CSV file
+		if len(args) != 1 {
+			fmt.Println("Command requires 1 argument for the csv file. See usage help.")
+			os.Exit(0)
+		}
 		csvFile = args[0]
 
 		// Get the debug value from viper
