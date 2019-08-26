@@ -101,9 +101,9 @@ func exportWorkloads() {
 	}
 
 	if len(csvData) > 1 {
-		utils.WriteOutput(csvData, stdOutData, fmt.Sprintf("workloader-export-%s-.csv", time.Now().Format("20060102_150405")))
+		utils.WriteOutput(csvData, stdOutData, fmt.Sprintf("workloader-export-%s.csv", time.Now().Format("20060102_150405")))
 		fmt.Printf("\r\n%d workloads exported.\r\n", len(csvData)-1)
-		fmt.Println("CSV export will include additional columns - href, name, PublicIP, and Online")
+		fmt.Println("Note - the CSV export will include 4 additional columns: href, name, PublicIP, and Online")
 		utils.Log(0, fmt.Sprintf("export complete - %d workloads exported", len(csvData)-1))
 	} else {
 		// Log command execution for 0 results
