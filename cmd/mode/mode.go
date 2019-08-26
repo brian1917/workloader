@@ -16,7 +16,7 @@ import (
 )
 
 // Set global variables for flags
-var hostFile string
+var csvFile string
 var verbose, debug, updatePCE, noPrompt bool
 var hrefCol, desiredStateCol int
 var pce illumioapi.PCE
@@ -25,7 +25,6 @@ var err error
 // Init handles flags
 func init() {
 
-	ModeCmd.Flags().StringVarP(&hostFile, "input", "i", "", "Input CSV file.")
 	ModeCmd.Flags().IntVar(&hrefCol, "hrefCol", 1, "Column number with href value. First column is 1.")
 	ModeCmd.Flags().IntVar(&desiredStateCol, "stateCol", 2, "Column number with desired state value.")
 	ModeCmd.Flags().SortFlags = false
@@ -34,7 +33,7 @@ func init() {
 
 // ModeCmd runs the hostname parser
 var ModeCmd = &cobra.Command{
-	Use:   "mode",
+	Use:   "mode [csv file with mode info]",
 	Short: "Change the state of workloads based on a CSV input.",
 	Long: `
 Change a workload's state based on an input CSV with at least two columns: workload href and desired state.
@@ -53,11 +52,15 @@ An example is below:
 
 Use --hrefCol and --stateCol to specify the columns if not default (href=1, state=2). Additional columns will be ignored.`,
 
+	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		pce, err = utils.GetPCE()
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("getting PCE for mode command - %s", err))
 		}
+
+		// Set the hostfile
+		csvFile = args[0]
 
 		// Get Viper configuration
 		debug = viper.Get("debug").(bool)
@@ -153,7 +156,7 @@ func modeUpdate() {
 	}
 
 	// Get targets
-	targets := parseCsv(hostFile)
+	targets := parseCsv(csvFile)
 
 	// Create a slice to hold all the workloads we need to update
 	workloadUpdates := []illumioapi.Workload{}

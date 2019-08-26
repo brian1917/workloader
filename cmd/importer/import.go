@@ -26,16 +26,15 @@ var err error
 var labelMapKV, labelMapHref map[string]illumioapi.Label
 
 func init() {
-	ImportCmd.Flags().StringVar(&csvFile, "in", "", "Input csv file. The first row (headers) will be skipped.")
-	ImportCmd.MarkFlagRequired("in")
-	ImportCmd.Flags().StringVar(&removeValue, "removeValue", "", "Value in CSV used to remove existing labels. Blank values in the CSV will not change existing. If you want to delete a label do something like -removeValue delete and use delete in CSV to indicate where to delete.")
-	ImportCmd.Flags().BoolVar(&umwl, "umwl", false, "Create unmanaged workloads if the host does not exist")
-	ImportCmd.Flags().IntVarP(&matchCol, "match", "m", 2, "Column number with hostname or Href to match workloads. If you have HREF, we recommend using that. First column is 1.")
+
+	ImportCmd.Flags().BoolVar(&umwl, "umwl", false, "Create unmanaged workloads if the host does not exist. Auto-disabled if matching on HREF.")
+	ImportCmd.Flags().IntVarP(&matchCol, "match", "m", 2, "Column number with hostname or Href to match workloads. First column is 1.")
 	ImportCmd.Flags().IntVarP(&roleCol, "role", "r", 3, "Column number with new role label.")
 	ImportCmd.Flags().IntVarP(&appCol, "app", "a", 4, "Column number with new app label.")
 	ImportCmd.Flags().IntVarP(&envCol, "env", "e", 5, "Column number with new env label.")
 	ImportCmd.Flags().IntVarP(&locCol, "loc", "l", 6, "Column number with new loc label.")
-	ImportCmd.Flags().IntVarP(&intCol, "ifaces", "i", 7, "Column number with network interfaces for when creating unmanaged workloads. Each interface should be of the format name:address (e.g., eth1:192.168.200.20). Separate multiple NICs by semicolons.")
+	ImportCmd.Flags().IntVarP(&intCol, "ifaces", "i", 7, "Column number with network interfaces for when creating unmanaged workloads. Each interface should be of the like eth1:192.168.200.20. Separate multiple NICs by semicolons.")
+	ImportCmd.Flags().StringVar(&removeValue, "remove-value", "", "Value in CSV used to remove existing labels. Blank values in the CSV will not change existing. If you want to delete a label do something like --remove-value DELETE and use DELETE in CSV to indicate where to clear existing labels on a workload.")
 
 	ImportCmd.Flags().SortFlags = false
 
@@ -43,18 +42,14 @@ func init() {
 
 // ImportCmd runs the upload command
 var ImportCmd = &cobra.Command{
-	Use:   "import",
-	Short: "Create and assign labels from a CSV file. Create and label unmanaged workloads from same CSV.",
+	Use:   "import [csv file to import]",
+	Short: "Create and assign labels to a workload from a CSV file. Use the --umwl flag to create and label unmanaged workloads from the same CSV.",
 	Long: `
-Create and assign labels from a CSV file and create and label unmanaged workloads from same CSV.
+Create and assign labels to a workload from a CSV file.
 
-The input should have a header row as the first row will be skipped.
+Use the --umwl flag to create and label unmanaged workloads from the same CSV, if matching on hostnames. If a hostname is not found with --umwl, import will create it.
 
-Using the --umwl flag create unmanaged workloads when a match is not found.
-
-Interfaces should be in the format of "eth0:192.168.200.20" and multiple interfaces should be separated by a semicolon with no spaces.
-
-Additional columns are allowed and will be ignored.
+The input should have a header row as the first row will be skipped. Interfaces should be in the format of "eth0:192.168.200.20" and multiple interfaces should be separated by a semicolon with no spaces. Additional columns are allowed and will be ignored.
 
 The match can be either hostname or href. If matching on href, the --umwl flag will automatically be disabled.
 
@@ -67,14 +62,18 @@ The default import format is below. It matches the first 6 columns of the worklo
 | AssetMgt.web.prod | /orgs/1/workloads/12384475-7491-428e-b47c-f36c5d8e9eff | WEB  | ASSETMGT | PROD | BOS | eth0:192.168.200.15;eth1:10.10.100.22 |
 +-------------------+--------------------------------------------------------+------+----------+------+-----+---------------------------------------+
 
-Import will create labels even without --update-pce. Workloads will not be created without --update-pce.`,
+Import will create labels even without --update-pce. Workloads will not be created/updated without --update-pce.`,
 
+	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 
 		pce, err = utils.GetPCE()
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for csv command - %s", err)
 		}
+
+		// Set the CSV file
+		csvFile = args[0]
 
 		// Get the debug value from viper
 		debug = viper.Get("debug").(bool)

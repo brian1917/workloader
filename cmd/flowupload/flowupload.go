@@ -17,17 +17,9 @@ var err error
 var csvFile string
 var debug bool
 
-func init() {
-	FlowUpload.Flags().StringVar(&csvFile, "in", "", "Input csv file. The first row (headers) will be skipped.")
-	FlowUpload.MarkFlagRequired("in")
-
-	FlowUpload.Flags().SortFlags = false
-
-}
-
 // FlowUpload runs the upload command
 var FlowUpload = &cobra.Command{
-	Use:   "flowupload",
+	Use:   "flowupload [csv file with flows]",
 	Short: "Upload flows from CSV file to the PCE.",
 	Long: `
 Upload flows from CSV file to the PCE
@@ -42,12 +34,16 @@ Example input:
 | 192.168.200.22 | 192.168.200.23 | 8080 | 17 |
 +----------------+----------------+------+----+`,
 
+	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 
 		pce, err = utils.GetPCE()
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for flowupload command - %s", err)
 		}
+
+		// Get csv file
+		csvFile = args[0]
 
 		// Get the debug value from viper
 		debug = viper.Get("debug").(bool)

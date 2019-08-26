@@ -35,7 +35,6 @@ type subnet struct {
 }
 
 func init() {
-	SubnetCmd.Flags().StringVarP(&csvFile, "in", "i", "", "Input csv file. The first row (headers) will be skipped.")
 	SubnetCmd.MarkFlagRequired("in")
 	SubnetCmd.Flags().BoolVar(&auto, "auto", false, "Make changes in PCE. Default with output a log file with updates.")
 	SubnetCmd.Flags().IntVarP(&netCol, "net", "n", 1, "Column number with network. First column is 1.")
@@ -48,7 +47,7 @@ func init() {
 
 // SubnetCmd runs the workload identifier
 var SubnetCmd = &cobra.Command{
-	Use:   "subnet",
+	Use:   "subnet [csv file with subnet inputs]",
 	Short: "Assign environment and location labels based on a workload's network.",
 	Long: `
 Assign envrionment and location labels based on a workload's network.
@@ -66,12 +65,16 @@ using the appropriate flags. Example default:
 | 10.0.0.0/8     | PROD | BOS |
 | 192.168.0.0/16 | DEV  | NYC |
 +----------------+------+-----+`,
+	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 
 		pce, err = utils.GetPCE()
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for subnet command - %s", err)
 		}
+
+		// Get CSV file
+		csvFile = args[0]
 
 		// Get Viper configuration
 		debug = viper.Get("debug").(bool)

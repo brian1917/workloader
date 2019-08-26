@@ -20,7 +20,6 @@ var pce illumioapi.PCE
 var err error
 
 func init() {
-	TrafficCmd.Flags().StringVarP(&csvFile, "in", "i", "workload-identifier-default.csv", "csv file with defined service matching criteria")
 	TrafficCmd.Flags().IntVarP(&lookupTO, "time", "t", 1000, "timeout to lookup hostname in ms. 0 will skip hostname lookups.")
 	TrafficCmd.Flags().StringVarP(&app, "app", "a", "", "app name to limit Explorer results to flows with that app as a provider or consumer. default is all apps")
 	TrafficCmd.Flags().StringVarP(&consExcl, "exclConsumer", "e", "", "label to exclude as a consumer role")
@@ -33,18 +32,22 @@ func init() {
 
 // TrafficCmd runs the workload identifier
 var TrafficCmd = &cobra.Command{
-	Use:   "traffic",
+	Use:   "traffic [csv file with input services]",
 	Short: "Find and label unmanaged workloads and label existing workloads based on Explorer traffic and an input CSV.",
 	Long: `
 Find and label unmanaged workloads and label existing workloads based on Explorer traffic and an input CSV.
 
 The --update-pce and --no-prompt flags are ignored for this command. Use workloader import to upload to PCE after review.`,
+	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 
 		pce, err = utils.GetPCE()
 		if err != nil {
 			utils.Log(1, err.Error())
 		}
+
+		// Get CSV File
+		csvFile = args[0]
 
 		// Get the debug value from viper
 		debug = viper.Get("debug").(bool)

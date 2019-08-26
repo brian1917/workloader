@@ -84,8 +84,8 @@ func init() {
 	viper.ReadInConfig()
 
 	// Persistent flags that will be passed into root command pre-run.
-	RootCmd.PersistentFlags().BoolVar(&updatePCE, "update-pce", false, "Command will prompt user before making changes in the PCE. Default will always just log potentialy changes. Flag has not effect on commands that do not alter PCE.")
-	RootCmd.PersistentFlags().BoolVar(&noPrompt, "no-prompt", false, "When used with update-pce it removes the user prompt step and automatically updates the PCE")
+	RootCmd.PersistentFlags().BoolVar(&updatePCE, "update-pce", false, "Command will update the PCE after a single user prompt. Default will just log potentialy changes to workloads.")
+	RootCmd.PersistentFlags().BoolVar(&noPrompt, "no-prompt", false, "Remove the user prompt when used with update-pce.")
 	RootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug level logging for troubleshooting.")
 	RootCmd.PersistentFlags().StringVar(&outFormat, "out", "both", "Output format. 3 options: csv, stdout, both")
 
