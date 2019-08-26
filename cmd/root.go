@@ -60,8 +60,9 @@ func init() {
 	// Disable sorting
 	cobra.EnableCommandSorting = false
 
-	// Available commands
+	// Add all commands
 	RootCmd.AddCommand(login.LoginCmd)
+	RootCmd.AddCommand(login.LogoutCmd)
 	RootCmd.AddCommand(export.ExportCmd)
 	RootCmd.AddCommand(importer.ImportCmd)
 	RootCmd.AddCommand(traffic.TrafficCmd)
@@ -75,9 +76,14 @@ func init() {
 	RootCmd.AddCommand(flowsummary.FlowSummaryCmd)
 	RootCmd.AddCommand(dupecheck.DupeCheckCmd)
 
+	// Set the usage templates
+	RootCmd.SetUsageTemplate(utils.RootTemplate())
+	for _, c := range RootCmd.Commands() {
+		c.SetUsageTemplate(utils.SubCmdTemplate())
+	}
+
 	// Setup Viper
 	viper.SetConfigType("yaml")
-
 	if os.Getenv("ILLUMIO_CONFIG") != "" {
 		viper.SetConfigFile(os.Getenv("ILLUMIO_CONFIG"))
 	} else {
@@ -92,6 +98,7 @@ func init() {
 	RootCmd.PersistentFlags().StringVar(&outFormat, "out", "both", "Output format. 3 options: csv, stdout, both")
 
 	RootCmd.Flags().SortFlags = false
+
 }
 
 // Execute is called by the CLI main function to initiate the Cobra application

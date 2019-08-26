@@ -18,28 +18,23 @@ import (
 )
 
 // Set global variables for flags
-var session, remove, clear bool
+var session, remove bool
 var debug bool
 var configFilePath string
 var err error
 
 func init() {
 	LoginCmd.Flags().BoolVarP(&session, "session", "s", false, "Authentication will be temporary session token. No API Key will be generated.")
-	LoginCmd.Flags().BoolVarP(&remove, "remove", "r", false, "Remove existing JSON authentication file.")
-	LoginCmd.Flags().BoolVarP(&clear, "clear", "x", false, "Remove existing JSON authentication file and clear all Workloader generated API credentials from the PCE.")
-
-	LoginCmd.Flags().SortFlags = false
 }
 
 // LoginCmd generates the pce.json file
 var LoginCmd = &cobra.Command{
 	Use:   "login",
-	Short: "Verifies existing login or generates a pce.json file for authentication used for all other commands.",
+	Short: "Verifies existing login or generates a pce.yaml file for authentication used for all other commands.",
 	Long: `
 Login verifies an existing login or generates a json file that is used for authentication for all other commands.
-If the --remove (-r) flag or --clear (-c) flag is set, the login sequence will not run.
 
-The default file name is pce.json stored in the current directory.
+The default file name is pce.yaml stored in the current directory.
 Set ILLUMIO_PCE environment variable for a custom file location, including file name.
 This envrionment variable must be set foor future use so Workloader knows where to look for it. Example:
 
@@ -69,19 +64,7 @@ The --update-pce and --no-prompt flags are ignored for this command.
 		// Get the debug value from viper
 		debug = viper.Get("debug").(bool)
 
-		if remove && clear {
-			fmt.Println("Remove flag is redundant Clear flag includes remove functionality.")
-			clear = false
-		}
-		if remove {
-			removeJSONFile()
-		}
-		if clear {
-			clearAPIKeys()
-		}
-		if !remove && !clear {
-			PCELogin()
-		}
+		PCELogin()
 	},
 }
 
@@ -236,53 +219,4 @@ func verifyLogin() (bool, illumioapi.PCE, illumioapi.Version) {
 
 	return true, pce, version
 
-}
-
-func removeJSONFile() {
-
-	utils.Log(0, "login remove started...")
-
-	utils.Log(0, fmt.Sprintf("location of authentication file is %s", configFilePath))
-
-	if err := os.Remove(configFilePath); err != nil {
-		utils.Log(1, fmt.Sprintf("error deleting file - %s", err))
-	}
-
-	utils.Log(0, fmt.Sprintf("successfully deleted %s", configFilePath))
-}
-
-func clearAPIKeys() {
-
-	// Log start of command
-	utils.Log(0, "login clear started to delete all workloader API keys and remove config file...")
-
-	// Get the PCE
-	pce, err := utils.GetPCE()
-	if err != nil {
-		utils.Log(1, err.Error())
-	}
-
-	// Get all API Keys
-	apiKeys, _, err := pce.GetAllAPIKeys(viper.Get("userhref").(string))
-	if err != nil {
-		utils.Log(1, err.Error())
-	}
-
-	// Delete the API keys that are from Workloader
-	for _, a := range apiKeys {
-		if a.Name == "Workloader" {
-			_, err := pce.DeleteHref(a.Href)
-			if err != nil {
-				utils.Log(1, err.Error())
-			}
-			utils.Log(0, fmt.Sprintf("deleted %s", a.Href))
-		}
-	}
-
-	// Remove the jsonFile
-	utils.Log(0, fmt.Sprintf("location of authentication file is %s", configFilePath))
-	if err := os.Remove(configFilePath); err != nil {
-		utils.Log(1, fmt.Sprintf("error deleting file - %s", err))
-	}
-	utils.Log(0, fmt.Sprintf("successfully deleted %s", configFilePath))
 }
