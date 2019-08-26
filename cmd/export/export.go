@@ -90,14 +90,14 @@ func exportWorkloads() {
 
 		// Set VEN version
 		if w.Agent == nil || w.Agent.Href == "" {
-			venVersion = "Unmanaged"
+			venVersion = "unmanaged"
 		} else {
 			venVersion = w.Agent.Status.AgentVersion
 		}
 
 		// Append to data slice
 		csvData = append(csvData, []string{w.Hostname, w.Href, w.GetRole(labelMap).Value, w.GetApp(labelMap).Value, w.GetEnv(labelMap).Value, w.GetLoc(labelMap).Value, strings.Join(interfaces, ";"), w.Name, w.PublicIP, w.GetMode(), strconv.FormatBool(w.Online), w.OsID, venVersion})
-		stdOutData = [][]string{[]string{w.Hostname, w.GetRole(labelMap).Value, w.GetApp(labelMap).Value, w.GetEnv(labelMap).Value, w.GetLoc(labelMap).Value, strings.Join(interfaces, ";"), w.GetMode(), w.OsID, venVersion}}
+		stdOutData = append(stdOutData, []string{w.Hostname, w.GetRole(labelMap).Value, w.GetApp(labelMap).Value, w.GetEnv(labelMap).Value, w.GetLoc(labelMap).Value, strings.Join(interfaces, ";"), w.GetMode(), w.OsID, venVersion})
 	}
 
 	if len(csvData) > 1 {
