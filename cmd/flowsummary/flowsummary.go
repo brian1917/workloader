@@ -19,7 +19,7 @@ var err error
 
 func init() {
 
-	loc, err := time.LoadLocation("America/New_York")
+	loc, err := time.LoadLocation("UTC")
 	if err != nil {
 		utils.Log(1, err.Error())
 	}
