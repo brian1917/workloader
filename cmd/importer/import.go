@@ -28,8 +28,8 @@ var newLabels []illumioapi.Label
 
 func init() {
 
-	ImportCmd.Flags().BoolVar(&umwl, "umwl", false, "Create unmanaged workloads if the host does not exist. Auto-disabled if matching on HREF.")
-	ImportCmd.Flags().IntVarP(&matchCol, "match", "m", 2, "Column number with hostname or Href to match workloads. First column is 1.")
+	ImportCmd.Flags().BoolVar(&umwl, "umwl", false, "Create unmanaged workloads if the host does not exist. Auto-disabled if matching on href.")
+	ImportCmd.Flags().IntVarP(&matchCol, "match", "m", 2, "Column number with hostname or href to match workloads. If href is used, --umwl is auto-disabled. First column is 1.")
 	ImportCmd.Flags().IntVarP(&roleCol, "role", "r", 3, "Column number with new role label.")
 	ImportCmd.Flags().IntVarP(&appCol, "app", "a", 4, "Column number with new app label.")
 	ImportCmd.Flags().IntVarP(&envCol, "env", "e", 5, "Column number with new env label.")
@@ -46,13 +46,9 @@ var ImportCmd = &cobra.Command{
 	Use:   "import [csv file to import]",
 	Short: "Create and assign labels to a workload from a CSV file. Use the --umwl flag to create and label unmanaged workloads from the same CSV.",
 	Long: `
-Create and assign labels to a workload from a CSV file.
-
-Use the --umwl flag to create and label unmanaged workloads from the same CSV, if matching on hostnames. If a hostname is not found with --umwl, import will create it.
+Create and assign labels to a workload from a CSV file. Use the --umwl flag to create and label unmanaged workloads from the same CSV.
 
 The input should have a header row as the first row will be skipped. Interfaces should be in the format of "eth0:192.168.200.20" and multiple interfaces should be separated by a semicolon with no spaces. Additional columns are allowed and will be ignored.
-
-The match can be either hostname or href. If matching on href, the --umwl flag will automatically be disabled.
 
 The default import format is below. It matches the first 6 columns of the workloader export command so you can easily export workloads, edit, and reimport.
 
@@ -63,7 +59,7 @@ The default import format is below. It matches the first 6 columns of the worklo
 | AssetMgt.web.prod | /orgs/1/workloads/12384475-7491-428e-b47c-f36c5d8e9eff | WEB  | ASSETMGT | PROD | BOS | eth0:192.168.200.15;eth1:10.10.100.22 |
 +-------------------+--------------------------------------------------------+------+----------+------+-----+---------------------------------------+
 
-Recommended to run without --update-pce first to see log of what will change. If --update-pce is used, import will create labels without prompt, but it will not create/update workloads without user confirmation.`,
+Recommended to run without --update-pce first to see log of what will change. If --update-pce is used, import will create labels without prompt, but it will not create/update workloads without user confirmation, unless --no-prompt is used.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 
