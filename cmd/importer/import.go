@@ -115,6 +115,7 @@ func checkLabel(label illumioapi.Label) illumioapi.Label {
 	}
 
 	// If updatePCE is not set, we are create a placeholder href for provided label, and add it back to the maps
+	utils.Log(0, fmt.Sprintf("Potential New Label - Key: %s, Value: %s", label.Key, label.Value))
 	label.Href = fmt.Sprintf("place-holder-href-%s-%s", label.Key, label.Value)
 	labelMapKV[label.Key+label.Value] = label
 	labelMapHref[label.Href] = label
@@ -398,10 +399,7 @@ func processCSV() {
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
 		utils.Log(0, fmt.Sprintf("import identified %d workloads requiring update, %d unmanaged workloads to be created, and %d labels to be created.", len(updatedWklds), len(newUMWLs), len(newLabels)))
-		fmt.Printf("Import identified %d workloads requiring update, %d unmanaged workloads to be created, and %d labels to be created. The labels to be created have been logged in workloader.log. To do the import, run again using --update-pce flag. The --auto flag will bypass the prompt if used with --update-pce.\r\n", len(updatedWklds), len(newUMWLs), len(newLabels))
-		for _, n := range newLabels {
-			utils.Log(0, fmt.Sprintf("Potential New Label if run with --update-pce - Key: %s, Value: %s", n.Key, n.Value))
-		}
+		fmt.Printf("Import identified:\r\n%d workloads requiring update\r\n%d unmanaged workloads to be created\r\n%d labels to be created.\r\n\r\nSee workloader.log for all identified changes. To do the import, run again using --update-pce flag.\r\n\r\n", len(updatedWklds), len(newUMWLs), len(newLabels))
 		utils.Log(0, "completed running import command")
 		return
 	}
