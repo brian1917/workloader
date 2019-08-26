@@ -108,23 +108,23 @@ func flowSummary() {
 	// }
 	// zone, _ := time.Now().In(loc).Zone()
 
-	utc, err := time.LoadLocation("UTC")
-	if err != nil {
-		utils.Log(1, err.Error())
-	}
+	// utc, err := time.LoadLocation("UTC")
+	// if err != nil {
+	// 	utils.Log(1, err.Error())
+	// }
 
 	// Get the state and end date
 	startDate, err := time.Parse(fmt.Sprintf("2006-01-02 MST"), fmt.Sprintf("%s %s", start, "UTC"))
 	if err != nil {
 		utils.Log(1, err.Error())
 	}
-	startDate = startDate.In(utc)
+	// startDate = startDate.In(utc)
 
 	endDate, err := time.Parse(fmt.Sprintf("2006-01-02 MST"), fmt.Sprintf("%s %s", end, "UTC"))
 	if err != nil {
 		utils.Log(1, err.Error())
 	}
-	endDate = endDate.In(utc)
+	// endDate = endDate.In(utc)
 
 	// Create the default query struct
 	tq := illumioapi.TrafficQuery{
