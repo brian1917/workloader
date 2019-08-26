@@ -13,7 +13,7 @@ import (
 )
 
 var app, start, end string
-var exclAllowed, exclPotentiallyBlocked, exclBlocked, appGroupLoc, debug bool
+var exclAllowed, exclPotentiallyBlocked, exclBlocked, appGroupLoc, ignoreIPGroup, debug bool
 var pce illumioapi.PCE
 var err error
 
@@ -26,6 +26,7 @@ func init() {
 	FlowSummaryCmd.Flags().BoolVar(&exclPotentiallyBlocked, "exclude-potentially-blocked", false, "excludes potentially blocked traffic flows.")
 	FlowSummaryCmd.Flags().BoolVar(&exclBlocked, "exclude-blocked", false, "excludes blocked traffic flows.")
 	FlowSummaryCmd.Flags().BoolVar(&appGroupLoc, "app-group-loc", false, "use location in app group")
+	FlowSummaryCmd.Flags().BoolVar(&ignoreIPGroup, "ignore-ip", false, "exlude IP addresses traffic from output")
 	FlowSummaryCmd.Flags().SortFlags = false
 
 }
@@ -37,7 +38,7 @@ var FlowSummaryCmd = &cobra.Command{
 	Long: `
 Summarize flows by port and protocol between app groups.
 
-The start and end dates are set as midnight on those specific dates based on the America/New_York time zone.
+The start and end dates are set as midnight UTC.
 
 Example output will look like the following:
 +---------------------------+---------------------------+----------------------+----------------------------------+----------------------+
@@ -53,7 +54,6 @@ Example output will look like the following:
 +---------------------------+---------------------------+----------------------+----------------------------------+----------------------+
 | Ordering | Production     | Point-of-Sale | Staging   |                      | 5432 TCP (56 flows)              |                      |
 +---------------------------+---------------------------+----------------------+----------------------------------+----------------------+
-
 
 The --update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -96,18 +96,6 @@ func flowSummary() {
 	if !exclBlocked {
 		pStatus = append(pStatus, "blocked")
 	}
-
-	// // Get current location and time zone (EDT vs. EST)
-	// loc, err := time.LoadLocation("America/New_York")
-	// if err != nil {
-	// 	utils.Log(1, err.Error())
-	// }
-	// zone, _ := time.Now().In(loc).Zone()
-
-	// utc, err := time.LoadLocation("UTC")
-	// if err != nil {
-	// 	utils.Log(1, err.Error())
-	// }
 
 	// Get the state and end date
 	startDate, err := time.Parse(fmt.Sprintf("2006-01-02 MST"), fmt.Sprintf("%s %s", start, "UTC"))
@@ -188,6 +176,9 @@ func flowSummary() {
 
 		// Get src appgroup
 		if t.Src.Workload == nil {
+			if ignoreIPGroup {
+				continue
+			}
 			srcAppGroup = t.Src.IP
 		} else {
 			srcAppGroup = t.Src.Workload.GetAppGroup(labelMap)
@@ -198,6 +189,9 @@ func flowSummary() {
 
 		// Get Dst appgroup
 		if t.Dst.Workload == nil {
+			if ignoreIPGroup {
+				continue
+			}
 			dstAppGroup = t.Dst.IP
 		} else {
 			dstAppGroup = t.Dst.Workload.GetAppGroup(labelMap)
