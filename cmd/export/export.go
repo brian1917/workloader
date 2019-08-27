@@ -54,6 +54,12 @@ func exportWorkloads() {
 	wklds, a, err := pce.GetAllWorkloads()
 	if debug {
 		utils.LogAPIResp("GetAllWorkloads", a)
+		// Logging code added to debug specific issue
+		for _, w := range wklds {
+			utils.Log(2, fmt.Sprintf("%s mode: %s", w.Hostname, w.GetMode()))
+			utils.Log(2, fmt.Sprintf("%s Agent Href: %s", w.Hostname, w.Agent.Href))
+			utils.Log(2, fmt.Sprintf("%s Agent Mode: %s", w.Hostname, w.Agent.Config.Mode))
+		}
 	}
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("getting all workloads - %s", err))

@@ -17,14 +17,18 @@ func WriteOutput(csvData, stdOutData [][]string, csvFileName string) {
 
 	// Write stdout if output format dictates it
 	if outFormat == "stdout" || outFormat == "both" {
-		table := tablewriter.NewWriter(os.Stdout)
-		table.SetHeader(stdOutData[0])
-		for i := 1; i <= len(stdOutData)-1; i++ {
-			table.Append(stdOutData[i])
+		if len(stdOutData) < viper.Get("max_entries_for_stdout").(int) {
+			table := tablewriter.NewWriter(os.Stdout)
+			table.SetHeader(stdOutData[0])
+			for i := 1; i <= len(stdOutData)-1; i++ {
+				table.Append(stdOutData[i])
+			}
+			table.SetAlignment(tablewriter.ALIGN_LEFT)
+			table.SetRowLine(true)
+			table.Render()
+		} else {
+			fmt.Printf("Data set exceeds stdout limit. To see table in stdout, increase value in pce.yaml")
 		}
-		table.SetAlignment(tablewriter.ALIGN_LEFT)
-		table.SetRowLine(true)
-		table.Render()
 	}
 
 	// Write CSV data if output format dictates it

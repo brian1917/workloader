@@ -193,6 +193,7 @@ func PCELogin() {
 	viper.Set("key", pce.Key)
 	viper.Set("disableTLSChecking", pce.DisableTLSChecking)
 	viper.Set("userHref", userLogin.Href)
+	viper.Set("max_entries_for_stdout", 500)
 
 	if err := viper.WriteConfig(); err != nil {
 		utils.Log(1, err.Error())
