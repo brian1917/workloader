@@ -79,7 +79,9 @@ func logout() {
 	// Remove the YAML file
 	utils.Log(0, fmt.Sprintf("location of authentication file is %s", configFilePath))
 
-	viper.SetConfigFile("")
+	file, _ := os.Open(configFilePath)
+	file.Close()
+
 	if err := os.Remove(configFilePath); err != nil {
 		utils.Log(1, fmt.Sprintf("error deleting file - %s", err))
 	}
