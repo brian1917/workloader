@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/brian1917/workloader/utils"
@@ -59,6 +60,13 @@ func init() {
 
 	// Disable sorting
 	cobra.EnableCommandSorting = false
+
+	// Set the short description for logout based on OS
+	if runtime.GOOS == "windows" {
+		login.LogoutCmd.Short = "Removes login information from pce.yaml and optionally removes all workloader generated API keys from PCE."
+	} else {
+		login.LogoutCmd.Short = "Removes pce.yaml file and optionally removes all workloader generated API keys from PCE."
+	}
 
 	// Add all commands
 	RootCmd.AddCommand(login.LoginCmd)

@@ -20,7 +20,7 @@ func init() {
 	LogoutCmd.Flags().BoolVarP(&clear, "clear-keys", "x", false, "Remove existing JSON authentication file and clear all Workloader generated API credentials from the PCE.")
 
 	if runtime.GOOS == "windows" {
-		desc = "Removes login information from pce.yaml and optional removes all workloader generated API keys from PCE."
+		desc = "Removes login information from pce.yaml and optionally removes all workloader generated API keys from PCE."
 	} else {
 		desc = "Removes pce.yaml file and optionally removes all workloader generated API keys from PCE."
 	}
@@ -90,6 +90,7 @@ func logout() {
 		viper.Set("key", "")
 		viper.Set("user", "")
 		viper.WriteConfig()
+		fmt.Printf("Removed login info from %s\r\n", configFilePath)
 		utils.Log(0, fmt.Sprintf("removed login info from %s", configFilePath))
 	} else {
 		if err := os.Remove(configFilePath); err != nil {
