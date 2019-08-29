@@ -1,6 +1,6 @@
 package utils
 
-// RootTemplate is the root usage template
+// RootTemplate returns the root usage template
 func RootTemplate() string {
 	return `  Usage:{{if .Runnable}}
 	{{.CommandPath}} [command]
@@ -25,7 +25,7 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
   `
 }
 
-// SubCmdTemplate is the usage template used for all subcommands
+// SubCmdTemplate returns the usage template used for all subcommands
 func SubCmdTemplate() string {
 	return `
   Usage:{{if .Runnable}}
@@ -49,6 +49,29 @@ func SubCmdTemplate() string {
   
   Additional help topics:{{range .Commands}}{{if .IsAdditionalHelpTopicCommand}}
 	{{rpad .CommandPath .CommandPathPadding}} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableSubCommands}}
+  
+  Use "{{.CommandPath}} [command] --help" for more information about a command.{{end}}
+  
+`
+}
+
+// SRootCmdTemplate returns the usage template for sub root commands
+func SRootCmdTemplate() string {
+	return `
+  Usage:{{if .Runnable}}
+    {{.CommandPath}} [sub-command]{{end}}{{if gt (len .Aliases) 0}}
+  
+  Aliases:
+    {{.NameAndAliases}}{{end}}{{if .HasExample}}
+  
+  Examples:
+  {{.Example}}{{end}}{{if .HasAvailableSubCommands}}
+  
+  Available Sub-Commands:{{range .Commands}}{{if (or .IsAvailableCommand (eq .Name "help"))}}
+    {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
+  
+  Flags:
+{{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasAvailableInheritedFlags}}
   
   Use "{{.CommandPath}} [command] --help" for more information about a command.{{end}}
   

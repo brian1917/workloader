@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 
 	"github.com/brian1917/workloader/utils"
@@ -55,18 +54,15 @@ Workloader is a tool that helps discover, label, and manage workloads in an Illu
 var updatePCE, noPrompt, debug bool
 var outFormat string
 
-// Init builds the commands
+// All subcommand flags are taken care of in their package's init.
+// Root init sets up everything else - all usage templates, Viper, etc.
 func init() {
 
 	// Disable sorting
 	cobra.EnableCommandSorting = false
 
 	// Set the short description for logout based on OS
-	if runtime.GOOS == "windows" {
-		login.LogoutCmd.Short = "Removes login information from pce.yaml and optionally removes all workloader generated API keys from PCE."
-	} else {
-		login.LogoutCmd.Short = "Removes pce.yaml file and optionally removes all workloader generated API keys from PCE."
-	}
+	login.LogoutCmd.Short = utils.LogOutDesc()
 
 	// Add all commands
 	RootCmd.AddCommand(login.LoginCmd)
@@ -85,10 +81,11 @@ func init() {
 	RootCmd.AddCommand(dupecheck.DupeCheckCmd)
 
 	// Set the usage templates
-	RootCmd.SetUsageTemplate(utils.RootTemplate())
 	for _, c := range RootCmd.Commands() {
 		c.SetUsageTemplate(utils.SubCmdTemplate())
 	}
+	RootCmd.SetUsageTemplate(utils.RootTemplate())
+	flowsummary.FlowSummaryCmd.SetUsageTemplate(utils.SRootCmdTemplate())
 
 	// Setup Viper
 	viper.SetConfigType("yaml")

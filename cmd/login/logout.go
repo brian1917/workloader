@@ -14,21 +14,15 @@ import (
 
 // Set global variables for flags
 var clear bool
-var desc string
 
-// func init() {
-// 	LogoutCmd.Flags().BoolVarP(&clear, "clear-keys", "x", false, "Remove existing JSON authentication file and clear all Workloader generated API credentials from the PCE.")
-
-// 	if runtime.GOOS == "windows" {
-// 		desc = "Removes login information from pce.yaml and optionally removes all workloader generated API keys from PCE."
-// 	} else {
-// 		desc = "Removes pce.yaml file and optionally removes all workloader generated API keys from PCE."
-// 	}
-// }
+func init() {
+	LogoutCmd.Flags().BoolVarP(&clear, "clear-keys", "x", false, "Remove existing JSON authentication file and clear all Workloader generated API credentials from the PCE.")
+}
 
 // LogoutCmd removes the pce.yaml file
 var LogoutCmd = &cobra.Command{
-	Use: "logout",
+	Use:  "logout",
+	Long: fmt.Sprintf("\r\n%s\r\n\r\nThe --update-pce and --no-prompt flags are ignored for this command.", utils.LogOutDesc()),
 	PreRun: func(cmd *cobra.Command, args []string) {
 		configFilePath, err = filepath.Abs(viper.ConfigFileUsed())
 		if err != nil {
