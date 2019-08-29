@@ -58,8 +58,6 @@ func exportWorkloads() {
 		for _, w := range wklds {
 			utils.Log(2, fmt.Sprintf("%s mode: %s", w.Hostname, w.GetMode()))
 			utils.Log(2, fmt.Sprintf("%s Agent Href: %s", w.Hostname, w.Agent.Href))
-			utils.Log(2, fmt.Sprintf("%s Agent Href: %s", w.Hostname, w.Agent.Status.ManagedSince))
-			utils.Log(2, fmt.Sprintf("%s Agent Href: %s", w.Hostname, w.Agent.Status.UID))
 			utils.Log(2, fmt.Sprintf("%s Agent Mode: %s", w.Hostname, w.Agent.Config.Mode))
 		}
 	}
