@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/brian1917/workloader/utils"
 
@@ -13,17 +14,24 @@ import (
 
 // Set global variables for flags
 var clear bool
+var desc string
 
 func init() {
 	LogoutCmd.Flags().BoolVarP(&clear, "clear-keys", "x", false, "Remove existing JSON authentication file and clear all Workloader generated API credentials from the PCE.")
+
+	if runtime.GOOS == "windows" {
+		desc = "Removes login information from pce.yaml and optional removes all workloader generated API keys from PCE."
+	} else {
+		desc = "Removes pce.yaml file and optionally removes all workloader generated API keys from PCE."
+	}
 }
 
 // LogoutCmd removes the pce.yaml file
 var LogoutCmd = &cobra.Command{
 	Use:   "logout",
-	Short: "Removes pce.yaml file and optionally removes all workloader generated API keys from PCE.",
+	Short: desc,
 	Long: `
-Removes pce.yaml file and optionally removes all workloader generated API keys from PCE.
+` + desc + `
 
 The --update-pce and --no-prompt flags are ignored for this command.
 `,
@@ -78,14 +86,16 @@ func logout() {
 
 	// Remove the YAML file
 	utils.Log(0, fmt.Sprintf("location of authentication file is %s", configFilePath))
-
-	file, _ := os.Open(configFilePath)
-	file.Close()
-
-	if err := os.Remove(configFilePath); err != nil {
-		utils.Log(1, fmt.Sprintf("error deleting file - %s", err))
+	if runtime.GOOS == "windows" {
+		viper.Set("key", "")
+		viper.Set("user", "")
+		viper.WriteConfig()
+		utils.Log(0, fmt.Sprintf("removed login info from %s", configFilePath))
+	} else {
+		if err := os.Remove(configFilePath); err != nil {
+			utils.Log(1, fmt.Sprintf("error deleting file - %s", err))
+		}
+		utils.Log(0, fmt.Sprintf("successfully deleted %s", configFilePath))
 	}
-
-	utils.Log(0, fmt.Sprintf("successfully deleted %s", configFilePath))
 
 }
