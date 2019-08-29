@@ -38,17 +38,17 @@ var ModeCmd = &cobra.Command{
 	Long: `
 Change a workload's state based on an input CSV with at least two columns: workload href and desired state.
 
-The state must be either idle, build, test, or enforced.
+The state must be either idle, build, test, enforced-no, enforced-low, or enforced-high. The three enforced options include logging (no, low detail, or high).
 
 An example is below:
 
-+--------------------------------------------------------+----------+
-|                          href                          |  state   |
-+--------------------------------------------------------+----------+
-| /orgs/1/workloads/721d1621-31a6-40a0-a0cb-1e4b1c051210 | build    |
-| /orgs/1/workloads/d1e6266c-0b07-4b6e-b68f-c3f2386bdf08 | test     |
-| /orgs/1/workloads/77d72edc-8734-4a5d-a01d-d055898e6ba1 | enforced |
-+--------------------------------------------------------+----------+
++--------------------------------------------------------+-------------+
+|                          href                          |  state      |
++--------------------------------------------------------+-------------+
+| /orgs/1/workloads/721d1621-31a6-40a0-a0cb-1e4b1c051210 | build       |
+| /orgs/1/workloads/d1e6266c-0b07-4b6e-b68f-c3f2386bdf08 | test        |
+| /orgs/1/workloads/77d72edc-8734-4a5d-a01d-d055898e6ba1 | enforced-no |
++--------------------------------------------------------+-------------+
 
 Use --hrefCol and --stateCol to specify the columns if not default (href=1, state=2). Additional columns will be ignored.`,
 
@@ -126,8 +126,8 @@ func parseCsv(filename string) []target {
 
 		// Check to make sure we have a valid build state and then append to targets slice
 		m := strings.ToLower(line[desiredStateCol])
-		if m != "idle" && m != "build" && m != "test" && m != "enforced" {
-			utils.Log(1, fmt.Sprintf("invalid mode on line %d - %s not acceptable", i, line[desiredStateCol]))
+		if m != "idle" && m != "build" && m != "test" && m != "enforced-no" && m != "enforced-low" && m != "enforced-high" {
+			utils.Log(1, fmt.Sprintf("invalid mode on line %d - %s not acceptable. Values must be idle, build, test, enforced-no, enforced-low, or enforced-high", i, line[desiredStateCol]))
 		}
 		targets = append(targets, target{workloadHref: line[hrefCol], targetMode: m})
 	}
@@ -172,7 +172,7 @@ func modeUpdate() {
 
 		// Check if the mode matches the target mode
 		w := wkldMap[t.workloadHref]
-		if w.GetMode() != t.targetMode && t.targetMode != "unmanaged" {
+		if w.GetMode() != t.targetMode {
 			// Log the change is needed
 			utils.Log(0, fmt.Sprintf("required Change - %s - current state: %s - desired state: %s\r\n", w.Hostname, w.GetMode(), t.targetMode))
 			data = append(data, []string{w.Hostname, w.Href, w.GetRole(labelMap).Value, w.GetApp(labelMap).Value, w.GetEnv(labelMap).Value, w.GetLoc(labelMap).Value, w.GetMode(), t.targetMode})
