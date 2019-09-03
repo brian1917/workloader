@@ -32,16 +32,16 @@ var LoginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Verifies existing login or generates a pce.yaml file for authentication used for all other commands.",
 	Long: `
-Login verifies an existing login or generates a json file that is used for authentication for all other commands.
+Login verifies an existing login or generates a yaml file that is used for authentication for all other commands.
 
 The default file name is pce.yaml stored in the current directory.
 Set ILLUMIO_PCE environment variable for a custom file location, including file name.
 This envrionment variable must be set foor future use so Workloader knows where to look for it. Example:
 
-export ILLUMIO_PCE="/Users/brian/Desktop/login.json"
+export ILLUMIO_PCE="/Users/brian/Desktop/login.yaml"
 
 By default, the command will create an API ID and Secret. The --session (-s) flag can be used
-to generate a session token that is valid for only the set PCE session time.
+to generate a session token that is valid for 10 minutes after inactivity.
 
 The command will prompt for PCE FQDN, port, user email address, and password.
 You can avoid being prompted for any/all by setting environmental variables. Example below:
@@ -68,7 +68,7 @@ The --update-pce and --no-prompt flags are ignored for this command.
 	},
 }
 
-//PCELogin creates a JSON file for authentication
+//PCELogin creates a YAML file for authentication
 func PCELogin() {
 	var err error
 	var pce illumioapi.PCE

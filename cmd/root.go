@@ -61,7 +61,7 @@ func init() {
 	// Disable sorting
 	cobra.EnableCommandSorting = false
 
-	// Set the short description for logout based on OS
+	// Set the short description for logout based on OS. We need to do it here before we add it to the RootCmd.
 	login.LogoutCmd.Short = utils.LogOutDesc()
 
 	// Add all commands

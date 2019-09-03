@@ -1,7 +1,6 @@
 *.code-workspace
 *.DS_store
 test-files/*
-pce.json
 *.log
 *.csv
 !workloader-identifier-default.csv
