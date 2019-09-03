@@ -34,10 +34,12 @@ var MisLabelCmd = &cobra.Command{
 	Short: "Display workloads that have no intra App-Group communications to identify potentially mislabled workloads.",
 	Long: `
 Display workloads that have no intra App-Group communications to identify potentially mislabled workloads.
+
+Workloads will not be identified as orphans if they are part of an app group with only unmanaged workloads.
 	
-The default Explorer query will look at all data. Explorer API has a max of 100,000 records. If you're query will exceed this, use the app flag to work through application labels. The app flag will get all traffic where that app is the source or destination (in 2 separate queries).
+The default Explorer query will look at all data. Explorer API has a max of 100,000 records. If you're query will exceed this, use the app flag to work through application labels. The app flag will get all traffic where that app is the source or destination.
 	
-The explorer query will ignore traffic on UDP ports 5355 (DNSCache) and 137, 138, 139 (NETBIOS). To customize this list, use the --pExclude (-p) flag to pass in a CSV with no headers and two columns. First column is port number and second column is protocol number (TCP is 6 and UDP is 17). CSV should include above ports to exclude them.
+The explorer query will ignore traffic on UDP ports 5355 (DNSCache) and 137, 138, 139 (NETBIOS). To customize this list, use the --pExclude (-p) flag to pass in a CSV with no headers and two columns. First column is port number and second column is protocol number (TCP is 6 and UDP is 17). If using the CSV option, UDP 5355, 137, 138, and 139 are not exlucded by default; you must add them to the list.
 	
 The --update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -232,7 +234,10 @@ func misLabel() {
 		appGroupCount[appGrp] = appGroupCount[appGrp] + 1
 	}
 
-	// Iterate through each workload. If it's an orphan and not in our exclude list and not the only workload in the app group, add it to the slice.
+	// Get managed workload counter
+	managedWkldsInAppGroup := appGroupManagedCounter(wklds, labelmap)
+
+	// Iterate through each workload. If it's an orphan, not in our exclude list, not the only workload in the app group, and not in an AppGroup with only unmanaged workloads, add it to the slice.
 	// We need to iterate two separate times because we need the complete list processed to get our count above
 	orphanWklds := []illumioapi.Workload{}
 	for _, w := range wklds {
@@ -240,7 +245,7 @@ func misLabel() {
 		if ignoreLoc {
 			appGrp = w.GetAppGroup(labelmap)
 		}
-		if !nonOrphpans[w.Href] && !exclWklds[w.Hostname] && appGroupCount[appGrp] > 1 {
+		if !nonOrphpans[w.Href] && !exclWklds[w.Hostname] && appGroupCount[appGrp] > 1 && managedWkldsInAppGroup[appGrp] > 0 {
 			orphanWklds = append(orphanWklds, w)
 		}
 	}
@@ -260,4 +265,29 @@ func misLabel() {
 		fmt.Println("\r\n0 potentially mislabeled workloads detected.")
 		utils.Log(0, "mislabel complete - 0 workloads identified")
 	}
+}
+
+func appGroupManagedCounter(allWklds []illumioapi.Workload, labelMap map[string]illumioapi.Label) map[string]int {
+	// Initialize the map
+	managedWkldCounter := make(map[string]int)
+
+	// Iterate through each workload
+	for _, w := range allWklds {
+		// Get app group
+		appGroup := w.GetAppGroupL(labelMap)
+		if ignoreLoc {
+			appGroup = w.GetAppGroup(labelMap)
+		}
+
+		// If this is an unmanaged workload, do nothing more
+		if w.GetMode() == "unmanaged" {
+			continue
+		}
+
+		// If this is not an unmanaged workload, increment the map
+		managedWkldCounter[appGroup] = managedWkldCounter[appGroup] + 1
+	}
+
+	return managedWkldCounter
+
 }
