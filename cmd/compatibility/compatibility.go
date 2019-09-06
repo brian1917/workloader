@@ -1,9 +1,7 @@
 package compatibility
 
 import (
-	"encoding/csv"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/brian1917/illumioapi"
@@ -12,13 +10,9 @@ import (
 	"github.com/spf13/viper"
 )
 
-var verbose, debug bool
+var debug bool
 var pce illumioapi.PCE
 var err error
-
-func init() {
-	CompatibilityCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Include full compatibility JSON as 4th column in CSV output. Default is just hostname, href, and green/yellow/red status.")
-}
 
 // CompatibilityCmd runs the workload identifier
 var CompatibilityCmd = &cobra.Command{
@@ -46,12 +40,9 @@ func compatibilityReport() {
 	utils.Log(0, "running compatability command")
 
 	// Start the data slice with the headers. We will append data to this.
-	var data [][]string
-	if verbose {
-		data = append(data, []string{"hostname", "href", "status", "raw_data"})
-	} else {
-		data = append(data, []string{"hostname", "href", "status"})
-	}
+	var csvData, stdOutData [][]string
+	csvData = append(csvData, []string{"hostname", "href", "status", "raw_data"})
+	stdOutData = append(stdOutData, []string{"hostname", "href", "status"})
 
 	// Get all workloads
 	wklds, a, err := pce.GetAllWorkloads()
@@ -79,41 +70,21 @@ func compatibilityReport() {
 			utils.Log(1, fmt.Sprintf("getting compatibility report for %s (%s) - %s", w.Hostname, w.Href, err))
 		}
 
-		// Write result
-		if verbose {
-			data = append(data, []string{w.Hostname, w.Href, cr.QualifyStatus, a.RespBody})
-		} else {
-			data = append(data, []string{w.Hostname, w.Href, cr.QualifyStatus})
-		}
+		csvData = append(csvData, []string{w.Hostname, w.Href, cr.QualifyStatus, a.RespBody})
+
+		stdOutData = append(stdOutData, []string{w.Hostname, w.Href, cr.QualifyStatus})
 	}
 
 	// If the CSV data has more than just the headers, create output file and write it.
-	if len(data) > 1 {
-
-		// Create output file
-		timestamp := time.Now().Format("20060102_150405")
-		outFile, err := os.Create("workloader-compatibility-report-" + timestamp + ".csv")
-		if err != nil {
-			utils.Log(1, fmt.Sprintf("creating file - %s", err))
-		}
-
-		// Write CSV data
-		writer := csv.NewWriter(outFile)
-		writer.WriteAll(data)
-		if err := writer.Error(); err != nil {
-			utils.Log(1, fmt.Sprintf("writing csv - %s", err))
-		}
-
-		// Close the file
-		outFile.Close()
-
-		// Log completion of command
-		fmt.Printf("Compatibility report generated for %d idle workloads - see %s.\r\n", len(data)-1, outFile.Name())
-		utils.Log(0, fmt.Sprintf("compatibility report generated for %d idle workloads - see %s", len(data)-1, outFile.Name()))
-
+	if len(csvData) > 1 {
+		utils.WriteOutput(csvData, stdOutData, fmt.Sprintf("workloader-compatibility-%s.csv", time.Now().Format("20060102_150405")))
+		fmt.Println("Note - CSV will have verbose information on tests for yellow/red status")
+		fmt.Printf("\r\n%d compatibility reports exported.\r\n", len(csvData)-1)
+		utils.Log(0, fmt.Sprintf("export complete - %d workloads exported", len(csvData)-1))
 	} else {
-		fmt.Println("No workloads with compatibility report.")
-		utils.Log(0, "no workloads with compatibility report.")
+		// Log command execution for 0 results
+		fmt.Println("No workloads in idle mode.")
+		utils.Log(0, "no workloads in idle mode.")
 	}
 
 }
