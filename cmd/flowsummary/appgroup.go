@@ -13,20 +13,21 @@ import (
 )
 
 var app, start, end string
-var exclAllowed, exclPotentiallyBlocked, exclBlocked, appGroupLoc, ignoreIPGroup, debug bool
+var exclAllowed, exclPotentiallyBlocked, exclBlocked, appGroupLoc, ignoreIPGroup, consolidate, debug bool
 var pce illumioapi.PCE
 var err error
 
 func init() {
 
-	AppGroupFlowSummaryCmd.Flags().StringVar(&app, "app", "", "app name to limit Explorer results to flows with that app as a provider or consumer. default is all apps.")
-	AppGroupFlowSummaryCmd.Flags().StringVar(&start, "start", time.Date(time.Now().Year()-5, time.Now().Month(), time.Now().Day(), 0, 0, 0, 0, time.UTC).Format("2006-01-02"), "start date in the format of yyyy-mm-dd")
-	AppGroupFlowSummaryCmd.Flags().StringVar(&end, "end", time.Now().Add(time.Hour*24).Format("2006-01-02"), "end date in the format of yyyy-mm-dd")
-	AppGroupFlowSummaryCmd.Flags().BoolVar(&exclAllowed, "exclude-allowed", false, "excludes allowed traffic flows.")
-	AppGroupFlowSummaryCmd.Flags().BoolVar(&exclPotentiallyBlocked, "exclude-potentially-blocked", false, "excludes potentially blocked traffic flows.")
-	AppGroupFlowSummaryCmd.Flags().BoolVar(&exclBlocked, "exclude-blocked", false, "excludes blocked traffic flows.")
-	AppGroupFlowSummaryCmd.Flags().BoolVar(&appGroupLoc, "app-group-loc", false, "use location in app group")
-	AppGroupFlowSummaryCmd.Flags().BoolVar(&ignoreIPGroup, "ignore-ip", false, "exlude IP addresses traffic from output")
+	AppGroupFlowSummaryCmd.Flags().StringVarP(&app, "app", "a", "", "app name to limit Explorer results to flows with that app as a provider or a consumer. default is all apps.")
+	AppGroupFlowSummaryCmd.Flags().StringVarP(&start, "start", "s", time.Date(time.Now().Year()-5, time.Now().Month(), time.Now().Day(), 0, 0, 0, 0, time.UTC).Format("2006-01-02"), "start date in the format of yyyy-mm-dd. Date is set as midnight UTC.")
+	AppGroupFlowSummaryCmd.Flags().StringVarP(&end, "end", "e", time.Now().Add(time.Hour*24).Format("2006-01-02"), "end date in the format of yyyy-mm-dd. Date is set as midnight UTC.")
+	AppGroupFlowSummaryCmd.Flags().BoolVar(&exclAllowed, "excl-allowed", false, "excludes allowed traffic flows.")
+	AppGroupFlowSummaryCmd.Flags().BoolVar(&exclPotentiallyBlocked, "excl-potentially-blocked", false, "excludes potentially blocked traffic flows.")
+	AppGroupFlowSummaryCmd.Flags().BoolVar(&exclBlocked, "excl-blocked", false, "excludes blocked traffic flows.")
+	AppGroupFlowSummaryCmd.Flags().BoolVarP(&appGroupLoc, "appgrp-loc", "l", false, "use location in app group")
+	AppGroupFlowSummaryCmd.Flags().BoolVarP(&ignoreIPGroup, "ignore-ip", "i", false, "exlude IP address app groups from output")
+	AppGroupFlowSummaryCmd.Flags().BoolVarP(&consolidate, "consolidate", "c", false, "consolidate all communication between 2 app groups into one CSV entry. See description below for example of output formats.")
 	AppGroupFlowSummaryCmd.Flags().SortFlags = false
 
 }
@@ -38,24 +39,29 @@ var AppGroupFlowSummaryCmd = &cobra.Command{
 	Long: `
 Summarize flows by port and protocol between app groups.
 
-The start and end dates are set as midnight UTC.
+Default output as each unique port/proto on a separet entry:
++------------------------------+------------------------------+-----------+---------------+---------------------------+---------------+
+|        SRC APP GROUP         |        DST APP GROUP         |  SERVICE  | ALLOWED FLOWS | POTENTIALLY BLOCKED FLOWS | BLOCKED FLOWS |
++------------------------------+------------------------------+-----------+---------------+---------------------------+---------------+
+| AssetManagement | Production | HREnrollment | Production    | 8070 TCP  |               | 30                        |               |
++------------------------------+------------------------------+-----------+---------------+---------------------------+---------------+
+| AssetManagement | Production | HREnrollment | Production    | 3306 TCP  |               | 9                         |               |
++------------------------------+------------------------------+-----------+---------------+---------------------------+---------------+
+| 45.54.45.54                  | eCommerce | Production       | 443 TCP   |               | 108                       |               |
++------------------------------+------------------------------+-----------+---------------+---------------------------+---------------+
 
-Example output will look like the following:
-+---------------------------+---------------------------+----------------------+----------------------------------+----------------------+
-|       SRC APP GROUP       |       DST APP GROUP       | ALLOWED FLOW SUMMARY | POTENTIALLY BLOCKED FLOW SUMMARY | BLOCKED FLOW SUMMARY |
-+---------------------------+---------------------------+----------------------+----------------------------------+----------------------+
-| 9.9.9.9                   | Ordering | Production     |                      | 443 TCP (14 flows)               |                      |
-+---------------------------+---------------------------+----------------------+----------------------------------+----------------------+
-| 85.151.14.15              | Ordering | Production     |                      | 443 TCP (28 flows)               |                      |
-+---------------------------+---------------------------+----------------------+----------------------------------+----------------------+
-| Ordering | Development    | Ordering | Development    |                      | 5432 TCP (168 flows);8080        |                      |
-|                           |                           |                      | TCP (168 flows);8070 TCP (168    |                      |
-|                           |                           |                      | flows)                           |                      |
-+---------------------------+---------------------------+----------------------+----------------------------------+----------------------+
-| Ordering | Production     | Point-of-Sale | Staging   |                      | 5432 TCP (56 flows)              |                      |
-+---------------------------+---------------------------+----------------------+----------------------------------+----------------------+
 
-The --update-pce and --no-prompt flags are ignored for this command.`,
+
+Including the consolidate flag (--consolidate, -c) will combine all entries between two groups onto one line:
++------------------------------+------------------------------+----------------------+----------------------------------+----------------------+
+|        SRC APP GROUP         |        DST APP GROUP         | ALLOWED FLOW SUMMARY | POTENTIALLY BLOCKED FLOW SUMMARY | BLOCKED FLOW SUMMARY |
++------------------------------+------------------------------+----------------------+----------------------------------+----------------------+
+| AssetManagement | Production | HREnrollment | Production    |                      | 8070 TCP (30 flows);3306 TCP     |                      |
+|                              |                              |                      | (9 flows)                        |                      |
++------------------------------+------------------------------+----------------------+----------------------------------+----------------------+
+| 45.54.45.54                  | Point-of-Sale | Staging      |                      | 443 TCP (126 flows)              |                      |
++------------------------------+------------------------------+----------------------+----------------------------------+----------------------+
+`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		pce, err = utils.GetPCE()
@@ -79,8 +85,9 @@ type summary struct {
 
 // A svcSummary consists of a port and protocol and flow count
 type svcSummary struct {
-	portProto string
-	count     int
+	port  int
+	proto string
+	count int
 }
 
 func flowSummary() {
@@ -168,7 +175,7 @@ func flowSummary() {
 	protoMap := illumioapi.ProtocolList()
 
 	// Build the map of results
-	entryMap := make(map[summary]map[string]int)
+	entryMap := make(map[summary]map[svcSummary]int)
 
 	// Cycle through the traffic results and build what we need
 	for _, t := range traffic {
@@ -203,36 +210,60 @@ func flowSummary() {
 		// Check if we already have this result captured. If we do, increment the flow counter
 		entry := summary{srcAppGroup: srcAppGroup, dstAppGroup: dstAppGroup, policyStatus: t.PolicyDecision}
 		if _, ok := entryMap[entry]; !ok {
-			entryMap[entry] = make(map[string]int)
+			entryMap[entry] = make(map[svcSummary]int)
 		}
-		svc := fmt.Sprintf("%d %s", t.ExpSrv.Port, protoMap[t.ExpSrv.Proto])
+		svc := svcSummary{port: t.ExpSrv.Port, proto: protoMap[t.ExpSrv.Proto]}
+		//svc := fmt.Sprintf("%d %s", t.ExpSrv.Port, protoMap[t.ExpSrv.Proto])
 		entryMap[entry][svc] = entryMap[entry][svc] + t.NumConnections
 	}
 
 	// Build the data slices
-	data := [][]string{[]string{"src_app_group", "dst_app_group", "allowed_flow_summary", "potentially_blocked_flow_summary", "blocked_flow_summary"}}
+	data := [][]string{[]string{"src_app_group", "dst_app_group", "service", "allowed_flows", "potentially_blocked_flows", "blocked_flows"}}
+	if consolidate {
+		data = [][]string{[]string{"src_app_group", "dst_app_group", "allowed_flow_summary", "potentially_blocked_flow_summary", "blocked_flow_summary"}}
+	}
 
+	// Cylce through our entry map, add flows to struct, sort, create dataEntry if consolidate is set, append to data
 	for e, v := range entryMap {
 		x := []svcSummary{}
-		var portProtos []string
+		var dataEntry []string
 		for a, b := range v {
-			x = append(x, svcSummary{portProto: a, count: b})
+			a.count = b
+			x = append(x, a)
 
 		}
 		sort.Slice(x, func(i, j int) bool {
 			return x[i].count > x[j].count
 		})
 		for _, i := range x {
-			portProtos = append(portProtos, fmt.Sprintf("%s (%d flows)", i.portProto, i.count))
+			if consolidate {
+				dataEntry = append(dataEntry, fmt.Sprintf("%d %s (%d flows)", i.port, i.proto, i.count))
+			}
 		}
-
-		switch e.policyStatus {
-		case "allowed":
-			data = append(data, []string{e.srcAppGroup, e.dstAppGroup, strings.Join(portProtos, ";"), "", ""})
-		case "potentially_blocked":
-			data = append(data, []string{e.srcAppGroup, e.dstAppGroup, "", strings.Join(portProtos, ";"), ""})
-		case "blocked":
-			data = append(data, []string{e.srcAppGroup, e.dstAppGroup, "", "", strings.Join(portProtos, ";")})
+		if consolidate {
+			switch e.policyStatus {
+			case "allowed":
+				data = append(data, []string{e.srcAppGroup, e.dstAppGroup, strings.Join(dataEntry, ";"), "", ""})
+			case "potentially_blocked":
+				data = append(data, []string{e.srcAppGroup, e.dstAppGroup, "", strings.Join(dataEntry, ";"), ""})
+			case "blocked":
+				data = append(data, []string{e.srcAppGroup, e.dstAppGroup, "", "", strings.Join(dataEntry, ";")})
+			}
+		} else {
+			switch e.policyStatus {
+			case "allowed":
+				for _, a := range x {
+					data = append(data, []string{e.srcAppGroup, e.dstAppGroup, fmt.Sprintf("%d %s", a.port, a.proto), fmt.Sprintf("%d", a.count), "", ""})
+				}
+			case "potentially_blocked":
+				for _, a := range x {
+					data = append(data, []string{e.srcAppGroup, e.dstAppGroup, fmt.Sprintf("%d %s", a.port, a.proto), "", fmt.Sprintf("%d", a.count), ""})
+				}
+			case "blocked":
+				for _, a := range x {
+					data = append(data, []string{e.srcAppGroup, e.dstAppGroup, fmt.Sprintf("%d %s", a.port, a.proto), "", "", fmt.Sprintf("%d", a.count)})
+				}
+			}
 		}
 	}
 
