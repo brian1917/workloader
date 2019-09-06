@@ -180,6 +180,9 @@ func misLabel() {
 		utils.Log(1, fmt.Sprintf("getting labelmap - %s", err))
 	}
 
+	// Create a map for each workload to know if it has traffic reported
+	wkldTrafficMap := make(map[string]int)
+
 	// Iterate through each traffic entry
 	for _, ta := range traffic {
 
@@ -191,6 +194,14 @@ func misLabel() {
 		// If source and destination are the same, we are done with this traffic entry
 		if ta.Src.Workload.Href == ta.Dst.Workload.Href {
 			continue
+		}
+
+		// Iterate the workload traffic counter
+		if ta.Src.Workload != nil {
+			wkldTrafficMap[ta.Src.Workload.Href] = wkldTrafficMap[ta.Src.Workload.Href] + 1
+		}
+		if ta.Dst.Workload != nil {
+			wkldTrafficMap[ta.Dst.Workload.Href] = wkldTrafficMap[ta.Dst.Workload.Href] + 1
 		}
 
 		// Get the App Groups
@@ -245,7 +256,7 @@ func misLabel() {
 		if ignoreLoc {
 			appGrp = w.GetAppGroup(labelmap)
 		}
-		if !nonOrphpans[w.Href] && !exclWklds[w.Hostname] && appGroupCount[appGrp] > 1 && managedWkldsInAppGroup[appGrp] > 0 {
+		if !nonOrphpans[w.Href] && !exclWklds[w.Hostname] && appGroupCount[appGrp] > 1 && managedWkldsInAppGroup[appGrp] > 0 && wkldTrafficMap[w.Href] > 0 {
 			orphanWklds = append(orphanWklds, w)
 		}
 	}
