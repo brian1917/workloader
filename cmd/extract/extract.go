@@ -52,6 +52,8 @@ func labels() {
 	if err != nil {
 		utils.Log(1, err.Error())
 	}
+	// Close the file
+	labelsFile.Close()
 
 	// Update stdout
 	fmt.Printf("Exported %d labels.\r\n", len(labels))
@@ -84,6 +86,8 @@ func workloads() {
 		if err != nil {
 			utils.Log(1, err.Error())
 		}
+		// CLose the file
+		wkldFile.Close()
 		// Update progress
 		fmt.Printf("\rExported %d of %d workloads (%d%%).", i, len(wklds), i*100/len(wklds))
 	}
@@ -110,6 +114,8 @@ func services() {
 		if err != nil {
 			utils.Log(1, err.Error())
 		}
+		// Close the file
+		servicesFile.Close()
 		//Update
 		fmt.Printf("Exported %d %s services.\r\n", len(svcs), p)
 	}
@@ -144,6 +150,8 @@ func ipLists() {
 			}
 			//Update
 			fmt.Printf("Exported %d %s IP Lists.\r\n", len(ipLists), p)
+			// Close file
+			ipListsFile.Close()
 		} else {
 			fmt.Printf("No %s IP lists to export.\r\n", p)
 		}
@@ -170,6 +178,8 @@ func virtualServices() {
 			if err != nil {
 				utils.Log(1, err.Error())
 			}
+			// Close the file
+			virtualServicesFile.Close()
 			//Update
 			fmt.Printf("Exported %d %s virtual services.\r\n", len(vs), p)
 		} else {
@@ -198,6 +208,8 @@ func labelGroups() {
 			if err != nil {
 				utils.Log(1, err.Error())
 			}
+			// Close the file
+			lgFile.Close()
 			//Update
 			fmt.Printf("Exported %d %s label groups.\r\n", len(lg), p)
 		} else {
@@ -226,6 +238,8 @@ func ruleSets() {
 			if err != nil {
 				utils.Log(1, err.Error())
 			}
+			// Close the file
+			rsFile.Close()
 			//Update
 			fmt.Printf("Exported %d %s rulesets.\r\n", len(rs), p)
 		} else {
@@ -256,6 +270,8 @@ func traffic() {
 		if err != nil {
 			utils.Log(1, err.Error())
 		}
+		// Close the file
+		tFile.Close()
 		//Update
 		fmt.Printf("Exported %d traffic entries.\r\n", len(t))
 	} else {
