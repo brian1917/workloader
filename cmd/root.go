@@ -10,6 +10,7 @@ import (
 	"github.com/brian1917/workloader/cmd/compatibility"
 	"github.com/brian1917/workloader/cmd/dupecheck"
 	"github.com/brian1917/workloader/cmd/export"
+	"github.com/brian1917/workloader/cmd/extract"
 	"github.com/brian1917/workloader/cmd/flowsummary"
 	"github.com/brian1917/workloader/cmd/flowupload"
 	"github.com/brian1917/workloader/cmd/hostparse"
@@ -79,6 +80,7 @@ func init() {
 	RootCmd.AddCommand(flowupload.FlowUpload)
 	RootCmd.AddCommand(flowsummary.FlowSummaryCmd)
 	RootCmd.AddCommand(dupecheck.DupeCheckCmd)
+	RootCmd.AddCommand(extract.ExtractCmd)
 
 	// Set the usage templates
 	for _, c := range RootCmd.Commands() {
