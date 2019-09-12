@@ -9,6 +9,7 @@ import (
 	"github.com/brian1917/illumioapi"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // PCE global variable
@@ -16,6 +17,7 @@ var pce illumioapi.PCE
 var err error
 var pStatus []string
 var outDir string
+var debug bool
 
 // ExtractCmd extracts PCE objects
 var ExtractCmd = &cobra.Command{
@@ -28,6 +30,9 @@ var ExtractCmd = &cobra.Command{
 		if err != nil {
 			utils.Log(1, err.Error())
 		}
+
+		// Get the debug value from viper
+		debug = viper.Get("debug").(bool)
 
 		extract()
 	},
@@ -281,17 +286,36 @@ func traffic() {
 
 func extract() {
 
+	// Log start of command
+	utils.Log(0, "extract command started")
+
 	// Set outdir
 	outDir = "pce-extract"
 
-	// Check if directory exists and remove it
-	err := os.RemoveAll(outDir)
+	// Log output directory
+	d, err := os.Getwd()
 	if err != nil {
-		fmt.Println(err)
+		utils.Log(1, err.Error())
+	}
+	fullPathOutDir := fmt.Sprintf("%s%s%s", d, string(os.PathSeparator), outDir)
+	utils.Log(0, fmt.Sprintf("temp pce-extract folder set to %s", fullPathOutDir))
+
+	// Check if directory exists and remove it
+	if _, err := os.Stat(outDir); os.IsNotExist(err) {
+		utils.Log(0, fmt.Sprintf("%s does not already exist. creating it.", fullPathOutDir))
+	} else {
+		utils.Log(0, fmt.Sprintf("%s exists. removing it and creating new.", fullPathOutDir))
+		err := os.RemoveAll(outDir)
+		if err != nil {
+			utils.Log(1, err.Error())
+		}
 	}
 
 	// Make the directory for the extract
-	os.Mkdir(outDir, 0700)
+	if err := os.Mkdir(outDir, 0700); err != nil {
+		utils.Log(1, err.Error())
+	}
+	utils.Log(0, fmt.Sprintf("created %s", fullPathOutDir))
 
 	// Set provision status for objects that require it
 	pStatus = []string{"draft", "active"}
@@ -310,13 +334,18 @@ func extract() {
 	zipit(outDir, "pce-extract.zip")
 
 	fmt.Println("pce-extract.zip created.")
+	utils.Log(0, fmt.Sprintf("%s%spce-extract.zip created", fullPathOutDir, string(os.PathSeparator)))
 
 	// Remove the created directory
 	err = os.RemoveAll(outDir)
 	if err != nil {
 		fmt.Println(err)
 	}
+	utils.Log(0, fmt.Sprintf("%s removed", fullPathOutDir))
 
 	fmt.Println("Temporary directory removed.")
+
+	// Log start of command
+	utils.Log(0, "extract command completed")
 
 }
