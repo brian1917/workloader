@@ -29,12 +29,12 @@ var newLabels []illumioapi.Label
 func init() {
 
 	ImportCmd.Flags().BoolVar(&umwl, "umwl", false, "Create unmanaged workloads if the host does not exist. Auto-disabled if matching on href.")
-	ImportCmd.Flags().IntVarP(&matchCol, "match", "m", 2, "Column number with hostname or href to match workloads. If href is used, --umwl is auto-disabled. First column is 1.")
-	ImportCmd.Flags().IntVarP(&roleCol, "role", "r", 3, "Column number with new role label.")
-	ImportCmd.Flags().IntVarP(&appCol, "app", "a", 4, "Column number with new app label.")
-	ImportCmd.Flags().IntVarP(&envCol, "env", "e", 5, "Column number with new env label.")
-	ImportCmd.Flags().IntVarP(&locCol, "loc", "l", 6, "Column number with new loc label.")
-	ImportCmd.Flags().IntVarP(&intCol, "ifaces", "i", 7, "Column number with network interfaces for when creating unmanaged workloads. Each interface should be of the like eth1:192.168.200.20. Separate multiple NICs by semicolons.")
+	ImportCmd.Flags().IntVarP(&matchCol, "match", "m", 1, "Column number with hostname or href to match workloads. If href is used, --umwl is auto-disabled. First column is 1.")
+	ImportCmd.Flags().IntVarP(&roleCol, "role", "r", 2, "Column number with new role label.")
+	ImportCmd.Flags().IntVarP(&appCol, "app", "a", 3, "Column number with new app label.")
+	ImportCmd.Flags().IntVarP(&envCol, "env", "e", 4, "Column number with new env label.")
+	ImportCmd.Flags().IntVarP(&locCol, "loc", "l", 5, "Column number with new loc label.")
+	ImportCmd.Flags().IntVarP(&intCol, "ifaces", "i", 6, "Column number with network interfaces for when creating unmanaged workloads. Each interface should be of the like eth1:192.168.200.20. Separate multiple NICs by semicolons.")
 	ImportCmd.Flags().StringVar(&removeValue, "remove-value", "", "Value in CSV used to remove existing labels. Blank values in the CSV will not change existing. If you want to delete a label do something like --remove-value DELETE and use DELETE in CSV to indicate where to clear existing labels on a workload.")
 
 	ImportCmd.Flags().SortFlags = false
@@ -52,14 +52,14 @@ The input should have a header row as the first row will be skipped. Interfaces 
 
 The default import format is below. It matches the first 6 columns of the workloader export command so you can easily export workloads, edit, and reimport.
 
-+-------------------+--------------------------------------------------------+------+----------+------+-----+---------------------------------------+
-|       host        |                          href                          | role |   app    | env  | loc |              interfaces               |
-+-------------------+--------------------------------------------------------+------+----------+------+-----+---------------------------------------+
-| AssetMgt.db.prod  | /orgs/1/workloads/17589443-7731-488f-b57a-f26c9d9e9eff | DB   | ASSETMGT | PROD | BOS | eth0:192.168.200.15                   |
-| AssetMgt.web.prod | /orgs/1/workloads/12384475-7491-428e-b47c-f36c5d8e9eff | WEB  | ASSETMGT | PROD | BOS | eth0:192.168.200.15;eth1:10.10.100.22 |
-+-------------------+--------------------------------------------------------+------+----------+------+-----+---------------------------------------+
++-------------------+------+----------+------+-----+---------------------------------------+
+|       host        | role |   app    | env  | loc |              interfaces               |
++-------------------+------+----------+------+-----+---------------------------------------+
+| AssetMgt.db.prod  | DB   | ASSETMGT | PROD | BOS | eth0:192.168.200.15                   |
+| AssetMgt.web.prod | WEB  | ASSETMGT | PROD | BOS | eth0:192.168.200.15;eth1:10.10.100.22 |
++-------------------+------+----------+------+-----+---------------------------------------+
 
-Recommended to run without --update-pce first to see log of what will change. If --update-pce is used, import will create labels without prompt, but it will not create/update workloads without user confirmation, unless --no-prompt is used.`,
+Recommended to run without --update-pce first to log of what will change. If --update-pce is used, import will create labels without prompt, but it will not create/update workloads without user confirmation, unless --no-prompt is used.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 
