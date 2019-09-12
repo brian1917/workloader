@@ -196,7 +196,7 @@ func modeUpdate() {
 		// If updatePCE is disabled, we are just going to alert the user what will happen and log
 		if !updatePCE {
 			utils.Log(0, fmt.Sprintf("%d workloads requiring mode change.", len(data)-1))
-			fmt.Printf("Mode identified %d workloads requiring mode change. To update their modes, run again using --update-pce flag. The --auto flag will bypass the prompt if used with --update-pce.\r\n", len(data)-1)
+			fmt.Printf("Mode identified %d workloads requiring mode change. To update their modes, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.\r\n", len(data)-1)
 			utils.Log(0, "completed running mode command")
 			return
 		}
