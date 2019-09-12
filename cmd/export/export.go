@@ -47,7 +47,7 @@ func exportWorkloads() {
 	utils.Log(0, "running export command")
 
 	// Start the data slice with headers
-	csvData := [][]string{[]string{"hostname", "href", "role", "app", "env", "loc", "interfaces", "name", "public_ip", "mode", "online", "os_id", "ven_version"}}
+	csvData := [][]string{[]string{"hostname", "role", "app", "env", "loc", "interfaces", "href", "name", "public_ip", "mode", "online", "os_id", "ven_version"}}
 	stdOutData := [][]string{[]string{"hostname", "role", "app", "env", "loc", "interfaces", "mode", "os_id", "ven_version"}}
 
 	// GetAllWorkloads
@@ -110,7 +110,7 @@ func exportWorkloads() {
 		}
 
 		// Append to data slice
-		csvData = append(csvData, []string{w.Hostname, w.Href, w.GetRole(labelMap).Value, w.GetApp(labelMap).Value, w.GetEnv(labelMap).Value, w.GetLoc(labelMap).Value, strings.Join(interfaces, ";"), w.Name, w.PublicIP, w.GetMode(), online, w.OsID, venVersion})
+		csvData = append(csvData, []string{w.Hostname, w.GetRole(labelMap).Value, w.GetApp(labelMap).Value, w.GetEnv(labelMap).Value, w.GetLoc(labelMap).Value, strings.Join(interfaces, ";"), w.Href, w.Name, w.PublicIP, w.GetMode(), online, w.OsID, venVersion})
 		stdOutData = append(stdOutData, []string{w.Hostname, w.GetRole(labelMap).Value, w.GetApp(labelMap).Value, w.GetEnv(labelMap).Value, w.GetLoc(labelMap).Value, strings.Join(interfaces, ";"), w.GetMode(), w.OsID, venVersion})
 	}
 
