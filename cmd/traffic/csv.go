@@ -179,13 +179,6 @@ func parseCoreServices(filename string) []coreService {
 
 func csvWriter(results []result, exclWLs bool) {
 
-	// Create output file
-	timestamp := time.Now().Format("20060102_150405")
-	outFile, err := os.Create("workloader-traffic-" + timestamp + ".csv")
-	if err != nil {
-		utils.Log(1, fmt.Sprintf("creating file - %s", err))
-	}
-
 	// Start the data array with headers
 	data := [][]string{[]string{"ip_address", "name", "status", "current_role", "current_app", "current_env", "current_loc", "suggested_role", "suggested_app", "suggested_env", "suggested_loc", "reason"}}
 
@@ -213,12 +206,5 @@ func csvWriter(results []result, exclWLs bool) {
 	}
 
 	// Write the CSV data
-	writer := csv.NewWriter(outFile)
-	writer.WriteAll(data)
-	if err := writer.Error(); err != nil {
-		utils.Log(1, fmt.Sprintf("writing csv - %s", err))
-	}
-
-	// Close the file
-	outFile.Close()
+	utils.WriteOutput(data, data, fmt.Sprintf("workloader-traffic-%s.csv", time.Now().Format("20060102_150405")))
 }
