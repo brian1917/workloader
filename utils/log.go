@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/brian1917/illumioapi"
+	"github.com/spf13/viper"
 )
 
 // Logger is the global logger for Workloader
@@ -29,9 +30,13 @@ func init() {
 //
 // 2 = Debug
 //
-// Errors (t=1) will also print a message to std out
+// Errors (t=1) will also print a message to std out.
+// Debug (t=2) will only log if the debug flag has been set as pulled from Viper.
 func Log(t int, msg string) {
 	var logType string
+
+	// Get the debug value from viper
+	debug := viper.Get("debug").(bool)
 
 	// Set the time prefix for the logger
 	Logger.SetPrefix(time.Now().Format("2006-01-02 15:04:05 "))
@@ -39,16 +44,16 @@ func Log(t int, msg string) {
 	switch t {
 	case 0:
 		logType = "[INFO]"
+		Logger.Printf("%s - %s\r\n", logType, msg)
 	case 1:
 		logType = "[ERROR]"
-	case 2:
-		logType = "[DEBUG]"
-	}
-	if t == 1 {
-		fmt.Printf("Error - %s - see workloader.log\r\n", msg)
+		fmt.Printf("Error - %s - run with --debug flag and see workloader.log for more details.\r\n", msg)
 		Logger.Fatalf("%s - %s\r\n", logType, msg)
-	} else {
-		Logger.Printf("%s - %s\r\n", logType, msg)
+	case 2:
+		if debug {
+			logType = "[DEBUG]"
+			Logger.Printf("%s - %s\r\n", logType, msg)
+		}
 	}
 
 }
