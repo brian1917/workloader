@@ -18,7 +18,7 @@ import (
 
 var csvFile string
 var netCol, envCol, locCol int
-var auto, debug, updatePCE, noPrompt bool
+var debug, updatePCE, noPrompt bool
 var pce illumioapi.PCE
 var err error
 
@@ -36,7 +36,6 @@ type subnet struct {
 
 func init() {
 	SubnetCmd.MarkFlagRequired("in")
-	SubnetCmd.Flags().BoolVar(&auto, "auto", false, "Make changes in PCE. Default with output a log file with updates.")
 	SubnetCmd.Flags().IntVarP(&netCol, "net", "n", 1, "Column number with network. First column is 1.")
 	SubnetCmd.Flags().IntVarP(&envCol, "env", "e", 2, "Column number with new env label.")
 	SubnetCmd.Flags().IntVarP(&locCol, "loc", "l", 3, "Column number with new loc label.")
@@ -95,7 +94,7 @@ func locParser(csvFile string, netCol, envCol, locCol int) []subnet {
 	// Open CSV File
 	file, err := os.Open(csvFile)
 	if err != nil {
-		utils.Logger.Fatalf("Error opening CSV - %s", err)
+		utils.Log(1, err.Error())
 	}
 	defer file.Close()
 	reader := csv.NewReader(bufio.NewReader(file))
@@ -114,7 +113,7 @@ func locParser(csvFile string, netCol, envCol, locCol int) []subnet {
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			utils.Logger.Fatalf("Error - reading CSV file - %s", err)
+			utils.Log(1, err.Error())
 		}
 
 		// Skipe the header row
@@ -122,29 +121,22 @@ func locParser(csvFile string, netCol, envCol, locCol int) []subnet {
 			continue
 		}
 
-		//make sure location label not empty
-		if line[locCol] == "" {
-			utils.Logger.Fatal("Error - Label field cannot be empty")
-		}
-
 		//Place subnet into net.IPNet data structure as part of subnetLabel struct
 		_, network, err := net.ParseCIDR(line[netCol])
 		if err != nil {
-			utils.Logger.Fatal("Error - The Subnet field cannot be parsed.  The format is 10.10.10.0/24")
+			utils.Log(1, fmt.Sprintf("CSV line %d - the subnet cannot be parsed.  The format is 10.10.10.0/24", i))
 		}
 
 		//Set struct values
 		results = append(results, subnet{network: *network, env: line[envCol], loc: line[locCol]})
 	}
+
 	return results
 }
 
 func subnetParser() {
 
-	// If debug, log the columns before adjusting by 1
-	if debug {
-		utils.Log(2, fmt.Sprintf("CSV Columns. Network: %d; Env: %d; Loc: %d", netCol, envCol, locCol))
-	}
+	utils.Log(2, fmt.Sprintf("CSV Columns. Network: %d; Env: %d; Loc: %d", netCol, envCol, locCol))
 
 	// Adjust the columns so they are one less (first column should be 0)
 	netCol = netCol - 1
@@ -156,20 +148,16 @@ func subnetParser() {
 
 	// GetAllWorkloads
 	wklds, a, err := pce.GetAllWorkloads()
-	if debug {
-		utils.LogAPIResp("GetAllWorkloads", a)
-	}
+	utils.LogAPIResp("GetAllWorkloads", a)
 	if err != nil {
-		utils.Logger.Fatalf("Error getting all workloads - %s", err)
+		utils.Log(1, err.Error())
 	}
 
 	// GetAllLabels
-	labelMap, a, err := pce.GetLabelMapKV()
-	if debug {
-		utils.LogAPIResp("GetLabelMapKV", a)
-	}
+	labelMapH, a, err := pce.GetLabelMapH()
+	utils.LogAPIResp("GetLabelMapH", a)
 	if err != nil {
-		utils.Log(1, fmt.Sprintf("getting label map - %s", err))
+		utils.Log(1, err.Error())
 	}
 
 	// Create a slice to store our results
@@ -183,17 +171,27 @@ func subnetParser() {
 		// For each workload we need to check the subnets provided in CSV
 		for _, nets := range subnetLabels {
 			// Check to see if it matches
-			if nets.network.Contains(net.ParseIP(w.Interfaces[0].Address)) {
-				// Update labels (not in PCE yet, just on object)
-				if nets.loc != "" && nets.loc != w.GetLoc(labelMap).Value {
-					changed = true
-					m.oldLoc = w.GetLoc(labelMap).Value
-					w.ChangeLabel(pce, "loc", nets.loc)
-				}
-				if nets.env != "" && nets.env != w.GetEnv(labelMap).Value {
-					changed = true
-					m.oldEnv = w.GetEnv(labelMap).Value
-					w.ChangeLabel(pce, "env", nets.env)
+			for _, i := range w.Interfaces {
+				if nets.network.Contains(net.ParseIP(i.Address)) {
+					// Update labels (not in PCE yet, just on object)
+					if nets.loc != "" && nets.loc != w.GetLoc(labelMapH).Value {
+						changed = true
+						m.oldLoc = w.GetLoc(labelMapH).Value
+						labelMapH, err = w.ChangeLabel(pce, labelMapH, "loc", nets.loc)
+						if err != nil {
+							utils.Log(1, err.Error())
+						}
+						m.workload = w
+					}
+					if nets.env != "" && nets.env != w.GetEnv(labelMapH).Value {
+						changed = true
+						m.oldEnv = w.GetEnv(labelMapH).Value
+						labelMapH, err = w.ChangeLabel(pce, labelMapH, "env", nets.env)
+						if err != nil {
+							utils.Log(1, err.Error())
+						}
+						m.workload = w
+					}
 				}
 			}
 		}
@@ -207,9 +205,14 @@ func subnetParser() {
 	if len(updatedWklds) > 0 {
 
 		// Create our data slice
-		data := [][]string{[]string{"hostname", "href", "ip_address", "role", "app", "original_env", "original_loc", "new_loc", "new_env"}}
+		data := [][]string{[]string{"hostname", "href", "interfaces", "role", "app", "original_env", "original_loc", "new_loc", "new_env"}}
 		for _, m := range matches {
-			data = append(data, []string{m.workload.Hostname, m.workload.Href, m.workload.Interfaces[0].Address, m.workload.GetRole(labelMap).Value, m.workload.GetApp(labelMap).Value, m.oldLoc, m.oldEnv, m.workload.GetLoc(labelMap).Value, m.workload.GetEnv(labelMap).Value})
+			// Get interfaces
+			interfaceSlice := []string{}
+			for _, i := range m.workload.Interfaces {
+				interfaceSlice = append(interfaceSlice, fmt.Sprintf("%s:%s", i.Name, i.Address))
+			}
+			data = append(data, []string{m.workload.Hostname, m.workload.Href, strings.Join(interfaceSlice, ";"), m.workload.GetRole(labelMapH).Value, m.workload.GetApp(labelMapH).Value, m.oldLoc, m.oldEnv, m.workload.GetLoc(labelMapH).Value, m.workload.GetEnv(labelMapH).Value})
 		}
 
 		utils.WriteOutput(data, data, "workloader-subnet-output-"+time.Now().Format("20060102_150405")+".csv")
@@ -257,6 +260,6 @@ func subnetParser() {
 		}
 	} else {
 		fmt.Println("no workloads identified for label change")
-		utils.Log(0, "submet completed running without identifying any workloads requiring change.")
+		utils.Log(0, "subnet completed running without identifying any workloads requiring change.")
 	}
 }
