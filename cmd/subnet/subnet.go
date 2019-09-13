@@ -66,7 +66,7 @@ using the appropriate flags. Example default:
 +----------------+------+-----+`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE()
+		pce, err = utils.GetPCE(true)
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for subnet command - %s", err)
 		}
@@ -153,13 +153,6 @@ func subnetParser() {
 		utils.Log(1, err.Error())
 	}
 
-	// GetAllLabels
-	labelMapH, a, err := pce.GetLabelMapH()
-	utils.LogAPIResp("GetLabelMapH", a)
-	if err != nil {
-		utils.Log(1, err.Error())
-	}
-
 	// Create a slice to store our results
 	updatedWklds := []illumioapi.Workload{}
 	matches := []match{}
@@ -174,19 +167,19 @@ func subnetParser() {
 			for _, i := range w.Interfaces {
 				if nets.network.Contains(net.ParseIP(i.Address)) {
 					// Update labels (not in PCE yet, just on object)
-					if nets.loc != "" && nets.loc != w.GetLoc(labelMapH).Value {
+					if nets.loc != "" && nets.loc != w.GetLoc(pce.LabelMapH).Value {
 						changed = true
-						m.oldLoc = w.GetLoc(labelMapH).Value
-						labelMapH, err = w.ChangeLabel(pce, labelMapH, "loc", nets.loc)
+						m.oldLoc = w.GetLoc(pce.LabelMapH).Value
+						pce, err = w.ChangeLabel(pce, "loc", nets.loc)
 						if err != nil {
 							utils.Log(1, err.Error())
 						}
 						m.workload = w
 					}
-					if nets.env != "" && nets.env != w.GetEnv(labelMapH).Value {
+					if nets.env != "" && nets.env != w.GetEnv(pce.LabelMapH).Value {
 						changed = true
-						m.oldEnv = w.GetEnv(labelMapH).Value
-						labelMapH, err = w.ChangeLabel(pce, labelMapH, "env", nets.env)
+						m.oldEnv = w.GetEnv(pce.LabelMapH).Value
+						pce, err = w.ChangeLabel(pce, "env", nets.env)
 						if err != nil {
 							utils.Log(1, err.Error())
 						}
@@ -212,7 +205,7 @@ func subnetParser() {
 			for _, i := range m.workload.Interfaces {
 				interfaceSlice = append(interfaceSlice, fmt.Sprintf("%s:%s", i.Name, i.Address))
 			}
-			data = append(data, []string{m.workload.Hostname, m.workload.Href, strings.Join(interfaceSlice, ";"), m.workload.GetRole(labelMapH).Value, m.workload.GetApp(labelMapH).Value, m.oldLoc, m.oldEnv, m.workload.GetLoc(labelMapH).Value, m.workload.GetEnv(labelMapH).Value})
+			data = append(data, []string{m.workload.Hostname, m.workload.Href, strings.Join(interfaceSlice, ";"), m.workload.GetRole(pce.LabelMapH).Value, m.workload.GetApp(pce.LabelMapH).Value, m.oldLoc, m.oldEnv, m.workload.GetLoc(pce.LabelMapH).Value, m.workload.GetEnv(pce.LabelMapH).Value})
 		}
 
 		utils.WriteOutput(data, data, "workloader-subnet-output-"+time.Now().Format("20060102_150405")+".csv")

@@ -26,7 +26,7 @@ var ExtractCmd = &cobra.Command{
 	Hidden: true,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE()
+		pce, err = utils.GetPCE(false)
 		if err != nil {
 			utils.Log(1, err.Error())
 		}

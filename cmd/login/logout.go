@@ -49,7 +49,7 @@ func logout() {
 		utils.Log(0, "removing API keys...")
 
 		// Get the PCE
-		pce, err := utils.GetPCE()
+		pce, err := utils.GetPCE(false)
 		if err != nil {
 			utils.Log(1, err.Error())
 		}

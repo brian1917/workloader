@@ -47,7 +47,7 @@ All workloads will be upgraded if there is no hostfile and no provided labels.
 
 Default output is a CSV file with what would be upgraded. Use the --update-pce command to run the upgrades with a user prompt confirmation. Use --update-pce and --no-prompt to run upgrade with no prompts.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		pce, err = utils.GetPCE()
+		pce, err = utils.GetPCE(true)
 		if err != nil {
 			utils.Log(1, err.Error())
 		}
@@ -72,15 +72,6 @@ func wkldUpgrade() {
 		utils.Log(1, err.Error())
 	}
 
-	// Get label map
-	labelMap, a, err := pce.GetLabelMapH()
-	if debug {
-		utils.LogAPIResp("GetAllWorkloads", a)
-	}
-	if err != nil {
-		utils.Log(1, err.Error())
-	}
-
 	// Create our target wkld slice
 	var targetWklds []illumioapi.Workload
 
@@ -90,16 +81,16 @@ func wkldUpgrade() {
 			if w.GetMode() == "unmanaged" {
 				continue
 			}
-			if app != "" && w.GetApp(labelMap).Value != app {
+			if app != "" && w.GetApp(pce.LabelMapH).Value != app {
 				continue
 			}
-			if role != "" && w.GetRole(labelMap).Value != role {
+			if role != "" && w.GetRole(pce.LabelMapH).Value != role {
 				continue
 			}
-			if env != "" && w.GetEnv(labelMap).Value != env {
+			if env != "" && w.GetEnv(pce.LabelMapH).Value != env {
 				continue
 			}
-			if loc != "" && w.GetLoc(labelMap).Value != loc {
+			if loc != "" && w.GetLoc(pce.LabelMapH).Value != loc {
 				continue
 			}
 			targetWklds = append(targetWklds, w)
@@ -146,7 +137,7 @@ func wkldUpgrade() {
 	// Build the data slice for writing
 	data := [][]string{[]string{"hostname", "href", "role", "app", "env", "loc", "current_ven_version", "targeted_ven_version"}}
 	for _, t := range targetWklds {
-		data = append(data, []string{t.Hostname, t.Href, t.GetRole(labelMap).Value, t.GetApp(labelMap).Value, t.GetEnv(labelMap).Value, t.GetLoc(labelMap).Value, t.Agent.Status.AgentVersion, targetVersion})
+		data = append(data, []string{t.Hostname, t.Href, t.GetRole(pce.LabelMapH).Value, t.GetApp(pce.LabelMapH).Value, t.GetEnv(pce.LabelMapH).Value, t.GetLoc(pce.LabelMapH).Value, t.Agent.Status.AgentVersion, targetVersion})
 	}
 
 	// Write CSV data

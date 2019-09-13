@@ -15,14 +15,16 @@ import (
 	"github.com/spf13/viper"
 )
 
-var appFlag, exclWkldFile, exclPortFile, outFormat string
-var debug, ignoreLoc bool
+var appFlag, exclWkldFile, exclPortFile, exclAppFile, outFormat string
+var debug, ignoreLoc, inclUnmanagedAppGroups bool
 var pce illumioapi.PCE
 var err error
 
 func init() {
 	MisLabelCmd.Flags().StringVarP(&appFlag, "app", "a", "", "App label to limit Explorer query.")
+	MisLabelCmd.Flags().BoolVarP(&inclUnmanagedAppGroups, "inclUn", "u", false, "Include app groups that are all unmanaged workloads")
 	MisLabelCmd.Flags().StringVarP(&exclWkldFile, "wExclude", "w", "", "File location of hostnames to exclude as orphans.")
+	MisLabelCmd.Flags().StringVarP(&exclAppFile, "aExclude", "x", "", "File location of app labels to exclude as orphans.")
 	MisLabelCmd.Flags().StringVarP(&exclPortFile, "pExclude", "p", "", "File location of ports to exclude in traffic query.")
 	MisLabelCmd.Flags().BoolVar(&ignoreLoc, "ignore-location", false, "Do not use location in comparing app groups.")
 	MisLabelCmd.Flags().SortFlags = false
@@ -44,7 +46,7 @@ The explorer query will ignore traffic on UDP ports 5355 (DNSCache) and 137, 138
 The --update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE()
+		pce, err = utils.GetPCE(true)
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("error getting pce - %s", err))
 		}
@@ -57,7 +59,7 @@ The --update-pce and --no-prompt flags are ignored for this command.`,
 	},
 }
 
-func getExclHosts(filename string) map[string]bool {
+func getExclHostsOrApps(filename string) map[string]bool {
 	// Open CSV File
 	csvFile, _ := os.Open(filename)
 	reader := csv.NewReader(bufio.NewReader(csvFile))
@@ -170,16 +172,6 @@ func misLabel() {
 	// nonOrphans will hold workloads that are not orphans
 	nonOrphpans := make(map[string]bool)
 
-	// Get the Href label map
-	labelmap, apiResp, err := pce.GetLabelMapH()
-	if debug {
-		utils.Log(2, fmt.Sprintf("get href label map returned %d entries", len(labelmap)))
-		utils.LogAPIResp("getLabelMap", apiResp)
-	}
-	if err != nil {
-		utils.Log(1, fmt.Sprintf("getting labelmap - %s", err))
-	}
-
 	// Create a map for each workload to know if it has traffic reported
 	wkldTrafficMap := make(map[string]int)
 
@@ -205,11 +197,11 @@ func misLabel() {
 		}
 
 		// Get the App Groups
-		srcAppGroup := ta.Src.Workload.GetAppGroupL(labelmap)
-		dstAppGroup := ta.Dst.Workload.GetAppGroupL(labelmap)
+		srcAppGroup := ta.Src.Workload.GetAppGroupL(pce.LabelMapH)
+		dstAppGroup := ta.Dst.Workload.GetAppGroupL(pce.LabelMapH)
 		if ignoreLoc {
-			srcAppGroup = ta.Src.Workload.GetAppGroup(labelmap)
-			dstAppGroup = ta.Dst.Workload.GetAppGroup(labelmap)
+			srcAppGroup = ta.Src.Workload.GetAppGroup(pce.LabelMapH)
+			dstAppGroup = ta.Dst.Workload.GetAppGroup(pce.LabelMapH)
 		}
 
 		// If the app groups are the same, mark the source and destination as true and stop processing
@@ -220,10 +212,14 @@ func misLabel() {
 		}
 	}
 
-	// Get the excluded workload list
+	// Get the excluded workload list and app list
 	exclWklds := make(map[string]bool)
 	if exclWkldFile != "" {
-		exclWklds = getExclHosts(exclWkldFile)
+		exclWklds = getExclHostsOrApps(exclWkldFile)
+	}
+	exclApps := make(map[string]bool)
+	if exclAppFile != "" {
+		exclApps = getExclHostsOrApps(exclAppFile)
 	}
 
 	// Get all workloads.
@@ -238,25 +234,26 @@ func misLabel() {
 	// Build a map of app groups and their count
 	appGroupCount := make(map[string]int)
 	for _, w := range wklds {
-		appGrp := w.GetAppGroupL(labelmap)
+		appGrp := w.GetAppGroupL(pce.LabelMapH)
 		if ignoreLoc {
-			appGrp = w.GetAppGroup(labelmap)
+			appGrp = w.GetAppGroup(pce.LabelMapH)
 		}
 		appGroupCount[appGrp] = appGroupCount[appGrp] + 1
 	}
 
 	// Get managed workload counter
-	managedWkldsInAppGroup := appGroupManagedCounter(wklds, labelmap)
+	managedWkldsInAppGroup := appGroupManagedCounter(wklds)
 
 	// Iterate through each workload. If it's an orphan, not in our exclude list, not the only workload in the app group, and not in an AppGroup with only unmanaged workloads, add it to the slice.
 	// We need to iterate two separate times because we need the complete list processed to get our count above
 	orphanWklds := []illumioapi.Workload{}
 	for _, w := range wklds {
-		appGrp := w.GetAppGroupL(labelmap)
+		appGrp := w.GetAppGroupL(pce.LabelMapH)
 		if ignoreLoc {
-			appGrp = w.GetAppGroup(labelmap)
+			appGrp = w.GetAppGroup(pce.LabelMapH)
 		}
-		if !nonOrphpans[w.Href] && !exclWklds[w.Hostname] && appGroupCount[appGrp] > 1 && managedWkldsInAppGroup[appGrp] > 0 && wkldTrafficMap[w.Href] > 0 {
+		// if the workload is not in non-orphans, not in exclude list,
+		if !nonOrphpans[w.Href] && !exclWklds[w.Hostname] && !exclApps[w.GetApp(pce.LabelMapH).Value] && appGroupCount[appGrp] > 1 && (managedWkldsInAppGroup[appGrp] > 0 || inclUnmanagedAppGroups) && wkldTrafficMap[w.Href] > 0 {
 			orphanWklds = append(orphanWklds, w)
 		}
 	}
@@ -264,7 +261,7 @@ func misLabel() {
 	// Create CSV output - start data slice with headers
 	data := [][]string{[]string{"hostname", "role", "app", "env", "loc"}}
 	for _, w := range orphanWklds {
-		data = append(data, []string{w.Hostname, w.GetRole(labelmap).Value, w.GetApp(labelmap).Value, w.GetEnv(labelmap).Value, w.GetLoc(labelmap).Value})
+		data = append(data, []string{w.Hostname, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value})
 	}
 
 	if len(data) > 1 {
@@ -278,16 +275,16 @@ func misLabel() {
 	}
 }
 
-func appGroupManagedCounter(allWklds []illumioapi.Workload, labelMap map[string]illumioapi.Label) map[string]int {
+func appGroupManagedCounter(allWklds []illumioapi.Workload) map[string]int {
 	// Initialize the map
 	managedWkldCounter := make(map[string]int)
 
 	// Iterate through each workload
 	for _, w := range allWklds {
 		// Get app group
-		appGroup := w.GetAppGroupL(labelMap)
+		appGroup := w.GetAppGroupL(pce.LabelMapH)
 		if ignoreLoc {
-			appGroup = w.GetAppGroup(labelMap)
+			appGroup = w.GetAppGroup(pce.LabelMapH)
 		}
 
 		// If this is an unmanaged workload, do nothing more

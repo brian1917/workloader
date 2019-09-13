@@ -64,7 +64,7 @@ Including the consolidate flag (--consolidate, -c) will combine all entries betw
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE()
+		pce, err = utils.GetPCE(true)
 		if err != nil {
 			utils.Log(1, err.Error())
 		}
@@ -162,15 +162,6 @@ func flowSummary() {
 		traffic = append(traffic, traffic2...)
 	}
 
-	// Get the label map
-	labelMap, a, err := pce.GetLabelMapH()
-	if debug {
-		utils.LogAPIResp("GetLabelMapH", a)
-	}
-	if err != nil {
-		utils.Log(1, err.Error())
-	}
-
 	// Get the protocol list
 	protoMap := illumioapi.ProtocolList()
 
@@ -188,9 +179,9 @@ func flowSummary() {
 			}
 			srcAppGroup = t.Src.IP
 		} else {
-			srcAppGroup = t.Src.Workload.GetAppGroup(labelMap)
+			srcAppGroup = t.Src.Workload.GetAppGroup(pce.LabelMapH)
 			if appGroupLoc {
-				srcAppGroup = t.Src.Workload.GetAppGroupL(labelMap)
+				srcAppGroup = t.Src.Workload.GetAppGroupL(pce.LabelMapH)
 			}
 		}
 
@@ -201,9 +192,9 @@ func flowSummary() {
 			}
 			dstAppGroup = t.Dst.IP
 		} else {
-			dstAppGroup = t.Dst.Workload.GetAppGroup(labelMap)
+			dstAppGroup = t.Dst.Workload.GetAppGroup(pce.LabelMapH)
 			if appGroupLoc {
-				dstAppGroup = t.Dst.Workload.GetAppGroupL(labelMap)
+				dstAppGroup = t.Dst.Workload.GetAppGroupL(pce.LabelMapH)
 			}
 		}
 

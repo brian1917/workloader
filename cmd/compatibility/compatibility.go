@@ -22,7 +22,7 @@ var CompatibilityCmd = &cobra.Command{
 Generate a compatibility report for all Idle workloads. The update-pce and auto flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE()
+		pce, err = utils.GetPCE(false)
 		if err != nil {
 			utils.Log(1, err.Error())
 		}

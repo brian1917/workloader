@@ -53,7 +53,7 @@ An example is below:
 Use --hrefCol and --stateCol to specify the columns if not default (href=1, state=2). Additional columns will be ignored.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
-		pce, err = utils.GetPCE()
+		pce, err = utils.GetPCE(true)
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("getting PCE for mode command - %s", err))
 		}
@@ -149,15 +149,6 @@ func modeUpdate() {
 		utils.Log(1, fmt.Sprintf("error getting workload map - %s", err))
 	}
 
-	// Get labelMap
-	labelMap, a, err := pce.GetLabelMapH()
-	if debug {
-		utils.LogAPIResp("GetLabelMapH", a)
-	}
-	if err != nil {
-		utils.Log(1, err.Error())
-	}
-
 	// Get targets
 	targets := parseCsv(csvFile)
 
@@ -175,7 +166,7 @@ func modeUpdate() {
 		if w.GetMode() != t.targetMode {
 			// Log the change is needed
 			utils.Log(0, fmt.Sprintf("required Change - %s - current state: %s - desired state: %s\r\n", w.Hostname, w.GetMode(), t.targetMode))
-			data = append(data, []string{w.Hostname, w.Href, w.GetRole(labelMap).Value, w.GetApp(labelMap).Value, w.GetEnv(labelMap).Value, w.GetLoc(labelMap).Value, w.GetMode(), t.targetMode})
+			data = append(data, []string{w.Hostname, w.Href, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, w.GetMode(), t.targetMode})
 			// Copy workload with the right target mode and append to slice
 			if err := w.SetMode(t.targetMode); err != nil {
 				utils.Log(1, fmt.Sprintf("error setting mode - %s", err))

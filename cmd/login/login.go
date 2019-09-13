@@ -207,7 +207,7 @@ func PCELogin() {
 func verifyLogin() (bool, illumioapi.PCE, illumioapi.Version) {
 
 	// Get the PCE
-	pce, err := utils.GetPCE()
+	pce, err := utils.GetPCE(false)
 	if err != nil {
 		return false, pce, illumioapi.Version{}
 	}

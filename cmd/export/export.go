@@ -28,7 +28,7 @@ Create a CSV export of all workloads in the PCE. The update-pce and auto flags a
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
-		pce, err = utils.GetPCE()
+		pce, err = utils.GetPCE(true)
 		if err != nil {
 			utils.Log(1, err.Error())
 		}
@@ -63,15 +63,6 @@ func exportWorkloads() {
 	}
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("getting all workloads - %s", err))
-	}
-
-	// Get LabelMap
-	labelMap, a, err := pce.GetLabelMapH()
-	if debug {
-		utils.LogAPIResp("GetLabelMapH", a)
-	}
-	if err != nil {
-		utils.Log(1, fmt.Sprintf("getting label map - %s", err))
 	}
 
 	for _, w := range wklds {
@@ -110,8 +101,8 @@ func exportWorkloads() {
 		}
 
 		// Append to data slice
-		csvData = append(csvData, []string{w.Hostname, w.GetRole(labelMap).Value, w.GetApp(labelMap).Value, w.GetEnv(labelMap).Value, w.GetLoc(labelMap).Value, strings.Join(interfaces, ";"), w.Href, w.Name, w.PublicIP, w.GetMode(), online, w.OsID, venVersion})
-		stdOutData = append(stdOutData, []string{w.Hostname, w.GetRole(labelMap).Value, w.GetApp(labelMap).Value, w.GetEnv(labelMap).Value, w.GetLoc(labelMap).Value, strings.Join(interfaces, ";"), w.GetMode(), w.OsID, venVersion})
+		csvData = append(csvData, []string{w.Hostname, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, strings.Join(interfaces, ";"), w.Href, w.Name, w.PublicIP, w.GetMode(), online, w.OsID, venVersion})
+		stdOutData = append(stdOutData, []string{w.Hostname, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, strings.Join(interfaces, ";"), w.GetMode(), w.OsID, venVersion})
 	}
 
 	if len(csvData) > 1 {

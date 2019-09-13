@@ -23,7 +23,6 @@ var removeValue, csvFile string
 var umwl, debug, updatePCE, noPrompt bool
 var pce illumioapi.PCE
 var err error
-var labelMapKV, labelMapHref map[string]illumioapi.Label
 var newLabels []illumioapi.Label
 
 func init() {
@@ -63,7 +62,7 @@ Recommended to run without --update-pce first to log of what will change. If --u
 
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE()
+		pce, err = utils.GetPCE(true)
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for csv command - %s", err)
 		}
@@ -87,8 +86,8 @@ Recommended to run without --update-pce first to log of what will change. If --u
 func checkLabel(label illumioapi.Label) illumioapi.Label {
 
 	// Check if it exists or not
-	if _, ok := labelMapKV[label.Key+label.Value]; ok {
-		return labelMapKV[label.Key+label.Value]
+	if _, ok := pce.LabelMapKV[label.Key+label.Value]; ok {
+		return pce.LabelMapKV[label.Key+label.Value]
 	}
 
 	// Create the label if it doesn't exist
@@ -104,8 +103,8 @@ func checkLabel(label illumioapi.Label) illumioapi.Label {
 		utils.Log(0, fmt.Sprintf("created Label - %s", string(logJSON)))
 
 		// Append the label back to the map
-		labelMapKV[l.Key+l.Value] = l
-		labelMapHref[l.Href] = l
+		pce.LabelMapKV[l.Key+l.Value] = l
+		pce.LabelMapH[l.Href] = l
 
 		return l
 	}
@@ -113,8 +112,8 @@ func checkLabel(label illumioapi.Label) illumioapi.Label {
 	// If updatePCE is not set, we are create a placeholder href for provided label, and add it back to the maps
 	utils.Log(0, fmt.Sprintf("Potential New Label - Key: %s, Value: %s", label.Key, label.Value))
 	label.Href = fmt.Sprintf("place-holder-href-%s-%s", label.Key, label.Value)
-	labelMapKV[label.Key+label.Value] = label
-	labelMapHref[label.Href] = label
+	pce.LabelMapKV[label.Key+label.Value] = label
+	pce.LabelMapH[label.Href] = label
 	newLabels = append(newLabels, illumioapi.Label{Key: label.Key, Value: label.Value})
 
 	return label
@@ -156,22 +155,6 @@ func processCSV() {
 	}
 	for _, w := range wkldMap {
 		wkldMap[w.Href] = w
-	}
-
-	// Get label map
-	labelMapKV, a, err = pce.GetLabelMapKV()
-	if debug {
-		utils.LogAPIResp("GetLabelMapKV", a)
-	}
-	if err != nil {
-		utils.Log(1, fmt.Sprintf("getting label key value map - %s", err))
-	}
-	labelMapHref, a, err = pce.GetLabelMapH()
-	if debug {
-		utils.LogAPIResp("GetLabelMapH", a)
-	}
-	if err != nil {
-		utils.Log(1, fmt.Sprintf("getting label href map - %s", err))
 	}
 
 	// Create slices to hold the workloads we will update and create
@@ -257,7 +240,7 @@ func processCSV() {
 						x = append(x, i.Name+":"+i.Address)
 					}
 				}
-				utils.Log(0, fmt.Sprintf("CSV line %d - %s to be created - %s (role), %s (app), %s (env), %s(loc) - interfaces: %s", i, w.Hostname, w.GetRole(labelMapHref).Value, w.GetApp(labelMapHref).Value, w.GetEnv(labelMapHref).Value, w.GetLoc(labelMapHref).Value, strings.Join(x, ";")))
+				utils.Log(0, fmt.Sprintf("CSV line %d - %s to be created - %s (role), %s (app), %s (env), %s(loc) - interfaces: %s", i, w.Hostname, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, strings.Join(x, ";")))
 				continue
 			} else {
 				// If umwl flag is not set, log the entry
@@ -276,7 +259,7 @@ func processCSV() {
 		// Set slices to iterate through the 4 keys
 		columns := []int{appCol, roleCol, envCol, locCol}
 		wkld := wkldMap[line[matchCol]] // Need this since can't perform pointer method on map element
-		labels := []illumioapi.Label{wkld.GetApp(labelMapHref), wkld.GetRole(labelMapHref), wkld.GetEnv(labelMapHref), wkld.GetLoc(labelMapHref)}
+		labels := []illumioapi.Label{wkld.GetApp(pce.LabelMapH), wkld.GetRole(pce.LabelMapH), wkld.GetEnv(pce.LabelMapH), wkld.GetLoc(pce.LabelMapH)}
 		keys := []string{"app", "role", "env", "loc"}
 
 		// Cycle through each of the four keys

@@ -60,7 +60,7 @@ An input CSV specifics the regex functions to use to assign labels. An example i
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE()
+		pce, err = utils.GetPCE(false)
 		if err != nil {
 			utils.Log(1, err.Error())
 		}

@@ -41,7 +41,7 @@ Find and label unmanaged workloads and label existing workloads based on Explore
 The --update-pce and --no-prompt flags are ignored for this command. Use workloader import to upload to PCE after review.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE()
+		pce, err = utils.GetPCE(true)
 		if err != nil {
 			utils.Log(1, err.Error())
 		}
@@ -160,15 +160,6 @@ func workloadIdentifier() {
 		}
 	}
 
-	// Get all labels and create label map
-	labelMap, a, err := pce.GetLabelMapH()
-	if debug {
-		utils.LogAPIResp("GetLabelMapH", a)
-	}
-	if err != nil {
-		utils.Log(1, err.Error())
-	}
-
 	// Get the label if we are going to do a consumer exclude
 	var exclLabel illumioapi.Label
 	if len(consExcl) > 0 {
@@ -268,7 +259,7 @@ func workloadIdentifier() {
 						}
 					}
 					// Populate existing label information
-					r.existingLabels(allIPWLs, labelMap)
+					r.existingLabels(allIPWLs, pce.LabelMapH)
 
 					// Append results to a new array if RFC 1918 and that's all we want OR we don't care about RFC 1918.
 					if rfc1918(r.ipAddress) && privOnly || !privOnly {

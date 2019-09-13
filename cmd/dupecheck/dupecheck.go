@@ -26,7 +26,7 @@ Identifies duplicate hostnames and IP addresses in the PCE.
 The --update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE()
+		pce, err = utils.GetPCE(false)
 		if err != nil {
 			utils.Log(1, err.Error())
 		}

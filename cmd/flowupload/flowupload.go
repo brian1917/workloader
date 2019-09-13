@@ -37,7 +37,7 @@ Example input:
 
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE()
+		pce, err = utils.GetPCE(false)
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for flowupload command - %s", err)
 		}
