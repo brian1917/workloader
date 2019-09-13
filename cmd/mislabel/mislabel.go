@@ -22,7 +22,7 @@ var err error
 
 func init() {
 	MisLabelCmd.Flags().StringVarP(&appFlag, "app", "a", "", "App label to limit Explorer query.")
-	MisLabelCmd.Flags().BoolVarP(&inclUnmanagedAppGroups, "inclUn", "u", false, "Include app groups that are all unmanaged workloads")
+	MisLabelCmd.Flags().BoolVarP(&inclUnmanagedAppGroups, "inclUn", "u", false, "Include app groups that are all unmanaged workloads.")
 	MisLabelCmd.Flags().StringVarP(&exclWkldFile, "wExclude", "w", "", "File location of hostnames to exclude as orphans.")
 	MisLabelCmd.Flags().StringVarP(&exclAppFile, "aExclude", "x", "", "File location of app labels to exclude as orphans.")
 	MisLabelCmd.Flags().StringVarP(&exclPortFile, "pExclude", "p", "", "File location of ports to exclude in traffic query.")
