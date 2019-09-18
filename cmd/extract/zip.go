@@ -39,7 +39,7 @@ func zipit(source, target string) error {
 		}
 
 		if baseDir != "" {
-			header.Name = filepath.Join(baseDir, strings.TrimPrefix(path, source))
+			header.Name = strings.Replace(filepath.Join(baseDir, strings.TrimPrefix(path, source)), "\\", "/", -1)
 		}
 
 		if info.IsDir() {
