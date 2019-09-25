@@ -16,7 +16,11 @@ import (
 var pce illumioapi.PCE
 var err error
 var csvFile string
-var debug bool
+var debug, noHeader bool
+
+func init() {
+	FlowUpload.Flags().BoolVarP(&noHeader, "no-header", "n", false, "Indicates there is no header line in input CSV file.")
+}
 
 // FlowUpload runs the upload command
 var FlowUpload = &cobra.Command{
@@ -25,15 +29,19 @@ var FlowUpload = &cobra.Command{
 	Long: `
 Upload flows from CSV file to the PCE
 	
-The CSV requires 4 columns WITHOUT a header row: src, dst, port, protocol. The protocol should be in numeric format (TCP=6 and UDP=17).
+The CSV requires 4 columns: src_ip, dst_ip, port, protocol. The protocol should be in numeric format (TCP=6 and UDP=17).
+
+The default assumes there is a header line and will skip the first entry. If there no header, set the --no-header (-n) flag.
+
+There is no limit for maximum flows in the CSV. API calls to PCE will be sent in 1,000 entry chunks.
 
 Example input:
-
-+----------------+----------------+------+----+
-| 192.168.200.21 | 192.168.200.22 | 8080 | 6  |
-+----------------+----------------+------+----+
-| 192.168.200.22 | 192.168.200.23 | 8080 | 17 |
-+----------------+----------------+------+----+`,
++----------------+-----------------+-------+-----------+
+|     src_ip     |      dst_ip     |  port |  protocol |
++----------------+-----------------+-------+-----------+
+| 192.168.200.21 |  192.168.200.22 |  8080 |         6 |
+| 192.168.200.22 |  192.168.200.23 |  8080 |        17 |
++----------------+-----------------+-------+-----------+`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 
@@ -59,27 +67,40 @@ Example input:
 func uploadFlows() {
 	// Log start
 	utils.Log(0, "started flowupload command")
+
 	// Upload flows
-	f, a, err := pce.UploadTraffic(csvFile)
-	if debug {
+	f, err := pce.UploadTraffic(csvFile, !noHeader)
+	for _, a := range f.APIResps {
 		utils.LogAPIResp("UploadTraffic", a)
 	}
+
 	// Log error
 	if err != nil {
 		utils.Log(1, err.Error())
 	}
 
 	// Log response
-	utils.Log(0, fmt.Sprintf("%d flows received", f.NumFlowsReceived))
-	utils.Log(0, fmt.Sprintf("%d flows failed", f.NumFlowsFailed))
-	fmt.Printf("%d flows received\r\n", f.NumFlowsReceived)
-	fmt.Printf("%d flows failed\r\n", f.NumFlowsFailed)
-	if f.NumFlowsFailed > 0 {
-		var failedFlow []string
-		for _, ff := range f.FailedFlows {
-			failedFlow = append(failedFlow, *ff)
+	utils.Log(0, fmt.Sprintf("%d flows in CSV file.", f.TotalFlowsInCSV))
+	i := 1
+	for _, flowResp := range f.FlowResps {
+		fmt.Printf("API Call %d of %d...\r\n", i, len(f.APIResps))
+		utils.Log(0, fmt.Sprintf("%d flows received", flowResp.NumFlowsReceived))
+		utils.Log(0, fmt.Sprintf("%d flows failed", flowResp.NumFlowsFailed))
+		fmt.Printf("%d flows received\r\n", flowResp.NumFlowsReceived)
+		fmt.Printf("%d flows failed\r\n", flowResp.NumFlowsFailed)
+		if i < len(f.APIResps) {
+			fmt.Println("-------------------------")
 		}
-		utils.Log(0, fmt.Sprintf("failed flows: %s", strings.Join(failedFlow, ",")))
-		fmt.Printf("Failed flows: %s\r\n", strings.Join(failedFlow, ","))
+
+		if flowResp.NumFlowsFailed > 0 {
+			var failedFlow []string
+			for _, ff := range flowResp.FailedFlows {
+				failedFlow = append(failedFlow, *ff)
+			}
+			utils.Log(0, fmt.Sprintf("failed flows: %s", strings.Join(failedFlow, ",")))
+			fmt.Printf("Failed flows: %s\r\n", strings.Join(failedFlow, ","))
+		}
+		i++
 	}
+
 }
