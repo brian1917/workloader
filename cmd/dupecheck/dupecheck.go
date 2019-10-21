@@ -126,7 +126,7 @@ func DupeHostnameCheck(p illumioapi.PCE, wklds []illumioapi.Workload) (bool, map
 		}
 	}
 
-	// Created duplicated map
+	// Create duplicated map
 	dupeHostName := make(map[string]int)
 	for h, count := range hostnameMap {
 		if count > 1 {
