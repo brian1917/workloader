@@ -119,10 +119,10 @@ func DupeHostnameCheck(p illumioapi.PCE, wklds []illumioapi.Workload) (bool, map
 
 	// Iterate through workloads
 	for _, w := range wklds {
-		if v, ok := hostnameMap[w.Hostname]; !ok {
-			hostnameMap[w.Hostname] = 1
+		if v, ok := hostnameMap[strings.ToLower(w.Hostname)]; !ok {
+			hostnameMap[strings.ToLower(w.Hostname)] = 1
 		} else {
-			hostnameMap[w.Hostname] = v + 1
+			hostnameMap[strings.ToLower(w.Hostname)] = v + 1
 		}
 	}
 
