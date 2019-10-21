@@ -27,7 +27,7 @@ func init() {
 	LoginCmd.Flags().BoolVarP(&session, "session", "s", false, "Authentication will be temporary session token. No API Key will be generated.")
 }
 
-// LoginCmd generates the pce.json file
+// LoginCmd generates the pce.yaml file
 var LoginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Verifies existing login or generates a pce.yaml file for authentication used for all other commands.",
