@@ -134,6 +134,7 @@ func PCELogin() {
 		fmt.Print("Email: ")
 		fmt.Scanln(&user)
 	}
+	user = strings.ToLower(user)
 
 	// Password
 	if pwd == "" {
