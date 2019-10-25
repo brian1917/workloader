@@ -130,7 +130,7 @@ func misLabel() {
 		StartTime:        time.Date(2013, 1, 1, 0, 0, 0, 0, time.UTC),
 		EndTime:          time.Now(),
 		PolicyStatuses:   []string{"allowed", "potentially_blocked", "blocked"},
-		PortRangeExclude: exclPorts,
+		PortProtoExclude: exclPorts,
 		MaxFLows:         100000}
 
 	// If app flag is set, adjust tq struct
