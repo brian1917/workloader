@@ -42,8 +42,9 @@ Workloader is a tool that helps discover, label, and manage workloads in an Illu
 
   Reporting Commands:
         mislabel      Display workloads that have no intra App-Group communications to identify potentially mislabled workloads.
-        flowsummary   Summarize flows from explorer. Two subcommands: appgroup and env
         dupecheck     Identifies duplicate hostnames and IP addresses in the PCE.
+        flowsummary   Summarize flows from explorer. Two subcommands: appgroup and env
+        nettraffic    Export explorer traffic data and include workload subnet and default gateway.
   
 Use "workloader [command] --help" for more information about a command.
 ```
