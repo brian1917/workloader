@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/brian1917/illumioapi"
 	"github.com/brian1917/workloader/utils"
@@ -253,7 +254,13 @@ func ruleSets() {
 }
 
 func traffic() {
-	t, err := pce.IterateTrafficJString(true)
+	tq := illumioapi.TrafficQuery{
+		StartTime:      time.Date(2013, 1, 1, 0, 0, 0, 0, time.UTC),
+		EndTime:        time.Date(2020, 12, 30, 0, 0, 0, 0, time.UTC),
+		PolicyStatuses: []string{"allowed", "potentially_blocked", "blocked"},
+		MaxFLows:       100000}
+
+	t, err := pce.IterateTrafficJString(tq, true)
 	if err != nil {
 		utils.Log(1, err.Error())
 	}
