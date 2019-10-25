@@ -18,6 +18,7 @@ import (
 	"github.com/brian1917/workloader/cmd/login"
 	"github.com/brian1917/workloader/cmd/mislabel"
 	"github.com/brian1917/workloader/cmd/mode"
+	"github.com/brian1917/workloader/cmd/nettraffic"
 	"github.com/brian1917/workloader/cmd/subnet"
 	"github.com/brian1917/workloader/cmd/traffic"
 	"github.com/brian1917/workloader/cmd/upgrade"
@@ -65,21 +66,32 @@ func init() {
 	// Set the short description for logout based on OS. We need to do it here before we add it to the RootCmd.
 	login.LogoutCmd.Short = utils.LogOutDesc()
 
-	// Add all commands
+	// Login
 	RootCmd.AddCommand(login.LoginCmd)
 	RootCmd.AddCommand(login.LogoutCmd)
+
+	// Import/Export
 	RootCmd.AddCommand(export.ExportCmd)
 	RootCmd.AddCommand(importer.ImportCmd)
+	RootCmd.AddCommand(flowupload.FlowUpload)
+
+	// Automated Labeling
 	RootCmd.AddCommand(traffic.TrafficCmd)
 	RootCmd.AddCommand(subnet.SubnetCmd)
 	RootCmd.AddCommand(hostparse.HostnameCmd)
-	RootCmd.AddCommand(mislabel.MisLabelCmd)
+
+	// Workload management
 	RootCmd.AddCommand(compatibility.CompatibilityCmd)
 	RootCmd.AddCommand(mode.ModeCmd)
 	RootCmd.AddCommand(upgrade.UpgradeCmd)
-	RootCmd.AddCommand(flowupload.FlowUpload)
-	RootCmd.AddCommand(flowsummary.FlowSummaryCmd)
+
+	// Reporting
+	RootCmd.AddCommand(mislabel.MisLabelCmd)
 	RootCmd.AddCommand(dupecheck.DupeCheckCmd)
+	RootCmd.AddCommand(flowsummary.FlowSummaryCmd)
+	RootCmd.AddCommand(nettraffic.NetTrafficCmd)
+
+	// Undocumented
 	RootCmd.AddCommand(extract.ExtractCmd)
 
 	// Set the usage templates

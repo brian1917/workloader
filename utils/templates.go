@@ -17,7 +17,7 @@ func RootTemplate() string {
   Workload Management Commands:{{range .Commands}}{{if (or (eq .Name "compatibility") (eq .Name "mode") (eq .Name "upgrade"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
-  Reporting Commands:{{range .Commands}}{{if (or (eq .Name "mislabel") (eq .Name "flowsummary") (eq .Name "dupecheck"))}}
+  Reporting Commands:{{range .Commands}}{{if (or (eq .Name "mislabel") (eq .Name "dupecheck") (eq .Name "flowsummary") (eq .Name "nettraffic"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
   
 Use "{{.CommandPath}} [command] --help" for more information about a command.{{end}}
