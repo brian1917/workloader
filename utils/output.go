@@ -27,7 +27,7 @@ func WriteOutput(csvData, stdOutData [][]string, csvFileName string) {
 			table.SetRowLine(true)
 			table.Render()
 		} else {
-			fmt.Printf("Data set exceeds stdout limit. To see table in stdout, increase value in pce.yaml")
+			fmt.Printf("[INFO] - Data set exceeds stdout limit. To see table in stdout, increase value in pce.yaml")
 		}
 	}
 
@@ -47,7 +47,7 @@ func WriteOutput(csvData, stdOutData [][]string, csvFileName string) {
 			Log(1, fmt.Sprintf("writing CSV - %s\n", err))
 		}
 		// Log
-		fmt.Printf("\r\nOutput file: %s\r\n", outFile.Name())
+		fmt.Printf("\r\n[INFO] - Output file: %s\r\n", outFile.Name())
 		Log(0, fmt.Sprintf("created %s", outFile.Name()))
 	}
 }
