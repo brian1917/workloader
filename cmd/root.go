@@ -9,6 +9,7 @@ import (
 
 	"github.com/brian1917/workloader/cmd/compatibility"
 	"github.com/brian1917/workloader/cmd/dupecheck"
+	"github.com/brian1917/workloader/cmd/explorer"
 	"github.com/brian1917/workloader/cmd/export"
 	"github.com/brian1917/workloader/cmd/extract"
 	"github.com/brian1917/workloader/cmd/flowsummary"
@@ -18,7 +19,6 @@ import (
 	"github.com/brian1917/workloader/cmd/login"
 	"github.com/brian1917/workloader/cmd/mislabel"
 	"github.com/brian1917/workloader/cmd/mode"
-	"github.com/brian1917/workloader/cmd/nettraffic"
 	"github.com/brian1917/workloader/cmd/subnet"
 	"github.com/brian1917/workloader/cmd/traffic"
 	"github.com/brian1917/workloader/cmd/upgrade"
@@ -89,7 +89,7 @@ func init() {
 	RootCmd.AddCommand(mislabel.MisLabelCmd)
 	RootCmd.AddCommand(dupecheck.DupeCheckCmd)
 	RootCmd.AddCommand(flowsummary.FlowSummaryCmd)
-	RootCmd.AddCommand(nettraffic.NetTrafficCmd)
+	RootCmd.AddCommand(explorer.ExplorerCmd)
 
 	// Undocumented
 	RootCmd.AddCommand(extract.ExtractCmd)
