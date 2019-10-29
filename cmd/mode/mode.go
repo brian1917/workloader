@@ -162,16 +162,19 @@ func modeUpdate() {
 	for _, t := range targets {
 
 		// Check if the mode matches the target mode
-		w := wkldMap[t.workloadHref]
-		if w.GetMode() != t.targetMode {
-			// Log the change is needed
-			utils.Log(0, fmt.Sprintf("required Change - %s - current state: %s - desired state: %s\r\n", w.Hostname, w.GetMode(), t.targetMode))
-			data = append(data, []string{w.Hostname, w.Href, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, w.GetMode(), t.targetMode})
-			// Copy workload with the right target mode and append to slice
-			if err := w.SetMode(t.targetMode); err != nil {
-				utils.Log(1, fmt.Sprintf("error setting mode - %s", err))
+		if w, ok := wkldMap[t.workloadHref]; ok {
+			if w.GetMode() != t.targetMode {
+				// Log the change is needed
+				utils.Log(0, fmt.Sprintf("required Change - %s - current state: %s - desired state: %s\r\n", w.Hostname, w.GetMode(), t.targetMode))
+				data = append(data, []string{w.Hostname, w.Href, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, w.GetMode(), t.targetMode})
+				// Copy workload with the right target mode and append to slice
+				if err := w.SetMode(t.targetMode); err != nil {
+					utils.Log(1, fmt.Sprintf("error setting mode - %s", err))
+				}
+				workloadUpdates = append(workloadUpdates, w)
 			}
-			workloadUpdates = append(workloadUpdates, w)
+		} else {
+			utils.NewLog(0, true, fmt.Sprintf("%s is not a managed workload in the PCE", t.workloadHref))
 		}
 	}
 
