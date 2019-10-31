@@ -47,8 +47,8 @@ func exportWorkloads() {
 	utils.Log(0, "running export command")
 
 	// Start the data slice with headers
-	csvData := [][]string{[]string{"hostname", "role", "app", "env", "loc", "interfaces", "href", "name", "public_ip", "mode", "online", "os_id", "ven_version"}}
-	stdOutData := [][]string{[]string{"hostname", "role", "app", "env", "loc", "interfaces", "mode", "os_id", "ven_version"}}
+	csvData := [][]string{[]string{"hostname", "role", "app", "env", "loc", "interfaces", "ip_with_default_gw", "netmask_of_ip_with_def_gw", "default_gw", "default_gw_network", "href", "name", "mode", "online", "os_id", "ven_version"}}
+	stdOutData := [][]string{[]string{"hostname", "role", "app", "env", "loc", "mode"}}
 
 	// GetAllWorkloads
 	wklds, a, err := pce.GetAllWorkloads()
@@ -101,14 +101,14 @@ func exportWorkloads() {
 		}
 
 		// Append to data slice
-		csvData = append(csvData, []string{w.Hostname, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, strings.Join(interfaces, ";"), w.Href, w.Name, w.PublicIP, w.GetMode(), online, w.OsID, venVersion})
-		stdOutData = append(stdOutData, []string{w.Hostname, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, strings.Join(interfaces, ";"), w.GetMode(), w.OsID, venVersion})
+		csvData = append(csvData, []string{w.Hostname, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, strings.Join(interfaces, ";"), w.GetIPWithDefaultGW(), w.GetNetMaskWithDefaultGW(), w.GetDefaultGW(), w.GetNetworkWithDefaultGateway(), w.Href, w.Name, w.GetMode(), online, w.OsID, venVersion})
+		stdOutData = append(stdOutData, []string{w.Hostname, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, w.GetMode()})
 	}
 
 	if len(csvData) > 1 {
 		utils.WriteOutput(csvData, stdOutData, fmt.Sprintf("workloader-export-%s.csv", time.Now().Format("20060102_150405")))
 		fmt.Printf("\r\n%d workloads exported.\r\n", len(csvData)-1)
-		fmt.Println("Note - the CSV export will include 4 additional columns: href, name, PublicIP, and Online")
+		fmt.Println("Note - the CSV export will include additional columns: interfaces, default_gw, href, name, online, os, and ven version.")
 		utils.Log(0, fmt.Sprintf("export complete - %d workloads exported", len(csvData)-1))
 	} else {
 		// Log command execution for 0 results
