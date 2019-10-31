@@ -90,6 +90,7 @@ func init() {
 	RootCmd.AddCommand(dupecheck.DupeCheckCmd)
 	RootCmd.AddCommand(flowsummary.FlowSummaryCmd)
 	RootCmd.AddCommand(explorer.ExplorerCmd)
+	RootCmd.AddCommand(versionCmd)
 
 	// Undocumented
 	RootCmd.AddCommand(extract.ExtractCmd)
@@ -126,4 +127,13 @@ func Execute() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+}
+
+//versionCmd returns the version of workloader
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Print workloader version.",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Version 1.0.0")
+	},
 }

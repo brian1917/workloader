@@ -9,7 +9,7 @@ import (
 // FlowSummaryCmd calls the CLI
 var FlowSummaryCmd = &cobra.Command{
 	Use:   "flowsummary",
-	Short: "Summarize flows from explorer. Two subcommands: appgroup and env",
+	Short: "Summarize flows from explorer. Two subcommands: appgroup (available now) and env (coming soon).",
 	Long: `
 Summarize flows between app groups or into envrionments.`,
 	Run: func(cmd *cobra.Command, args []string) {

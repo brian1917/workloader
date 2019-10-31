@@ -9,3 +9,4 @@ _playground/*
 .vscode/*
 *.yaml
 *.zip
+*support-portal*

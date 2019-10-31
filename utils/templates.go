@@ -19,6 +19,9 @@ func RootTemplate() string {
 
   Reporting Commands:{{range .Commands}}{{if (or (eq .Name "mislabel") (eq .Name "dupecheck") (eq .Name "flowsummary") (eq .Name "explorer"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
+
+  Version Command:{{range .Commands}}{{if (or (eq .Name "version"))}}
+	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
   
 Use "{{.CommandPath}} [command] --help" for more information about a command.{{end}}
 
