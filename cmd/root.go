@@ -129,11 +129,18 @@ func Execute() {
 	}
 }
 
+// Version is set by build variable
+var Version string
+
+// Commit is the latest commit
+var Commit string
+
 //versionCmd returns the version of workloader
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print workloader version.",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Version 1.0.0")
+		fmt.Printf("Version %s\r\n", Version)
+		fmt.Printf("Previous commit: %s \r\n", Commit)
 	},
 }
