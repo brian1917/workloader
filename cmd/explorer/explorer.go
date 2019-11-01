@@ -13,6 +13,7 @@ import (
 
 var app, exclServiceObj, exclServiceCSV, start, end string
 var exclAllowed, exclPotentiallyBlocked, exclBlocked, appGroupLoc, ignoreIPGroup, consolidate, debug bool
+var threshold int
 var pce illumioapi.PCE
 var err error
 
@@ -26,8 +27,9 @@ func init() {
 	ExplorerCmd.Flags().BoolVar(&exclAllowed, "excl-allowed", false, "excludes allowed traffic flows.")
 	ExplorerCmd.Flags().BoolVar(&exclPotentiallyBlocked, "excl-potentially-blocked", false, "excludes potentially blocked traffic flows.")
 	ExplorerCmd.Flags().BoolVar(&exclBlocked, "excl-blocked", false, "excludes blocked traffic flows.")
+	ExplorerCmd.Flags().IntVar(&threshold, "threshold", 90000, "threshold to start iterating.")
+	ExplorerCmd.Flag("threshold").Hidden = true
 	ExplorerCmd.Flags().SortFlags = false
-
 }
 
 // ExplorerCmd summarizes flows
@@ -53,6 +55,9 @@ To filter unwanted traffic, create a CSV with NO HEADERS. Column 1 should have p
 }
 
 func explorerExport() {
+
+	// Set threshold
+	illumioapi.Threshold = threshold
 
 	// Log start
 	utils.Log(0, "started explorer command")
