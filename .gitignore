@@ -10,3 +10,5 @@ _playground/*
 *.yaml
 *.zip
 *support-portal*
+deploy.sh
+version
