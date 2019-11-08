@@ -35,9 +35,9 @@ func init() {
 // ExplorerCmd summarizes flows
 var ExplorerCmd = &cobra.Command{
 	Use:   "explorer",
-	Short: "Export explorer traffic data and include workload subnet and default gateway.",
+	Short: "Export explorer traffic data enhanced with some additional information (e.g., subnet, default gateway, interface name, etc.).",
 	Long: `
-Export explorer traffic data and include workload subnet and default gateway.
+Export explorer traffic data enhanced with some additional information (e.g., subnet, default gateway, interface name, etc.).
 
 To filter unwanted traffic, create a CSV with NO HEADERS. Column 1 should have port number and column 2 should have the IANA protocol number and pass the csv file into the --exclude-service-csv (-x) flag.`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -138,7 +138,7 @@ func explorerExport() {
 	}
 
 	// Build our CSV structure
-	data := [][]string{[]string{"src_ip", "src_net_mask", "src_default_gw", "src_hostname", "src_role", "src_app", "src_env", "src_loc", "dst_ip", "dst_net_mask", "dst_default_gw", "dst_hostname", "dst_role", "dst_app", "dst_env", "dst_loc", "port", "protocol", "policy_status", "date_first", "date_last", "num_flows"}}
+	data := [][]string{[]string{"src_ip", "src_interface_name", "src_net_mask", "src_default_gw", "src_hostname", "src_role", "src_app", "src_env", "src_loc", "dst_ip", "dst_interface_name", "dst_net_mask", "dst_default_gw", "dst_hostname", "dst_role", "dst_app", "dst_env", "dst_loc", "port", "protocol", "policy_status", "date_first", "date_last", "num_flows"}}
 
 	// Get LabelMap for getting workload labels
 	_, err = pce.GetLabelMaps()
@@ -155,15 +155,15 @@ func explorerExport() {
 	// Add each traffic entry to the data slic
 	for _, t := range traffic {
 		// Source
-		src := []string{t.Src.IP, "NA", "NA", "NA", "NA", "NA", "NA", "NA"}
+		src := []string{t.Src.IP, "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA"}
 		if t.Src.Workload != nil {
-			src = []string{t.Src.IP, wkldNetMask(t.Src.Workload.Hostname, t.Src.IP, whm), wkldGW(t.Src.Workload.Hostname, whm), t.Src.Workload.Hostname, t.Src.Workload.GetRole(pce.LabelMapH).Value, t.Src.Workload.GetApp(pce.LabelMapH).Value, t.Src.Workload.GetEnv(pce.LabelMapH).Value, t.Src.Workload.GetLoc(pce.LabelMapH).Value}
+			src = []string{t.Src.IP, wkldInterfaceName(t.Src.Workload.Hostname, t.Src.IP, whm), wkldNetMask(t.Src.Workload.Hostname, t.Src.IP, whm), wkldGW(t.Src.Workload.Hostname, whm), t.Src.Workload.Hostname, t.Src.Workload.GetRole(pce.LabelMapH).Value, t.Src.Workload.GetApp(pce.LabelMapH).Value, t.Src.Workload.GetEnv(pce.LabelMapH).Value, t.Src.Workload.GetLoc(pce.LabelMapH).Value}
 		}
 
 		// Destination
-		dst := []string{t.Dst.IP, "NA", "NA", "NA", "NA", "NA", "NA", "NA"}
+		dst := []string{t.Dst.IP, "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA"}
 		if t.Dst.Workload != nil {
-			dst = []string{t.Dst.IP, wkldNetMask(t.Dst.Workload.Hostname, t.Dst.IP, whm), wkldGW(t.Dst.Workload.Hostname, whm), t.Dst.Workload.Hostname, t.Dst.Workload.GetRole(pce.LabelMapH).Value, t.Dst.Workload.GetApp(pce.LabelMapH).Value, t.Dst.Workload.GetEnv(pce.LabelMapH).Value, t.Dst.Workload.GetLoc(pce.LabelMapH).Value}
+			dst = []string{t.Dst.IP, wkldInterfaceName(t.Dst.Workload.Hostname, t.Dst.IP, whm), wkldNetMask(t.Dst.Workload.Hostname, t.Dst.IP, whm), wkldGW(t.Dst.Workload.Hostname, whm), t.Dst.Workload.Hostname, t.Dst.Workload.GetRole(pce.LabelMapH).Value, t.Dst.Workload.GetApp(pce.LabelMapH).Value, t.Dst.Workload.GetEnv(pce.LabelMapH).Value, t.Dst.Workload.GetLoc(pce.LabelMapH).Value}
 		}
 
 		// Append source, destination, port, protocol, policy decision, time stamps, and number of connections to data
@@ -196,6 +196,13 @@ func wkldGW(hostname string, wkldHostMap map[string]illumioapi.Workload) string 
 func wkldNetMask(hostname, ip string, wkldHostMap map[string]illumioapi.Workload) string {
 	if wkld, ok := wkldHostMap[hostname]; ok {
 		return wkld.GetNetMask(ip)
+	}
+	return "NA"
+}
+
+func wkldInterfaceName(hostname, ip string, wkldHostMap map[string]illumioapi.Workload) string {
+	if wkld, ok := wkldHostMap[hostname]; ok {
+		return wkld.GetInterfaceName(ip)
 	}
 	return "NA"
 }
