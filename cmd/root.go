@@ -19,6 +19,7 @@ import (
 	"github.com/brian1917/workloader/cmd/login"
 	"github.com/brian1917/workloader/cmd/mislabel"
 	"github.com/brian1917/workloader/cmd/mode"
+	"github.com/brian1917/workloader/cmd/nic"
 	"github.com/brian1917/workloader/cmd/subnet"
 	"github.com/brian1917/workloader/cmd/traffic"
 	"github.com/brian1917/workloader/cmd/upgrade"
@@ -90,6 +91,7 @@ func init() {
 	RootCmd.AddCommand(dupecheck.DupeCheckCmd)
 	RootCmd.AddCommand(flowsummary.FlowSummaryCmd)
 	RootCmd.AddCommand(explorer.ExplorerCmd)
+	RootCmd.AddCommand(nic.NICCmd)
 	RootCmd.AddCommand(versionCmd)
 
 	// Undocumented
