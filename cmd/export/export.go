@@ -47,7 +47,7 @@ func exportWorkloads() {
 	utils.Log(0, "running export command")
 
 	// Start the data slice with headers
-	csvData := [][]string{[]string{"hostname", "role", "app", "env", "loc", "interfaces", "ip_with_default_gw", "netmask_of_ip_with_def_gw", "default_gw", "default_gw_network", "href", "name", "mode", "online", "os_id", "ven_version"}}
+	csvData := [][]string{[]string{"hostname", "role", "app", "env", "loc", "interfaces", "ip_with_default_gw", "netmask_of_ip_with_def_gw", "default_gw", "default_gw_network", "href", "name", "mode", "online", "policy_sync_status", "os_id", "ven_version"}}
 	stdOutData := [][]string{[]string{"hostname", "role", "app", "env", "loc", "mode"}}
 
 	// GetAllWorkloads
@@ -75,6 +75,7 @@ func exportWorkloads() {
 		// Set up variables
 		interfaces := []string{}
 		venVersion := ""
+		policySyncStatus := ""
 
 		// Get interfaces
 		for _, i := range w.Interfaces {
@@ -85,11 +86,13 @@ func exportWorkloads() {
 			interfaces = append(interfaces, ipAddress)
 		}
 
-		// Set VEN version
+		// Set VEN version and policy sync status
 		if w.Agent == nil || w.Agent.Href == "" {
+			policySyncStatus = "unmanaged"
 			venVersion = "unmanaged"
 		} else {
 			venVersion = w.Agent.Status.AgentVersion
+			policySyncStatus = w.Agent.Status.SecurityPolicySyncState
 		}
 
 		// Set online status
@@ -101,7 +104,7 @@ func exportWorkloads() {
 		}
 
 		// Append to data slice
-		csvData = append(csvData, []string{w.Hostname, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, strings.Join(interfaces, ";"), w.GetIPWithDefaultGW(), w.GetNetMaskWithDefaultGW(), w.GetDefaultGW(), w.GetNetworkWithDefaultGateway(), w.Href, w.Name, w.GetMode(), online, w.OsID, venVersion})
+		csvData = append(csvData, []string{w.Hostname, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, strings.Join(interfaces, ";"), w.GetIPWithDefaultGW(), w.GetNetMaskWithDefaultGW(), w.GetDefaultGW(), w.GetNetworkWithDefaultGateway(), w.Href, w.Name, w.GetMode(), online, policySyncStatus, w.OsID, venVersion})
 		stdOutData = append(stdOutData, []string{w.Hostname, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, w.GetMode()})
 	}
 
