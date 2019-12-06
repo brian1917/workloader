@@ -22,6 +22,7 @@ import (
 	"github.com/brian1917/workloader/cmd/nic"
 	"github.com/brian1917/workloader/cmd/subnet"
 	"github.com/brian1917/workloader/cmd/traffic"
+	"github.com/brian1917/workloader/cmd/unpair"
 	"github.com/brian1917/workloader/cmd/upgrade"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -85,6 +86,7 @@ func init() {
 	RootCmd.AddCommand(compatibility.CompatibilityCmd)
 	RootCmd.AddCommand(mode.ModeCmd)
 	RootCmd.AddCommand(upgrade.UpgradeCmd)
+	RootCmd.AddCommand(unpair.UnpairCmd)
 
 	// Reporting
 	RootCmd.AddCommand(mislabel.MisLabelCmd)
