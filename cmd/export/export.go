@@ -24,7 +24,7 @@ var ExportCmd = &cobra.Command{
 	Use:   "export",
 	Short: "Create a CSV export of all workloads in the PCE.",
 	Long: `
-Create a CSV export of all workloads in the PCE. The update-pce and auto flags are ignored for this command.`,
+Create a CSV export of all workloads in the PCE. The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
@@ -47,7 +47,7 @@ func exportWorkloads() {
 	utils.Log(0, "running export command")
 
 	// Start the data slice with headers
-	csvData := [][]string{[]string{"hostname", "role", "app", "env", "loc", "interfaces", "ip_with_default_gw", "netmask_of_ip_with_def_gw", "default_gw", "default_gw_network", "href", "name", "mode", "online", "policy_sync_status", "os_id", "ven_version"}}
+	csvData := [][]string{[]string{"hostname", "role", "app", "env", "loc", "interfaces", "ip_with_default_gw", "netmask_of_ip_with_def_gw", "default_gw", "default_gw_network", "href", "name", "mode", "online", "policy_sync_status", "last_heartbeat", "hours_since_last_heartbeat", "os_id", "ven_version"}}
 	stdOutData := [][]string{[]string{"hostname", "role", "app", "env", "loc", "mode"}}
 
 	// GetAllWorkloads
@@ -76,6 +76,8 @@ func exportWorkloads() {
 		interfaces := []string{}
 		venVersion := ""
 		policySyncStatus := ""
+		lastHeartBeat := ""
+		hoursSinceLastHB := ""
 
 		// Get interfaces
 		for _, i := range w.Interfaces {
@@ -86,13 +88,26 @@ func exportWorkloads() {
 			interfaces = append(interfaces, ipAddress)
 		}
 
-		// Set VEN version and policy sync status
+		// Set VEN version, policy sync status, lastHeartBeat
 		if w.Agent == nil || w.Agent.Href == "" {
 			policySyncStatus = "unmanaged"
 			venVersion = "unmanaged"
+			lastHeartBeat = "unmanaged"
+			hoursSinceLastHB = "unmanaged"
 		} else {
 			venVersion = w.Agent.Status.AgentVersion
 			policySyncStatus = w.Agent.Status.SecurityPolicySyncState
+			lastHeartBeat = w.Agent.Status.LastHeartbeatOn
+
+			// Get the hours since last heartbeat
+			t, err := time.Parse(time.RFC3339, lastHeartBeat)
+			if err != nil {
+				utils.Log(0, fmt.Sprintf("[WARNING] - Error parsing time - %s", err.Error()))
+				hoursSinceLastHB = "NA"
+			} else {
+				now := time.Now().UTC()
+				hoursSinceLastHB = fmt.Sprintf("%f", now.Sub(t).Hours())
+			}
 		}
 
 		// Set online status
@@ -104,7 +119,7 @@ func exportWorkloads() {
 		}
 
 		// Append to data slice
-		csvData = append(csvData, []string{w.Hostname, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, strings.Join(interfaces, ";"), w.GetIPWithDefaultGW(), w.GetNetMaskWithDefaultGW(), w.GetDefaultGW(), w.GetNetworkWithDefaultGateway(), w.Href, w.Name, w.GetMode(), online, policySyncStatus, w.OsID, venVersion})
+		csvData = append(csvData, []string{w.Hostname, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, strings.Join(interfaces, ";"), w.GetIPWithDefaultGW(), w.GetNetMaskWithDefaultGW(), w.GetDefaultGW(), w.GetNetworkWithDefaultGateway(), w.Href, w.Name, w.GetMode(), online, policySyncStatus, lastHeartBeat, hoursSinceLastHB, w.OsID, venVersion})
 		stdOutData = append(stdOutData, []string{w.Hostname, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, w.GetMode()})
 	}
 
