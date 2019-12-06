@@ -88,7 +88,7 @@ func exportWorkloads() {
 			interfaces = append(interfaces, ipAddress)
 		}
 
-		// Set VEN version, policy sync status, lastHeartBeat
+		// Set VEN version, policy sync status, lastHeartBeat, and hours since last heartbeat
 		if w.Agent == nil || w.Agent.Href == "" {
 			policySyncStatus = "unmanaged"
 			venVersion = "unmanaged"
@@ -98,16 +98,7 @@ func exportWorkloads() {
 			venVersion = w.Agent.Status.AgentVersion
 			policySyncStatus = w.Agent.Status.SecurityPolicySyncState
 			lastHeartBeat = w.Agent.Status.LastHeartbeatOn
-
-			// Get the hours since last heartbeat
-			t, err := time.Parse(time.RFC3339, lastHeartBeat)
-			if err != nil {
-				utils.Log(0, fmt.Sprintf("[WARNING] - Error parsing time - %s", err.Error()))
-				hoursSinceLastHB = "NA"
-			} else {
-				now := time.Now().UTC()
-				hoursSinceLastHB = fmt.Sprintf("%f", now.Sub(t).Hours())
-			}
+			hoursSinceLastHB = fmt.Sprintf("%f", w.HoursSinceLastHeartBeat())
 		}
 
 		// Set online status
