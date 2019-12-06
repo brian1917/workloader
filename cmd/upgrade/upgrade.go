@@ -150,7 +150,7 @@ func wkldUpgrade() {
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
 		utils.Log(0, fmt.Sprintf("upgrade identified %d workloads requiring VEN update - see %s for details.", len(targetWklds), outFile.Name()))
-		fmt.Printf("Upgrade identified %d workloads requiring VEN update. See %s for details. To do the upgrade, run again using --update-pce flag. The --auto flag will bypass the prompt if used with --update-pce.\r\n", len(targetWklds), outFile.Name())
+		fmt.Printf("Upgrade identified %d workloads requiring VEN update. See %s for details. To do the upgrade, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.\r\n", len(targetWklds), outFile.Name())
 		utils.Log(0, "completed running upgrade command")
 		return
 	}
@@ -163,7 +163,7 @@ func wkldUpgrade() {
 		if strings.ToLower(prompt) != "yes" {
 			utils.Log(0, fmt.Sprintf("upgrade identified %d workloads requiring VEN update - see %s for details. user denied prompt", len(targetWklds), outFile.Name()))
 			fmt.Println("Prompt denied.")
-			utils.Log(0, "completed running import command")
+			utils.Log(0, "completed running upgrade command")
 			return
 		}
 	}

@@ -25,7 +25,7 @@ var CompatibilityCmd = &cobra.Command{
 	Use:   "compatibility",
 	Short: "Generate a compatibility report for all Idle workloads.",
 	Long: `
-Generate a compatibility report for all Idle workloads. The update-pce and auto flags are ignored for this command.`,
+Generate a compatibility report for all Idle workloads. The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		pce, err = utils.GetPCE(false)

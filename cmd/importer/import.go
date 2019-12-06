@@ -27,8 +27,8 @@ var newLabels []illumioapi.Label
 
 func init() {
 
-	ImportCmd.Flags().BoolVar(&umwl, "umwl", false, "Create unmanaged workloads if the host does not exist. Auto-disabled if matching on href.")
-	ImportCmd.Flags().IntVarP(&matchCol, "match", "m", 1, "Column number with hostname or href to match workloads. If href is used, --umwl is auto-disabled. First column is 1.")
+	ImportCmd.Flags().BoolVar(&umwl, "umwl", false, "Create unmanaged workloads if the host does not exist. Disabled if matching on href.")
+	ImportCmd.Flags().IntVarP(&matchCol, "match", "m", 1, "Column number with hostname or href to match workloads. If href is used, --umwl is disabled. First column is 1.")
 	ImportCmd.Flags().IntVarP(&roleCol, "role", "r", 2, "Column number with new role label.")
 	ImportCmd.Flags().IntVarP(&appCol, "app", "a", 3, "Column number with new app label.")
 	ImportCmd.Flags().IntVarP(&envCol, "env", "e", 4, "Column number with new env label.")
