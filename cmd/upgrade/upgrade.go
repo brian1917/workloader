@@ -93,6 +93,9 @@ func wkldUpgrade() {
 			if loc != "" && w.GetLoc(pce.LabelMapH).Value != loc {
 				continue
 			}
+			if w.Agent.Status.AgentVersion == targetVersion {
+				continue
+			}
 			targetWklds = append(targetWklds, w)
 
 		}
@@ -119,7 +122,7 @@ func wkldUpgrade() {
 
 		// Cycle through workloads and populate our targetWklds slice
 		for _, w := range wklds {
-			if w.GetMode() == "unmanaged" {
+			if w.GetMode() == "unmanaged" || w.Agent.Status.AgentVersion == targetVersion {
 				continue
 			}
 			if hostFileMap[w.Hostname] {
