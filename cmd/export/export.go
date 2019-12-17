@@ -19,7 +19,7 @@ var err error
 var debug bool
 var outFormat string
 
-// ExportCmd runs the workload identifier A
+// ExportCmd runs the workload identifier
 var ExportCmd = &cobra.Command{
 	Use:   "export",
 	Short: "Create a CSV export of all workloads in the PCE.",
