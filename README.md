@@ -39,12 +39,18 @@ Workloader is a tool that helps discover, label, and manage workloads in an Illu
         compatibility Generate a compatibility report for all Idle workloads.
         mode          Change the state of workloads based on a CSV input.
         upgrade       Upgrade the VEN installed on workloads by labels or an input hostname list.
+        unpair        Unpair workloads through an input file or by combination of labels and hours since last heartbeat.
+        delete        Delete unmanaged workloads by HREFs provided in file.
 
   Reporting Commands:
         mislabel      Display workloads that have no intra App-Group communications to identify potentially mislabled workloads.
         dupecheck     Identifies duplicate hostnames and IP addresses in the PCE.
-        flowsummary   Summarize flows from explorer. Two subcommands: appgroup and env
-        nettraffic    Export explorer traffic data and include workload subnet and default gateway.
+        flowsummary   Summarize flows from explorer. Two subcommands: appgroup (available now) and env (coming soon).
+        explorer      Export explorer traffic data enhanced with some additional information (e.g., subnet, default gateway, interface name, etc.).
+        nic           Export all network interfaces for all managed and unmanaged workloads.
+
+  Version Command:
+        version       Print workloader version.
   
 Use "workloader [command] --help" for more information about a command.
 ```
