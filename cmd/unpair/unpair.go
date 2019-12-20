@@ -17,7 +17,7 @@ import (
 
 // Set global variables for flags
 var hrefFile, role, app, env, loc, restore string
-var debug, updatePCE, noPrompt bool
+var debug, updatePCE, noPrompt, includeOnline bool
 var hoursSinceLastHB int
 var pce illumioapi.PCE
 var err error
@@ -31,6 +31,7 @@ func init() {
 	UnpairCmd.Flags().StringVarP(&env, "env", "e", "", "Environment Label. Blank means all environments.")
 	UnpairCmd.Flags().StringVarP(&loc, "loc", "l", "", "Location Label. Blank means all locations.")
 	UnpairCmd.Flags().IntVar(&hoursSinceLastHB, "hours", 0, "Hours since last heartbeat. No value (i.e., 0) will ignore heartbeats.")
+	UnpairCmd.Flags().BoolVar(&includeOnline, "include-online", false, "Include workloads that are online. By default only offline workloads that meet criteria will be unpaired.")
 	UnpairCmd.Flags().SortFlags = false
 }
 
@@ -148,6 +149,9 @@ func unpair() {
 			continue
 		}
 		if hoursSinceLastHB > 0 && w.HoursSinceLastHeartBeat() < float64(hoursSinceLastHB) {
+			continue
+		}
+		if w.Online && !includeOnline {
 			continue
 		}
 
