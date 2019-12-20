@@ -8,6 +8,7 @@ import (
 	"github.com/brian1917/workloader/utils"
 
 	"github.com/brian1917/workloader/cmd/compatibility"
+	"github.com/brian1917/workloader/cmd/delete"
 	"github.com/brian1917/workloader/cmd/dupecheck"
 	"github.com/brian1917/workloader/cmd/explorer"
 	"github.com/brian1917/workloader/cmd/export"
@@ -87,6 +88,7 @@ func init() {
 	RootCmd.AddCommand(mode.ModeCmd)
 	RootCmd.AddCommand(upgrade.UpgradeCmd)
 	RootCmd.AddCommand(unpair.UnpairCmd)
+	RootCmd.AddCommand(delete.DeleteCmd)
 
 	// Reporting
 	RootCmd.AddCommand(mislabel.MisLabelCmd)
