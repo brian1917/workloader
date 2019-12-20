@@ -44,8 +44,8 @@ var UnpairCmd = &cobra.Command{
 Unpair workloads through an input file or by combination of labels and hours since last heartbeat.
 
 Default output is a CSV file with what would be unpaired.
-Use the --update-pce command to run the upgrades with a user prompt confirmation.
-Use --update-pce and --no-prompt to run upgrade with no prompts.`,
+Use the --update-pce command to run the unpair with a user prompt confirmation.
+Use --update-pce and --no-prompt to run unpair with no prompts.`,
 
 	Example: `# Unpair all workloads that have not had a heart beat in 50 hours with no user prompt (e.g., command to run on cron):
   workloader unpair --hours 50 --restore saved --update-pce --no-prompt
@@ -200,7 +200,7 @@ func unpair() {
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if updatePCE && !noPrompt {
 		var prompt string
-		fmt.Printf("Unpair identified %d workloads requiring unpairing. See %s for details. Do you want to run the upgrade? (yes/no)? ", len(targetWklds), outFile.Name())
+		fmt.Printf("Unpair identified %d workloads requiring unpairing. See %s for details. Do you want to run the unpair? (yes/no)? ", len(targetWklds), outFile.Name())
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.Log(0, fmt.Sprintf("unpair identified %d workloads requiring unpairing - see %s for details. user denied prompt", len(targetWklds), outFile.Name()))
