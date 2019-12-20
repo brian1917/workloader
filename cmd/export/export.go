@@ -47,7 +47,7 @@ func exportWorkloads() {
 	utils.Log(0, "running export command")
 
 	// Start the data slice with headers
-	csvData := [][]string{[]string{"hostname", "role", "app", "env", "loc", "interfaces", "ip_with_default_gw", "netmask_of_ip_with_def_gw", "default_gw", "default_gw_network", "href", "name", "mode", "online", "policy_sync_status", "last_heartbeat", "hours_since_last_heartbeat", "os_id", "os_details", "ven_version"}}
+	csvData := [][]string{[]string{"hostname", "role", "app", "env", "loc", "interfaces", "ip_with_default_gw", "netmask_of_ip_with_def_gw", "default_gw", "default_gw_network", "href", "name", "mode", "online", "policy_sync_status", "policy_applied", "policy_received", "policy_refreshed", "last_heartbeat", "hours_since_last_heartbeat", "os_id", "os_details", "ven_version"}}
 	stdOutData := [][]string{[]string{"hostname", "role", "app", "env", "loc", "mode"}}
 
 	// GetAllWorkloads
@@ -76,6 +76,9 @@ func exportWorkloads() {
 		interfaces := []string{}
 		venVersion := ""
 		policySyncStatus := ""
+		policyAppliedAt := ""
+		poicyReceivedAt := ""
+		policyRefreshAt := ""
 		lastHeartBeat := ""
 		hoursSinceLastHB := ""
 
@@ -91,12 +94,18 @@ func exportWorkloads() {
 		// Set VEN version, policy sync status, lastHeartBeat, and hours since last heartbeat
 		if w.Agent == nil || w.Agent.Href == "" {
 			policySyncStatus = "unmanaged"
+			policyAppliedAt = "unmanaged"
+			poicyReceivedAt = "unmanaged"
+			policyRefreshAt = "unmanaged"
 			venVersion = "unmanaged"
 			lastHeartBeat = "unmanaged"
 			hoursSinceLastHB = "unmanaged"
 		} else {
 			venVersion = w.Agent.Status.AgentVersion
 			policySyncStatus = w.Agent.Status.SecurityPolicySyncState
+			policyAppliedAt = w.Agent.Status.SecurityPolicyAppliedAt
+			poicyReceivedAt = w.Agent.Status.SecurityPolicyReceivedAt
+			policyRefreshAt = w.Agent.Status.SecurityPolicyRefreshAt
 			lastHeartBeat = w.Agent.Status.LastHeartbeatOn
 			hoursSinceLastHB = fmt.Sprintf("%f", w.HoursSinceLastHeartBeat())
 		}
@@ -110,7 +119,7 @@ func exportWorkloads() {
 		}
 
 		// Append to data slice
-		csvData = append(csvData, []string{w.Hostname, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, strings.Join(interfaces, ";"), w.GetIPWithDefaultGW(), w.GetNetMaskWithDefaultGW(), w.GetDefaultGW(), w.GetNetworkWithDefaultGateway(), w.Href, w.Name, w.GetMode(), online, policySyncStatus, lastHeartBeat, hoursSinceLastHB, w.OsID, w.OsDetail, venVersion})
+		csvData = append(csvData, []string{w.Hostname, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, strings.Join(interfaces, ";"), w.GetIPWithDefaultGW(), w.GetNetMaskWithDefaultGW(), w.GetDefaultGW(), w.GetNetworkWithDefaultGateway(), w.Href, w.Name, w.GetMode(), online, policySyncStatus, policyAppliedAt, poicyReceivedAt, policyRefreshAt, lastHeartBeat, hoursSinceLastHB, w.OsID, w.OsDetail, venVersion})
 		stdOutData = append(stdOutData, []string{w.Hostname, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, w.GetMode()})
 	}
 
