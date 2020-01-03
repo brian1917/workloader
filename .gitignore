@@ -4,6 +4,7 @@ test-files/*
 *.log
 *.csv
 !workloader-identifier-default.csv
+!default-import-csv.csv
 !*parser-table.csv*
 _playground/*
 .vscode/*
@@ -11,5 +12,4 @@ _playground/*
 *.zip
 *support-portal*
 deploy.sh
-version
 .VSCodeCounter

@@ -1,0 +1,97 @@
+name: Workloader Release
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - version
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go 1.13
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.13
+        id: go
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v1
+
+      - name: Get dependencies
+        run: |
+          go get -v -t -d ./...
+          GOOS=windows go get -v -t -d ./...
+
+      - name: Get workloader version
+        id: get_version
+        run: |
+          echo "##[set-output name=version;]$(cat version)"
+          echo "##[set-output name=commit;]$(git rev-list -1 HEAD)"
+
+      - name: Make directories and copy CSV files
+        run: |
+          mkdir windows mac linux
+          cp workload-identifier-default.csv default-import-csv.csv ./windows
+          cp workload-identifier-default.csv default-import-csv.csv ./mac
+          cp workload-identifier-default.csv default-import-csv.csv ./linux
+
+      - name: Build Windows executable
+        run: GOOS=windows go build -ldflags "-X github.com/brian1917/workloader/cmd.Version=$(cat version) -X github.com/brian1917/workloader/cmd.Commit=$(git rev-list -1 HEAD)" -o ./windows/workloader.exe
+
+      - name: Build Mac executable
+        run: GOOS=darwin go build -ldflags "-X github.com/brian1917/workloader/cmd.Version=$(cat version) -X github.com/brian1917/workloader/cmd.Commit=$(git rev-list -1 HEAD)" -o ./mac/workloader
+
+      - name: Build Linux executable
+        run: GOOS=linux go build -ldflags "-X github.com/brian1917/workloader/cmd.Version=$(cat version) -X github.com/brian1917/workloader/cmd.Commit=$(git rev-list -1 HEAD)" -o ./linux/workloader
+
+      - name: Create release zip packages
+        run: |
+          cd windows && zip -j ../windows.zip . * && cd ..
+          cd mac && zip -j ../mac.zip . * && cd ..
+          cd linux && zip -j ../linux.zip . * && cd ..
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          release_name: Release ${{ steps.get_version.outputs.version }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Windows package
+        id: upload-windows-package
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./windows.zip
+          asset_name: windows.zip
+          asset_content_type: application/zip
+
+      - name: Upload Mac package
+        id: upload-mac-package
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./mac.zip
+          asset_name: mac.zip
+          asset_content_type: application/zip
+
+      - name: Upload Linux package
+        id: upload-linux-package
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./linux.zip
+          asset_name: linux.zip
+          asset_content_type: application/zip
