@@ -51,7 +51,7 @@ var SubnetCmd = &cobra.Command{
 	Long: `
 Assign envrionment and location labels based on a workload's network.
 	
-The workload's first interface's IP address determines the workload's network.
+All interfaces on a workload are searched to identify a match.
 
 The input CSV requires headers and at least three columns: network, environment label, and location label.
 
