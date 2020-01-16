@@ -198,14 +198,14 @@ func subnetParser() {
 	if len(updatedWklds) > 0 {
 
 		// Create our data slice
-		data := [][]string{[]string{"hostname", "href", "interfaces", "role", "app", "original_env", "original_loc", "new_loc", "new_env"}}
+		data := [][]string{[]string{"hostname", "href", "interfaces", "role", "app", "original_env", "original_loc", "new_env", "new_loc"}}
 		for _, m := range matches {
 			// Get interfaces
 			interfaceSlice := []string{}
 			for _, i := range m.workload.Interfaces {
 				interfaceSlice = append(interfaceSlice, fmt.Sprintf("%s:%s", i.Name, i.Address))
 			}
-			data = append(data, []string{m.workload.Hostname, m.workload.Href, strings.Join(interfaceSlice, ";"), m.workload.GetRole(pce.LabelMapH).Value, m.workload.GetApp(pce.LabelMapH).Value, m.oldLoc, m.oldEnv, m.workload.GetLoc(pce.LabelMapH).Value, m.workload.GetEnv(pce.LabelMapH).Value})
+			data = append(data, []string{m.workload.Hostname, m.workload.Href, strings.Join(interfaceSlice, ";"), m.workload.GetRole(pce.LabelMapH).Value, m.workload.GetApp(pce.LabelMapH).Value, m.oldEnv, m.oldLoc, m.workload.GetEnv(pce.LabelMapH).Value, m.workload.GetLoc(pce.LabelMapH).Value})
 		}
 
 		utils.WriteOutput(data, data, "workloader-subnet-output-"+time.Now().Format("20060102_150405")+".csv")
