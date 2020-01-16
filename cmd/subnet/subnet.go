@@ -53,10 +53,7 @@ Assign envrionment and location labels based on a workload's network.
 	
 All interfaces on a workload are searched to identify a match.
 
-The input CSV requires headers and at least three columns: network, environment label, and location label.
-
-The names of the headers do not matter. If there are additional columns or the columns are not in the default order below, specify the column numbers
-using the appropriate flags. Example default:
+The input CSV requires headers and at least three columns: network, environment label, and location label. The names of the headers do not matter. If there are additional columns or the columns are not in the default order below, specify the column numbers using the appropriate flags. If you do not wish to assign environment or location labels, leave the fields blank, but the column must still exist. Example default input:
 
 +----------------+------+-----+
 |    Network     | Env  | Loc |
