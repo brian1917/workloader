@@ -48,9 +48,9 @@ jobs:
 
       - name: Create release zip packages
         run: |
-          cd windows && zip -j ../windows-v-${{ steps.get_version.outputs.version }}.zip . * && cd ..
-          cd mac && zip -j ../mac-v-${{ steps.get_version.outputs.version }}.zip . * && cd ..
-          cd linux && zip -j ../linux-v-${{ steps.get_version.outputs.version }}.zip . * && cd ..
+          cd windows && zip -j ../windows-v${{ steps.get_version.outputs.version }}.zip . * && cd ..
+          cd mac && zip -j ../mac-v${{ steps.get_version.outputs.version }}.zip . * && cd ..
+          cd linux && zip -j ../linux-v${{ steps.get_version.outputs.version }}.zip . * && cd ..
 
       - name: Create GitHub Release
         id: create_release
@@ -70,8 +70,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./windows-${{ steps.get_version.outputs.version }}.zip
-          asset_name: windows-${{ steps.get_version.outputs.version }}.zip
+          asset_path: ./windows-v${{ steps.get_version.outputs.version }}.zip
+          asset_name: windows-v${{ steps.get_version.outputs.version }}.zip
           asset_content_type: application/zip
 
       - name: Upload Mac package
@@ -81,8 +81,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./mac-${{ steps.get_version.outputs.version }}.zip
-          asset_name: mac-${{ steps.get_version.outputs.version }}.zip
+          asset_path: ./mac-v${{ steps.get_version.outputs.version }}.zip
+          asset_name: mac-v${{ steps.get_version.outputs.version }}.zip
           asset_content_type: application/zip
 
       - name: Upload Linux package
@@ -92,6 +92,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./linux-${{ steps.get_version.outputs.version }}.zip
-          asset_name: linux-${{ steps.get_version.outputs.version }}.zip
+          asset_path: ./linux-v${{ steps.get_version.outputs.version }}.zip
+          asset_name: linux-v${{ steps.get_version.outputs.version }}.zip
           asset_content_type: application/zip
