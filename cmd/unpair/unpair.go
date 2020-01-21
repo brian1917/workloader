@@ -38,7 +38,7 @@ func init() {
 // UnpairCmd runs the unpair
 var UnpairCmd = &cobra.Command{
 	Use:   "unpair",
-	Short: "Unpair workloads through an input file or by combination of labels and hours since last heartbeat.",
+	Short: "Unpair workloads through an input file or by a combination of labels and hours since last heartbeat.",
 
 	Long: `  
 Unpair workloads through an input file or by combination of labels and hours since last heartbeat.
