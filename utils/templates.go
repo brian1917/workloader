@@ -23,7 +23,7 @@ func RootTemplate() string {
   Version Command:{{range .Commands}}{{if (or (eq .Name "version"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
   
-Use "{{.CommandPath}} [command] --help" for more information about a command.{{end}}
+Use "{{.CommandPath}} [command] --help" for more information on a command.{{end}}
 
   `
 }
