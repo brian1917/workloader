@@ -1,4 +1,4 @@
-package importer
+package wkldimport
 
 import (
 	"bufio"
@@ -27,22 +27,22 @@ var newLabels []illumioapi.Label
 
 func init() {
 
-	ImportCmd.Flags().BoolVar(&umwl, "umwl", false, "Create unmanaged workloads if the host does not exist. Disabled if matching on href.")
-	ImportCmd.Flags().IntVarP(&matchCol, "match", "m", 1, "Column number with hostname or href to match workloads. If href is used, --umwl is disabled. First column is 1.")
-	ImportCmd.Flags().IntVarP(&roleCol, "role", "r", 2, "Column number with new role label.")
-	ImportCmd.Flags().IntVarP(&appCol, "app", "a", 3, "Column number with new app label.")
-	ImportCmd.Flags().IntVarP(&envCol, "env", "e", 4, "Column number with new env label.")
-	ImportCmd.Flags().IntVarP(&locCol, "loc", "l", 5, "Column number with new loc label.")
-	ImportCmd.Flags().IntVarP(&intCol, "ifaces", "i", 6, "Column number with network interfaces for when creating unmanaged workloads. Each interface should be of the like eth1:192.168.200.20. Separate multiple NICs by semicolons.")
-	ImportCmd.Flags().StringVar(&removeValue, "remove-value", "", "Value in CSV used to remove existing labels. Blank values in the CSV will not change existing. If you want to delete a label do something like --remove-value DELETE and use DELETE in CSV to indicate where to clear existing labels on a workload.")
+	WkldImportCmd.Flags().BoolVar(&umwl, "umwl", false, "Create unmanaged workloads if the host does not exist. Disabled if matching on href.")
+	WkldImportCmd.Flags().IntVarP(&matchCol, "match", "m", 1, "Column number with hostname or href to match workloads. If href is used, --umwl is disabled. First column is 1.")
+	WkldImportCmd.Flags().IntVarP(&roleCol, "role", "r", 2, "Column number with new role label.")
+	WkldImportCmd.Flags().IntVarP(&appCol, "app", "a", 3, "Column number with new app label.")
+	WkldImportCmd.Flags().IntVarP(&envCol, "env", "e", 4, "Column number with new env label.")
+	WkldImportCmd.Flags().IntVarP(&locCol, "loc", "l", 5, "Column number with new loc label.")
+	WkldImportCmd.Flags().IntVarP(&intCol, "ifaces", "i", 6, "Column number with network interfaces for when creating unmanaged workloads. Each interface should be of the like eth1:192.168.200.20. Separate multiple NICs by semicolons.")
+	WkldImportCmd.Flags().StringVar(&removeValue, "remove-value", "", "Value in CSV used to remove existing labels. Blank values in the CSV will not change existing. If you want to delete a label do something like --remove-value DELETE and use DELETE in CSV to indicate where to clear existing labels on a workload.")
 
-	ImportCmd.Flags().SortFlags = false
+	WkldImportCmd.Flags().SortFlags = false
 
 }
 
-// ImportCmd runs the upload command
-var ImportCmd = &cobra.Command{
-	Use:   "import [csv file to import]",
+// WkldImportCmd runs the upload command
+var WkldImportCmd = &cobra.Command{
+	Use:   "wkld-import [csv file to import]",
 	Short: "Create and assign labels to a workload from a CSV file. Use the --umwl flag to create and label unmanaged workloads from the same CSV.",
 	Long: `
 Create and assign labels to a workload from a CSV file. Use the --umwl flag to create and label unmanaged workloads from the same CSV.
@@ -62,7 +62,7 @@ Recommended to run without --update-pce first to log of what will change. If --u
 
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE(true)
+		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for csv command - %s", err)
 		}

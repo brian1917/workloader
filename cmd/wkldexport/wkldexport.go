@@ -1,4 +1,4 @@
-package export
+package wkldexport
 
 import (
 	"fmt"
@@ -19,16 +19,16 @@ var err error
 var debug bool
 var outFormat string
 
-// ExportCmd runs the workload identifier
-var ExportCmd = &cobra.Command{
-	Use:   "export",
+// WkldExportCmd runs the workload identifier
+var WkldExportCmd = &cobra.Command{
+	Use:   "wkld-export",
 	Short: "Create a CSV export of all workloads in the PCE.",
 	Long: `
 Create a CSV export of all workloads in the PCE. The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
-		pce, err = utils.GetPCE(true)
+		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
 			utils.Log(1, err.Error())
 		}
