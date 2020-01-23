@@ -1,4 +1,4 @@
-package flowupload
+package flowimport
 
 import (
 	"fmt"
@@ -19,12 +19,12 @@ var csvFile string
 var debug, noHeader bool
 
 func init() {
-	FlowUpload.Flags().BoolVarP(&noHeader, "no-header", "n", false, "Indicates there is no header line in input CSV file.")
+	FlowImportCmd.Flags().BoolVarP(&noHeader, "no-header", "n", false, "Indicates there is no header line in input CSV file.")
 }
 
-// FlowUpload runs the upload command
-var FlowUpload = &cobra.Command{
-	Use:   "flowupload [csv file with flows]",
+// FlowImportCmd runs the upload command
+var FlowImportCmd = &cobra.Command{
+	Use:   "flow-import [csv file with flows]",
 	Short: "Upload flows from CSV file to the PCE.",
 	Long: `
 Upload flows from CSV file to the PCE
@@ -45,7 +45,7 @@ Example input:
 
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE(false)
+		pce, err = utils.GetDefaultPCE(false)
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for flowupload command - %s", err)
 		}
