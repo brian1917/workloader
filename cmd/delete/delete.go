@@ -32,7 +32,7 @@ Default output is a CSV file with what would be deleted.
 Use the --update-pce command to run the delete with a user prompt confirmation.
 Use --update-pce and --no-prompt to run the delete with no prompts.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		pce, err = utils.GetPCE(true)
+		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
 			utils.Log(1, err.Error())
 		}

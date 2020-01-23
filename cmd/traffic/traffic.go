@@ -41,7 +41,7 @@ Find and label unmanaged workloads and label existing workloads based on Explore
 The --update-pce and --no-prompt flags are ignored for this command. Use workloader import to upload to PCE after review.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE(true)
+		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
 			utils.Log(1, err.Error())
 		}

@@ -24,7 +24,7 @@ Export all network interfaces for all managed and unmanaged workloads.
 The created CSV includes the following headers: wkld_hostname, wkld_href, interface_name, ip_address, net_mask, cidr, default_gw`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE(true)
+		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
 			utils.Log(1, err.Error())
 		}

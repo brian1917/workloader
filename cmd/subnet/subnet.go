@@ -63,7 +63,7 @@ The input CSV requires headers and at least three columns: network, environment 
 +----------------+------+-----+`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE(true)
+		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for subnet command - %s", err)
 		}

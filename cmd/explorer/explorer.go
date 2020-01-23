@@ -42,7 +42,7 @@ Export explorer traffic data enhanced with some additional information (e.g., su
 To filter unwanted traffic, create a CSV with NO HEADERS. Column 1 should have port number and column 2 should have the IANA protocol number and pass the csv file into the --exclude-service-csv (-x) flag.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE(true)
+		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
 			utils.Log(1, err.Error())
 		}

@@ -46,7 +46,7 @@ The explorer query will ignore traffic on UDP ports 5355 (DNSCache) and 137, 138
 The --update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE(true)
+		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
 			utils.Log(1, fmt.Sprintf("error getting pce - %s", err))
 		}

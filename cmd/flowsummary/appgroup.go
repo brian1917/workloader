@@ -64,7 +64,7 @@ Including the consolidate flag (--consolidate, -c) will combine all entries betw
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetPCE(true)
+		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
 			utils.Log(1, err.Error())
 		}

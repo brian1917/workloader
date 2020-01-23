@@ -57,7 +57,7 @@ Use --update-pce and --no-prompt to run unpair with no prompts.`,
   workloader unpair --hours 50 --restore saved
  `,
 	Run: func(cmd *cobra.Command, args []string) {
-		pce, err = utils.GetPCE(true)
+		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
 			utils.Log(1, err.Error())
 		}
