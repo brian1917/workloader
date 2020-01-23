@@ -5,10 +5,10 @@ func RootTemplate() string {
 	return `  Usage:{{if .Runnable}}
 	{{.CommandPath}} [command]
 
-  Login Commands:{{range .Commands}}{{if (or (eq .Name "login") (eq .Name "logout"))}}
+  PCE Management Commands:{{range .Commands}}{{if (or (eq .Name "pce-remove") (eq .Name "pce-add") (eq .Name "get-default") (eq .Name "set-default") (eq .Name "pce-list"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
-  Import/Export Commands:{{range .Commands}}{{if (or (eq .Name "import") (eq .Name "export") (eq .Name "flowupload"))}}
+  Import/Export Commands:{{range .Commands}}{{if (or (eq .Name "wkld-import") (eq .Name "wkld-export") (eq .Name "ipl-export") (eq .Name "ipl-import") (eq .Name "flow-import"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 	  
   Automated Labeling Commands:{{range .Commands}}{{if (or (eq .Name "traffic") (eq .Name "subnet") (eq .Name "hostparse"))}}
@@ -18,6 +18,9 @@ func RootTemplate() string {
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
   Reporting Commands:{{range .Commands}}{{if (or (eq .Name "mislabel") (eq .Name "dupecheck") (eq .Name "flowsummary") (eq .Name "explorer") (eq .Name "nic"))}}
+	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
+
+  PCE-to-PCE Commands:{{range .Commands}}{{if (or (eq .Name "wkld-to-ipl"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
   Version Command:{{range .Commands}}{{if (or (eq .Name "version"))}}
