@@ -11,20 +11,23 @@ import (
 	"github.com/brian1917/workloader/cmd/delete"
 	"github.com/brian1917/workloader/cmd/dupecheck"
 	"github.com/brian1917/workloader/cmd/explorer"
-	"github.com/brian1917/workloader/cmd/export"
 	"github.com/brian1917/workloader/cmd/extract"
+	"github.com/brian1917/workloader/cmd/flowimport"
 	"github.com/brian1917/workloader/cmd/flowsummary"
-	"github.com/brian1917/workloader/cmd/flowupload"
 	"github.com/brian1917/workloader/cmd/hostparse"
-	"github.com/brian1917/workloader/cmd/importer"
-	"github.com/brian1917/workloader/cmd/login"
+	"github.com/brian1917/workloader/cmd/iplexport"
+	"github.com/brian1917/workloader/cmd/iplimport"
 	"github.com/brian1917/workloader/cmd/mislabel"
 	"github.com/brian1917/workloader/cmd/mode"
 	"github.com/brian1917/workloader/cmd/nic"
+	"github.com/brian1917/workloader/cmd/pcemgmt"
 	"github.com/brian1917/workloader/cmd/subnet"
 	"github.com/brian1917/workloader/cmd/traffic"
 	"github.com/brian1917/workloader/cmd/unpair"
 	"github.com/brian1917/workloader/cmd/upgrade"
+	"github.com/brian1917/workloader/cmd/wkldexport"
+	"github.com/brian1917/workloader/cmd/wkldimport"
+	"github.com/brian1917/workloader/cmd/wkldtoipl"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -66,17 +69,19 @@ func init() {
 	// Disable sorting
 	cobra.EnableCommandSorting = false
 
-	// Set the short description for logout based on OS. We need to do it here before we add it to the RootCmd.
-	login.LogoutCmd.Short = utils.LogOutDesc()
-
 	// Login
-	RootCmd.AddCommand(login.LoginCmd)
-	RootCmd.AddCommand(login.LogoutCmd)
+	RootCmd.AddCommand(pcemgmt.AddPCECmd)
+	RootCmd.AddCommand(pcemgmt.RemovePCECmd)
+	RootCmd.AddCommand(pcemgmt.PCEListCmd)
+	RootCmd.AddCommand(pcemgmt.GetDefaultPCECmd)
+	RootCmd.AddCommand(pcemgmt.SetDefaultPCECmd)
 
 	// Import/Export
-	RootCmd.AddCommand(export.ExportCmd)
-	RootCmd.AddCommand(importer.ImportCmd)
-	RootCmd.AddCommand(flowupload.FlowUpload)
+	RootCmd.AddCommand(wkldexport.WkldExportCmd)
+	RootCmd.AddCommand(wkldimport.WkldImportCmd)
+	RootCmd.AddCommand(iplexport.IplExportCmd)
+	RootCmd.AddCommand(iplimport.IplImportCmd)
+	RootCmd.AddCommand(flowimport.FlowImportCmd)
 
 	// Automated Labeling
 	RootCmd.AddCommand(traffic.TrafficCmd)
@@ -97,6 +102,9 @@ func init() {
 	RootCmd.AddCommand(explorer.ExplorerCmd)
 	RootCmd.AddCommand(nic.NICCmd)
 	RootCmd.AddCommand(versionCmd)
+
+	// PCE-to-PCE
+	RootCmd.AddCommand(wkldtoipl.WorkloadToIPLCmd)
 
 	// Undocumented
 	RootCmd.AddCommand(extract.ExtractCmd)
