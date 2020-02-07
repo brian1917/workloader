@@ -17,6 +17,7 @@ import (
 	"github.com/brian1917/workloader/cmd/hostparse"
 	"github.com/brian1917/workloader/cmd/iplexport"
 	"github.com/brian1917/workloader/cmd/iplimport"
+	"github.com/brian1917/workloader/cmd/labelrename"
 	"github.com/brian1917/workloader/cmd/mislabel"
 	"github.com/brian1917/workloader/cmd/mode"
 	"github.com/brian1917/workloader/cmd/nic"
@@ -82,6 +83,7 @@ func init() {
 	RootCmd.AddCommand(iplexport.IplExportCmd)
 	RootCmd.AddCommand(iplimport.IplImportCmd)
 	RootCmd.AddCommand(flowimport.FlowImportCmd)
+	RootCmd.AddCommand(labelrename.LabelRenameCmd)
 
 	// Automated Labeling
 	RootCmd.AddCommand(traffic.TrafficCmd)
