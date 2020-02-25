@@ -43,9 +43,9 @@ func init() {
 // WkldImportCmd runs the upload command
 var WkldImportCmd = &cobra.Command{
 	Use:   "wkld-import [csv file to import]",
-	Short: "Create and assign labels to a workload from a CSV file. Use the --umwl flag to create and label unmanaged workloads from the same CSV.",
+	Short: "Create and assign labels to existing workloads and (optionally using the --umwl flag) create unmanaged workloads from a CSV file.",
 	Long: `
-Create and assign labels to a workload from a CSV file. Use the --umwl flag to create and label unmanaged workloads from the same CSV.
+Create and assign labels to existing workloads and (optionally using the --umwl flag) create unmanaged workloads from a CSV file.
 
 The input should have a header row as the first row will be skipped. Interfaces should be in the format of "eth0:192.168.200.20" and multiple interfaces should be separated by a semicolon with no spaces. Additional columns are allowed and will be ignored.
 

@@ -17,7 +17,7 @@ var pce illumioapi.PCE
 var err error
 
 func init() {
-	CompatibilityCmd.Flags().BoolVarP(&modeChangeInput, "mode-input", "m", false, "include output file to change all IDLE workloads with green status to build")
+	CompatibilityCmd.Flags().BoolVarP(&modeChangeInput, "mode-input", "m", false, "generate the input file to change all idle workloads to build using workloader mode command")
 }
 
 // CompatibilityCmd runs the workload identifier
@@ -25,7 +25,9 @@ var CompatibilityCmd = &cobra.Command{
 	Use:   "compatibility",
 	Short: "Generate a compatibility report for all Idle workloads.",
 	Long: `
-Generate a compatibility report for all Idle workloads. The update-pce and --no-prompt flags are ignored for this command.`,
+Generate a compatibility report for all Idle workloads.
+
+The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		pce, err = utils.GetDefaultPCE(false)
