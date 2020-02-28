@@ -36,8 +36,9 @@ Input file format is below and requires headers.
 | env       | prd       | PROD      |
 | loc       | bs        | BOS       |
 +-----------+-----------+-----------+
-	
-The --update-pce and --no-prompt flags are ignored for this command.`,
+
+Use --update-pce to make the changes in the PCE.
+`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		pce, err = utils.GetDefaultPCE(true)

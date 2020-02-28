@@ -40,7 +40,8 @@ The default import format is below. It matches the columns of the workloader ipl
 | Range Example | Random List      | 192.168.5.4;192.168.5.4-192.168.5.12;10.0.1.0/24 |                                         | Data set         | Reference         |
 +---------------+------------------+--------------------------------------------------+-----------------------------------------+------------------+-------------------+
 	
-Recommended to run without --update-pce first to log of what will change. If --update-pce is used, import will create labels without prompt, but it will not create/update workloads without user confirmation, unless --no-prompt is used.`, Run: func(cmd *cobra.Command, args []string) {
+Recommended to run without --update-pce first to log of what will change. If --update-pce is used, ipl-import will create the IP lists with a  user prompt. To disable the prompt, use --no-prompt.`,
+	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
 		pce, err = utils.GetDefaultPCE(true)
