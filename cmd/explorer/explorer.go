@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var app, env, exclServiceObj, exclServiceCSV, start, end string
+var app, env, exclRole, exclServiceObj, exclServiceCSV, start, end string
 var exclAllowed, exclPotentiallyBlocked, exclBlocked, appGroupLoc, ignoreIPGroup, consolidate, debug bool
 var threshold int
 var pce illumioapi.PCE
@@ -21,7 +21,7 @@ func init() {
 
 	ExplorerCmd.Flags().StringVarP(&app, "limit-to-app", "a", "", "app name to limit Explorer results to flows with that app as a provider or a consumer. default is all apps.")
 	ExplorerCmd.Flags().StringVarP(&env, "limit-to-env", "e", "", "env name to limit Explorer results to flows with that env as a provider or a consumer. default is all apps.")
-	// NetTrafficCmd.Flags().StringVar(&exclServiceObj, "exclude-service-object", "", "service name to exclude in explorer query (only port/proto and port ranges are excluded).")
+	ExplorerCmd.Flags().StringVarP(&exclRole, "excl-role-source", "r", "", "role name to exclude Explorer results with that role (e.g., vuln-scanner). default is none.")
 	ExplorerCmd.Flags().StringVarP(&exclServiceCSV, "exclude-service-csv", "x", "", "file location of csv with port/protocols to exclude. CSV should have NO HEADERS with port number in column 1 and IANA numeric protocol in Col 2.")
 	ExplorerCmd.Flags().StringVarP(&start, "start", "s", time.Date(time.Now().Year()-5, time.Now().Month(), time.Now().Day(), 0, 0, 0, 0, time.UTC).Format("2006-01-02"), "start date in the format of yyyy-mm-dd. Date is set as midnight UTC.")
 	ExplorerCmd.Flags().StringVarP(&end, "end", "e", time.Now().Add(time.Hour*24).Format("2006-01-02"), "end date in the format of yyyy-mm-dd. Date is set as midnight UTC.")
@@ -133,6 +133,21 @@ func explorerExport() {
 		tq.SourcesInclude = append(tq.SourcesInclude, label.Href)
 	}
 
+	// If an exclRole is provided, adjust query to include it
+	if exclRole != "" {
+		label, a, err := pce.GetLabelbyKeyValue("role", exclRole)
+		if debug {
+			utils.LogAPIResp("GetLabelbyKeyValue", a)
+		}
+		if err != nil {
+			utils.Log(1, fmt.Sprintf("getting label HREF - %s", err))
+		}
+		if label.Href == "" {
+			utils.Log(1, fmt.Sprintf("%s does not exist as a role label.", app))
+		}
+		tq.SourcesExclude = append(tq.SourcesExclude, label.Href)
+	}
+
 	utils.Log(0, fmt.Sprintf("traffic query object: %+v", tq))
 
 	// Run traffic query
@@ -142,7 +157,7 @@ func explorerExport() {
 	}
 
 	// If app is provided, switch to the destination include, clear the sources include, run query again, append to previous result
-	if app != "" {
+	if app != "" || env != "" {
 		tq.DestinationsInclude = tq.SourcesInclude
 		tq.SourcesInclude = []string{}
 		utils.Log(0, fmt.Sprintf("second traffic query object: %+v", tq))
