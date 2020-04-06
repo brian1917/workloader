@@ -186,8 +186,7 @@ func explorerExport() {
 
 	// Add each traffic entry to the data slic
 	for _, t := range traffic {
-		// Source
-		src := []string{t.Src.IP, "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA"}
+		src := []string{t.Src.IP, "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA"}
 		if t.Src.Workload != nil {
 			// Get the app group
 			sag := t.Src.Workload.GetAppGroup(pce.LabelMapH)
@@ -198,7 +197,8 @@ func explorerExport() {
 		}
 
 		// Destination
-		dst := []string{t.Dst.IP, "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA"}
+
+		dst := []string{t.Dst.IP, "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA"}
 		if t.Dst.Workload != nil {
 			// Get the app group
 			dag := t.Dst.Workload.GetAppGroup(pce.LabelMapH)
