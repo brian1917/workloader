@@ -20,7 +20,7 @@ var err error
 func init() {
 
 	ExplorerCmd.Flags().StringVarP(&app, "limit-to-app", "a", "", "app name to limit Explorer results to flows with that app as a provider or a consumer. default is all apps.")
-	ExplorerCmd.Flags().StringVarP(&env, "limit-to-env", "e", "", "env name to limit Explorer results to flows with that env as a provider or a consumer. default is all apps.")
+	ExplorerCmd.Flags().StringVarP(&env, "limit-to-env", "n", "", "env name to limit Explorer results to flows with that env as a provider or a consumer. default is all apps.")
 	ExplorerCmd.Flags().StringVarP(&exclRole, "excl-role-source", "r", "", "role name to exclude Explorer results with that role (e.g., vuln-scanner). default is none.")
 	ExplorerCmd.Flags().StringVarP(&exclServiceCSV, "exclude-service-csv", "x", "", "file location of csv with port/protocols to exclude. CSV should have NO HEADERS with port number in column 1 and IANA numeric protocol in Col 2.")
 	ExplorerCmd.Flags().StringVarP(&start, "start", "s", time.Date(time.Now().Year()-5, time.Now().Month(), time.Now().Day(), 0, 0, 0, 0, time.UTC).Format("2006-01-02"), "start date in the format of yyyy-mm-dd. Date is set as midnight UTC.")
