@@ -221,7 +221,16 @@ func explorerExport() {
 	}
 
 	// Write the data
-	utils.WriteOutput(data, data, fmt.Sprintf(fmt.Sprintf("workloader-explorer-%s.csv", time.Now().Format("20060102_150405"))))
+	outFileName := fmt.Sprintf("workloader-explorer-%s", time.Now().Format("20060102_150405"))
+	if app != "" {
+		outFileName = fmt.Sprintf("%s-%s", outFileName, app)
+	}
+	if env != "" {
+		outFileName = fmt.Sprintf("%s-%s", outFileName, env)
+	}
+	outFileName = fmt.Sprintf("%s.csv", outFileName)
+
+	utils.WriteOutput(data, data, outFileName)
 
 	// Log end
 	utils.Log(0, "explorer command complete")
