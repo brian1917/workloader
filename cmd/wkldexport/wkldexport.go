@@ -86,7 +86,7 @@ func exportWorkloads() {
 		// Get interfaces
 		for _, i := range w.Interfaces {
 			ipAddress := fmt.Sprintf("%s:%s", i.Name, i.Address)
-			if i.CidrBlock != nil {
+			if i.CidrBlock != nil && *i.CidrBlock != 0 {
 				ipAddress = fmt.Sprintf("%s:%s/%s", i.Name, i.Address, strconv.Itoa(*i.CidrBlock))
 			}
 			interfaces = append(interfaces, ipAddress)
