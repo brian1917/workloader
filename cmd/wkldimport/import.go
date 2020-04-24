@@ -18,7 +18,7 @@ import (
 )
 
 // Global variables
-var matchCol, roleCol, appCol, envCol, locCol, intCol int
+var matchCol, roleCol, appCol, envCol, locCol, intCol, hostnameCol, nameCol int
 var removeValue, csvFile string
 var umwl, debug, updatePCE, noPrompt bool
 var pce illumioapi.PCE
@@ -34,6 +34,8 @@ func init() {
 	WkldImportCmd.Flags().IntVarP(&envCol, "env", "e", 4, "Column number with new env label.")
 	WkldImportCmd.Flags().IntVarP(&locCol, "loc", "l", 5, "Column number with new loc label.")
 	WkldImportCmd.Flags().IntVarP(&intCol, "ifaces", "i", 6, "Column number with network interfaces for when creating unmanaged workloads. Each interface should be of the like eth1:192.168.200.20. Separate multiple NICs by semicolons.")
+	WkldImportCmd.Flags().IntVarP(&hostnameCol, "hostname", "s", 1, "Column with hostname. Only needs to be set if matching on HREF.")
+	WkldImportCmd.Flags().IntVarP(&nameCol, "name", "n", 12, "Column with name.")
 	WkldImportCmd.Flags().StringVar(&removeValue, "remove-value", "", "Value in CSV used to remove existing labels. Blank values in the CSV will not change existing. If you want to delete a label do something like --remove-value DELETE and use DELETE in CSV to indicate where to clear existing labels on a workload.")
 
 	WkldImportCmd.Flags().SortFlags = false
@@ -136,6 +138,8 @@ func processCSV() {
 	envCol--
 	locCol--
 	intCol--
+	hostnameCol--
+	nameCol--
 
 	// Open CSV File
 	file, err := os.Open(csvFile)
@@ -145,15 +149,22 @@ func processCSV() {
 	defer file.Close()
 	reader := csv.NewReader(utils.ClearBOM(bufio.NewReader(file)))
 
-	// Get workload map. Build based off hostname and and Href so we can look up either.
+	// Get workload map by hostname
 	wkldMap, a, err := pce.GetWkldHostMap()
-	if debug {
-		utils.LogAPIResp("GetWkldHostMap", a)
-	}
+	utils.LogAPIResp("GetWkldHostMap", a)
 	if err != nil {
 		utils.Log(1, fmt.Sprintf("getting workload host map - %s", err))
 	}
-	for _, w := range wkldMap {
+
+	// Get the workload map by href so we can look up either
+	wkldHrefMap, a, err := pce.GetWkldHrefMap()
+	utils.LogAPIResp("GetWkldHrefMap", a)
+	if err != nil {
+		utils.Log(1, fmt.Sprintf("getting workload href map - %s", err))
+	}
+
+	// Combine the two workload maps
+	for _, w := range wkldHrefMap {
 		wkldMap[w.Href] = w
 	}
 
@@ -331,7 +342,7 @@ func processCSV() {
 				// Are all workload interfaces in spreadsheet?
 				for _, w := range wkld.Interfaces {
 					cidrText := "nil"
-					if w.CidrBlock != nil {
+					if w.CidrBlock != nil && *w.CidrBlock != 0 {
 						cidrText = strconv.Itoa(*w.CidrBlock)
 					}
 					if !userMap[w.Address+cidrText+w.Name] {
@@ -344,7 +355,7 @@ func processCSV() {
 				// Are all user interfaces on workload?
 				for _, u := range netInterfaces {
 					cidrText := "nil"
-					if u.CidrBlock != nil {
+					if u.CidrBlock != nil && *u.CidrBlock != 0 {
 						cidrText = strconv.Itoa(*u.CidrBlock)
 					}
 					if !wkldIntMap[u.Address+cidrText+u.Name] {
@@ -358,6 +369,21 @@ func processCSV() {
 					wkld.Interfaces = netInterfaces
 				}
 			}
+			// Update the hostname if matching on Href
+			if strings.Contains(line[matchCol], "/workloads/") {
+				if wkld.Hostname != line[hostnameCol] {
+					change = true
+					utils.Log(0, fmt.Sprintf("CSV line %d - Hostname to be changed from %s to %s", i, wkld.Hostname, line[hostnameCol]))
+					wkld.Hostname = line[hostnameCol]
+				}
+			}
+		}
+
+		// Check on the name
+		if wkld.Name != line[nameCol] {
+			change = true
+			utils.Log(0, fmt.Sprintf("CSV line %d - Name to be changed from %s to %s", i, wkld.Name, line[nameCol]))
+			wkld.Name = line[nameCol]
 		}
 
 		// If change was flagged, get the workload, update the labels, append to updated slice.
