@@ -29,15 +29,14 @@ func init() {
 
 	WkldImportCmd.Flags().BoolVar(&umwl, "umwl", false, "Create unmanaged workloads if the host does not exist. Disabled if matching on href.")
 	WkldImportCmd.Flags().IntVarP(&matchCol, "match", "m", 1, "Column number with hostname or href to match workloads. If href is used, --umwl is disabled. First column is 1.")
-	WkldImportCmd.Flags().IntVarP(&roleCol, "role", "r", 2, "Column number with new role label.")
-	WkldImportCmd.Flags().IntVarP(&appCol, "app", "a", 3, "Column number with new app label.")
-	WkldImportCmd.Flags().IntVarP(&envCol, "env", "e", 4, "Column number with new env label.")
-	WkldImportCmd.Flags().IntVarP(&locCol, "loc", "l", 5, "Column number with new loc label.")
-	WkldImportCmd.Flags().IntVarP(&intCol, "ifaces", "i", 6, "Column number with network interfaces for when creating unmanaged workloads. Each interface should be of the like eth1:192.168.200.20. Separate multiple NICs by semicolons.")
 	WkldImportCmd.Flags().IntVarP(&hostnameCol, "hostname", "s", 1, "Column with hostname. Only needs to be set if matching on HREF.")
-	WkldImportCmd.Flags().IntVarP(&nameCol, "name", "n", 12, "Column with name.")
+	WkldImportCmd.Flags().IntVarP(&nameCol, "name", "n", 2, "Column with name. When creating UMWLs, if kept blank (recommended), hostname will be assigned to name field.")
+	WkldImportCmd.Flags().IntVarP(&roleCol, "role", "r", 3, "Column number with new role label.")
+	WkldImportCmd.Flags().IntVarP(&appCol, "app", "a", 4, "Column number with new app label.")
+	WkldImportCmd.Flags().IntVarP(&envCol, "env", "e", 5, "Column number with new env label.")
+	WkldImportCmd.Flags().IntVarP(&locCol, "loc", "l", 6, "Column number with new loc label.")
+	WkldImportCmd.Flags().IntVarP(&intCol, "ifaces", "i", 7, "Column number with network interfaces for when creating unmanaged workloads. Each interface should be of the like eth1:192.168.200.20. Separate multiple NICs by semicolons.")
 	WkldImportCmd.Flags().StringVar(&removeValue, "remove-value", "", "Value in CSV used to remove existing labels. Blank values in the CSV will not change existing. If you want to delete a label do something like --remove-value DELETE and use DELETE in CSV to indicate where to clear existing labels on a workload.")
-
 	WkldImportCmd.Flags().SortFlags = false
 
 }
@@ -51,14 +50,14 @@ Create and assign labels to existing workloads and (optionally using the --umwl 
 
 The input should have a header row as the first row will be skipped. Interfaces should be in the format of "eth0:192.168.200.20" and multiple interfaces should be separated by a semicolon with no spaces. Additional columns are allowed and will be ignored.
 
-The default import format is below. It matches the first 6 columns of the workloader export command so you can easily export workloads, edit, and reimport.
+The default import format is below. It matches the first 7 columns of the workloader export command so you can easily export workloads, edit, and reimport.
 
-+-------------------+------+----------+------+-----+---------------------------------------+
-|       host        | role |   app    | env  | loc |              interfaces               |
-+-------------------+------+----------+------+-----+---------------------------------------+
-| AssetMgt.db.prod  | DB   | ASSETMGT | PROD | BOS | eth0:192.168.200.15                   |
-| AssetMgt.web.prod | WEB  | ASSETMGT | PROD | BOS | eth0:192.168.200.15;eth1:10.10.100.22 |
-+-------------------+------+----------+------+-----+---------------------------------------+
++---------------+------+------+----------+------+-----+---------------------------------------+
+|     host      | name | role |   app    | env  | loc |              interfaces               |
++---------------+------+------+----------+------+-----+---------------------------------------+
+| assetmgtdbp1  |      | DB   | ASSETMGT | PROD | BOS | eth0:192.168.200.15                   |
+| assetmgtwebd1 |      | WEB  | ASSETMGT | DEV  | BOS | eth0:192.168.200.15;eth1:10.10.100.22 |
++---------------+------+------+----------+------+-----+---------------------------------------+
 
 Recommended to run without --update-pce first to log of what will change. If --update-pce is used, import will create labels without prompt, but it will not create/update workloads without user confirmation, unless --no-prompt is used.`,
 
