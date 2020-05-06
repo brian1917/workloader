@@ -47,7 +47,7 @@ func exportWorkloads() {
 	utils.Log(0, "running export command")
 
 	// Start the data slice with headers
-	csvData := [][]string{[]string{"hostname", "role", "app", "env", "loc", "interfaces", "ip_with_default_gw", "netmask_of_ip_with_def_gw", "default_gw", "default_gw_network", "href", "name", "mode", "online", "policy_sync_status", "policy_applied", "policy_received", "policy_refreshed", "last_heartbeat", "hours_since_last_heartbeat", "os_id", "os_details", "ven_version", "ven_id"}}
+	csvData := [][]string{[]string{"hostname", "name", "role", "app", "env", "loc", "interfaces", "ip_with_default_gw", "netmask_of_ip_with_def_gw", "default_gw", "default_gw_network", "href", "mode", "online", "policy_sync_status", "policy_applied", "policy_received", "policy_refreshed", "last_heartbeat", "hours_since_last_heartbeat", "os_id", "os_details", "ven_version", "ven_id"}}
 	stdOutData := [][]string{[]string{"hostname", "role", "app", "env", "loc", "mode"}}
 
 	// GetAllWorkloads
@@ -122,7 +122,7 @@ func exportWorkloads() {
 		}
 
 		// Append to data slice
-		csvData = append(csvData, []string{w.Hostname, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, strings.Join(interfaces, ";"), w.GetIPWithDefaultGW(), w.GetNetMaskWithDefaultGW(), w.GetDefaultGW(), w.GetNetworkWithDefaultGateway(), w.Href, w.Name, w.GetMode(), online, policySyncStatus, policyAppliedAt, poicyReceivedAt, policyRefreshAt, lastHeartBeat, hoursSinceLastHB, w.OsID, w.OsDetail, venVersion, venID})
+		csvData = append(csvData, []string{w.Hostname, w.Name, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, strings.Join(interfaces, ";"), w.GetIPWithDefaultGW(), w.GetNetMaskWithDefaultGW(), w.GetDefaultGW(), w.GetNetworkWithDefaultGateway(), w.Href, w.GetMode(), online, policySyncStatus, policyAppliedAt, poicyReceivedAt, policyRefreshAt, lastHeartBeat, hoursSinceLastHB, w.OsID, w.OsDetail, venVersion, venID})
 		stdOutData = append(stdOutData, []string{w.Hostname, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, w.GetMode()})
 	}
 
