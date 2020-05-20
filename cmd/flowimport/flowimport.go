@@ -120,7 +120,14 @@ func uploadFlows() {
 			if _, ok := wkldHostMap[line[0]]; !ok {
 				utils.Log(1, fmt.Sprintf("CSV line %d - %s is not valid IP or valid hostname", i, line[0]))
 			}
-			src = wkldHostMap[line[0]].Interfaces[0].Address
+
+			sWkld := wkldHostMap[line[0]]
+			if sWkld.GetIPWithDefaultGW() == "NA" {
+				src = wkldHostMap[line[0]].Interfaces[0].Address
+			} else {
+				src = sWkld.GetIPWithDefaultGW()
+			}
+
 			if net.ParseIP(src) == nil {
 				utils.Log(1, fmt.Sprintf("CSV line %d - %s does not have a valid IP address on the first interface", i, line[0]))
 			}
@@ -132,7 +139,12 @@ func uploadFlows() {
 			if _, ok := wkldHostMap[line[1]]; !ok {
 				utils.Log(1, fmt.Sprintf("CSV line %d - %s is not valid IP or valid hostname", i, line[1]))
 			}
-			dst = wkldHostMap[line[1]].Interfaces[0].Address
+			dWkld := wkldHostMap[line[1]]
+			if dWkld.GetIPWithDefaultGW() == "NA" {
+				dst = wkldHostMap[line[1]].Interfaces[0].Address
+			} else {
+				dst = dWkld.GetIPWithDefaultGW()
+			}
 			if net.ParseIP(dst) == nil {
 				utils.Log(1, fmt.Sprintf("CSV line %d - %s does not have a valid IP address on the first interface", i, line[1]))
 			}
