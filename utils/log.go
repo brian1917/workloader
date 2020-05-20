@@ -68,3 +68,14 @@ func LogAPIResp(callType string, apiResp illumioapi.APIResponse) {
 	LogDebug(fmt.Sprintf("%s Response Status Code: %d", callType, apiResp.StatusCode))
 	LogDebug(fmt.Sprintf("%s Response Body: %s", callType, apiResp.RespBody))
 }
+
+// LogStartCommand is used at the beginning of each command
+func LogStartCommand(commandName string) {
+	Logger.Println("-----------------------------------------------------------------------------")
+	LogInfo(fmt.Sprintf("workloader version %s - started %s", commandName, GetVersion()))
+}
+
+// LogEndCommand is used at the end of each command
+func LogEndCommand(commandName string) {
+	LogInfo(fmt.Sprintf("completed %s", commandName))
+}
