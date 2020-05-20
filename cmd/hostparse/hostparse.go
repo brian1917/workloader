@@ -321,7 +321,7 @@ func changeCase(str string) string {
 func hostnameParser() {
 
 	// Log the start of the command
-	utils.LogInfo("started hostparse command")
+	utils.LogStartCommand("hostparse")
 
 	// Set output file
 	outputFileName = "workloader-hostparse-" + time.Now().Format("20060102_150405") + ".csv"
@@ -568,4 +568,5 @@ func hostnameParser() {
 			fmt.Println("**** PCE Error **** Cannot update Labels or Hostnames to Upload **** Check Output file ****")
 		}
 	}
+	utils.LogEndCommand("hostparse")
 }

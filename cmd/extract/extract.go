@@ -286,7 +286,7 @@ func traffic() {
 func extract() {
 
 	// Log start of command
-	utils.LogInfo("extract command started")
+	utils.LogStartCommand("extract")
 
 	// Set outdir
 	outDir = "pce-extract"
@@ -345,6 +345,6 @@ func extract() {
 	fmt.Println("Temporary directory removed.")
 
 	// Log start of command
-	utils.LogInfo("extract command completed")
+	utils.LogEndCommand("extract")
 
 }

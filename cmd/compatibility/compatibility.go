@@ -45,7 +45,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 func compatibilityReport() {
 
 	// Log command
-	utils.LogInfo("running compatability command")
+	utils.LogStartCommand("compatibility")
 
 	// Start the data slice with the headers. We will append data to this.
 	var csvData, stdOutData, modeChangeInputData [][]string
@@ -117,5 +117,6 @@ func compatibilityReport() {
 		fmt.Printf("\r\n[INFO] - Created a file to be used with workloader mode command to change all green status IDLE workloads to build: %s\r\n", outFile.Name())
 		utils.LogInfo(fmt.Sprintf("created %s", outFile.Name()))
 	}
+	utils.LogEndCommand("compatibility")
 
 }

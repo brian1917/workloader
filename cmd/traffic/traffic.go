@@ -137,7 +137,7 @@ func hostname(ipAddr string, t int) string {
 
 func workloadIdentifier() {
 
-	utils.LogInfo("started traffic command")
+	utils.LogStartCommand("traffic")
 	// Parse the iunput CSVs
 	coreServices := parseCoreServices(csvFile)
 
@@ -276,5 +276,5 @@ func workloadIdentifier() {
 		csvWriter(finalMatches, exclWLs)
 	}
 
-	utils.LogInfo("traffic command completed")
+	utils.LogEndCommand("traffic")
 }

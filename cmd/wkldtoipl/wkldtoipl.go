@@ -59,7 +59,7 @@ workloader wkld-to-ipl rae -f default-pce -t endpoint-pce --update-pce will crea
 func wkldtoipl() {
 
 	// Log start of run
-	utils.LogInfo("started wkld-to-ipl command")
+	utils.LogStartCommand("wkld-to-ipl")
 
 	// Check if we have destination PCE if we need it
 	if updatePCE && toPCE == "" {
@@ -161,4 +161,6 @@ func wkldtoipl() {
 		utils.LogError(fmt.Sprintf("error getting to pce - %s", err))
 	}
 	iplimport.ImportIPLists(dPce, fileName, updatePCE, noPrompt, debug)
+
+	utils.LogEndCommand("wkld-to-ipl")
 }

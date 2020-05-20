@@ -46,7 +46,7 @@ Gets a pairing key. The default pairing profile is used unless a profile name is
 func getPK() {
 
 	// Log command execution
-	utils.LogInfo("running get-pk command")
+	utils.LogStartCommand("get-pk")
 
 	// Get all pairing profiles
 	pps, a, err := pce.GetAllPairingProfiles()
@@ -65,5 +65,6 @@ func getPK() {
 			fmt.Println(pk.ActivationCode)
 		}
 	}
+	utils.LogEndCommand("get-pk")
 
 }

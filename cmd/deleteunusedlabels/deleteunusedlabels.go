@@ -41,6 +41,8 @@ Use --update-pce and --no-prompt to run the delete with no prompts.`,
 
 func labelsDeleteUnused() {
 
+	utils.LogStartCommand("labels-delete-unused")
+
 	// Get all labels
 	labels, a, err := pce.GetAllLabels()
 	utils.LogAPIResp("GetAllLabels", a)
@@ -66,6 +68,5 @@ func labelsDeleteUnused() {
 		}
 	}
 
-	fmt.Println("completed running labels-delete-unused command.")
-	utils.LogInfo("completed running labels-delete-unused command.")
+	utils.LogEndCommand("labels-delete-unused")
 }

@@ -73,7 +73,7 @@ Example input:
 
 func uploadFlows() {
 	// Log start
-	utils.LogInfo("started flowupload command")
+	utils.LogStartCommand("flow-import")
 
 	// Get all workloads in a map by hostname
 	wkldHostMap, a, err := pce.GetWkldHostMap()
@@ -213,5 +213,7 @@ func uploadFlows() {
 		}
 		i++
 	}
+
+	utils.LogEndCommand("flow-import")
 
 }

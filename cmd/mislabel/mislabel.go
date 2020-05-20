@@ -117,7 +117,7 @@ func getExclPorts(filename string) [][2]int {
 func misLabel() {
 
 	// Log start
-	utils.LogInfo("started mislabel command")
+	utils.LogStartCommand("mislabel")
 
 	// Get ports we should ignore
 	exclPorts := [][2]int{[2]int{5355, 17}, [2]int{137, 17}, [2]int{138, 17}, [2]int{139, 17}}
@@ -273,6 +273,8 @@ func misLabel() {
 		fmt.Println("\r\n0 potentially mislabeled workloads detected.")
 		utils.LogInfo("mislabel complete - 0 workloads identified")
 	}
+
+	utils.LogEndCommand("mislabel")
 }
 
 func appGroupManagedCounter(allWklds []illumioapi.Workload) map[string]int {

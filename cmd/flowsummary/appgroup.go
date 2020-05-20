@@ -92,7 +92,7 @@ type svcSummary struct {
 
 func flowSummary() {
 
-	utils.LogInfo("Started flowsummary appgroup command")
+	utils.LogStartCommand("flowsummary appgroup")
 
 	// Build policy status slice
 	var pStatus []string
@@ -277,5 +277,7 @@ func flowSummary() {
 		fmt.Println("no explorer data to summarize")
 		utils.LogInfo("no explorer data to summarize")
 	}
+
+	utils.LogEndCommand("flowsummary appgroup")
 
 }

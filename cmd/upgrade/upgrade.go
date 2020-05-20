@@ -63,6 +63,8 @@ Default output is a CSV file with what would be upgraded. Use the --update-pce c
 
 func wkldUpgrade() {
 
+	utils.LogStartCommand("upgrade")
+
 	// Get all workloads
 	wklds, a, err := pce.GetAllWorkloads()
 	if debug {
@@ -184,4 +186,6 @@ func wkldUpgrade() {
 			utils.LogError(err.Error())
 		}
 	}
+
+	utils.LogEndCommand("upgrade")
 }

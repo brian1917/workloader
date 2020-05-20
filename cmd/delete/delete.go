@@ -55,6 +55,8 @@ Use --update-pce and --no-prompt to run the delete with no prompts.`,
 
 func delete() {
 
+	utils.LogStartCommand("delete")
+
 	// Get all workloads
 	wkldMap, a, err := pce.GetWkldHrefMap()
 	utils.LogAPIResp("GetAllWkldHrefMap", a)
@@ -146,6 +148,5 @@ func delete() {
 	if err != nil {
 		utils.LogError(err.Error())
 	}
-	fmt.Println("completed running delete command.")
-	utils.LogInfo("completed running delete command.")
+	utils.LogEndCommand("delete")
 }

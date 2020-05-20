@@ -69,6 +69,9 @@ Recommended to run without --update-pce first to log of what will change. If --u
 // ImportIPLists imports IP Lists to a target PCE from a CSV file
 func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debug bool) {
 
+	// Log command execution
+	utils.LogStartCommand("ipl-import")
+
 	// Hard code in some columns so we can make flags later
 	nameCol := 1
 	descCol := 2
@@ -84,9 +87,6 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 	excCol--
 	extDsCol--
 	extDrCol--
-
-	// Log command execution
-	utils.LogInfo("running ipl-import command")
 
 	// Create a map for our CSV ip lists
 	csvIPLs := make(map[string]illumioapi.IPList)
@@ -308,6 +308,6 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 		utils.LogInfo(fmt.Sprintf("%s updated - status code %d", updateIPL.Name, a.StatusCode))
 	}
 
-	utils.LogInfo("completed running ipl-import")
+	utils.LogEndCommand("ipl-import")
 
 }

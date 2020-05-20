@@ -39,6 +39,8 @@ The --update-pce and --no-prompt flags are ignored for this command.`,
 }
 
 func dupeCheck() {
+	utils.LogStartCommand("dupecheck")
+
 	// Get all workloads
 	wklds, a, err := pce.GetAllWorkloads()
 	if debug {
@@ -75,6 +77,7 @@ func dupeCheck() {
 		utils.LogInfo("no duplicate hostnames found")
 		fmt.Println("No duplicate hostnames found.")
 	}
+	utils.LogEndCommand("dupecheck")
 }
 
 // DupeIPCheck looks for an duplicate IP addresses in a PCE.

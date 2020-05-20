@@ -66,7 +66,7 @@ Use --update-pce to make the changes in the PCE.
 func renameLabel() {
 
 	// Log start
-	utils.LogInfo("started running label-rename command")
+	utils.LogStartCommand("label-rename")
 
 	// Get all labels
 	labels, a, err := pce.GetAllLabels()
@@ -173,4 +173,6 @@ func renameLabel() {
 		utils.LogInfo(fmt.Sprintf("created %s to %s (%s) - %d", newL.Href, newL.Value, newL.Key, a.StatusCode))
 		fmt.Printf("created %s to %s (%s) - %d\r\n", newL.Href, newL.Value, newL.Key, a.StatusCode)
 	}
+
+	utils.LogEndCommand("label-rename")
 }

@@ -73,6 +73,8 @@ Use --update-pce and --no-prompt to run unpair with no prompts.`,
 
 func unpair() {
 
+	utils.LogStartCommand("unpair")
+
 	// Check that we aren't unpairing the whole PCE
 	if app == "" && role == "" && env == "" && loc == "" && hoursSinceLastHB == 0 && hrefFile == "" {
 		utils.LogError("Must provide labels, hours, or an input file.")
@@ -218,6 +220,5 @@ func unpair() {
 	if err != nil {
 		utils.LogError(err.Error())
 	}
-	fmt.Println("completed running unpair command.")
-	utils.LogInfo("completed running unpair command.")
+	utils.LogEndCommand("unpair")
 }

@@ -58,11 +58,11 @@ To filter unwanted traffic, create a CSV with NO HEADERS. Column 1 should have p
 
 func explorerExport() {
 
+	// Log start
+	utils.LogStartCommand("explorer")
+
 	// Set threshold
 	illumioapi.Threshold = threshold
-
-	// Log start
-	utils.LogInfo("started explorer command")
 
 	// Build policy status slice
 	var pStatus []string
@@ -233,7 +233,7 @@ func explorerExport() {
 	utils.WriteOutput(data, data, outFileName)
 
 	// Log end
-	utils.LogInfo("explorer command complete")
+	utils.LogEndCommand("explorer")
 
 }
 

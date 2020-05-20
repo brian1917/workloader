@@ -138,7 +138,7 @@ func parseCsv(filename string) []target {
 func modeUpdate() {
 
 	// Log start of execution
-	utils.LogInfo("running mode command")
+	utils.LogStartCommand("mode")
 
 	// Build a map of all managed workloads
 	wkldMap, a, err := pce.GetWkldHrefMap()
@@ -229,4 +229,5 @@ func modeUpdate() {
 
 	// Print completion to the terminal
 	fmt.Printf("%d workloads mode updated. See workloader.log for details.\r\n", len(workloadUpdates))
+	utils.LogEndCommand("mode")
 }

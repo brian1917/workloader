@@ -43,7 +43,7 @@ Create a CSV export of all workloads in the PCE. The update-pce and --no-prompt 
 func exportIPL() {
 
 	// Log command execution
-	utils.LogInfo("running ipl-export command")
+	utils.LogStartCommand("ipl-export")
 
 	// Start the data slice with headers
 	csvData := [][]string{[]string{"name", "description", "include", "exclude", "external_data_set", "external_data_ref", "href"}}
@@ -81,4 +81,5 @@ func exportIPL() {
 		fmt.Println("No iplists in PCE.")
 		utils.LogInfo("no iplists in PCE.")
 	}
+	utils.LogEndCommand("ipl-export")
 }

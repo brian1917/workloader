@@ -39,7 +39,7 @@ The created CSV includes the following headers: wkld_hostname, wkld_href, interf
 func nicExport() {
 
 	// Log start of command
-	utils.LogInfo("started nic command")
+	utils.LogStartCommand("nic")
 
 	// Build our CSV data output
 	data := [][]string{[]string{"wkld_hostname", "wkld_href", "nic_name", "address", "cidr", "ipv4_net_mask", "default_gw"}}
@@ -69,5 +69,5 @@ func nicExport() {
 	utils.WriteOutput(data, data, fmt.Sprintf(fmt.Sprintf("workloader-nic-%s.csv", time.Now().Format("20060102_150405"))))
 
 	// Log end of command
-	utils.LogInfo("nic command completed")
+	utils.LogEndCommand("nic")
 }

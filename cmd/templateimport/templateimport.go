@@ -42,7 +42,7 @@ Import an Illumio segmentation template.`,
 // Process template file
 func importTemplate() {
 
-	utils.LogInfo("started running template-import command.")
+	utils.LogStartCommand("template-import")
 
 	template, err := illumioapi.ParseTemplateFile(templateFile)
 	if err != nil {
@@ -83,5 +83,5 @@ func importTemplate() {
 		}
 	}
 
-	utils.LogInfo("completed running template-import command.")
+	utils.LogEndCommand("template-import")
 }

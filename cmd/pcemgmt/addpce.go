@@ -67,7 +67,7 @@ The --update-pce and --no-prompt flags are ignored for this command.
 func addPCE() {
 
 	// Log start
-	utils.LogInfo("pce-add command started")
+	utils.LogStartCommand("pce-add")
 
 	var err error
 	var pce illumioapi.PCE
@@ -207,5 +207,5 @@ func addPCE() {
 	} else {
 		fmt.Printf("\r\nAdded PCE information to %s\r\n", configFilePath)
 	}
-	utils.LogInfo("completed pce-add")
+	utils.LogEndCommand("pce-add")
 }

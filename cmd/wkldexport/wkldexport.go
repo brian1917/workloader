@@ -44,7 +44,7 @@ Create a CSV export of all workloads in the PCE. The update-pce and --no-prompt 
 func exportWorkloads() {
 
 	// Log command execution
-	utils.LogInfo("running export command")
+	utils.LogStartCommand("wkld-export")
 
 	// Start the data slice with headers
 	csvData := [][]string{[]string{"hostname", "name", "role", "app", "env", "loc", "interfaces", "ip_with_default_gw", "netmask_of_ip_with_def_gw", "default_gw", "default_gw_network", "href", "mode", "online", "policy_sync_status", "policy_applied", "policy_received", "policy_refreshed", "last_heartbeat", "hours_since_last_heartbeat", "os_id", "os_details", "ven_version", "ven_id"}}
@@ -136,5 +136,7 @@ func exportWorkloads() {
 		fmt.Println("No workloads in PCE.")
 		utils.LogInfo("no workloads in PCE.")
 	}
+
+	utils.LogEndCommand("wkld-export")
 
 }
