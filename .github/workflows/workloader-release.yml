@@ -38,13 +38,13 @@ jobs:
           cp workload-identifier-default.csv default-import-csv.csv ./linux
 
       - name: Build Windows executable
-        run: GOOS=windows go build -ldflags "-X github.com/brian1917/workloader/cmd.Version=$(cat version) -X github.com/brian1917/workloader/cmd.Commit=$(git rev-list -1 HEAD)" -o ./windows/workloader.exe
+        run: GOOS=windows go build -ldflags "-X github.com/brian1917/workloader/utils.Version=$(cat version) -X github.com/brian1917/workloader/utils.Commit=$(git rev-list -1 HEAD)" -o ./windows/workloader.exe
 
       - name: Build Mac executable
-        run: GOOS=darwin go build -ldflags "-X github.com/brian1917/workloader/cmd.Version=$(cat version) -X github.com/brian1917/workloader/cmd.Commit=$(git rev-list -1 HEAD)" -o ./mac/workloader
+        run: GOOS=darwin go build -ldflags "-X github.com/brian1917/workloader/utils.Version=$(cat version) -X github.com/brian1917/workloader/utils.Commit=$(git rev-list -1 HEAD)" -o ./mac/workloader
 
       - name: Build Linux executable
-        run: GOOS=linux go build -ldflags "-X github.com/brian1917/workloader/cmd.Version=$(cat version) -X github.com/brian1917/workloader/cmd.Commit=$(git rev-list -1 HEAD)" -o ./linux/workloader
+        run: GOOS=linux go build -ldflags "-X github.com/brian1917/workloader/utils.Version=$(cat version) -X github.com/brian1917/workloader/utils.Commit=$(git rev-list -1 HEAD)" -o ./linux/workloader
 
       - name: Create release zip packages
         run: |
