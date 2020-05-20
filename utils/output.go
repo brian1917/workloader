@@ -37,17 +37,17 @@ func WriteOutput(csvData, stdOutData [][]string, csvFileName string) {
 		// Create CSV
 		outFile, err := os.Create(csvFileName)
 		if err != nil {
-			Log(1, fmt.Sprintf("creating CSV - %s\n", err))
+			LogError(fmt.Sprintf("creating CSV - %s\n", err))
 		}
 
 		// Write CSV data
 		writer := csv.NewWriter(outFile)
 		writer.WriteAll(csvData)
 		if err := writer.Error(); err != nil {
-			Log(1, fmt.Sprintf("writing CSV - %s\n", err))
+			LogError(fmt.Sprintf("writing CSV - %s\n", err))
 		}
 		// Log
 		fmt.Printf("\r\n[INFO] - Output file: %s\r\n", outFile.Name())
-		Log(0, fmt.Sprintf("created %s", outFile.Name()))
+		LogInfo(fmt.Sprintf("created %s", outFile.Name()))
 	}
 }

@@ -34,7 +34,7 @@ Use --update-pce and --no-prompt to run the delete with no prompts.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		// Set the CSV file
@@ -59,7 +59,7 @@ func delete() {
 	wkldMap, a, err := pce.GetWkldHrefMap()
 	utils.LogAPIResp("GetAllWkldHrefMap", a)
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	// Get all HREFs from the CSV file
@@ -72,7 +72,7 @@ func delete() {
 			break
 		}
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("Reading CSV File - %s", err))
+			utils.LogError(fmt.Sprintf("Reading CSV File - %s", err))
 		}
 		hrefs = append(hrefs, line[0])
 	}
@@ -80,7 +80,7 @@ func delete() {
 	// Create a CSV with the unpairs
 	outFile, err := os.Create("workloader-delete-" + time.Now().Format("20060102_150405") + ".csv")
 	if err != nil {
-		utils.Log(1, fmt.Sprintf("creating CSV - %s\n", err))
+		utils.LogError(fmt.Sprintf("creating CSV - %s\n", err))
 	}
 
 	// Build the data slice for writing
@@ -114,14 +114,14 @@ func delete() {
 	writer := csv.NewWriter(outFile)
 	writer.WriteAll(data)
 	if err := writer.Error(); err != nil {
-		utils.Log(1, fmt.Sprintf("writing CSV - %s\n", err))
+		utils.LogError(fmt.Sprintf("writing CSV - %s\n", err))
 	}
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
-		utils.Log(0, fmt.Sprintf("delete identified %d workloads to be deleted - see %s for details.", deleteCounter, outFile.Name()))
+		utils.LogInfo(fmt.Sprintf("delete identified %d workloads to be deleted - see %s for details.", deleteCounter, outFile.Name()))
 		fmt.Printf("Delete identified %d workloads to be deleted. See %s for details. To do the delete, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.\r\n", deleteCounter, outFile.Name())
-		utils.Log(0, "completed running delete command")
+		utils.LogInfo("completed running delete command")
 		return
 	}
 
@@ -131,9 +131,9 @@ func delete() {
 		fmt.Printf("Delete identified %d workloads to be deleted. See %s for details. Do you want to run the deletion? (yes/no)? ", deleteCounter, outFile.Name())
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
-			utils.Log(0, fmt.Sprintf("Delete identified %d workloads to be deleted - see %s for details. user denied prompt", deleteCounter, outFile.Name()))
+			utils.LogInfo(fmt.Sprintf("Delete identified %d workloads to be deleted - see %s for details. user denied prompt", deleteCounter, outFile.Name()))
 			fmt.Println("Prompt denied.")
-			utils.Log(0, "completed running delete command")
+			utils.LogInfo("completed running delete command")
 			return
 		}
 	}
@@ -144,8 +144,8 @@ func delete() {
 		utils.LogAPIResp("bulk delete workloads", a)
 	}
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 	fmt.Println("completed running delete command.")
-	utils.Log(0, "completed running delete command.")
+	utils.LogInfo("completed running delete command.")
 }

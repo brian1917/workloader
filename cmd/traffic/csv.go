@@ -73,7 +73,7 @@ func parseCoreServices(filename string) []coreService {
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			utils.Log(1, fmt.Sprintf("Reading CSV File - %s", err))
+			utils.LogError(fmt.Sprintf("Reading CSV File - %s", err))
 		}
 
 		// Skip the header row
@@ -92,7 +92,7 @@ func parseCoreServices(filename string) []coreService {
 			for _, strPort := range requiredPortsStr {
 				intPort, err := strconv.Atoi(strPort)
 				if err != nil {
-					utils.Log(1, fmt.Sprintf("converting required port to int on line %d - %s", i, err))
+					utils.LogError(fmt.Sprintf("converting required port to int on line %d - %s", i, err))
 				}
 				reqPortsInt = append(reqPortsInt, intPort)
 			}
@@ -113,7 +113,7 @@ func parseCoreServices(filename string) []coreService {
 					for _, rangeValue := range rangePortStr {
 						value, err := strconv.Atoi(rangeValue)
 						if err != nil {
-							utils.Log(1, fmt.Sprintf("converting port range values to int on line %d - %s", i, err))
+							utils.LogError(fmt.Sprintf("converting port range values to int on line %d - %s", i, err))
 						}
 						rangePortInt = append(rangePortInt, value)
 					}
@@ -124,7 +124,7 @@ func parseCoreServices(filename string) []coreService {
 				if len(rangePortInt) == 0 {
 					intPort, err := strconv.Atoi(strPort)
 					if err != nil {
-						utils.Log(1, fmt.Sprintf("converting optional port to int on line %d - %s", i, err))
+						utils.LogError(fmt.Sprintf("converting optional port to int on line %d - %s", i, err))
 					}
 					optPortsInt = append(optPortsInt, intPort)
 				}
@@ -134,7 +134,7 @@ func parseCoreServices(filename string) []coreService {
 			if len(line[csvNumOptPorts]) > 0 {
 				numOptPorts, err = strconv.Atoi(line[csvNumOptPorts])
 				if err != nil {
-					utils.Log(1, fmt.Sprintf("converting number of required ports to int on line %d - %s", i, err))
+					utils.LogError(fmt.Sprintf("converting number of required ports to int on line %d - %s", i, err))
 				}
 			}
 
@@ -142,7 +142,7 @@ func parseCoreServices(filename string) []coreService {
 			if len(line[csvNumFlows]) > 0 {
 				numFlows, err = strconv.Atoi(line[csvNumFlows])
 				if err != nil {
-					utils.Log(1, fmt.Sprintf("converting number of flows to int on line %d - %s", i, err))
+					utils.LogError(fmt.Sprintf("converting number of flows to int on line %d - %s", i, err))
 				}
 			}
 
@@ -150,7 +150,7 @@ func parseCoreServices(filename string) []coreService {
 			if len(line[6]) > 0 {
 				numProcessesReq, err = strconv.Atoi(line[csvNumProcess])
 				if err != nil {
-					utils.Log(1, fmt.Sprintf("converting number of required consumer services to int on line %d - %s", i, err))
+					utils.LogError(fmt.Sprintf("converting number of required consumer services to int on line %d - %s", i, err))
 				}
 			}
 

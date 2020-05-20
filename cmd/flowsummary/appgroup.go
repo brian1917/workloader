@@ -66,7 +66,7 @@ Including the consolidate flag (--consolidate, -c) will combine all entries betw
 
 		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		// Get the debug value from viper
@@ -92,7 +92,7 @@ type svcSummary struct {
 
 func flowSummary() {
 
-	utils.Log(0, "Started flowsummary appgroup command")
+	utils.LogInfo("Started flowsummary appgroup command")
 
 	// Build policy status slice
 	var pStatus []string
@@ -105,22 +105,22 @@ func flowSummary() {
 	if !exclBlocked {
 		pStatus = append(pStatus, "blocked")
 	}
-	utils.Log(0, fmt.Sprintf("policy state: %s", pStatus))
+	utils.LogInfo(fmt.Sprintf("policy state: %s", pStatus))
 
 	// Get the state and end date
 	startDate, err := time.Parse(fmt.Sprintf("2006-01-02 MST"), fmt.Sprintf("%s %s", start, "UTC"))
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 	startDate = startDate.In(time.UTC)
-	utils.Log(0, fmt.Sprintf("Start date: %s", startDate.String()))
+	utils.LogInfo(fmt.Sprintf("Start date: %s", startDate.String()))
 
 	endDate, err := time.Parse(fmt.Sprintf("2006-01-02 MST"), fmt.Sprintf("%s %s", end, "UTC"))
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 	endDate = endDate.In(time.UTC)
-	utils.Log(0, fmt.Sprintf("End date: %s", endDate.String()))
+	utils.LogInfo(fmt.Sprintf("End date: %s", endDate.String()))
 
 	// Create the default query struct
 	tq := illumioapi.TrafficQuery{
@@ -131,16 +131,16 @@ func flowSummary() {
 
 	// If an app is provided, adjust query to include it
 	if app != "" {
-		utils.Log(0, fmt.Sprintf("Provided app label value: %s", app))
+		utils.LogInfo(fmt.Sprintf("Provided app label value: %s", app))
 		label, a, err := pce.GetLabelbyKeyValue("app", app)
 		utils.LogAPIResp("GetLabelbyKeyValue", a)
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("getting label HREF - %s", err))
+			utils.LogError(fmt.Sprintf("getting label HREF - %s", err))
 		}
 		if label.Href == "" {
-			utils.Log(1, fmt.Sprintf("%s does not exist as an app label.", app))
+			utils.LogError(fmt.Sprintf("%s does not exist as an app label.", app))
 		}
-		utils.Log(0, fmt.Sprintf("Provided app label href: %s", label.Href))
+		utils.LogInfo(fmt.Sprintf("Provided app label href: %s", label.Href))
 		tq.SourcesInclude = []string{label.Href}
 	}
 
@@ -150,10 +150,10 @@ func flowSummary() {
 		utils.LogAPIResp("GetTrafficAnalysis", a)
 	}
 	if err != nil {
-		utils.Log(1, fmt.Sprintf("making explorer API call - %s", err))
+		utils.LogError(fmt.Sprintf("making explorer API call - %s", err))
 	}
 
-	utils.Log(0, fmt.Sprintf("First explorer query result count: %d", len(traffic)))
+	utils.LogInfo(fmt.Sprintf("First explorer query result count: %d", len(traffic)))
 
 	// If app is provided, switch to the destination include, clear the sources include, run query again, append to previous result
 	if app != "" {
@@ -164,11 +164,11 @@ func flowSummary() {
 			utils.LogAPIResp("GetTrafficAnalysis", a)
 		}
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("making second explorer API call - %s", err))
+			utils.LogError(fmt.Sprintf("making second explorer API call - %s", err))
 		}
-		utils.Log(0, fmt.Sprintf("Second explorer query result count: %d", len(traffic2)))
+		utils.LogInfo(fmt.Sprintf("Second explorer query result count: %d", len(traffic2)))
 		traffic = append(traffic, traffic2...)
-		utils.Log(0, fmt.Sprintf("Combined explorer query result count: %d", len(traffic)))
+		utils.LogInfo(fmt.Sprintf("Combined explorer query result count: %d", len(traffic)))
 	}
 
 	// Get the protocol list
@@ -271,11 +271,11 @@ func flowSummary() {
 	if len(data) > 1 {
 		utils.WriteOutput(data, data, fmt.Sprintf("workloader-flowsummary-%s.csv", time.Now().Format("20060102_150405")))
 		fmt.Printf("\r\n%d summaries exported.\r\n\r\n", len(data)-1)
-		utils.Log(0, fmt.Sprintf("flowsummary complete - %d summaries exported", len(data)-1))
+		utils.LogInfo(fmt.Sprintf("flowsummary complete - %d summaries exported", len(data)-1))
 	} else {
 		// Log command execution for 0 results
 		fmt.Println("no explorer data to summarize")
-		utils.Log(0, "no explorer data to summarize")
+		utils.LogInfo("no explorer data to summarize")
 	}
 
 }

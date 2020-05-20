@@ -48,7 +48,7 @@ The --update-pce and --no-prompt flags are ignored for this command.`,
 
 		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("error getting pce - %s", err))
+			utils.LogError(fmt.Sprintf("error getting pce - %s", err))
 		}
 
 		// Get the debug value from viper
@@ -72,7 +72,7 @@ func getExclHostsOrApps(filename string) map[string]bool {
 			break
 		}
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("Reading CSV File - %s", err))
+			utils.LogError(fmt.Sprintf("Reading CSV File - %s", err))
 		}
 		exclHosts[line[0]] = true
 	}
@@ -95,16 +95,16 @@ func getExclPorts(filename string) [][2]int {
 			break
 		}
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("Reading CSV File - %s", err))
+			utils.LogError(fmt.Sprintf("Reading CSV File - %s", err))
 		}
 
 		port, err := strconv.Atoi(line[0])
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("Non-integer port value on line %d - %s", n, err))
+			utils.LogError(fmt.Sprintf("Non-integer port value on line %d - %s", n, err))
 		}
 		protocol, err := strconv.Atoi(line[1])
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("Non-integer protocol value on line %d - %s", n, err))
+			utils.LogError(fmt.Sprintf("Non-integer protocol value on line %d - %s", n, err))
 		}
 
 		exclPorts = append(exclPorts, [2]int{port, protocol})
@@ -117,7 +117,7 @@ func getExclPorts(filename string) [][2]int {
 func misLabel() {
 
 	// Log start
-	utils.Log(0, "started mislabel command")
+	utils.LogInfo("started mislabel command")
 
 	// Get ports we should ignore
 	exclPorts := [][2]int{[2]int{5355, 17}, [2]int{137, 17}, [2]int{138, 17}, [2]int{139, 17}}
@@ -140,7 +140,7 @@ func misLabel() {
 			utils.LogAPIResp("GetLabelbyKeyValue", a)
 		}
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 		tq.SourcesInclude = []string{l.Href}
 	}
@@ -151,7 +151,7 @@ func misLabel() {
 		utils.LogAPIResp("GetTrafficAnalysis", apiResp)
 	}
 	if err != nil {
-		utils.Log(1, fmt.Sprintf("error making traffic api call - %s", err))
+		utils.LogError(fmt.Sprintf("error making traffic api call - %s", err))
 	}
 
 	// If app flag is set, edit tq stuct, run again and append.
@@ -164,7 +164,7 @@ func misLabel() {
 			utils.LogAPIResp("GetTrafficAnalysis", apiResp)
 		}
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("error making traffic api call - %s", err))
+			utils.LogError(fmt.Sprintf("error making traffic api call - %s", err))
 		}
 		traffic = append(traffic, traffic2...)
 	}
@@ -228,7 +228,7 @@ func misLabel() {
 		utils.LogAPIResp("GetAllWorkloads", a)
 	}
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	// Build a map of app groups and their count
@@ -267,11 +267,11 @@ func misLabel() {
 	if len(data) > 1 {
 		utils.WriteOutput(data, data, fmt.Sprintf("workloader-mislabel-%s.csv", time.Now().Format("20060102_150405")))
 		fmt.Printf("\r\n%d potentially mislabeled workloads detected.\r\n", len(data)-1)
-		utils.Log(0, fmt.Sprintf("mislabel complete - %d workloads identified", len(data)-1))
+		utils.LogInfo(fmt.Sprintf("mislabel complete - %d workloads identified", len(data)-1))
 	} else {
 		// Log if we don't find any
 		fmt.Println("\r\n0 potentially mislabeled workloads detected.")
-		utils.Log(0, "mislabel complete - 0 workloads identified")
+		utils.LogInfo("mislabel complete - 0 workloads identified")
 	}
 }
 

@@ -28,7 +28,7 @@ The --update-pce and --no-prompt flags are ignored for this command.`,
 
 		pce, err = utils.GetDefaultPCE(false)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		// Get the debug value from viper
@@ -45,7 +45,7 @@ func dupeCheck() {
 		utils.LogAPIResp("GetAllWorkloads", a)
 	}
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	// Check for duplicate IPs
@@ -58,7 +58,7 @@ func dupeCheck() {
 		utils.WriteOutput(data, data, fmt.Sprintf(fmt.Sprintf("workloader-dupeIPs-%s.csv", time.Now().Format("20060102_150405"))))
 		fmt.Printf("%d duplicate IP addresses found.\r\n", len(dupeIPMap))
 	} else {
-		utils.Log(0, "no duplicate IPs found")
+		utils.LogInfo("no duplicate IPs found")
 		fmt.Println("No duplicate IPs found.")
 	}
 
@@ -72,7 +72,7 @@ func dupeCheck() {
 		utils.WriteOutput(data, data, fmt.Sprintf(fmt.Sprintf("workloader-dupe-hostnames-%s.csv", time.Now().Format("20060102_150405"))))
 		fmt.Printf("%d duplicate hostnames found.\r\n", len(dupeHostMap))
 	} else {
-		utils.Log(0, "no duplicate hostnames found")
+		utils.LogInfo("no duplicate hostnames found")
 		fmt.Println("No duplicate hostnames found.")
 	}
 }

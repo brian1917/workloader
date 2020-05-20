@@ -32,7 +32,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 
 		pce, err = utils.GetDefaultPCE(false)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		// Get the debug value from viper
@@ -45,7 +45,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 func compatibilityReport() {
 
 	// Log command
-	utils.Log(0, "running compatability command")
+	utils.LogInfo("running compatability command")
 
 	// Start the data slice with the headers. We will append data to this.
 	var csvData, stdOutData, modeChangeInputData [][]string
@@ -59,7 +59,7 @@ func compatibilityReport() {
 		utils.LogAPIResp("GetAllWorkloadsH", a)
 	}
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	// Iterate through each workload
@@ -76,7 +76,7 @@ func compatibilityReport() {
 			utils.LogAPIResp("GetCompatibilityReport", a)
 		}
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("getting compatibility report for %s (%s) - %s", w.Hostname, w.Href, err))
+			utils.LogError(fmt.Sprintf("getting compatibility report for %s (%s) - %s", w.Hostname, w.Href, err))
 		}
 
 		csvData = append(csvData, []string{w.Hostname, w.Href, cr.QualifyStatus, a.RespBody})
@@ -92,11 +92,11 @@ func compatibilityReport() {
 		utils.WriteOutput(csvData, stdOutData, fmt.Sprintf("workloader-compatibility-%s.csv", time.Now().Format("20060102_150405")))
 		fmt.Println("[INFO] - Note - CSV will have verbose information on tests for yellow/red status")
 		fmt.Printf("[INFO] - %d compatibility reports exported.\r\n", len(csvData)-1)
-		utils.Log(0, fmt.Sprintf("export complete - %d workloads exported", len(csvData)-1))
+		utils.LogInfo(fmt.Sprintf("export complete - %d workloads exported", len(csvData)-1))
 	} else {
 		// Log command execution for 0 results
 		fmt.Println("No workloads in idle mode.")
-		utils.Log(0, "no workloads in idle mode.")
+		utils.LogInfo("no workloads in idle mode.")
 	}
 
 	// Write the mode change CSV
@@ -104,18 +104,18 @@ func compatibilityReport() {
 		// Create CSV
 		outFile, err := os.Create(fmt.Sprintf("workloader-mode-input-%s.csv", time.Now().Format("20060102_150405")))
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("creating CSV - %s\n", err))
+			utils.LogError(fmt.Sprintf("creating CSV - %s\n", err))
 		}
 
 		// Write CSV data
 		writer := csv.NewWriter(outFile)
 		writer.WriteAll(modeChangeInputData)
 		if err := writer.Error(); err != nil {
-			utils.Log(1, fmt.Sprintf("writing CSV - %s\n", err))
+			utils.LogError(fmt.Sprintf("writing CSV - %s\n", err))
 		}
 		// Log
 		fmt.Printf("\r\n[INFO] - Created a file to be used with workloader mode command to change all green status IDLE workloads to build: %s\r\n", outFile.Name())
-		utils.Log(0, fmt.Sprintf("created %s", outFile.Name()))
+		utils.LogInfo(fmt.Sprintf("created %s", outFile.Name()))
 	}
 
 }

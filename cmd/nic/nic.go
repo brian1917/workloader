@@ -26,7 +26,7 @@ The created CSV includes the following headers: wkld_hostname, wkld_href, interf
 
 		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		// Get the debug value from viper
@@ -39,7 +39,7 @@ The created CSV includes the following headers: wkld_hostname, wkld_href, interf
 func nicExport() {
 
 	// Log start of command
-	utils.Log(0, "started nic command")
+	utils.LogInfo("started nic command")
 
 	// Build our CSV data output
 	data := [][]string{[]string{"wkld_hostname", "wkld_href", "nic_name", "address", "cidr", "ipv4_net_mask", "default_gw"}}
@@ -48,7 +48,7 @@ func nicExport() {
 	wklds, a, err := pce.GetAllWorkloads()
 	utils.LogAPIResp("GetAllWorkloads", a)
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	// For each workload, iterate through the network interfaces and add to the data slice
@@ -69,5 +69,5 @@ func nicExport() {
 	utils.WriteOutput(data, data, fmt.Sprintf(fmt.Sprintf("workloader-nic-%s.csv", time.Now().Format("20060102_150405"))))
 
 	// Log end of command
-	utils.Log(0, "nic command completed")
+	utils.LogInfo("nic command completed")
 }

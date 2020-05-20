@@ -91,7 +91,7 @@ func locParser(csvFile string, netCol, envCol, locCol int) []subnet {
 	// Open CSV File
 	file, err := os.Open(csvFile)
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 	defer file.Close()
 	reader := csv.NewReader(bufio.NewReader(file))
@@ -110,7 +110,7 @@ func locParser(csvFile string, netCol, envCol, locCol int) []subnet {
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		// Skipe the header row
@@ -121,7 +121,7 @@ func locParser(csvFile string, netCol, envCol, locCol int) []subnet {
 		//Place subnet into net.IPNet data structure as part of subnetLabel struct
 		_, network, err := net.ParseCIDR(line[netCol])
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("CSV line %d - the subnet cannot be parsed.  The format is 10.10.10.0/24", i))
+			utils.LogError(fmt.Sprintf("CSV line %d - the subnet cannot be parsed.  The format is 10.10.10.0/24", i))
 		}
 
 		//Set struct values
@@ -133,7 +133,7 @@ func locParser(csvFile string, netCol, envCol, locCol int) []subnet {
 
 func subnetParser() {
 
-	utils.Log(2, fmt.Sprintf("CSV Columns. Network: %d; Env: %d; Loc: %d", netCol, envCol, locCol))
+	utils.LogDebug(fmt.Sprintf("CSV Columns. Network: %d; Env: %d; Loc: %d", netCol, envCol, locCol))
 
 	// Adjust the columns so they are one less (first column should be 0)
 	netCol = netCol - 1
@@ -147,7 +147,7 @@ func subnetParser() {
 	wklds, a, err := pce.GetAllWorkloads()
 	utils.LogAPIResp("GetAllWorkloads", a)
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	// Create a slice to store our results
@@ -169,7 +169,7 @@ func subnetParser() {
 						m.oldLoc = w.GetLoc(pce.LabelMapH).Value
 						pce, err = w.ChangeLabel(pce, "loc", nets.loc)
 						if err != nil {
-							utils.Log(1, err.Error())
+							utils.LogError(err.Error())
 						}
 						m.workload = w
 					}
@@ -178,7 +178,7 @@ func subnetParser() {
 						m.oldEnv = w.GetEnv(pce.LabelMapH).Value
 						pce, err = w.ChangeLabel(pce, "env", nets.env)
 						if err != nil {
-							utils.Log(1, err.Error())
+							utils.LogError(err.Error())
 						}
 						m.workload = w
 					}
@@ -212,9 +212,9 @@ func subnetParser() {
 
 		// If updatePCE is disabled, we are just going to alert the user what will happen and log
 		if !updatePCE {
-			utils.Log(0, fmt.Sprintf("%d workloads requiring mode change.", len(data)-1))
+			utils.LogInfo(fmt.Sprintf("%d workloads requiring mode change.", len(data)-1))
 			fmt.Printf("Subnet identified %d workloads requiring label change. To update their labels, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.\r\n", len(data)-1)
-			utils.Log(0, "completed running subnet command")
+			utils.LogInfo("completed running subnet command")
 			return
 		}
 
@@ -224,9 +224,9 @@ func subnetParser() {
 			fmt.Printf("Subnet will change the labels of %d workloads. Do you want to run the change (yes/no)? ", len(data)-1)
 			fmt.Scanln(&prompt)
 			if strings.ToLower(prompt) != "yes" {
-				utils.Log(0, fmt.Sprintf("subnet identified %d workloads requiring label change. user denied prompt", len(data)-1))
+				utils.LogInfo(fmt.Sprintf("subnet identified %d workloads requiring label change. user denied prompt", len(data)-1))
 				fmt.Println("Prompt denied.")
-				utils.Log(0, "completed running subnet command")
+				utils.LogInfo("completed running subnet command")
 				return
 			}
 		}
@@ -239,17 +239,17 @@ func subnetParser() {
 			}
 		}
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("running bulk update - %s", err))
+			utils.LogError(fmt.Sprintf("running bulk update - %s", err))
 		}
 		// Log successful run.
-		utils.Log(0, fmt.Sprintf("bulk updated %d workloads.", len(updatedWklds)))
+		utils.LogInfo(fmt.Sprintf("bulk updated %d workloads.", len(updatedWklds)))
 		if !debug {
 			for _, a := range api {
-				utils.Log(0, a.RespBody)
+				utils.LogInfo(a.RespBody)
 			}
 		}
 	} else {
 		fmt.Println("no workloads identified for label change")
-		utils.Log(0, "subnet completed running without identifying any workloads requiring change.")
+		utils.LogInfo("subnet completed running without identifying any workloads requiring change.")
 	}
 }

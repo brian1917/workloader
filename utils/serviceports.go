@@ -21,7 +21,7 @@ func GetServicePortsPCE(pce illumioapi.PCE, serviceName string) ([][2]int, [][3]
 	// Get all services
 	svcs, _, err := pce.GetAllServices("draft")
 	if err != nil {
-		Log(1, err.Error())
+		LogError(err.Error())
 	}
 
 	// Find our service of interest
@@ -56,16 +56,16 @@ func GetServicePortsCSV(filename string) [][2]int {
 			break
 		}
 		if err != nil {
-			Log(1, fmt.Sprintf("Reading CSV File for port/protocol list - %s", err))
+			LogError(fmt.Sprintf("Reading CSV File for port/protocol list - %s", err))
 		}
 
 		port, err := strconv.Atoi(line[0])
 		if err != nil {
-			Log(1, fmt.Sprintf("Non-integer port value on line %d - %s", n, err))
+			LogError(fmt.Sprintf("Non-integer port value on line %d - %s", n, err))
 		}
 		protocol, err := strconv.Atoi(line[1])
 		if err != nil {
-			Log(1, fmt.Sprintf("Non-integer protocol value on line %d - %s", n, err))
+			LogError(fmt.Sprintf("Non-integer protocol value on line %d - %s", n, err))
 		}
 
 		exclPorts = append(exclPorts, [2]int{port, protocol})

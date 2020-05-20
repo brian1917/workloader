@@ -73,13 +73,13 @@ Example input:
 
 func uploadFlows() {
 	// Log start
-	utils.Log(0, "started flowupload command")
+	utils.LogInfo("started flowupload command")
 
 	// Get all workloads in a map by hostname
 	wkldHostMap, a, err := pce.GetWkldHostMap()
 	utils.LogAPIResp("GetWkldHostMap", a)
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	// Set the header for the new csv file
@@ -88,7 +88,7 @@ func uploadFlows() {
 	// Open CSV File
 	file, err := os.Open(csvFile)
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 	defer file.Close()
 	reader := csv.NewReader(utils.ClearBOM(bufio.NewReader(file)))
@@ -106,7 +106,7 @@ func uploadFlows() {
 			break
 		}
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		// Skip the header row if needed
@@ -118,7 +118,7 @@ func uploadFlows() {
 		src := line[0]
 		if net.ParseIP(line[0]) == nil {
 			if _, ok := wkldHostMap[line[0]]; !ok {
-				utils.Log(1, fmt.Sprintf("CSV line %d - %s is not valid IP or valid hostname", i, line[0]))
+				utils.LogError(fmt.Sprintf("CSV line %d - %s is not valid IP or valid hostname", i, line[0]))
 			}
 
 			sWkld := wkldHostMap[line[0]]
@@ -129,7 +129,7 @@ func uploadFlows() {
 			}
 
 			if net.ParseIP(src) == nil {
-				utils.Log(1, fmt.Sprintf("CSV line %d - %s does not have a valid IP address on the first interface", i, line[0]))
+				utils.LogError(fmt.Sprintf("CSV line %d - %s does not have a valid IP address on the first interface", i, line[0]))
 			}
 		}
 
@@ -137,7 +137,7 @@ func uploadFlows() {
 		dst := line[1]
 		if net.ParseIP(line[1]) == nil {
 			if _, ok := wkldHostMap[line[1]]; !ok {
-				utils.Log(1, fmt.Sprintf("CSV line %d - %s is not valid IP or valid hostname", i, line[1]))
+				utils.LogError(fmt.Sprintf("CSV line %d - %s is not valid IP or valid hostname", i, line[1]))
 			}
 			dWkld := wkldHostMap[line[1]]
 			if dWkld.GetIPWithDefaultGW() == "NA" {
@@ -146,7 +146,7 @@ func uploadFlows() {
 				dst = dWkld.GetIPWithDefaultGW()
 			}
 			if net.ParseIP(dst) == nil {
-				utils.Log(1, fmt.Sprintf("CSV line %d - %s does not have a valid IP address on the first interface", i, line[1]))
+				utils.LogError(fmt.Sprintf("CSV line %d - %s does not have a valid IP address on the first interface", i, line[1]))
 			}
 		}
 
@@ -169,14 +169,14 @@ func uploadFlows() {
 	// Create CSV
 	outFile, err := os.Create(newCSVFileName)
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	// Write CSV data
 	writer := csv.NewWriter(outFile)
 	writer.WriteAll(newCSVData)
 	if err := writer.Error(); err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	// Upload flows
@@ -187,16 +187,16 @@ func uploadFlows() {
 
 	// Log error
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	// Log response
-	utils.Log(0, fmt.Sprintf("%d flows in CSV file.", f.TotalFlowsInCSV))
+	utils.LogInfo(fmt.Sprintf("%d flows in CSV file.", f.TotalFlowsInCSV))
 	i = 1
 	for _, flowResp := range f.FlowResps {
 		fmt.Printf("API Call %d of %d...\r\n", i, len(f.APIResps))
-		utils.Log(0, fmt.Sprintf("%d flows received", flowResp.NumFlowsReceived))
-		utils.Log(0, fmt.Sprintf("%d flows failed", flowResp.NumFlowsFailed))
+		utils.LogInfo(fmt.Sprintf("%d flows received", flowResp.NumFlowsReceived))
+		utils.LogInfo(fmt.Sprintf("%d flows failed", flowResp.NumFlowsFailed))
 		fmt.Printf("%d flows received\r\n", flowResp.NumFlowsReceived)
 		fmt.Printf("%d flows failed\r\n", flowResp.NumFlowsFailed)
 		if i < len(f.APIResps) {
@@ -208,7 +208,7 @@ func uploadFlows() {
 			for _, ff := range flowResp.FailedFlows {
 				failedFlow = append(failedFlow, *ff)
 			}
-			utils.Log(0, fmt.Sprintf("failed flows: %s", strings.Join(failedFlow, ",")))
+			utils.LogInfo(fmt.Sprintf("failed flows: %s", strings.Join(failedFlow, ",")))
 			fmt.Printf("Failed flows: %s\r\n", strings.Join(failedFlow, ","))
 		}
 		i++

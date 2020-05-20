@@ -46,7 +46,7 @@ To filter unwanted traffic, create a CSV with NO HEADERS. Column 1 should have p
 
 		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		// Get the debug value from viper
@@ -62,7 +62,7 @@ func explorerExport() {
 	illumioapi.Threshold = threshold
 
 	// Log start
-	utils.Log(0, "started explorer command")
+	utils.LogInfo("started explorer command")
 
 	// Build policy status slice
 	var pStatus []string
@@ -75,22 +75,22 @@ func explorerExport() {
 	if !exclBlocked {
 		pStatus = append(pStatus, "blocked")
 	}
-	utils.Log(0, fmt.Sprintf("pStatus = %#v", pStatus))
+	utils.LogInfo(fmt.Sprintf("pStatus = %#v", pStatus))
 
 	// Get the state and end date
 	startDate, err := time.Parse(fmt.Sprintf("2006-01-02 MST"), fmt.Sprintf("%s %s", start, "UTC"))
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 	startDate = startDate.In(time.UTC)
-	utils.Log(0, fmt.Sprintf("startDate = %v", startDate))
+	utils.LogInfo(fmt.Sprintf("startDate = %v", startDate))
 
 	endDate, err := time.Parse(fmt.Sprintf("2006-01-02 MST"), fmt.Sprintf("%s %s", end, "UTC"))
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 	endDate = endDate.In(time.UTC)
-	utils.Log(0, fmt.Sprintf("endDate = %v", endDate))
+	utils.LogInfo(fmt.Sprintf("endDate = %v", endDate))
 
 	// Create the default query struct
 	tq := illumioapi.TrafficQuery{
@@ -111,10 +111,10 @@ func explorerExport() {
 			utils.LogAPIResp("GetLabelbyKeyValue", a)
 		}
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("getting label HREF - %s", err))
+			utils.LogError(fmt.Sprintf("getting label HREF - %s", err))
 		}
 		if label.Href == "" {
-			utils.Log(1, fmt.Sprintf("%s does not exist as an app label.", app))
+			utils.LogError(fmt.Sprintf("%s does not exist as an app label.", app))
 		}
 		tq.SourcesInclude = append(tq.SourcesInclude, label.Href)
 	}
@@ -126,10 +126,10 @@ func explorerExport() {
 			utils.LogAPIResp("GetLabelbyKeyValue", a)
 		}
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("getting label HREF - %s", err))
+			utils.LogError(fmt.Sprintf("getting label HREF - %s", err))
 		}
 		if label.Href == "" {
-			utils.Log(1, fmt.Sprintf("%s does not exist as an env label.", app))
+			utils.LogError(fmt.Sprintf("%s does not exist as an env label.", app))
 		}
 		tq.SourcesInclude = append(tq.SourcesInclude, label.Href)
 	}
@@ -141,30 +141,30 @@ func explorerExport() {
 			utils.LogAPIResp("GetLabelbyKeyValue", a)
 		}
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("getting label HREF - %s", err))
+			utils.LogError(fmt.Sprintf("getting label HREF - %s", err))
 		}
 		if label.Href == "" {
-			utils.Log(1, fmt.Sprintf("%s does not exist as a role label.", app))
+			utils.LogError(fmt.Sprintf("%s does not exist as a role label.", app))
 		}
 		tq.SourcesExclude = append(tq.SourcesExclude, label.Href)
 	}
 
-	utils.Log(0, fmt.Sprintf("traffic query object: %+v", tq))
+	utils.LogInfo(fmt.Sprintf("traffic query object: %+v", tq))
 
 	// Run traffic query
 	traffic, err := pce.IterateTraffic(tq, true)
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	// If app is provided, switch to the destination include, clear the sources include, run query again, append to previous result
 	if app != "" || env != "" {
 		tq.DestinationsInclude = tq.SourcesInclude
 		tq.SourcesInclude = []string{}
-		utils.Log(0, fmt.Sprintf("second traffic query object: %+v", tq))
+		utils.LogInfo(fmt.Sprintf("second traffic query object: %+v", tq))
 		traffic2, err := pce.IterateTraffic(tq, true)
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("making second explorer API call - %s", err))
+			utils.LogError(fmt.Sprintf("making second explorer API call - %s", err))
 		}
 		traffic = append(traffic, traffic2...)
 	}
@@ -175,13 +175,13 @@ func explorerExport() {
 	// Get LabelMap for getting workload labels
 	_, err = pce.GetLabelMaps()
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	// Get WorkloadMap by hostname
 	whm, _, err := pce.GetWkldHostMap()
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	// Add each traffic entry to the data slic
@@ -233,7 +233,7 @@ func explorerExport() {
 	utils.WriteOutput(data, data, outFileName)
 
 	// Log end
-	utils.Log(0, "explorer command complete")
+	utils.LogInfo("explorer command complete")
 
 }
 

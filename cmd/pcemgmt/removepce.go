@@ -27,7 +27,7 @@ var RemovePCECmd = &cobra.Command{
 	PreRun: func(cmd *cobra.Command, args []string) {
 		configFilePath, err = filepath.Abs(viper.ConfigFileUsed())
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
@@ -47,24 +47,24 @@ var RemovePCECmd = &cobra.Command{
 
 func removePce() {
 
-	utils.Log(0, "pce-remove command started")
+	utils.LogInfo("pce-remove command started")
 
 	// Start by clearing API keys
 	if clear {
 
 		// Log start of command
-		utils.Log(0, "removing API keys...")
+		utils.LogInfo("removing API keys...")
 
 		// Get the PCE
 		pce, err := utils.GetPCEbyName(pceName, false)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		// Get all API Keys
 		apiKeys, _, err := pce.GetAllAPIKeys(viper.Get(pceName + ".userhref").(string))
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		// Delete the API keys that are from Workloader
@@ -74,10 +74,10 @@ func removePce() {
 				if a.AuthUsername != viper.Get(pceName+".user").(string) {
 					_, err := pce.DeleteHref(a.Href)
 					if err != nil {
-						utils.Log(1, err.Error())
+						utils.LogError(err.Error())
 					}
 					fmt.Printf("deleted api key: %s\r\n", a.Href)
-					utils.Log(0, fmt.Sprintf("deleted %s", a.Href))
+					utils.LogInfo(fmt.Sprintf("deleted %s", a.Href))
 				} else {
 					saveHref = a.Href
 				}
@@ -86,20 +86,20 @@ func removePce() {
 		// Delete the active API Key
 		_, err = pce.DeleteHref(saveHref)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 		fmt.Printf("deleted api key: %s\r\n", saveHref)
-		utils.Log(0, fmt.Sprintf("deleted %s", saveHref))
+		utils.LogInfo(fmt.Sprintf("deleted %s", saveHref))
 	}
 
 	// Remove login information from YAML
 	viper.Set(pceName, "")
 	if err := viper.WriteConfig(); err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	fmt.Println("Removed pce infomration from pce.yaml.")
 
-	utils.Log(0, "pce-remove completed.")
+	utils.LogInfo("pce-remove completed.")
 
 }

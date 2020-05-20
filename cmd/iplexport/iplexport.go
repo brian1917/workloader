@@ -29,7 +29,7 @@ Create a CSV export of all workloads in the PCE. The update-pce and --no-prompt 
 		// Get the PCE
 		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		// Get the viper values
@@ -43,7 +43,7 @@ Create a CSV export of all workloads in the PCE. The update-pce and --no-prompt 
 func exportIPL() {
 
 	// Log command execution
-	utils.Log(0, "running ipl-export command")
+	utils.LogInfo("running ipl-export command")
 
 	// Start the data slice with headers
 	csvData := [][]string{[]string{"name", "description", "include", "exclude", "external_data_set", "external_data_ref", "href"}}
@@ -52,7 +52,7 @@ func exportIPL() {
 	ipls, a, err := pce.GetAllDraftIPLists()
 	utils.LogAPIResp("GetAllDraftIPLists", a)
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	for _, i := range ipls {
@@ -75,10 +75,10 @@ func exportIPL() {
 	if len(csvData) > 1 {
 		utils.WriteOutput(csvData, csvData, fmt.Sprintf("workloader-ipl-export-%s.csv", time.Now().Format("20060102_150405")))
 		fmt.Printf("\r\n%d iplists exported.\r\n", len(csvData)-1)
-		utils.Log(0, fmt.Sprintf("ipl-export complete - %d iplists exported", len(csvData)-1))
+		utils.LogInfo(fmt.Sprintf("ipl-export complete - %d iplists exported", len(csvData)-1))
 	} else {
 		// Log command execution for 0 results
 		fmt.Println("No iplists in PCE.")
-		utils.Log(0, "no iplists in PCE.")
+		utils.LogInfo("no iplists in PCE.")
 	}
 }

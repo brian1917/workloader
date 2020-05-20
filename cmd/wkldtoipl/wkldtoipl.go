@@ -49,7 +49,7 @@ workloader wkld-to-ipl rae -f default-pce -t endpoint-pce --update-pce will crea
 		// Disable stdout
 		viper.Set("output_format", "csv")
 		if err := viper.WriteConfig(); err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		wkldtoipl()
@@ -59,24 +59,24 @@ workloader wkld-to-ipl rae -f default-pce -t endpoint-pce --update-pce will crea
 func wkldtoipl() {
 
 	// Log start of run
-	utils.Log(0, "started wkld-to-ipl command")
+	utils.LogInfo("started wkld-to-ipl command")
 
 	// Check if we have destination PCE if we need it
 	if updatePCE && toPCE == "" {
-		utils.Log(1, "need --to-pce (-t) flag set if using update-pce")
+		utils.LogError("need --to-pce (-t) flag set if using update-pce")
 	}
 
 	// Get the source pce
 	sPce, err := utils.GetPCEbyName(fromPCE, true)
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	// Get all workloads from the source PCE
 	wklds, a, err := sPce.GetAllWorkloads()
 	utils.LogAPIResp("GetAllWorkloads", a)
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	// Create the map of IPLists
@@ -91,28 +91,28 @@ func wkldtoipl() {
 		// Create the map key. If a workload is missing an included label, it's skipped and logged.
 		if incRole {
 			if w.GetRole(sPce.LabelMapH).Value == "" {
-				utils.Log(0, fmt.Sprintf("skipping %s because does not have role label", w.Hostname))
+				utils.LogInfo(fmt.Sprintf("skipping %s because does not have role label", w.Hostname))
 				continue
 			}
 			keyVals = append(keyVals, w.GetRole(sPce.LabelMapH).Value)
 		}
 		if incApp {
 			if w.GetApp(sPce.LabelMapH).Value == "" {
-				utils.Log(0, fmt.Sprintf("skipping %s because does not have app label", w.Hostname))
+				utils.LogInfo(fmt.Sprintf("skipping %s because does not have app label", w.Hostname))
 				continue
 			}
 			keyVals = append(keyVals, w.GetApp(sPce.LabelMapH).Value)
 		}
 		if incEnv {
 			if w.GetEnv(sPce.LabelMapH).Value == "" {
-				utils.Log(0, fmt.Sprintf("skipping %s because does not have env label", w.Hostname))
+				utils.LogInfo(fmt.Sprintf("skipping %s because does not have env label", w.Hostname))
 				continue
 			}
 			keyVals = append(keyVals, w.GetEnv(sPce.LabelMapH).Value)
 		}
 		if incLoc {
 			if w.GetLoc(sPce.LabelMapH).Value == "" {
-				utils.Log(0, fmt.Sprintf("skipping %s because does not have location label", w.Hostname))
+				utils.LogInfo(fmt.Sprintf("skipping %s because does not have location label", w.Hostname))
 				continue
 			}
 			keyVals = append(keyVals, w.GetLoc(sPce.LabelMapH).Value)
@@ -150,7 +150,7 @@ func wkldtoipl() {
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
 		fmt.Printf("%d iplists identifed with %d ip addresses. See %s for details. To create the IPlists in another PCE, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.\r\n", len(ipAddressMap), count, fileName)
-		utils.Log(0, "completed running wkld-to-ipl command")
+		utils.LogInfo("completed running wkld-to-ipl command")
 		return
 	}
 
@@ -158,7 +158,7 @@ func wkldtoipl() {
 	fmt.Printf("[INFO] calling workloader ipl-import to import %s to %s\r\n", fileName, toPCE)
 	dPce, err := utils.GetPCEbyName(toPCE, false)
 	if err != nil {
-		utils.Log(1, fmt.Sprintf("error getting to pce - %s", err))
+		utils.LogError(fmt.Sprintf("error getting to pce - %s", err))
 	}
 	iplimport.ImportIPLists(dPce, fileName, updatePCE, noPrompt, debug)
 }

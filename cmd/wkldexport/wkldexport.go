@@ -30,7 +30,7 @@ Create a CSV export of all workloads in the PCE. The update-pce and --no-prompt 
 		// Get the PCE
 		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		// Get the viper values
@@ -44,7 +44,7 @@ Create a CSV export of all workloads in the PCE. The update-pce and --no-prompt 
 func exportWorkloads() {
 
 	// Log command execution
-	utils.Log(0, "running export command")
+	utils.LogInfo("running export command")
 
 	// Start the data slice with headers
 	csvData := [][]string{[]string{"hostname", "name", "role", "app", "env", "loc", "interfaces", "ip_with_default_gw", "netmask_of_ip_with_def_gw", "default_gw", "default_gw_network", "href", "mode", "online", "policy_sync_status", "policy_applied", "policy_received", "policy_refreshed", "last_heartbeat", "hours_since_last_heartbeat", "os_id", "os_details", "ven_version", "ven_id"}}
@@ -56,13 +56,13 @@ func exportWorkloads() {
 		utils.LogAPIResp("GetAllWorkloads", a)
 		// Logging code added to debug specific issue
 		for _, w := range wklds {
-			utils.Log(2, fmt.Sprintf("%s mode: %s", w.Hostname, w.GetMode()))
-			utils.Log(2, fmt.Sprintf("%s Agent Href: %s", w.Hostname, w.Agent.Href))
-			utils.Log(2, fmt.Sprintf("%s Agent Mode: %s", w.Hostname, w.Agent.Config.Mode))
+			utils.LogDebug(fmt.Sprintf("%s mode: %s", w.Hostname, w.GetMode()))
+			utils.LogDebug(fmt.Sprintf("%s Agent Href: %s", w.Hostname, w.Agent.Href))
+			utils.LogDebug(fmt.Sprintf("%s Agent Mode: %s", w.Hostname, w.Agent.Config.Mode))
 		}
 	}
 	if err != nil {
-		utils.Log(1, fmt.Sprintf("getting all workloads - %s", err))
+		utils.LogError(fmt.Sprintf("getting all workloads - %s", err))
 	}
 
 	for _, w := range wklds {
@@ -130,11 +130,11 @@ func exportWorkloads() {
 		utils.WriteOutput(csvData, stdOutData, fmt.Sprintf("workloader-export-%s.csv", time.Now().Format("20060102_150405")))
 		fmt.Printf("\r\n%d workloads exported.\r\n", len(csvData)-1)
 		fmt.Println("Note - the CSV export will include additional columns: interfaces, default_gw, href, name, online, os, ven version, and ven id.")
-		utils.Log(0, fmt.Sprintf("export complete - %d workloads exported", len(csvData)-1))
+		utils.LogInfo(fmt.Sprintf("export complete - %d workloads exported", len(csvData)-1))
 	} else {
 		// Log command execution for 0 results
 		fmt.Println("No workloads in PCE.")
-		utils.Log(0, "no workloads in PCE.")
+		utils.LogInfo("no workloads in PCE.")
 	}
 
 }

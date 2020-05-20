@@ -43,7 +43,7 @@ The --update-pce and --no-prompt flags are ignored for this command. Use workloa
 
 		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		// Get CSV File
@@ -137,7 +137,7 @@ func hostname(ipAddr string, t int) string {
 
 func workloadIdentifier() {
 
-	utils.Log(0, "started traffic command")
+	utils.LogInfo("started traffic command")
 	// Parse the iunput CSVs
 	coreServices := parseCoreServices(csvFile)
 
@@ -148,7 +148,7 @@ func workloadIdentifier() {
 		utils.LogAPIResp("GetAllWorkloads", a)
 	}
 	if err != nil {
-		utils.Log(1, fmt.Sprintf("getting all workloads - %s", err))
+		utils.LogError(fmt.Sprintf("getting all workloads - %s", err))
 	}
 	for _, wl := range wls {
 		for _, iface := range wl.Interfaces {
@@ -165,10 +165,10 @@ func workloadIdentifier() {
 	if len(consExcl) > 0 {
 		exclLabel, _, err = pce.GetLabelbyKeyValue("role", consExcl)
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("getting label HREF - %s", err))
+			utils.LogError(fmt.Sprintf("getting label HREF - %s", err))
 		}
 		if exclLabel.Href == "" {
-			utils.Log(1, fmt.Sprintf("%s does not exist as an role label.", consExcl))
+			utils.LogError(fmt.Sprintf("%s does not exist as an role label.", consExcl))
 		}
 	}
 
@@ -187,10 +187,10 @@ func workloadIdentifier() {
 			utils.LogAPIResp("GetLabelbyKeyValue", a)
 		}
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("getting label HREF - %s", err))
+			utils.LogError(fmt.Sprintf("getting label HREF - %s", err))
 		}
 		if label.Href == "" {
-			utils.Log(1, fmt.Sprintf("%s does not exist as an app label.", app))
+			utils.LogError(fmt.Sprintf("%s does not exist as an app label.", app))
 		}
 		tq.SourcesInclude = []string{label.Href}
 	}
@@ -201,7 +201,7 @@ func workloadIdentifier() {
 		utils.LogAPIResp("GetTrafficAnalysis", a)
 	}
 	if err != nil {
-		utils.Log(1, fmt.Sprintf("making explorer API call - %s", err))
+		utils.LogError(fmt.Sprintf("making explorer API call - %s", err))
 	}
 
 	// If app is provided, switch to the destination include, clear the sources include, run query again, append to previous result
@@ -213,7 +213,7 @@ func workloadIdentifier() {
 			utils.LogAPIResp("GetTrafficAnalysis", a)
 		}
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("making second explorer API call - %s", err))
+			utils.LogError(fmt.Sprintf("making second explorer API call - %s", err))
 		}
 		traffic = append(traffic, traffic2...)
 	}
@@ -276,5 +276,5 @@ func workloadIdentifier() {
 		csvWriter(finalMatches, exclWLs)
 	}
 
-	utils.Log(0, "traffic command completed")
+	utils.LogInfo("traffic command completed")
 }

@@ -51,7 +51,7 @@ The --update-pce and --no-prompt flags are ignored for this command.
 	PreRun: func(cmd *cobra.Command, args []string) {
 		configFilePath, err = filepath.Abs(viper.ConfigFileUsed())
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
@@ -67,7 +67,7 @@ The --update-pce and --no-prompt flags are ignored for this command.
 func addPCE() {
 
 	// Log start
-	utils.Log(0, "pce-add command started")
+	utils.LogInfo("pce-add command started")
 
 	var err error
 	var pce illumioapi.PCE
@@ -117,7 +117,7 @@ func addPCE() {
 	} else {
 		port, err = strconv.Atoi(portStr)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 	}
 
@@ -161,7 +161,7 @@ func addPCE() {
 			}
 		}
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("logging into PCE - %s", err))
+			utils.LogError(fmt.Sprintf("logging into PCE - %s", err))
 		}
 	} else {
 		// If session flag is not set, generate API credentials and create PCE struct
@@ -178,7 +178,7 @@ func addPCE() {
 			}
 		}
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("error generating API key - %s", err))
+			utils.LogError(fmt.Sprintf("error generating API key - %s", err))
 		}
 	}
 
@@ -198,7 +198,7 @@ func addPCE() {
 	}
 
 	if err := viper.WriteConfig(); err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	// Log
@@ -207,5 +207,5 @@ func addPCE() {
 	} else {
 		fmt.Printf("\r\nAdded PCE information to %s\r\n", configFilePath)
 	}
-	utils.Log(0, "completed pce-add")
+	utils.LogInfo("completed pce-add")
 }

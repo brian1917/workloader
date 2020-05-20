@@ -59,7 +59,7 @@ Use --update-pce and --no-prompt to run unpair with no prompts.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		// Get persistent flags from Viper
@@ -75,13 +75,13 @@ func unpair() {
 
 	// Check that we aren't unpairing the whole PCE
 	if app == "" && role == "" && env == "" && loc == "" && hoursSinceLastHB == 0 && hrefFile == "" {
-		utils.Log(1, "Must provide labels, hours, or an input file.")
+		utils.LogError("Must provide labels, hours, or an input file.")
 	}
 
 	// Check the restore value
 	restore = strings.ToLower(restore)
 	if restore != "saved" && restore != "default" && restore != "disable" {
-		utils.Log(1, "Restore value must be saved, default, or disable.")
+		utils.LogError("Restore value must be saved, default, or disable.")
 	}
 
 	// Get all workloads
@@ -90,7 +90,7 @@ func unpair() {
 		utils.LogAPIResp("GetAllWorkloads", a)
 	}
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	// Create our wkld slice that will either be all workloads or the workloads that match the HREF input
@@ -112,7 +112,7 @@ func unpair() {
 				break
 			}
 			if err != nil {
-				utils.Log(1, fmt.Sprintf("Reading CSV File - %s", err))
+				utils.LogError(fmt.Sprintf("Reading CSV File - %s", err))
 			}
 			csvWklds[line[0]] = true
 		}
@@ -161,7 +161,7 @@ func unpair() {
 	// Create a CSV with the unpairs
 	outFile, err := os.Create("workloader-unpair-" + time.Now().Format("20060102_150405") + ".csv")
 	if err != nil {
-		utils.Log(1, fmt.Sprintf("creating CSV - %s\n", err))
+		utils.LogError(fmt.Sprintf("creating CSV - %s\n", err))
 	}
 
 	// Build the data slice for writing
@@ -172,7 +172,7 @@ func unpair() {
 		// Get the hours since last heartbeat
 		timeParsed, err := time.Parse(time.RFC3339, t.Agent.Status.LastHeartbeatOn)
 		if err != nil {
-			utils.Log(0, fmt.Sprintf("[WARNING] - Error parsing time - %s", err.Error()))
+			utils.LogInfo(fmt.Sprintf("[WARNING] - Error parsing time - %s", err.Error()))
 			hoursSinceLastHB = "NA"
 		} else {
 			now := time.Now().UTC()
@@ -186,14 +186,14 @@ func unpair() {
 	writer := csv.NewWriter(outFile)
 	writer.WriteAll(data)
 	if err := writer.Error(); err != nil {
-		utils.Log(1, fmt.Sprintf("writing CSV - %s\n", err))
+		utils.LogError(fmt.Sprintf("writing CSV - %s\n", err))
 	}
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
-		utils.Log(0, fmt.Sprintf("unpair identified %d workloads requiring unpairing - see %s for details.", len(targetWklds), outFile.Name()))
+		utils.LogInfo(fmt.Sprintf("unpair identified %d workloads requiring unpairing - see %s for details.", len(targetWklds), outFile.Name()))
 		fmt.Printf("Unpair identified %d workloads requiring unpairing. See %s for details. To do the unpair, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.\r\n", len(targetWklds), outFile.Name())
-		utils.Log(0, "completed running unpair command")
+		utils.LogInfo("completed running unpair command")
 		return
 	}
 
@@ -203,9 +203,9 @@ func unpair() {
 		fmt.Printf("Unpair identified %d workloads requiring unpairing. See %s for details. Do you want to run the unpair? (yes/no)? ", len(targetWklds), outFile.Name())
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
-			utils.Log(0, fmt.Sprintf("unpair identified %d workloads requiring unpairing - see %s for details. user denied prompt", len(targetWklds), outFile.Name()))
+			utils.LogInfo(fmt.Sprintf("unpair identified %d workloads requiring unpairing - see %s for details. user denied prompt", len(targetWklds), outFile.Name()))
 			fmt.Println("Prompt denied.")
-			utils.Log(0, "completed running unpair command")
+			utils.LogInfo("completed running unpair command")
 			return
 		}
 	}
@@ -216,8 +216,8 @@ func unpair() {
 		utils.LogAPIResp("unpair workloads", a)
 	}
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 	fmt.Println("completed running unpair command.")
-	utils.Log(0, "completed running unpair command.")
+	utils.LogInfo("completed running unpair command.")
 }

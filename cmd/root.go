@@ -49,11 +49,11 @@ Workloader is a tool that helps discover, label, and manage workloads in an Illu
 		//Output format
 		outFormat = strings.ToLower(outFormat)
 		if outFormat != "both" && outFormat != "stdout" && outFormat != "csv" {
-			utils.Log(1, "Invalid out - must be csv, stdout, or both.")
+			utils.LogError("Invalid out - must be csv, stdout, or both.")
 		}
 		viper.Set("output_format", outFormat)
 		if err := viper.WriteConfig(); err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 	},

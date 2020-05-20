@@ -55,7 +55,7 @@ Use --hrefCol and --stateCol to specify the columns if not default (href=1, stat
 	Run: func(cmd *cobra.Command, args []string) {
 		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("getting PCE for mode command - %s", err))
+			utils.LogError(fmt.Sprintf("getting PCE for mode command - %s", err))
 		}
 
 		// Set the hostfile
@@ -83,7 +83,7 @@ func parseCsv(filename string) []target {
 
 	// If debug, log the columns before adjusting by 1
 	if debug {
-		utils.Log(2, fmt.Sprintf("CSV Columns. Href: %d; DesiredState: %d", hrefCol, desiredStateCol))
+		utils.LogDebug(fmt.Sprintf("CSV Columns. Href: %d; DesiredState: %d", hrefCol, desiredStateCol))
 	}
 
 	// Adjust the columns so first column is  0
@@ -96,7 +96,7 @@ func parseCsv(filename string) []target {
 	// Open CSV File and create the reader
 	file, err := os.Open(filename)
 	if err != nil {
-		utils.Log(1, fmt.Sprintf("opening CSV - %s", err))
+		utils.LogError(fmt.Sprintf("opening CSV - %s", err))
 	}
 	defer file.Close()
 	reader := csv.NewReader(utils.ClearBOM(bufio.NewReader(file)))
@@ -113,7 +113,7 @@ func parseCsv(filename string) []target {
 			break
 		}
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("reading CSV file - %s", err))
+			utils.LogError(fmt.Sprintf("reading CSV file - %s", err))
 		}
 
 		// Increment the counter
@@ -127,7 +127,7 @@ func parseCsv(filename string) []target {
 		// Check to make sure we have a valid build state and then append to targets slice
 		m := strings.ToLower(line[desiredStateCol])
 		if m != "idle" && m != "build" && m != "test" && m != "enforced-no" && m != "enforced-low" && m != "enforced-high" {
-			utils.Log(1, fmt.Sprintf("invalid mode on line %d - %s not acceptable. Values must be idle, build, test, enforced-no, enforced-low, or enforced-high", i, line[desiredStateCol]))
+			utils.LogError(fmt.Sprintf("invalid mode on line %d - %s not acceptable. Values must be idle, build, test, enforced-no, enforced-low, or enforced-high", i, line[desiredStateCol]))
 		}
 		targets = append(targets, target{workloadHref: line[hrefCol], targetMode: m})
 	}
@@ -138,7 +138,7 @@ func parseCsv(filename string) []target {
 func modeUpdate() {
 
 	// Log start of execution
-	utils.Log(0, "running mode command")
+	utils.LogInfo("running mode command")
 
 	// Build a map of all managed workloads
 	wkldMap, a, err := pce.GetWkldHrefMap()
@@ -146,7 +146,7 @@ func modeUpdate() {
 		utils.LogAPIResp("GetWkldHrefMap", a)
 	}
 	if err != nil {
-		utils.Log(1, fmt.Sprintf("error getting workload map - %s", err))
+		utils.LogError(fmt.Sprintf("error getting workload map - %s", err))
 	}
 
 	// Get targets
@@ -165,16 +165,16 @@ func modeUpdate() {
 		if w, ok := wkldMap[t.workloadHref]; ok {
 			if w.GetMode() != t.targetMode {
 				// Log the change is needed
-				utils.Log(0, fmt.Sprintf("required Change - %s - current state: %s - desired state: %s\r\n", w.Hostname, w.GetMode(), t.targetMode))
+				utils.LogInfo(fmt.Sprintf("required Change - %s - current state: %s - desired state: %s\r\n", w.Hostname, w.GetMode(), t.targetMode))
 				data = append(data, []string{w.Hostname, w.Href, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, w.GetMode(), t.targetMode})
 				// Copy workload with the right target mode and append to slice
 				if err := w.SetMode(t.targetMode); err != nil {
-					utils.Log(1, fmt.Sprintf("error setting mode - %s", err))
+					utils.LogError(fmt.Sprintf("error setting mode - %s", err))
 				}
 				workloadUpdates = append(workloadUpdates, w)
 			}
 		} else {
-			utils.NewLog(0, true, fmt.Sprintf("%s is not a managed workload in the PCE", t.workloadHref))
+			utils.LogWarning(fmt.Sprintf("%s is not a managed workload in the PCE", t.workloadHref), true)
 		}
 	}
 
@@ -189,9 +189,9 @@ func modeUpdate() {
 
 		// If updatePCE is disabled, we are just going to alert the user what will happen and log
 		if !updatePCE {
-			utils.Log(0, fmt.Sprintf("%d workloads requiring mode change.", len(data)-1))
+			utils.LogInfo(fmt.Sprintf("%d workloads requiring mode change.", len(data)-1))
 			fmt.Printf("Mode identified %d workloads requiring mode change. To update their modes, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.\r\n", len(data)-1)
-			utils.Log(0, "completed running mode command")
+			utils.LogInfo("completed running mode command")
 			return
 		}
 
@@ -201,9 +201,9 @@ func modeUpdate() {
 			fmt.Printf("Mode will change the state of %d workloads. Do you want to run the change (yes/no)? ", len(data)-1)
 			fmt.Scanln(&prompt)
 			if strings.ToLower(prompt) != "yes" {
-				utils.Log(0, fmt.Sprintf("mode identified %d workloads requiring mode change. user denied prompt", len(data)-1))
+				utils.LogInfo(fmt.Sprintf("mode identified %d workloads requiring mode change. user denied prompt", len(data)-1))
 				fmt.Println("Prompt denied.")
-				utils.Log(0, "completed running mode command")
+				utils.LogInfo("completed running mode command")
 				return
 			}
 		}
@@ -216,13 +216,13 @@ func modeUpdate() {
 			}
 		}
 		if err != nil {
-			utils.Log(1, fmt.Sprintf("running bulk update - %s", err))
+			utils.LogError(fmt.Sprintf("running bulk update - %s", err))
 		}
 		// Log successful run.
-		utils.Log(0, fmt.Sprintf("bulk updated %d workloads. API Responses:", len(workloadUpdates)))
+		utils.LogInfo(fmt.Sprintf("bulk updated %d workloads. API Responses:", len(workloadUpdates)))
 		if !debug {
 			for _, a := range api {
-				utils.Log(0, a.RespBody)
+				utils.LogInfo(a.RespBody)
 			}
 		}
 	}

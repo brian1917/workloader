@@ -33,7 +33,7 @@ Gets a pairing key. The default pairing profile is used unless a profile name is
 		// Get the PCE
 		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		// Get the viper values
@@ -46,13 +46,13 @@ Gets a pairing key. The default pairing profile is used unless a profile name is
 func getPK() {
 
 	// Log command execution
-	utils.Log(0, "running get-pk command")
+	utils.LogInfo("running get-pk command")
 
 	// Get all pairing profiles
 	pps, a, err := pce.GetAllPairingProfiles()
 	utils.LogAPIResp("GetAllPairingProfiles", a)
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	for _, pp := range pps {
@@ -60,7 +60,7 @@ func getPK() {
 			pk, a, err := pce.CreatePairingKey(pp)
 			utils.LogAPIResp("CreatePairingKey", a)
 			if err != nil {
-				utils.Log(1, err.Error())
+				utils.LogError(err.Error())
 			}
 			fmt.Println(pk.ActivationCode)
 		}

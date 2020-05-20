@@ -42,11 +42,11 @@ Import an Illumio segmentation template.`,
 // Process template file
 func importTemplate() {
 
-	utils.Log(0, "started running template-import command.")
+	utils.LogInfo("started running template-import command.")
 
 	template, err := illumioapi.ParseTemplateFile(templateFile)
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	var a illumioapi.APIResponse
@@ -56,32 +56,32 @@ func importTemplate() {
 		for _, l := range t.Labels {
 			_, a, err = pce.CreateLabel(*l)
 			if err != nil {
-				utils.Log(0, fmt.Sprintf("error creating label: %s (%s) - API Code: %d", l.Value, l.Key, a.StatusCode))
+				utils.LogInfo(fmt.Sprintf("error creating label: %s (%s) - API Code: %d", l.Value, l.Key, a.StatusCode))
 				fmt.Println(a.RespBody)
 			} else {
-				utils.Log(0, fmt.Sprintf("created label: %s (%s)", l.Value, l.Key))
+				utils.LogInfo(fmt.Sprintf("created label: %s (%s)", l.Value, l.Key))
 			}
 		}
 		// IPLists
 		for _, i := range t.IPLists {
 			_, a, err = pce.CreateIPList(*i)
 			if err != nil {
-				utils.Log(0, fmt.Sprintf("error creating iplist: %s - API Code: %d", i.Name, a.StatusCode))
+				utils.LogInfo(fmt.Sprintf("error creating iplist: %s - API Code: %d", i.Name, a.StatusCode))
 			} else {
-				utils.Log(0, fmt.Sprintf("created iplist: %s", i.Name))
+				utils.LogInfo(fmt.Sprintf("created iplist: %s", i.Name))
 			}
 		}
 		// Services
 		for _, s := range t.Services {
 			_, a, err = pce.CreateService(*s)
 			if err != nil {
-				utils.Log(0, fmt.Sprintf("error creating service: %s - API Code: %d", s.Name, a.StatusCode))
+				utils.LogInfo(fmt.Sprintf("error creating service: %s - API Code: %d", s.Name, a.StatusCode))
 				fmt.Println(a.RespBody)
 			} else {
-				utils.Log(0, fmt.Sprintf("created service: %s", s.Name))
+				utils.LogInfo(fmt.Sprintf("created service: %s", s.Name))
 			}
 		}
 	}
 
-	utils.Log(0, "completed running template-import command.")
+	utils.LogInfo("completed running template-import command.")
 }

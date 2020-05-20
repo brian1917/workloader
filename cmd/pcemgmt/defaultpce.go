@@ -20,7 +20,7 @@ Changes the default PCE to be used for all commands targeting a single PCE (i.e.
 	PreRun: func(cmd *cobra.Command, args []string) {
 		configFilePath, err = filepath.Abs(viper.ConfigFileUsed())
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
@@ -32,21 +32,21 @@ Changes the default PCE to be used for all commands targeting a single PCE (i.e.
 		}
 		newDefaultPCE := args[0]
 
-		utils.Log(0, "set-default command started")
+		utils.LogInfo("set-default command started")
 
 		// Make sure PCE exists in the YAML file
 		if viper.Get(newDefaultPCE+".fqdn") == nil {
-			utils.Log(1, fmt.Sprintf("%s PCE does not exist.", newDefaultPCE))
+			utils.LogError(fmt.Sprintf("%s PCE does not exist.", newDefaultPCE))
 		}
 
 		viper.Set("default_pce_name", newDefaultPCE)
 		if err := viper.WriteConfig(); err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		fmt.Printf("%s is default PCE.\r\n", newDefaultPCE)
 
-		utils.Log(0, "set-default command completed")
+		utils.LogInfo("set-default command completed")
 
 	},
 }
@@ -60,16 +60,16 @@ Get the default PCE to be used for all commands targeting a single PCE (i.e., do
 	PreRun: func(cmd *cobra.Command, args []string) {
 		configFilePath, err = filepath.Abs(viper.ConfigFileUsed())
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 
-		utils.Log(0, "get-default command started")
+		utils.LogInfo("get-default command started")
 
 		fmt.Printf("%s - %s\r\n", viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".fqdn").(string))
 
-		utils.Log(0, "get-default command completed")
+		utils.LogInfo("get-default command completed")
 
 	},
 }
@@ -81,12 +81,12 @@ var PCEListCmd = &cobra.Command{
 	PreRun: func(cmd *cobra.Command, args []string) {
 		configFilePath, err = filepath.Abs(viper.ConfigFileUsed())
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 
-		utils.Log(0, "pce-list command started")
+		utils.LogInfo("pce-list command started")
 
 		allSettings := viper.AllSettings()
 
@@ -102,7 +102,7 @@ var PCEListCmd = &cobra.Command{
 			}
 		}
 
-		utils.Log(0, "pce-list command completed")
+		utils.LogInfo("pce-list command completed")
 
 	},
 }

@@ -49,7 +49,7 @@ Default output is a CSV file with what would be upgraded. Use the --update-pce c
 	Run: func(cmd *cobra.Command, args []string) {
 		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		// Get persistent flags from Viper
@@ -69,7 +69,7 @@ func wkldUpgrade() {
 		utils.LogAPIResp("GetAllWorkloads", a)
 	}
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	// Create our target wkld slice
@@ -115,7 +115,7 @@ func wkldUpgrade() {
 				break
 			}
 			if err != nil {
-				utils.Log(1, fmt.Sprintf("Reading CSV File - %s", err))
+				utils.LogError(fmt.Sprintf("Reading CSV File - %s", err))
 			}
 			hostFileMap[line[0]] = true
 		}
@@ -134,7 +134,7 @@ func wkldUpgrade() {
 	// Create a CSV wtih the upgrades
 	outFile, err := os.Create("workloader-upgrade-" + time.Now().Format("20060102_150405") + ".csv")
 	if err != nil {
-		utils.Log(1, fmt.Sprintf("creating CSV - %s\n", err))
+		utils.LogError(fmt.Sprintf("creating CSV - %s\n", err))
 	}
 
 	// Build the data slice for writing
@@ -147,14 +147,14 @@ func wkldUpgrade() {
 	writer := csv.NewWriter(outFile)
 	writer.WriteAll(data)
 	if err := writer.Error(); err != nil {
-		utils.Log(1, fmt.Sprintf("writing CSV - %s\n", err))
+		utils.LogError(fmt.Sprintf("writing CSV - %s\n", err))
 	}
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
-		utils.Log(0, fmt.Sprintf("upgrade identified %d workloads requiring VEN update - see %s for details.", len(targetWklds), outFile.Name()))
+		utils.LogInfo(fmt.Sprintf("upgrade identified %d workloads requiring VEN update - see %s for details.", len(targetWklds), outFile.Name()))
 		fmt.Printf("Upgrade identified %d workloads requiring VEN update. See %s for details. To do the upgrade, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.\r\n", len(targetWklds), outFile.Name())
-		utils.Log(0, "completed running upgrade command")
+		utils.LogInfo("completed running upgrade command")
 		return
 	}
 
@@ -164,9 +164,9 @@ func wkldUpgrade() {
 		fmt.Printf("Upgrade identified %d workloads requiring VEN updates. See %s for details. Do you want to run the upgrade? (yes/no)? ", len(targetWklds), outFile.Name())
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
-			utils.Log(0, fmt.Sprintf("upgrade identified %d workloads requiring VEN update - see %s for details. user denied prompt", len(targetWklds), outFile.Name()))
+			utils.LogInfo(fmt.Sprintf("upgrade identified %d workloads requiring VEN update - see %s for details. user denied prompt", len(targetWklds), outFile.Name()))
 			fmt.Println("Prompt denied.")
-			utils.Log(0, "completed running upgrade command")
+			utils.LogInfo("completed running upgrade command")
 			return
 		}
 	}
@@ -174,14 +174,14 @@ func wkldUpgrade() {
 	// We will only get here if we have need to run the upgrade
 	for _, t := range targetWklds {
 		// Log the current version
-		utils.Log(0, fmt.Sprintf("%s to be upgraded from %s to %s.", t.Hostname, t.Agent.Status.AgentVersion, targetVersion))
+		utils.LogInfo(fmt.Sprintf("%s to be upgraded from %s to %s.", t.Hostname, t.Agent.Status.AgentVersion, targetVersion))
 		a, err := pce.WorkloadUpgrade(t.Href, targetVersion)
 		if debug {
 			utils.LogAPIResp("WorkloadUpgrade", a)
 		}
-		utils.Log(0, fmt.Sprintf("%s ven upgrade to %s received status code of %d", t.Hostname, targetVersion, a.StatusCode))
+		utils.LogInfo(fmt.Sprintf("%s ven upgrade to %s received status code of %d", t.Hostname, targetVersion, a.StatusCode))
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 	}
 }

@@ -12,7 +12,7 @@ func GetDefaultPCE(GetLabelMaps bool) (illumioapi.PCE, error) {
 
 	// Get the default PCE name
 	if viper.Get("default_pce_name") == nil {
-		Log(1, "There is not default pce. Either run workloader pce-add to add your first pce or workloader set-default to set an existing PCE as default.")
+		LogError("There is not default pce. Either run workloader pce-add to add your first pce or workloader set-default to set an existing PCE as default.")
 	}
 	defaultPCE := viper.Get("default_pce_name").(string)
 

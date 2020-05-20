@@ -28,7 +28,7 @@ var ExtractCmd = &cobra.Command{
 
 		pce, err = utils.GetDefaultPCE(false)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		// Get the debug value from viper
@@ -43,19 +43,19 @@ func labels() {
 	// Get all labels
 	labels, lablesAPI, err := pce.GetAllLabels()
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	// Create the file
 	labelsFile, err := os.Create(fmt.Sprintf("%s/labels.json", outDir))
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	// Write the file
 	_, err = labelsFile.WriteString(lablesAPI.RespBody)
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 	// Close the file
 	labelsFile.Close()
@@ -72,24 +72,24 @@ func workloads() {
 	// Start by getting all workloads
 	wklds, _, err := pce.GetAllWorkloads()
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 	// Iterate through each workload
 	for i, w := range wklds {
 		// Get the workload so we can include service details that GetAllWorkloads does not have
 		w, a, err := pce.GetWkldByHref(w.Href)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 		// Create the file
 		wkldFile, err := os.Create(fmt.Sprintf("%s/workloads/%s.json", outDir, strings.TrimPrefix(w.Href, fmt.Sprintf("/orgs/%d/workloads/", pce.Org))))
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 		// Write the file
 		_, err = wkldFile.WriteString(a.RespBody)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 		// CLose the file
 		wkldFile.Close()
@@ -107,17 +107,17 @@ func services() {
 		servicesAPI := illumioapi.APIResponse{}
 		svcs, servicesAPI, err := pce.GetAllServices(p)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 		// Create the file
 		servicesFile, err := os.Create(fmt.Sprintf("%s/%s_services.json", outDir, p))
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 		// Write the file
 		_, err = servicesFile.WriteString(servicesAPI.RespBody)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 		// Close the file
 		servicesFile.Close()
@@ -134,24 +134,24 @@ func ipLists() {
 		if p == "draft" {
 			ipLists, ipListAPI, err = pce.GetAllDraftIPLists()
 			if err != nil {
-				utils.Log(1, err.Error())
+				utils.LogError(err.Error())
 			}
 		} else {
 			ipLists, ipListAPI, err = pce.GetAllActiveIPLists()
 			if err != nil {
-				utils.Log(1, err.Error())
+				utils.LogError(err.Error())
 			}
 		}
 		if len(ipLists) > 0 {
 			// Create the file
 			ipListsFile, err := os.Create(fmt.Sprintf("%s/%s_iplists.json", outDir, p))
 			if err != nil {
-				utils.Log(1, err.Error())
+				utils.LogError(err.Error())
 			}
 			// Write the file
 			_, err = ipListsFile.WriteString(ipListAPI.RespBody)
 			if err != nil {
-				utils.Log(1, err.Error())
+				utils.LogError(err.Error())
 			}
 			//Update
 			fmt.Printf("Exported %d %s IP Lists.\r\n", len(ipLists), p)
@@ -169,19 +169,19 @@ func virtualServices() {
 		vsAPI := illumioapi.APIResponse{}
 		vs, vsAPI, err := pce.GetAllVirtualServices(p)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		if len(vs) > 0 {
 			// Create the file
 			virtualServicesFile, err := os.Create(fmt.Sprintf("%s/%s_virtualservices.json", outDir, p))
 			if err != nil {
-				utils.Log(1, err.Error())
+				utils.LogError(err.Error())
 			}
 			// Write the file
 			_, err = virtualServicesFile.WriteString(vsAPI.RespBody)
 			if err != nil {
-				utils.Log(1, err.Error())
+				utils.LogError(err.Error())
 			}
 			// Close the file
 			virtualServicesFile.Close()
@@ -199,19 +199,19 @@ func labelGroups() {
 		lgAPI := illumioapi.APIResponse{}
 		lg, lgAPI, err := pce.GetAllLabelGroups(p)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		if len(lg) > 0 {
 			// Create the file
 			lgFile, err := os.Create(fmt.Sprintf("%s/%s_labelgroups.json", outDir, p))
 			if err != nil {
-				utils.Log(1, err.Error())
+				utils.LogError(err.Error())
 			}
 			// Write the file
 			_, err = lgFile.WriteString(lgAPI.RespBody)
 			if err != nil {
-				utils.Log(1, err.Error())
+				utils.LogError(err.Error())
 			}
 			// Close the file
 			lgFile.Close()
@@ -229,19 +229,19 @@ func ruleSets() {
 		rsAPI := illumioapi.APIResponse{}
 		rs, rsAPI, err := pce.GetAllRuleSets(p)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		if len(rs) > 0 {
 			// Create the file
 			rsFile, err := os.Create(fmt.Sprintf("%s/%s_rulesets.json", outDir, p))
 			if err != nil {
-				utils.Log(1, err.Error())
+				utils.LogError(err.Error())
 			}
 			// Write the file
 			_, err = rsFile.WriteString(rsAPI.RespBody)
 			if err != nil {
-				utils.Log(1, err.Error())
+				utils.LogError(err.Error())
 			}
 			// Close the file
 			rsFile.Close()
@@ -262,19 +262,19 @@ func traffic() {
 
 	t, err := pce.IterateTrafficJString(tq, true)
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	if len(t) > 0 {
 		// Create the file
 		tFile, err := os.Create(fmt.Sprintf("%s/traffic.json", outDir))
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 		// Write the file
 		_, err = tFile.WriteString(t)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 		// Close the file
 		tFile.Close()
@@ -286,7 +286,7 @@ func traffic() {
 func extract() {
 
 	// Log start of command
-	utils.Log(0, "extract command started")
+	utils.LogInfo("extract command started")
 
 	// Set outdir
 	outDir = "pce-extract"
@@ -294,27 +294,27 @@ func extract() {
 	// Log output directory
 	d, err := os.Getwd()
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 	fullPathOutDir := fmt.Sprintf("%s%s%s", d, string(os.PathSeparator), outDir)
-	utils.Log(0, fmt.Sprintf("temp pce-extract folder set to %s", fullPathOutDir))
+	utils.LogInfo(fmt.Sprintf("temp pce-extract folder set to %s", fullPathOutDir))
 
 	// Check if directory exists and remove it
 	if _, err := os.Stat(outDir); os.IsNotExist(err) {
-		utils.Log(0, fmt.Sprintf("%s does not already exist. creating it.", fullPathOutDir))
+		utils.LogInfo(fmt.Sprintf("%s does not already exist. creating it.", fullPathOutDir))
 	} else {
-		utils.Log(0, fmt.Sprintf("%s exists. removing it and creating new.", fullPathOutDir))
+		utils.LogInfo(fmt.Sprintf("%s exists. removing it and creating new.", fullPathOutDir))
 		err := os.RemoveAll(outDir)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 	}
 
 	// Make the directory for the extract
 	if err := os.Mkdir(outDir, 0700); err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
-	utils.Log(0, fmt.Sprintf("created %s", fullPathOutDir))
+	utils.LogInfo(fmt.Sprintf("created %s", fullPathOutDir))
 
 	// Set provision status for objects that require it
 	pStatus = []string{"draft", "active"}
@@ -333,18 +333,18 @@ func extract() {
 	zipit(outDir, "pce-extract.zip")
 
 	fmt.Println("pce-extract.zip created.")
-	utils.Log(0, fmt.Sprintf("%s%spce-extract.zip created", fullPathOutDir, string(os.PathSeparator)))
+	utils.LogInfo(fmt.Sprintf("%s%spce-extract.zip created", fullPathOutDir, string(os.PathSeparator)))
 
 	// Remove the created directory
 	err = os.RemoveAll(outDir)
 	if err != nil {
 		fmt.Println(err)
 	}
-	utils.Log(0, fmt.Sprintf("%s removed", fullPathOutDir))
+	utils.LogInfo(fmt.Sprintf("%s removed", fullPathOutDir))
 
 	fmt.Println("Temporary directory removed.")
 
 	// Log start of command
-	utils.Log(0, "extract command completed")
+	utils.LogInfo("extract command completed")
 
 }

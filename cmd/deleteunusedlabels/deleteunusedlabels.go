@@ -27,7 +27,7 @@ Use --update-pce and --no-prompt to run the delete with no prompts.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		// Get persistent flags from Viper
@@ -45,7 +45,7 @@ func labelsDeleteUnused() {
 	labels, a, err := pce.GetAllLabels()
 	utils.LogAPIResp("GetAllLabels", a)
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 
 	// For each label, try to delete it
@@ -60,12 +60,12 @@ func labelsDeleteUnused() {
 			if a.StatusCode == 401 {
 				message = " which often means account does not have permission to delete labels."
 			}
-			utils.Log(0, fmt.Sprintf("%s(%s) could not be deleted. Status code %d%s", l.Value, l.Key, a.StatusCode, message))
+			utils.LogInfo(fmt.Sprintf("%s(%s) could not be deleted. Status code %d%s", l.Value, l.Key, a.StatusCode, message))
 		} else {
-			utils.Log(0, fmt.Sprintf("%s(%s) deleted - Status code %d.", l.Value, l.Key, a.StatusCode))
+			utils.LogInfo(fmt.Sprintf("%s(%s) deleted - Status code %d.", l.Value, l.Key, a.StatusCode))
 		}
 	}
 
 	fmt.Println("completed running labels-delete-unused command.")
-	utils.Log(0, "completed running labels-delete-unused command.")
+	utils.LogInfo("completed running labels-delete-unused command.")
 }

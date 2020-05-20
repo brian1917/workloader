@@ -46,7 +46,7 @@ Recommended to run without --update-pce first to log of what will change. If --u
 		// Get the PCE
 		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		// Set the CSV file
@@ -86,7 +86,7 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 	extDrCol--
 
 	// Log command execution
-	utils.Log(0, "running ipl-import command")
+	utils.LogInfo("running ipl-import command")
 
 	// Create a map for our CSV ip lists
 	csvIPLs := make(map[string]illumioapi.IPList)
@@ -94,7 +94,7 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 	// Open CSV File
 	file, err := os.Open(csvFile)
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 	defer file.Close()
 	reader := csv.NewReader(utils.ClearBOM(bufio.NewReader(file)))
@@ -114,7 +114,7 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 			break
 		}
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 
 		// Skip the header row
@@ -165,7 +165,7 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 	existingIPLsSlice, a, err := pce.GetAllDraftIPLists()
 	utils.LogAPIResp("GetAllDraftIPLists", a)
 	if err != nil {
-		utils.Log(1, err.Error())
+		utils.LogError(err.Error())
 	}
 	existingIPLs := make(map[string]illumioapi.IPList)
 	for _, e := range existingIPLsSlice {
@@ -196,7 +196,7 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 	// Iterate through each CSV IP list and see what we need to do
 	for n, csvIPL := range csvIPLs {
 		if existingIPL, ok := existingIPLs[n]; !ok {
-			utils.Log(0, fmt.Sprintf("%s does not exist and will be created.", csvIPL.Name))
+			utils.LogInfo(fmt.Sprintf("%s does not exist and will be created.", csvIPL.Name))
 			IPLsToCreate = append(IPLsToCreate, csvIPL)
 		} else {
 			// The IP List does exist in the PCE.
@@ -248,7 +248,7 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 			}
 
 			// Log the log message
-			utils.Log(0, logMsg)
+			utils.LogInfo(logMsg)
 
 			// If we need to update, add it to our slice
 			if update {
@@ -261,15 +261,15 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 	// End run if we have nothing to do
 	if len(IPLsToCreate) == 0 && len(IPLsToUpdate) == 0 {
 		fmt.Println("[INFO] - Nothing to be done.")
-		utils.Log(0, "nothing to be done. completed running ipl-import command.")
+		utils.LogInfo("nothing to be done. completed running ipl-import command.")
 		return
 	}
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
-		utils.Log(0, fmt.Sprintf("import-ipl identified %d ip-lists to create and %d ip-lists to update.", len(IPLsToCreate), len(IPLsToUpdate)))
+		utils.LogInfo(fmt.Sprintf("import-ipl identified %d ip-lists to create and %d ip-lists to update.", len(IPLsToCreate), len(IPLsToUpdate)))
 		fmt.Printf("[INFO] - import-ipl identified %d ip-lists to create and %d ip-lists to update.\r\n\r\nSee workloader.log for all identified changes. To do the import, run again using --update-pce flag\r\n", len(IPLsToCreate), len(IPLsToUpdate))
-		utils.Log(0, "completed running ipl-import command")
+		utils.LogInfo("completed running ipl-import command")
 		return
 	}
 
@@ -279,9 +279,9 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 		fmt.Printf("[INFO] - import-ipl will create %d iplists and update %d iplists. Do you want to run the import (yes/no)? ", len(IPLsToCreate), len(IPLsToUpdate))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
-			utils.Log(0, fmt.Sprintf("import identified %d iplists to be created and %d iplists requiring update. user denied prompt", len(IPLsToCreate), len(IPLsToUpdate)))
+			utils.LogInfo(fmt.Sprintf("import identified %d iplists to be created and %d iplists requiring update. user denied prompt", len(IPLsToCreate), len(IPLsToUpdate)))
 			fmt.Println("[INFO] - Prompt denied.")
-			utils.Log(0, "completed running ipl-import command")
+			utils.LogInfo("completed running ipl-import command")
 			return
 		}
 	}
@@ -291,10 +291,10 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 		ipl, a, err := pce.CreateIPList(newIPL)
 		utils.LogAPIResp("CreateIPList", a)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 		fmt.Printf("[INFO] - %s created - status code %d\r\n", ipl.Name, a.StatusCode)
-		utils.Log(0, fmt.Sprintf("%s created - status code %d", ipl.Name, a.StatusCode))
+		utils.LogInfo(fmt.Sprintf("%s created - status code %d", ipl.Name, a.StatusCode))
 	}
 
 	// Update IPLs
@@ -302,12 +302,12 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 		a, err := pce.UpdateIPList(updateIPL)
 		utils.LogAPIResp("UpdateIPList", a)
 		if err != nil {
-			utils.Log(1, err.Error())
+			utils.LogError(err.Error())
 		}
 		fmt.Printf("[INFO] - %s updated - status code %d\r\n", updateIPL.Name, a.StatusCode)
-		utils.Log(0, fmt.Sprintf("%s updated - status code %d", updateIPL.Name, a.StatusCode))
+		utils.LogInfo(fmt.Sprintf("%s updated - status code %d", updateIPL.Name, a.StatusCode))
 	}
 
-	utils.Log(0, "completed running ipl-import")
+	utils.LogInfo("completed running ipl-import")
 
 }
