@@ -2,7 +2,9 @@ package pcemgmt
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -41,6 +43,9 @@ export ILLUMIO_PCE="/Users/brian/Desktop/login.yaml"
 By default, the command will create an API ID and Secret. The --session (-s) flag can be used
 to generate a session token that is valid for 10 minutes after inactivity.
 
+The command can be automated (avoid prompt) by setting the following environment variables:
+PCE_NAME, PCE_FQDN, PCE_PORT, PCE_USER, PCE_PWD, PCE_DISABLET_TLS.
+
 The --update-pce and --no-prompt flags are ignored for this command.
 `,
 	PreRun: func(cmd *cobra.Command, args []string) {
@@ -69,14 +74,28 @@ func addPCE() {
 	var pceName, fqdn, user, pwd, disableTLSStr string
 	var port int
 
-	// Start user prompt
-	fmt.Println("\r\nDefault values will be shown in [brackets]. Press enter to accept default.")
-	fmt.Println("")
+	// Check if all our env variables are set
+	envVars := []string{"PCE_NAME", "PCE_FQDN", "PCE_PORT", "PCE_USER", "PCE_PWD", "PCE_DISABLE_TLS"}
+	auto := true
+	for _, e := range envVars {
+		if os.Getenv(e) == "" {
+			auto = false
+		}
+	}
 
-	fmt.Print("Name of PCE (no spaces or periods) [default-pce]: ")
-	fmt.Scanln(&pceName)
+	// Start user prompt
+	if !auto {
+		fmt.Println("\r\nDefault values will be shown in [brackets]. Press enter to accept default.")
+		fmt.Println("")
+	}
+
+	pceName = os.Getenv("PCE_NAME")
 	if pceName == "" {
-		pceName = "default-pce"
+		fmt.Print("Name of PCE (no spaces or periods) [default-pce]: ")
+		fmt.Scanln(&pceName)
+		if pceName == "" {
+			pceName = "default-pce"
+		}
 	}
 
 	// If they don't have a default PCE, make it this one.
@@ -85,26 +104,48 @@ func addPCE() {
 		defaultPCE = false
 	}
 
-	fmt.Print("PCE FQDN: ")
-	fmt.Scanln(&fqdn)
+	fqdn = os.Getenv("PCE_FQDN")
+	if fqdn == "" {
+		fmt.Print("PCE FQDN: ")
+		fmt.Scanln(&fqdn)
+	}
 
-	fmt.Print("PCE Port: ")
-	fmt.Scanln(&port)
+	portStr := os.Getenv("PCE_PORT")
+	if portStr == "" {
+		fmt.Print("PCE Port: ")
+		fmt.Scanln(&port)
+	} else {
+		port, err = strconv.Atoi(portStr)
+		if err != nil {
+			utils.Log(1, err.Error())
+		}
+	}
 
-	fmt.Print("Email: ")
-	fmt.Scanln(&user)
+	user = os.Getenv("PCE_USER")
+	if user == "" {
+		fmt.Print("Email: ")
+		fmt.Scanln(&user)
+	}
 	user = strings.ToLower(user)
 
-	fmt.Print("Password: ")
-	bytePassword, _ := terminal.ReadPassword(int(syscall.Stdin))
-	pwd = string(bytePassword)
-	fmt.Println("")
+	pwd = os.Getenv("PCE_PWD")
+	if pwd == "" {
+		fmt.Print("Password: ")
+		bytePassword, _ := terminal.ReadPassword(int(syscall.Stdin))
+		pwd = string(bytePassword)
+		fmt.Println("")
+	}
 
 	disableTLS := false
-	fmt.Print("Disable TLS verification (true/false) [false]: ")
-	fmt.Scanln(&disableTLSStr)
-	if strings.ToLower(disableTLSStr) == "true" {
+	disableTLSEnv := os.Getenv("PCE_DISABLE_TLS")
+	if strings.ToLower(disableTLSEnv) == "true" {
 		disableTLS = true
+	} else if disableTLSEnv == "" {
+		fmt.Print("Disable TLS verification (true/false) [false]: ")
+		fmt.Scanln(&disableTLSStr)
+		if strings.ToLower(disableTLSStr) == "true" {
+			disableTLS = true
+		}
 	}
 
 	// If session flag is set, create a PCE struct with session token
@@ -124,7 +165,11 @@ func addPCE() {
 		}
 	} else {
 		// If session flag is not set, generate API credentials and create PCE struct
-		fmt.Println("\r\nAuthenticating and generating API Credentials...")
+		if auto {
+			fmt.Println("Authenticating and generating API Credentials...")
+		} else {
+			fmt.Println("\r\nAuthenticating and generating API Credentials...")
+		}
 		pce = illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS}
 		userLogin, api, err = pce.LoginAPIKey(user, pwd, "Workloader", "Created by Workloader")
 		if debug {
@@ -157,6 +202,10 @@ func addPCE() {
 	}
 
 	// Log
-	fmt.Printf("\r\nAdded PCE information to %s\r\n", configFilePath)
+	if auto {
+		fmt.Printf("Added PCE information to %s\r\n", configFilePath)
+	} else {
+		fmt.Printf("\r\nAdded PCE information to %s\r\n", configFilePath)
+	}
 	utils.Log(0, "completed pce-add")
 }
