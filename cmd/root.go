@@ -9,11 +9,13 @@ import (
 
 	"github.com/brian1917/workloader/cmd/compatibility"
 	"github.com/brian1917/workloader/cmd/delete"
+	"github.com/brian1917/workloader/cmd/deleteunusedlabels"
 	"github.com/brian1917/workloader/cmd/dupecheck"
 	"github.com/brian1917/workloader/cmd/explorer"
 	"github.com/brian1917/workloader/cmd/extract"
 	"github.com/brian1917/workloader/cmd/flowimport"
 	"github.com/brian1917/workloader/cmd/flowsummary"
+	"github.com/brian1917/workloader/cmd/getpairingkey"
 	"github.com/brian1917/workloader/cmd/hostparse"
 	"github.com/brian1917/workloader/cmd/iplexport"
 	"github.com/brian1917/workloader/cmd/iplimport"
@@ -23,6 +25,7 @@ import (
 	"github.com/brian1917/workloader/cmd/nic"
 	"github.com/brian1917/workloader/cmd/pcemgmt"
 	"github.com/brian1917/workloader/cmd/subnet"
+	"github.com/brian1917/workloader/cmd/templateimport"
 	"github.com/brian1917/workloader/cmd/traffic"
 	"github.com/brian1917/workloader/cmd/unpair"
 	"github.com/brian1917/workloader/cmd/upgrade"
@@ -84,6 +87,7 @@ func init() {
 	RootCmd.AddCommand(iplimport.IplImportCmd)
 	RootCmd.AddCommand(flowimport.FlowImportCmd)
 	RootCmd.AddCommand(labelrename.LabelRenameCmd)
+	RootCmd.AddCommand(templateimport.TemplateImportCmd)
 
 	// Automated Labeling
 	RootCmd.AddCommand(traffic.TrafficCmd)
@@ -97,6 +101,9 @@ func init() {
 	RootCmd.AddCommand(unpair.UnpairCmd)
 	RootCmd.AddCommand(delete.DeleteCmd)
 
+	// Label management
+	RootCmd.AddCommand(labelsdeleteunused.LabelsDeleteUnused)
+
 	// Reporting
 	RootCmd.AddCommand(mislabel.MisLabelCmd)
 	RootCmd.AddCommand(dupecheck.DupeCheckCmd)
@@ -104,6 +111,9 @@ func init() {
 	RootCmd.AddCommand(explorer.ExplorerCmd)
 	RootCmd.AddCommand(nic.NICCmd)
 	RootCmd.AddCommand(versionCmd)
+
+	// Pairing
+	RootCmd.AddCommand(getpairingkey.GetPairingKey)
 
 	// PCE-to-PCE
 	RootCmd.AddCommand(wkldtoipl.WorkloadToIPLCmd)
@@ -145,18 +155,12 @@ func Execute() {
 	}
 }
 
-// Version is set by build variable
-var Version string
-
-// Commit is the latest commit
-var Commit string
-
 //versionCmd returns the version of workloader
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print workloader version.",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("Version %s\r\n", Version)
-		fmt.Printf("Previous commit: %s \r\n", Commit)
+		fmt.Printf("Version %s\r\n", utils.GetVersion())
+		fmt.Printf("Previous commit: %s \r\n", utils.GetCommit())
 	},
 }
