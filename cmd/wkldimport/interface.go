@@ -33,27 +33,35 @@ func validateIP(ip string) (string, error) {
 
 // userInputConvert takes an ip address in the format of eth0:192.168.20.21 and returns an illumio interface struct
 func userInputConvert(ip string) (illumioapi.Interface, error) {
+	var ifaceName, ifaceAddress string
+
 	x := strings.Split(ip, ":")
-	if len(x) != 2 {
-		return illumioapi.Interface{}, fmt.Errorf("%s is not a valid format (e.g., eth0:192.168.4.2)", ip)
+
+	if len(x) == 1 {
+		ifaceName = "umwl"
+		ifaceAddress = x[0]
+	} else if len(x) == 2 {
+		ifaceName = x[0]
+		ifaceAddress = x[1]
+	} else {
+		return illumioapi.Interface{}, fmt.Errorf("%s is not a valid format", ip)
 	}
 
 	// If the input includes a CIDR, make sure it's valid by parsing and then return it
-	if strings.Contains(x[1], "/") {
-		ipAddress, ipNet, err := net.ParseCIDR(x[1])
+	if strings.Contains(ifaceAddress, "/") {
+		ipAddress, ipNet, err := net.ParseCIDR(ifaceAddress)
 		if err != nil {
 			return illumioapi.Interface{}, err
 		}
 		cidr, _ := ipNet.Mask.Size()
-		return illumioapi.Interface{Address: ipAddress.String(), CidrBlock: &cidr, Name: x[0]}, nil
+		return illumioapi.Interface{Address: ipAddress.String(), CidrBlock: &cidr, Name: ifaceName}, nil
 	}
 
 	// We only get here if it does not include CIDR notation.
 	// Validate IP address by parsing it with /32
-	ipAddress := net.ParseIP(x[1])
+	ipAddress := net.ParseIP(ifaceAddress)
 	if ipAddress == nil {
-		return illumioapi.Interface{}, fmt.Errorf("%s is invalid ip address", ip)
+		return illumioapi.Interface{}, fmt.Errorf("%s is an invalid ip address", ip)
 	}
-	return illumioapi.Interface{Address: ipAddress.String(), CidrBlock: nil, Name: x[0]}, nil
-
+	return illumioapi.Interface{Address: ipAddress.String(), CidrBlock: nil, Name: ifaceName}, nil
 }
