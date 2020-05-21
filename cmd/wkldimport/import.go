@@ -44,18 +44,19 @@ func init() {
 // WkldImportCmd runs the upload command
 var WkldImportCmd = &cobra.Command{
 	Use:   "wkld-import [csv file to import]",
-	Short: "Create and assign labels to existing workloads and (optionally using the --umwl flag) create unmanaged workloads from a CSV file.",
+	Short: "Create and assign labels to existing workloads and/or create unmanaged workloads (using --umwl) from a CSV file.",
 	Long: `
-Create and assign labels to existing workloads and (optionally using the --umwl flag) create unmanaged workloads from a CSV file.
+Create and assign labels to existing workloads and/or create unmanaged workloads (using --umwl) from a CSV file.
 
-The input should have a header row as the first row will be skipped. Interfaces should be in the format of "192.168.200.20", "192.168.200.20/24", "eth0:192.168.200.20", or "eth0:192.168.200.20/24". If no interface name is provided with a colon (e.g., "eth0:", then "umwl0:" is used. Multiple interfaces should be separated by a semicolon (with or without spaces).
-
-Additional columns are allowed and will be ignored.
-
-The default import format is below. It matches the first 7 columns of the wkld-export command so you can easily export workloads, edit, and reimport.
+The input file requires:
+  - Header row (first line is always skipped)
+  - At least seven columns (others are ok, but will be ignored)
+  - Interfaces should be in the format of "192.168.200.20", "192.168.200.20/24", "eth0:192.168.200.20", or "eth0:192.168.200.20/24". If no interface name is provided with a colon (e.g., "eth0:"), then "umwl0:" is used. Multiple interfaces should be separated by a semicolon.
+  - Default column order is below. The order matches the first 7 columns of the wkld-export command to easily export workloads, edit, and re-import.
+  - Override column numbers for other input formats using flags.
 
 +---------------+------+------+----------+------+-----+---------------------------------------+
-|     host      | name | role |   app    | env  | loc |              interfaces               |
+|   hostname    | name | role |   app    | env  | loc |              interfaces               |
 +---------------+------+------+----------+------+-----+---------------------------------------+
 | assetmgtdbp1  |      | DB   | ASSETMGT | PROD | BOS | eth0:192.168.200.15                   |
 | assetmgtwebd1 |      | WEB  | ASSETMGT | DEV  | BOS | eth0:192.168.200.15;eth1:10.10.100.22 |
@@ -240,7 +241,11 @@ CSVEntries:
 				}
 
 				// Add to the slice to process via bulk and go to next CSV entry
-				w := illumioapi.Workload{Hostname: line[matchCol], Interfaces: netInterfaces, Labels: labels}
+				name := line[nameCol]
+				if name == "" {
+					name = line[matchCol]
+				}
+				w := illumioapi.Workload{Hostname: line[matchCol], Name: name, Interfaces: netInterfaces, Labels: labels}
 				newUMWLs = append(newUMWLs, w)
 
 				// Log the entry
