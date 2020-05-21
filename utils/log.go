@@ -71,7 +71,7 @@ func LogAPIResp(callType string, apiResp illumioapi.APIResponse) {
 
 // LogStartCommand is used at the beginning of each command
 func LogStartCommand(commandName string) {
-	LogInfo(fmt.Sprintf("workloader version %s - started %s", commandName, GetVersion()))
+	LogInfo(fmt.Sprintf("workloader version %s - started %s", GetVersion(), commandName))
 }
 
 // LogEndCommand is used at the end of each command
