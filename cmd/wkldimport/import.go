@@ -387,8 +387,8 @@ CSVEntries:
 			}
 		}
 
-		// Check on the name
-		if wkld.Name != line[nameCol] {
+		// Change the name if it doesn't match unless the name in the CSV is blank and PCE is reporting the name as the hostname
+		if wkld.Name != line[nameCol] && line[nameCol] != "" {
 			change = true
 			utils.LogInfo(fmt.Sprintf("CSV line %d - Name to be changed from %s to %s", i, wkld.Name, line[nameCol]))
 			wkld.Name = line[nameCol]
