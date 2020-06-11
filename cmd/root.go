@@ -19,6 +19,7 @@ import (
 	"github.com/brian1917/workloader/cmd/hostparse"
 	"github.com/brian1917/workloader/cmd/iplexport"
 	"github.com/brian1917/workloader/cmd/iplimport"
+	"github.com/brian1917/workloader/cmd/labelexport"
 	"github.com/brian1917/workloader/cmd/labelrename"
 	"github.com/brian1917/workloader/cmd/mislabel"
 	"github.com/brian1917/workloader/cmd/mode"
@@ -86,6 +87,7 @@ func init() {
 	RootCmd.AddCommand(iplexport.IplExportCmd)
 	RootCmd.AddCommand(iplimport.IplImportCmd)
 	RootCmd.AddCommand(flowimport.FlowImportCmd)
+	RootCmd.AddCommand(labelexport.LabelExportCmd)
 	RootCmd.AddCommand(labelrename.LabelRenameCmd)
 	RootCmd.AddCommand(templateimport.TemplateImportCmd)
 
