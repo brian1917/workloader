@@ -16,7 +16,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var app, env, exclRole, exclServiceObj, exclServiceCSV, start, end, appFile string
+var app, env, exclRole, exclServiceObj, exclServiceCSV, start, end, labelFile string
 var exclAllowed, exclPotentiallyBlocked, exclBlocked, appGroupLoc, ignoreIPGroup, consolidate, nonUni, debug bool
 var threshold int
 var pce illumioapi.PCE
@@ -24,7 +24,7 @@ var err error
 
 func init() {
 
-	ExplorerCmd.Flags().StringVar(&appFile, "label-file", "", "file with label hrefs on separate lines (with or without header). An explorer query for the label as consumer OR provider is run for each app.")
+	ExplorerCmd.Flags().StringVar(&labelFile, "label-file", "", "file with label hrefs on separate lines (with or without header). An explorer query for the label as consumer OR provider is run for each app.")
 	ExplorerCmd.Flags().StringVarP(&app, "limit-to-app", "a", "", "app name to limit Explorer results to flows with that app as a provider or a consumer. default is all apps.")
 	ExplorerCmd.Flags().StringVarP(&env, "limit-to-env", "n", "", "env name to limit Explorer results to flows with that env as a provider or a consumer. default is all apps.")
 	ExplorerCmd.Flags().StringVarP(&exclRole, "excl-role-source", "r", "", "role name to exclude Explorer results with that role (e.g., vuln-scanner). default is none.")
@@ -171,7 +171,7 @@ func explorerExport() {
 
 	var traffic []illumioapi.TrafficAnalysis
 	var a illumioapi.APIResponse
-	if appFile == "" {
+	if labelFile == "" {
 
 		// If an app is provided, adjust query to include it
 		if app != "" {
@@ -244,7 +244,7 @@ func explorerExport() {
 		tq.QueryOperator = "or"
 
 		// Get the labels from the file
-		appLabels := parseCsv(appFile)
+		appLabels := parseCsv(labelFile)
 		var rawTraffic []illumioapi.TrafficAnalysis
 		for _, label := range appLabels {
 			fmt.Printf("[INFO] - Querying explorer for %s (%s)\r\n", pce.LabelMapH[label].Value, pce.LabelMapH[label].Key)
