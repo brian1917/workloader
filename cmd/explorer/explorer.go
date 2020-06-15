@@ -18,7 +18,7 @@ import (
 
 var app, env, exclRole, exclServiceObj, exclServiceCSV, start, end, labelFile string
 var exclAllowed, exclPotentiallyBlocked, exclBlocked, appGroupLoc, ignoreIPGroup, consolidate, nonUni, debug bool
-var threshold int
+var threshold, maxResults int
 var pce illumioapi.PCE
 var err error
 
@@ -35,6 +35,7 @@ func init() {
 	ExplorerCmd.Flags().BoolVar(&exclPotentiallyBlocked, "excl-potentially-blocked", false, "excludes potentially blocked traffic flows.")
 	ExplorerCmd.Flags().BoolVar(&exclBlocked, "excl-blocked", false, "excludes blocked traffic flows.")
 	ExplorerCmd.Flags().IntVar(&threshold, "threshold", 90000, "threshold to start iterating.")
+	ExplorerCmd.Flags().IntVarP(&maxResults, "max-results", "m", 10000, "max results in explorer.")
 	ExplorerCmd.Flags().BoolVar(&appGroupLoc, "loc-in-ag", false, "includes the location in the app group in CSV output.")
 	ExplorerCmd.Flags().BoolVar(&nonUni, "incl-non-unicast", false, "includes non-unicast (broadcast and multicast) flows in the output. Default is unicast only.")
 
@@ -157,7 +158,7 @@ func explorerExport() {
 		StartTime:      startDate,
 		EndTime:        endDate,
 		PolicyStatuses: pStatus,
-		MaxFLows:       100000}
+		MaxFLows:       maxResults}
 
 	// Exclude broadcast and multicast, uness flag set to include non-unicast flows
 	if !nonUni {
