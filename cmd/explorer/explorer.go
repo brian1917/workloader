@@ -18,28 +18,27 @@ import (
 
 var app, env, exclRole, exclServiceObj, exclServiceCSV, start, end, labelFile string
 var exclAllowed, exclPotentiallyBlocked, exclBlocked, appGroupLoc, ignoreIPGroup, consolidate, nonUni, debug bool
-var threshold, maxResults int
+var maxResults int
 var pce illumioapi.PCE
 var err error
+var whm map[string]illumioapi.Workload
 
 func init() {
 
 	ExplorerCmd.Flags().StringVar(&labelFile, "label-file", "", "file with label hrefs on separate lines (with or without header). An explorer query for the label as consumer OR provider is run for each app.")
-	ExplorerCmd.Flags().StringVarP(&app, "limit-to-app", "a", "", "app name to limit Explorer results to flows with that app as a provider or a consumer. default is all apps.")
-	ExplorerCmd.Flags().StringVarP(&env, "limit-to-env", "n", "", "env name to limit Explorer results to flows with that env as a provider or a consumer. default is all apps.")
+	ExplorerCmd.Flags().StringVarP(&app, "limit-to-app", "a", "", "app name to limit Explorer results to flows with that app as a provider or a consumer. Default is all apps. ignored if using label-file.")
+	ExplorerCmd.Flags().StringVarP(&env, "limit-to-env", "n", "", "env name to limit Explorer results to flows with that env as a provider or a consumer. Default is all apps. ignored if using label-file.")
 	ExplorerCmd.Flags().StringVarP(&exclRole, "excl-role-source", "r", "", "role name to exclude Explorer results with that role (e.g., vuln-scanner). default is none.")
 	ExplorerCmd.Flags().StringVarP(&exclServiceCSV, "exclude-service-csv", "x", "", "file location of csv with port/protocols to exclude. CSV should have NO HEADERS with port number in column 1 and IANA numeric protocol in Col 2.")
-	ExplorerCmd.Flags().StringVarP(&start, "start", "s", time.Date(time.Now().Year()-5, time.Now().Month(), time.Now().Day(), 0, 0, 0, 0, time.UTC).Format("2006-01-02"), "start date in the format of yyyy-mm-dd. Time is set as midnight UTC.")
-	ExplorerCmd.Flags().StringVarP(&end, "end", "e", time.Now().Add(time.Hour*24).Format("2006-01-02"), "end date in the format of yyyy-mm-dd. Time is set as 11:59 PM UTC.")
+	ExplorerCmd.Flags().StringVarP(&start, "start", "s", time.Date(time.Now().Year()-5, time.Now().Month(), time.Now().Day(), 0, 0, 0, 0, time.UTC).Format("2006-01-02"), "start date in the format of yyyy-mm-dd.")
+	ExplorerCmd.Flags().StringVarP(&end, "end", "e", time.Now().Add(time.Hour*24).Format("2006-01-02"), "end date in the format of yyyy-mm-dd.")
 	ExplorerCmd.Flags().BoolVar(&exclAllowed, "excl-allowed", false, "excludes allowed traffic flows.")
 	ExplorerCmd.Flags().BoolVar(&exclPotentiallyBlocked, "excl-potentially-blocked", false, "excludes potentially blocked traffic flows.")
 	ExplorerCmd.Flags().BoolVar(&exclBlocked, "excl-blocked", false, "excludes blocked traffic flows.")
-	ExplorerCmd.Flags().IntVar(&threshold, "threshold", 90000, "threshold to start iterating.")
-	ExplorerCmd.Flags().IntVarP(&maxResults, "max-results", "m", 10000, "max results in explorer.")
-	ExplorerCmd.Flags().BoolVar(&appGroupLoc, "loc-in-ag", false, "includes the location in the app group in CSV output.")
 	ExplorerCmd.Flags().BoolVar(&nonUni, "incl-non-unicast", false, "includes non-unicast (broadcast and multicast) flows in the output. Default is unicast only.")
+	ExplorerCmd.Flags().IntVarP(&maxResults, "max-results", "m", 10000, "max results in explorer. Maximum value is 100000")
+	ExplorerCmd.Flags().BoolVar(&appGroupLoc, "loc-in-ag", false, "includes the location in the app group in CSV output.")
 
-	ExplorerCmd.Flag("threshold").Hidden = true
 	ExplorerCmd.Flags().SortFlags = false
 }
 
@@ -60,6 +59,9 @@ To filter unwanted traffic, create a CSV with NO HEADERS. Column 1 should have p
 
 		// Get the debug value from viper
 		debug = viper.Get("debug").(bool)
+
+		// Set output to CSV only
+		viper.Set("output_format", "csv")
 
 		explorerExport()
 	},
@@ -113,11 +115,19 @@ func explorerExport() {
 	// Log start
 	utils.LogStartCommand("explorer")
 
-	// Set threshold
-	illumioapi.Threshold = threshold
+	// Check max results for valid value
+	if maxResults < 1 || maxResults > 100000 {
+		utils.LogError("max-results must be between 1 and 100000")
+	}
 
 	// Get LabelMap for getting workload labels
 	_, err = pce.GetLabelMaps()
+	if err != nil {
+		utils.LogError(err.Error())
+	}
+
+	// Get WorkloadMap by hostname
+	whm, _, err = pce.GetWkldHostMap()
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -138,7 +148,7 @@ func explorerExport() {
 	}
 	utils.LogInfo(fmt.Sprintf("pStatus = %#v", pStatus))
 
-	// Get the state and end date
+	// Get the start and end date
 	startDate, err := time.Parse(fmt.Sprintf("2006-01-02 MST"), fmt.Sprintf("%s %s", start, "UTC"))
 	if err != nil {
 		utils.LogError(err.Error())
@@ -239,6 +249,16 @@ func explorerExport() {
 			}
 			traffic = append(traffic, traffic2...)
 		}
+		// Write data if we are not using a file
+		outFileName := fmt.Sprintf("workloader-explorer-%s", time.Now().Format("20060102_150405"))
+		if app != "" {
+			outFileName = fmt.Sprintf("%s-%s", outFileName, app)
+		}
+		if env != "" {
+			outFileName = fmt.Sprintf("%s-%s", outFileName, env)
+		}
+		outFileName = fmt.Sprintf("%s.csv", outFileName)
+		createExplorerCSV(outFileName, traffic)
 	} else {
 
 		// Adjust the query object so we are doing an OR
@@ -246,40 +266,58 @@ func explorerExport() {
 
 		// Get the labels from the file
 		appLabels := parseCsv(labelFile)
-		var rawTraffic []illumioapi.TrafficAnalysis
 		for _, label := range appLabels {
-			fmt.Printf("[INFO] - Querying explorer for %s (%s)\r\n", pce.LabelMapH[label].Value, pce.LabelMapH[label].Key)
+			traffic := []illumioapi.TrafficAnalysis{}
+			fmt.Printf("[INFO] - Querying explorer for %s (%s)", pce.LabelMapH[label].Value, pce.LabelMapH[label].Key)
 			tq.SourcesInclude = []string{label}
 			tq.DestinationsInclude = []string{label}
-			newTraffic, a, err := pce.GetTrafficAnalysis(tq)
-			utils.LogAPIResp("GetTrafficAnalysis", a)
+			traffic, a, err = pce.GetTrafficAnalysis(tq)
 			if err != nil {
+				utils.LogWarning(fmt.Sprintf("HTTP Status Code: %d", a.StatusCode), false)
+				utils.LogWarning(fmt.Sprintf("HTTP Response Body: %s", a.RespBody), false)
 				utils.LogError(err.Error())
 			}
-			rawTraffic = append(rawTraffic, newTraffic...)
-			utils.LogInfo(fmt.Sprintf("%d traffic records exported\r\n", len(newTraffic)))
-			fmt.Printf("[INFO] - %d traffic records exported\r\n", len(newTraffic))
+			if len(traffic) > 0 {
+				createExplorerCSV(fmt.Sprintf("%s-workloader-explorer-%s.csv", pce.LabelMapH[label].Value, time.Now().Format("20060102_150405")), traffic)
+				fmt.Printf("[INFO] - %d traffic records exported\r\n", len(traffic))
+				fmt.Println("----------------------------------------")
+			} else {
+				fmt.Println("\r\n[INFO] - No traffic")
+				fmt.Println("----------------------------------------")
+			}
 		}
-		// Dedupe
-		x := make(map[string]illumioapi.TrafficAnalysis)
-		for _, t := range rawTraffic {
-			x[fmt.Sprintf(t.Dst.IP+t.Src.IP+strconv.Itoa(t.NumConnections)+strconv.Itoa(t.ExpSrv.Port)+strconv.Itoa(t.ExpSrv.Proto)+t.ExpSrv.Process+t.ExpSrv.User+t.PolicyDecision+t.TimestampRange.FirstDetected+t.TimestampRange.LastDetected)] = t
-		}
-		for _, t := range x {
-			traffic = append(traffic, t)
-		}
-		utils.LogInfo(fmt.Sprintf("%d traffic records after de-duping", len(traffic)))
-		fmt.Printf("[INFO] - %d traffic records after de-duping\r\n", len(traffic))
 	}
+
+	// Log end
+	utils.LogEndCommand("explorer")
+
+}
+
+func wkldGW(hostname string, wkldHostMap map[string]illumioapi.Workload) string {
+	if wkld, ok := wkldHostMap[hostname]; ok {
+		return wkld.GetDefaultGW()
+	}
+	return "NA"
+}
+
+func wkldNetMask(hostname, ip string, wkldHostMap map[string]illumioapi.Workload) string {
+	if wkld, ok := wkldHostMap[hostname]; ok {
+		return wkld.GetNetMask(ip)
+	}
+	return "NA"
+}
+
+func wkldInterfaceName(hostname, ip string, wkldHostMap map[string]illumioapi.Workload) string {
+	if wkld, ok := wkldHostMap[hostname]; ok {
+		return wkld.GetInterfaceName(ip)
+	}
+	return "NA"
+}
+
+func createExplorerCSV(filename string, traffic []illumioapi.TrafficAnalysis) {
 
 	// Build our CSV structure
 	data := [][]string{[]string{"src_ip", "src_interface_name", "src_net_mask", "src_default_gw", "src_hostname", "src_role", "src_app", "src_env", "src_loc", "src_app_group", "dst_ip", "dst_interface_name", "dst_net_mask", "dst_default_gw", "dst_hostname", "dst_role", "dst_app", "dst_env", "dst_loc", "dst_app_group", "port", "protocol", "transmission", "policy_status", "date_first", "date_last", "num_flows"}}
-
-	// Get WorkloadMap by hostname
-	whm, _, err := pce.GetWkldHostMap()
-	if err != nil {
-		utils.LogError(err.Error())
-	}
 
 	// Add each traffic entry to the data slic
 	for _, t := range traffic {
@@ -294,7 +332,6 @@ func explorerExport() {
 		}
 
 		// Destination
-
 		dst := []string{t.Dst.IP, "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA"}
 		if t.Dst.Workload != nil {
 			// Get the app group
@@ -324,40 +361,6 @@ func explorerExport() {
 		data = append(data, d)
 	}
 
-	// Write the data
-	outFileName := fmt.Sprintf("workloader-explorer-%s", time.Now().Format("20060102_150405"))
-	if app != "" {
-		outFileName = fmt.Sprintf("%s-%s", outFileName, app)
-	}
-	if env != "" {
-		outFileName = fmt.Sprintf("%s-%s", outFileName, env)
-	}
-	outFileName = fmt.Sprintf("%s.csv", outFileName)
-
-	utils.WriteOutput(data, data, outFileName)
-
-	// Log end
-	utils.LogEndCommand("explorer")
-
-}
-
-func wkldGW(hostname string, wkldHostMap map[string]illumioapi.Workload) string {
-	if wkld, ok := wkldHostMap[hostname]; ok {
-		return wkld.GetDefaultGW()
-	}
-	return "NA"
-}
-
-func wkldNetMask(hostname, ip string, wkldHostMap map[string]illumioapi.Workload) string {
-	if wkld, ok := wkldHostMap[hostname]; ok {
-		return wkld.GetNetMask(ip)
-	}
-	return "NA"
-}
-
-func wkldInterfaceName(hostname, ip string, wkldHostMap map[string]illumioapi.Workload) string {
-	if wkld, ok := wkldHostMap[hostname]; ok {
-		return wkld.GetInterfaceName(ip)
-	}
-	return "NA"
+	utils.LogInfo(fmt.Sprintf("%d traffic records exported", len(traffic)))
+	utils.WriteOutput(data, data, filename)
 }
