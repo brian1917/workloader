@@ -12,6 +12,7 @@ import (
 // Global variables
 var templateFile string
 var pce illumioapi.PCE
+var doNotProvision bool
 var err error
 
 // TemplateImportCmd runs the template import command
@@ -39,6 +40,13 @@ Import an Illumio segmentation template.`,
 	},
 }
 
+func init() {
+
+	TemplateImportCmd.Flags().BoolVarP(&doNotProvision, "do-not-provision", "x", false, "Provision objects after creating them.")
+	TemplateImportCmd.Flags().SortFlags = false
+
+}
+
 // Process template file
 func importTemplate() {
 
@@ -49,12 +57,14 @@ func importTemplate() {
 		utils.LogError(err.Error())
 	}
 
-	var a illumioapi.APIResponse
+	ipls := []*illumioapi.IPList{}
+	services := []*illumioapi.Service{}
+
 	// Iterate templates
 	for _, t := range template.IllumioSecurityTemplates {
 		// Labels
 		for _, l := range t.Labels {
-			_, a, err = pce.CreateLabel(*l)
+			_, a, err := pce.CreateLabel(*l)
 			if err != nil {
 				utils.LogInfo(fmt.Sprintf("error creating label: %s (%s) - API Code: %d", l.Value, l.Key, a.StatusCode))
 				fmt.Println(a.RespBody)
@@ -64,22 +74,31 @@ func importTemplate() {
 		}
 		// IPLists
 		for _, i := range t.IPLists {
-			_, a, err = pce.CreateIPList(*i)
+			ipl, a, err := pce.CreateIPList(*i)
 			if err != nil {
 				utils.LogInfo(fmt.Sprintf("error creating iplist: %s - API Code: %d", i.Name, a.StatusCode))
 			} else {
 				utils.LogInfo(fmt.Sprintf("created iplist: %s", i.Name))
+				ipls = append(ipls, &illumioapi.IPList{Href: ipl.Href})
 			}
 		}
 		// Services
 		for _, s := range t.Services {
-			_, a, err = pce.CreateService(*s)
+			svc, a, err := pce.CreateService(*s)
 			if err != nil {
 				utils.LogInfo(fmt.Sprintf("error creating service: %s - API Code: %d", s.Name, a.StatusCode))
 				fmt.Println(a.RespBody)
 			} else {
 				utils.LogInfo(fmt.Sprintf("created service: %s", s.Name))
+				services = append(services, &illumioapi.Service{Href: svc.Href})
 			}
+		}
+	}
+
+	if !doNotProvision {
+		a, err := pce.ProvisionCS(illumioapi.ChangeSubset{IPLists: ipls, Services: services}, "Provisioned by workloader template-import.")
+		if err != nil {
+			utils.LogError(fmt.Sprintf("%s\r\n[ERROR] - API Body: %s", err, a.RespBody))
 		}
 	}
 
