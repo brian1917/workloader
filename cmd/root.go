@@ -100,6 +100,7 @@ func init() {
 	RootCmd.AddCommand(compatibility.CompatibilityCmd)
 	RootCmd.AddCommand(mode.ModeCmd)
 	RootCmd.AddCommand(upgrade.UpgradeCmd)
+	RootCmd.AddCommand(getpairingkey.GetPairingKey)
 	RootCmd.AddCommand(unpair.UnpairCmd)
 	RootCmd.AddCommand(delete.DeleteCmd)
 
@@ -113,9 +114,6 @@ func init() {
 	RootCmd.AddCommand(explorer.ExplorerCmd)
 	RootCmd.AddCommand(nic.NICCmd)
 	RootCmd.AddCommand(versionCmd)
-
-	// Pairing
-	RootCmd.AddCommand(getpairingkey.GetPairingKey)
 
 	// PCE-to-PCE
 	RootCmd.AddCommand(wkldtoipl.WorkloadToIPLCmd)

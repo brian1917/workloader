@@ -2,6 +2,8 @@ package getpairingkey
 
 import (
 	"fmt"
+	"io"
+	"os"
 
 	"github.com/brian1917/illumioapi"
 
@@ -14,11 +16,12 @@ import (
 var pce illumioapi.PCE
 var err error
 var debug bool
-var profile string
+var profile, pkFile string
 
 // Init handles flags
 func init() {
 	GetPairingKey.Flags().StringVarP(&profile, "profile", "p", "default", "Pairing profile name.")
+	GetPairingKey.Flags().StringVarP(&pkFile, "file", "f", "", "File to store pairing key")
 	GetPairingKey.Flags().SortFlags = false
 }
 
@@ -63,6 +66,19 @@ func getPK() {
 				utils.LogError(err.Error())
 			}
 			fmt.Println(pk.ActivationCode)
+
+			// Write the pairing key to a file
+			if pkFile != "" {
+				file, err := os.Create(pkFile)
+				if err != nil {
+					utils.LogError(err.Error())
+				}
+				defer file.Close()
+				_, err = io.WriteString(file, pk.ActivationCode)
+				if err != nil {
+					utils.LogError(err.Error())
+				}
+			}
 		}
 	}
 	utils.LogEndCommand("get-pk")
