@@ -38,7 +38,7 @@ func init() {
 
 // HostnameCmd runs the hostname parser
 var HostnameCmd = &cobra.Command{
-	Use:   "hostparse",
+	Use:   "hostparse [parser file csv]",
 	Short: "Label workloads by parsing hostnames from provided regex functions.",
 	Long: `
 Label workloads by parsing hostnames.
