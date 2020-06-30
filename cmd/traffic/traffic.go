@@ -63,6 +63,7 @@ The --update-pce and --no-prompt flags are ignored for this command. Use workloa
 type result struct {
 	csname      string
 	ipAddress   string
+	fqdn        string
 	hostname    string
 	app         string
 	env         string
@@ -249,9 +250,12 @@ func workloadIdentifier() {
 					// Set hostname for non-existing workloads
 					if _, ok := allIPWLs[r.ipAddress]; !ok {
 						r.matchStatus = 1 // UMWL status code
-						// Default hostname is IP - CSNAME. Lookup will override.
-						r.hostname = fmt.Sprintf("%s - %s", r.ipAddress, r.csname)
-						if lookupTO > 0 {
+						// Default hostname is FQDN or IP. Lookup used to override IP if FQDN is blank.
+						r.hostname = r.fqdn
+						if r.hostname == "" {
+							r.hostname = r.ipAddress
+						}
+						if lookupTO > 0 && r.fqdn == "" {
 							h := hostname(r.ipAddress, lookupTO)
 							if h != "" {
 								r.hostname = h

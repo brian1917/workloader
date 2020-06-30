@@ -44,6 +44,17 @@ func findPorts(traffic []illumioapi.TrafficAnalysis, coreServices []coreService,
 
 	}
 
+	// Create a map for looking up FQDNs later
+	fqdnMap := make(map[string]string)
+	for _, entry := range traffic {
+		if entry.Src.FQDN != "" {
+			fqdnMap[entry.Src.IP] = entry.Src.FQDN
+		}
+		if entry.Dst.FQDN != "" {
+			fqdnMap[entry.Dst.IP] = entry.Dst.FQDN
+		}
+	}
+
 	// For each traffic flow not going to a workload, see if it already exists in the ipAddrPorts map. If no, add it.
 	ipPorts := make(map[string][]int)
 	for _, flow := range ft {
@@ -114,7 +125,7 @@ func findPorts(traffic []illumioapi.TrafficAnalysis, coreServices []coreService,
 					}
 					reason := fmt.Sprintf("%s is the %s on traffic over %s %s. Required and optional non-ranges flow count is %d. ", ipAddr, t, s, strings.Join(portMatches, " "), flowCounter)
 
-					matches = append(matches, result{csname: cs.name, ipAddress: ipAddr, app: cs.app, env: cs.env, loc: cs.loc, role: cs.role, reason: reason})
+					matches = append(matches, result{csname: cs.name, ipAddress: ipAddr, fqdn: fqdnMap[ipAddr], app: cs.app, env: cs.env, loc: cs.loc, role: cs.role, reason: reason})
 				} else if provider {
 					// Convert slice of int to slice of string
 					var portStr []string
