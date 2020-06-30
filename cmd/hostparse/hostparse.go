@@ -25,7 +25,6 @@ var err error
 
 // Init function will handle flags
 func init() {
-	HostnameCmd.Flags().StringVarP(&parserFile, "parserfile", "p", "", "Location of CSV file that has the regex functions and labels.")
 	HostnameCmd.Flags().StringVar(&hostFile, "hostfile", "", "Location of optional CSV file with target hostnames parse. Used instead of getting workloads from the PCE.")
 	HostnameCmd.Flags().StringVarP(&roleFlag, "role", "r", "", "Role label to identify workloads to parse hostnames. No value will look for workloads with no role label.")
 	HostnameCmd.Flags().StringVarP(&appFlag, "app", "a", "", "Application label to identify workloads to parse hostnames. No value will look for workloads with no application label.")
@@ -69,6 +68,13 @@ An input CSV specifics the regex functions to use to assign labels. An example i
 		debug = viper.Get("debug").(bool)
 		updatePCE = viper.Get("update_pce").(bool)
 		noPrompt = viper.Get("no_prompt").(bool)
+
+		// Get CSV file
+		if len(args) != 1 {
+			fmt.Println("Command requires 1 argument for the csv file. See usage help.")
+			os.Exit(0)
+		}
+		parserFile = args[0]
 
 		hostnameParser()
 	},
