@@ -46,6 +46,8 @@ var SnowSyncCmd = &cobra.Command{
 	Use:   "snow-sync",
 	Short: "Label existing workloads and (optionally) create unmanaged workloads from data stored in ServiceNow CMDB.",
 	Long: `
+** Note - this command uses the SericeNow CSV web service and will be limited by the CSV Format Export Row Limit set in Import Export Properties (e.g., https://test.service-now.com/nav_to.do?uri=%2F$impex_properties.do). The default value is typically 10,000 rows. **
+
 Label existing workloads and (optionally) create unmanaged workloads from data stored in ServiceNow CMDB.
 
 The flags are used to identify the ServiceNow table and to map fields. If a field is not mapped, it will be ignored - no changes to the PCE.
@@ -73,10 +75,23 @@ func snowsync() {
 	utils.LogStartCommand("snow-sync")
 
 	// Call the ServiceNow API
-	snURL := snowTable + "?CSV&sysparm_fields=" + url.QueryEscape(snowMatchField) + "," + url.QueryEscape(snowRole) + "," + url.QueryEscape(snowApp) + "," + url.QueryEscape(snowEnv) + "," + url.QueryEscape(snowLoc)
+	snURL := snowTable + "?CSV&sysparm_fields=" + url.QueryEscape(snowMatchField)
+	if snowRole != "" {
+		snURL = snURL + "," + url.QueryEscape(snowRole)
+	}
+	if snowApp != "" {
+		snURL = snURL + "," + url.QueryEscape(snowApp)
+	}
+	if snowEnv != "" {
+		snURL = snURL + "," + url.QueryEscape(snowEnv)
+	}
+	if snowLoc != "" {
+		snURL = snURL + "," + url.QueryEscape(snowLoc)
+	}
 	if umwl {
 		snURL = snURL + "," + url.QueryEscape(snowIP)
 	}
+	fmt.Println(snURL)
 	snowCSVFile := snhttp(snURL)
 
 	// Call the workloader import command

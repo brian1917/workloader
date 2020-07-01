@@ -54,9 +54,13 @@ func snhttp(url string) string {
 		// Start with the match
 		x := []string{d[0]}
 
+		// Adjustment is for when fields are omitted
+		adjustment := 0
+
 		// Role
 		if snowRole == "" {
 			x = append(x, "")
+			adjustment++
 		} else {
 			x = append(x, d[1])
 		}
@@ -64,29 +68,32 @@ func snhttp(url string) string {
 		// App
 		if snowApp == "" {
 			x = append(x, "")
+			adjustment++
 		} else {
-			x = append(x, d[2])
+			x = append(x, d[2-adjustment])
 		}
 
 		// Env
 		if snowEnv == "" {
 			x = append(x, "")
+			adjustment++
 		} else {
-			x = append(x, d[3])
+			x = append(x, d[3-adjustment])
 		}
 
 		// Loc
 		if snowLoc == "" {
 			x = append(x, "")
+			adjustment++
 		} else {
-			x = append(x, d[4])
+			x = append(x, d[4-adjustment])
 		}
 
 		// IP
 		if !umwl {
 			x = append(x, "")
 		} else {
-			x = append(x, d[5])
+			x = append(x, d[5-adjustment])
 		}
 
 		// Blank name field
