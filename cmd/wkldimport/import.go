@@ -17,6 +17,14 @@ import (
 	"github.com/spf13/viper"
 )
 
+// FromCSVInput is the data structure the FromCSV function expects
+type FromCSVInput struct {
+	PCE                                                                     illumioapi.PCE
+	ImportFile                                                              string
+	MatchCol, HostnameCol, NameCol, RoleCol, AppCol, EnvCol, LocCol, IntCol int
+	Umwl, UpdatePCE, NoPrompt                                               bool
+}
+
 // Global variables
 var matchCol, roleCol, appCol, envCol, locCol, intCol, hostnameCol, nameCol int
 var removeValue, csvFile string
@@ -83,7 +91,23 @@ Recommended to run without --update-pce first to log of what will change. If --u
 		updatePCE = viper.Get("update_pce").(bool)
 		noPrompt = viper.Get("no_prompt").(bool)
 
-		processCSV()
+		f := FromCSVInput{
+			PCE:         pce,
+			ImportFile:  csvFile,
+			Umwl:        umwl,
+			MatchCol:    matchCol,
+			HostnameCol: hostnameCol,
+			NameCol:     nameCol,
+			RoleCol:     roleCol,
+			AppCol:      appCol,
+			EnvCol:      envCol,
+			LocCol:      locCol,
+			IntCol:      intCol,
+			UpdatePCE:   updatePCE,
+			NoPrompt:    noPrompt,
+		}
+
+		FromCSV(f)
 	},
 }
 
@@ -123,10 +147,27 @@ func checkLabel(label illumioapi.Label) illumioapi.Label {
 	return label
 }
 
-func processCSV() {
+// FromCSV imports a CSV to label unmanaged workloads and create unmanaged workloads
+func FromCSV(f FromCSVInput) {
 
 	// Log start of the command
 	utils.LogStartCommand("wkld-import")
+
+	// Set variables from input struct to the global variables from flags
+	// This is necessary for when FromCSV is called from other packages
+	pce = f.PCE
+	csvFile = f.ImportFile
+	umwl = f.Umwl
+	matchCol = f.MatchCol
+	hostnameCol = f.HostnameCol
+	nameCol = f.NameCol
+	appCol = f.AppCol
+	roleCol = f.RoleCol
+	envCol = f.EnvCol
+	locCol = f.LocCol
+	intCol = f.IntCol
+	updatePCE = f.UpdatePCE
+	noPrompt = f.NoPrompt
 
 	// If debug, log the columns before adjusting by 1
 	if debug {
@@ -222,7 +263,7 @@ CSVEntries:
 						netInterfaces = append(netInterfaces, &ipInterface)
 					}
 				} else {
-					utils.LogWarning(fmt.Sprintf("CSV line - %d - no interface provided for unmanaged workload.", i), true)
+					utils.LogWarning(fmt.Sprintf("CSV line - %d - no interface provided for unmanaged workload %s.", i, line[matchCol]), true)
 				}
 
 				// Create the labels slice

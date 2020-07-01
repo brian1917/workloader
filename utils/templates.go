@@ -11,7 +11,7 @@ func RootTemplate() string {
   Import/Export Commands:{{range .Commands}}{{if (or (eq .Name "wkld-import") (eq .Name "wkld-export") (eq .Name "ipl-export") (eq .Name "ipl-import") (eq .Name "flow-import") (eq .Name "label-export") (eq .Name "label-rename") (eq .Name "template-import"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 	  
-  Automated Labeling Commands:{{range .Commands}}{{if (or (eq .Name "traffic") (eq .Name "subnet") (eq .Name "hostparse"))}}
+  Automated Labeling Commands:{{range .Commands}}{{if (or (eq .Name "traffic") (eq .Name "subnet") (eq .Name "hostparse") (eq .Name "snow-sync"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
   Workload Management Commands:{{range .Commands}}{{if (or (eq .Name "compatibility") (eq .Name "mode") (eq .Name "upgrade") (eq .Name "unpair") (eq .Name "get-pk") (eq .Name "delete"))}}

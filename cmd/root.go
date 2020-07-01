@@ -25,6 +25,7 @@ import (
 	"github.com/brian1917/workloader/cmd/mode"
 	"github.com/brian1917/workloader/cmd/nic"
 	"github.com/brian1917/workloader/cmd/pcemgmt"
+	"github.com/brian1917/workloader/cmd/snowsync"
 	"github.com/brian1917/workloader/cmd/subnet"
 	"github.com/brian1917/workloader/cmd/templateimport"
 	"github.com/brian1917/workloader/cmd/traffic"
@@ -95,6 +96,7 @@ func init() {
 	RootCmd.AddCommand(traffic.TrafficCmd)
 	RootCmd.AddCommand(subnet.SubnetCmd)
 	RootCmd.AddCommand(hostparse.HostnameCmd)
+	RootCmd.AddCommand(snowsync.SnowSyncCmd)
 
 	// Workload management
 	RootCmd.AddCommand(compatibility.CompatibilityCmd)
