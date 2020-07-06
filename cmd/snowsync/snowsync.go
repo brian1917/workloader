@@ -15,7 +15,7 @@ import (
 
 // Global variables
 var snowTable, snowUser, snowPwd, snowMatchField, snowRole, snowApp, snowEnv, snowLoc, snowIP string
-var umwl, keepTempFile, fqdnToHostname, debug, updatePCE, noPrompt bool
+var umwl, keepTempFile, keepAllPCEInterfaces, fqdnToHostname, debug, updatePCE, noPrompt bool
 var pce illumioapi.PCE
 var err error
 var newLabels []illumioapi.Label
@@ -34,6 +34,7 @@ func init() {
 	SnowSyncCmd.Flags().StringVarP(&snowIP, "ip", "i", "", "Field name for IP address. Required if --umwl is set.")
 	SnowSyncCmd.Flags().BoolVarP(&keepTempFile, "keep-temp-file", "k", false, "Do not delete the temp CSV file downloaded from SerivceNow.")
 	SnowSyncCmd.Flags().BoolVarP(&fqdnToHostname, "fqdn-to-hostname", "f", false, "Convert FQDN hostnames reported by Illumio VEN to short hostnames by removing everything after first period (e.g., test.domain.com becomes test). ")
+	SnowSyncCmd.Flags().BoolVarP(&keepAllPCEInterfaces, "keep-all-pce-interfaces", "s", false, "Will not delete an interface on an unmanaged workload if it's not in the import. It will only add interfaces to the workload.")
 	SnowSyncCmd.MarkFlagRequired("snow-table")
 	SnowSyncCmd.MarkFlagRequired("snow-user")
 	SnowSyncCmd.MarkFlagRequired("snow-pwd")
@@ -97,19 +98,20 @@ func snowsync() {
 
 	// Call the workloader import command
 	f := wkldimport.FromCSVInput{
-		ImportFile:     snowCSVFile,
-		PCE:            pce,
-		MatchCol:       1,
-		RoleCol:        2,
-		AppCol:         3,
-		EnvCol:         4,
-		LocCol:         5,
-		IntCol:         6,
-		NameCol:        7,
-		Umwl:           umwl,
-		FQDNtoHostname: fqdnToHostname,
-		UpdatePCE:      updatePCE,
-		NoPrompt:       noPrompt,
+		ImportFile:           snowCSVFile,
+		PCE:                  pce,
+		MatchCol:             1,
+		RoleCol:              2,
+		AppCol:               3,
+		EnvCol:               4,
+		LocCol:               5,
+		IntCol:               6,
+		NameCol:              7,
+		Umwl:                 umwl,
+		KeepAllPCEInterfaces: keepAllPCEInterfaces,
+		FQDNtoHostname:       fqdnToHostname,
+		UpdatePCE:            updatePCE,
+		NoPrompt:             noPrompt,
 	}
 	wkldimport.FromCSV(f)
 
