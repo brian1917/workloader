@@ -15,7 +15,7 @@ import (
 
 // Global variables
 var snowTable, snowUser, snowPwd, snowMatchField, snowRole, snowApp, snowEnv, snowLoc, snowIP string
-var umwl, keepTempFile, debug, updatePCE, noPrompt bool
+var umwl, keepTempFile, fqdnToHostname, debug, updatePCE, noPrompt bool
 var pce illumioapi.PCE
 var err error
 var newLabels []illumioapi.Label
@@ -33,6 +33,7 @@ func init() {
 	SnowSyncCmd.Flags().BoolVar(&umwl, "umwl", false, "Create unmanaged workloads for non-matches.")
 	SnowSyncCmd.Flags().StringVarP(&snowIP, "ip", "i", "", "Field name for IP address. Required if --umwl is set.")
 	SnowSyncCmd.Flags().BoolVarP(&keepTempFile, "keep-temp-file", "k", false, "Do not delete the temp CSV file downloaded from SerivceNow.")
+	SnowSyncCmd.Flags().BoolVarP(&fqdnToHostname, "fqdn-to-hostname", "f", false, "Convert FQDN hostnames reported by Illumio VEN to short hostnames by removing everything after first period (e.g., test.domain.com becomes test). ")
 	SnowSyncCmd.MarkFlagRequired("snow-table")
 	SnowSyncCmd.MarkFlagRequired("snow-user")
 	SnowSyncCmd.MarkFlagRequired("snow-pwd")
@@ -96,18 +97,19 @@ func snowsync() {
 
 	// Call the workloader import command
 	f := wkldimport.FromCSVInput{
-		ImportFile: snowCSVFile,
-		PCE:        pce,
-		MatchCol:   1,
-		RoleCol:    2,
-		AppCol:     3,
-		EnvCol:     4,
-		LocCol:     5,
-		IntCol:     6,
-		NameCol:    7,
-		Umwl:       umwl,
-		UpdatePCE:  updatePCE,
-		NoPrompt:   noPrompt,
+		ImportFile:     snowCSVFile,
+		PCE:            pce,
+		MatchCol:       1,
+		RoleCol:        2,
+		AppCol:         3,
+		EnvCol:         4,
+		LocCol:         5,
+		IntCol:         6,
+		NameCol:        7,
+		Umwl:           umwl,
+		FQDNtoHostname: fqdnToHostname,
+		UpdatePCE:      updatePCE,
+		NoPrompt:       noPrompt,
 	}
 	wkldimport.FromCSV(f)
 

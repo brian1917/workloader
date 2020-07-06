@@ -22,13 +22,13 @@ type FromCSVInput struct {
 	PCE                                                                     illumioapi.PCE
 	ImportFile                                                              string
 	MatchCol, HostnameCol, NameCol, RoleCol, AppCol, EnvCol, LocCol, IntCol int
-	Umwl, UpdatePCE, NoPrompt                                               bool
+	Umwl, KeepAllPCEInterfaces, FQDNtoHostname, UpdatePCE, NoPrompt         bool
 }
 
 // Global variables
 var matchCol, roleCol, appCol, envCol, locCol, intCol, hostnameCol, nameCol int
 var removeValue, csvFile string
-var umwl, debug, updatePCE, noPrompt bool
+var umwl, keepAllPCEInterfaces, fqdnToHostname, debug, updatePCE, noPrompt bool
 var pce illumioapi.PCE
 var err error
 var newLabels []illumioapi.Label
@@ -45,6 +45,12 @@ func init() {
 	WkldImportCmd.Flags().IntVarP(&locCol, "loc", "l", 6, "Column number with new loc label.")
 	WkldImportCmd.Flags().IntVarP(&intCol, "ifaces", "i", 7, "Column number with network interfaces for when creating unmanaged workloads. Each interface should be of the like eth1:192.168.200.20. Separate multiple NICs by semicolons.")
 	WkldImportCmd.Flags().StringVar(&removeValue, "remove-value", "", "Value in CSV used to remove existing labels. Blank values in the CSV will not change existing. If you want to delete a label do something like --remove-value DELETE and use DELETE in CSV to indicate where to clear existing labels on a workload.")
+	WkldImportCmd.Flags().BoolVarP(&keepAllPCEInterfaces, "keep-all-pce-interfaces", "k", false, "Will not delete an interface on an unmanaged workload if it's not in the import. It will only add interfaces to the workload.")
+
+	// Hidden flag for use when called from SNOW command
+	WkldImportCmd.Flags().BoolVarP(&fqdnToHostname, "fqdn-to-hostname", "f", false, "Convert FQDN hostnames reported by Illumio VEN to short hostnames by removing everything after first period (e.g., test.domain.com becomes test).")
+	WkldImportCmd.Flags().MarkHidden("fqdn-to-hostname")
+
 	WkldImportCmd.Flags().SortFlags = false
 
 }
@@ -92,19 +98,21 @@ Recommended to run without --update-pce first to log of what will change. If --u
 		noPrompt = viper.Get("no_prompt").(bool)
 
 		f := FromCSVInput{
-			PCE:         pce,
-			ImportFile:  csvFile,
-			Umwl:        umwl,
-			MatchCol:    matchCol,
-			HostnameCol: hostnameCol,
-			NameCol:     nameCol,
-			RoleCol:     roleCol,
-			AppCol:      appCol,
-			EnvCol:      envCol,
-			LocCol:      locCol,
-			IntCol:      intCol,
-			UpdatePCE:   updatePCE,
-			NoPrompt:    noPrompt,
+			PCE:                  pce,
+			ImportFile:           csvFile,
+			Umwl:                 umwl,
+			MatchCol:             matchCol,
+			HostnameCol:          hostnameCol,
+			NameCol:              nameCol,
+			RoleCol:              roleCol,
+			AppCol:               appCol,
+			EnvCol:               envCol,
+			LocCol:               locCol,
+			IntCol:               intCol,
+			FQDNtoHostname:       fqdnToHostname, // This is only used when coming from SNOW when a flag is set.
+			KeepAllPCEInterfaces: keepAllPCEInterfaces,
+			UpdatePCE:            updatePCE,
+			NoPrompt:             noPrompt,
 		}
 
 		FromCSV(f)
@@ -166,6 +174,8 @@ func FromCSV(f FromCSVInput) {
 	envCol = f.EnvCol
 	locCol = f.LocCol
 	intCol = f.IntCol
+	fqdnToHostname := f.FQDNtoHostname
+	keepAllPCEInterfaces = f.KeepAllPCEInterfaces
 	updatePCE = f.UpdatePCE
 	noPrompt = f.NoPrompt
 
@@ -193,10 +203,28 @@ func FromCSV(f FromCSVInput) {
 	reader := csv.NewReader(utils.ClearBOM(bufio.NewReader(file)))
 
 	// Get workload map by hostname
-	wkldMap, a, err := pce.GetWkldHostMap()
-	utils.LogAPIResp("GetWkldHostMap", a)
-	if err != nil {
-		utils.LogError(fmt.Sprintf("getting workload host map - %s", err))
+	wkldMap := make(map[string]illumioapi.Workload)
+	var a illumioapi.APIResponse
+	if !fqdnToHostname {
+		wkldMap, a, err = pce.GetWkldHostMap()
+		utils.LogAPIResp("GetWkldHostMap", a)
+		if err != nil {
+			utils.LogError(fmt.Sprintf("getting workload host map - %s", err))
+		}
+	}
+
+	// If we need to, strip hostnames for after "."
+	if fqdnToHostname {
+		tempWkldMap, a, err := pce.GetWkldHostMap()
+		utils.LogAPIResp("GetWkldHostMap", a)
+		if err != nil {
+			utils.LogError(fmt.Sprintf("getting workload host map - %s", err))
+		}
+		for _, w := range tempWkldMap {
+			newHost := strings.Split(w.Hostname, ".")[0]
+			w.Hostname = newHost
+			wkldMap[w.Hostname] = w
+		}
 	}
 
 	// Get the workload map by href so we can look up either
@@ -367,6 +395,22 @@ CSVEntries:
 
 					}
 					netInterfaces = append(netInterfaces, &ipInterface)
+				}
+
+				// If instructed by flag, make sure we keep all PCE interfaces
+				if keepAllPCEInterfaces {
+					// Build a map of the interfaces provided by the user with the address as the key
+					interfaceMap := make(map[string]illumioapi.Interface)
+					for _, i := range netInterfaces {
+						interfaceMap[i.Address] = *i
+					}
+					// For each interface on the PCE, check if the address is in the map
+					for _, i := range wkld.Interfaces {
+						// If it's not in them map, append it to the user provdided netInterfaces so we keep it
+						if _, ok := interfaceMap[i.Address]; !ok {
+							netInterfaces = append(netInterfaces, i)
+						}
+					}
 				}
 
 				// Build some maps
