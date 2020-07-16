@@ -39,8 +39,7 @@ Examples:
 
 Find any workload listening on Port 80: workloader service-finder -p 80
 Find any workload listening on Port 80 or 443: workloader service-finder -p 80,443
-Find any workload listening on Port 80 or has "python" in a process: workloader service-finder -o -p 80 -s python
-Find any workload listening on Port 80 AND has "python" in a process: workloader service-finder -p 80 -s python`,
+Find any idle workload listening on Port 80: workloader service-finder -i -p 80`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 
