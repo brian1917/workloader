@@ -25,6 +25,7 @@ import (
 	"github.com/brian1917/workloader/cmd/mode"
 	"github.com/brian1917/workloader/cmd/nic"
 	"github.com/brian1917/workloader/cmd/pcemgmt"
+	"github.com/brian1917/workloader/cmd/servicefinder"
 	"github.com/brian1917/workloader/cmd/snowsync"
 	"github.com/brian1917/workloader/cmd/subnet"
 	"github.com/brian1917/workloader/cmd/templateimport"
@@ -115,6 +116,7 @@ func init() {
 	RootCmd.AddCommand(flowsummary.FlowSummaryCmd)
 	RootCmd.AddCommand(explorer.ExplorerCmd)
 	RootCmd.AddCommand(nic.NICCmd)
+	RootCmd.AddCommand(servicefinder.ServiceFinderCmd)
 	RootCmd.AddCommand(versionCmd)
 
 	// PCE-to-PCE

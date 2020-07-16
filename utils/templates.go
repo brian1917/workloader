@@ -20,7 +20,7 @@ func RootTemplate() string {
   Label Management Commands:{{range .Commands}}{{if (eq .Name "labels-delete-unused")}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
-  Reporting Commands:{{range .Commands}}{{if (or (eq .Name "mislabel") (eq .Name "dupecheck") (eq .Name "flowsummary") (eq .Name "explorer") (eq .Name "nic"))}}
+  Reporting Commands:{{range .Commands}}{{if (or (eq .Name "mislabel") (eq .Name "dupecheck") (eq .Name "flowsummary") (eq .Name "explorer") (eq .Name "nic") (eq .Name "service-finder"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
   PCE-to-PCE Commands:{{range .Commands}}{{if (or (eq .Name "wkld-to-ipl"))}}
