@@ -33,7 +33,7 @@ var ServiceFinderCmd = &cobra.Command{
 	Use:   "service-finder",
 	Short: "Find workloads with an open port or ports.",
 	Long: `
-Find workloads running a process on specific ports or with a process containing specific strings.
+Find workloads with an open port or ports.
 
 Examples:
 
