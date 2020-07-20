@@ -12,12 +12,13 @@ import (
 	"github.com/spf13/viper"
 )
 
-var debug, modeChangeInput bool
+var debug, modeChangeInput, suppressStdOut bool
 var pce illumioapi.PCE
 var err error
 
 func init() {
 	CompatibilityCmd.Flags().BoolVarP(&modeChangeInput, "mode-input", "m", false, "generate the input file to change all idle workloads to build using workloader mode command")
+	CompatibilityCmd.Flags().BoolVarP(&suppressStdOut, "no-std-out", "n", false, "Suppress stdout counter.")
 }
 
 // CompatibilityCmd runs the workload identifier
@@ -62,13 +63,16 @@ func compatibilityReport() {
 		utils.LogError(err.Error())
 	}
 
-	// Iterate through each workload
+	// Get Idle workload count
+	idleWklds := []illumioapi.Workload{}
 	for _, w := range wklds {
-
-		// Skip if it's not in idle
-		if w.Agent.Config.Mode != "idle" {
-			continue
+		if w.Agent.Config.Mode == "idle" {
+			idleWklds = append(idleWklds, w)
 		}
+	}
+
+	// Iterate through each workload
+	for i, w := range idleWklds {
 
 		// Get the compatibility report and append
 		cr, a, err := pce.GetCompatibilityReport(w)
@@ -84,6 +88,11 @@ func compatibilityReport() {
 
 		if cr.QualifyStatus == "green" {
 			modeChangeInputData = append(modeChangeInputData, []string{w.Href, "build"})
+		}
+
+		// Update stdout
+		if !suppressStdOut {
+			fmt.Printf("\rExported %d of %d workloads (%d%%).", i+1, len(wklds), (i+1)*100/len(wklds))
 		}
 	}
 
