@@ -39,7 +39,7 @@ Examples:
 
 Find any workload listening on Port 80: workloader service-finder -p 80
 Find any workload listening on Port 80 or 443: workloader service-finder -p 80,443
-Find any idle workload listening on Port 80: workloader service-finder -i -p 80`,
+Find any IDLE workload listening on Port 80: workloader service-finder -i -p 80`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 
