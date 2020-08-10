@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/brian1917/illumioapi"
@@ -89,7 +90,12 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 	extDrCol--
 
 	// Create a map for our CSV ip lists
-	csvIPLs := make(map[string]illumioapi.IPList)
+	type entry struct {
+		IPL     illumioapi.IPList
+		csvLine int
+	}
+
+	csvIPLs := make(map[string]entry)
 
 	// Open CSV File
 	file, err := os.Open(csvFile)
@@ -158,7 +164,9 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 		}
 
 		// Add our IPlist to our CSV Map
-		csvIPLs[line[nameCol]] = illumioapi.IPList{Name: line[nameCol], Description: line[descCol], IPRanges: ranges, ExternalDataSet: line[extDsCol], ExternalDataReference: line[extDrCol]}
+		csvIPLs[line[nameCol]] = entry{
+			csvLine: i,
+			IPL:     illumioapi.IPList{Name: line[nameCol], Description: line[descCol], IPRanges: ranges, ExternalDataSet: line[extDsCol], ExternalDataReference: line[extDrCol]}}
 	}
 
 	// Get all IP lists in the pce
@@ -175,8 +183,8 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 	// Create a map of CSV IP ranges
 	csvRangeMap := make(map[string]bool)
 	for _, ipl := range csvIPLs {
-		for _, iplr := range ipl.IPRanges {
-			csvRangeMap[fmt.Sprintf("%s%s%s%t", ipl.Name, iplr.FromIP, iplr.ToIP, iplr.Exclusion)] = true
+		for _, iplr := range ipl.IPL.IPRanges {
+			csvRangeMap[fmt.Sprintf("%s%s%s%t", ipl.IPL.Name, iplr.FromIP, iplr.ToIP, iplr.Exclusion)] = true
 		}
 
 	}
@@ -191,30 +199,30 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 	}
 
 	// Create slice to hold new IPLs and IPLs that need update
-	var IPLsToCreate, IPLsToUpdate []illumioapi.IPList
+	var IPLsToCreate, IPLsToUpdate []entry
 
 	// Iterate through each CSV IP list and see what we need to do
 	for n, csvIPL := range csvIPLs {
 		if existingIPL, ok := existingIPLs[n]; !ok {
-			utils.LogInfo(fmt.Sprintf("%s does not exist and will be created.", csvIPL.Name))
+			utils.LogInfo(fmt.Sprintf("CSV Line %d - %s does not exist and will be created.", csvIPL.csvLine, csvIPL.IPL.Name))
 			IPLsToCreate = append(IPLsToCreate, csvIPL)
 		} else {
 			// The IP List does exist in the PCE.
 			// Start the log message
-			logMsg := fmt.Sprintf("%s exists in the PCE.", csvIPL.Name)
+			logMsg := fmt.Sprintf("%s exists in the PCE.", csvIPL.IPL.Name)
 
 			// Set the update value to false
 			update := false
 
 			// Check the description
-			if existingIPL.Description != csvIPL.Description {
+			if existingIPL.Description != csvIPL.IPL.Description {
 				update = true
 				logMsg = fmt.Sprintf("%s Descrption requires updating.", logMsg)
 			}
 
 			// Check that all IP ranges from CSV are in the PCE
-			for _, r := range csvIPL.IPRanges {
-				if !existingRangeMap[fmt.Sprintf("%s%s%s%t", csvIPL.Name, r.FromIP, r.ToIP, r.Exclusion)] {
+			for _, r := range csvIPL.IPL.IPRanges {
+				if !existingRangeMap[fmt.Sprintf("%s%s%s%t", csvIPL.IPL.Name, r.FromIP, r.ToIP, r.Exclusion)] {
 					rangeTxt := r.FromIP
 					if r.ToIP != "" {
 						rangeTxt = fmt.Sprintf("%s-%s", r.FromIP, r.ToIP)
@@ -248,11 +256,11 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 			}
 
 			// Log the log message
-			utils.LogInfo(logMsg)
+			utils.LogInfo(fmt.Sprintf("CSV Line - %d - %s", csvIPL.csvLine, logMsg))
 
 			// If we need to update, add it to our slice
 			if update {
-				csvIPL.Href = existingIPL.Href
+				csvIPL.IPL.Href = existingIPL.Href
 				IPLsToUpdate = append(IPLsToUpdate, csvIPL)
 			}
 		}
@@ -286,26 +294,50 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 		}
 	}
 
+	// Sort our slices by the CSV line
+	sort.SliceStable(IPLsToCreate, func(i, j int) bool { return IPLsToCreate[i].csvLine < IPLsToCreate[j].csvLine })
+	sort.SliceStable(IPLsToUpdate, func(i, j int) bool { return IPLsToCreate[i].csvLine < IPLsToCreate[j].csvLine })
+
 	// Create new IPLs
+	var updatedIPLs, createdIPLs, skippedIPLs int
+
 	for _, newIPL := range IPLsToCreate {
-		ipl, a, err := pce.CreateIPList(newIPL)
+		ipl, a, err := pce.CreateIPList(newIPL.IPL)
 		utils.LogAPIResp("CreateIPList", a)
-		if err != nil {
+		if err != nil && a.StatusCode != 406 {
+			utils.LogError(fmt.Sprintf("Ending run - %d IP Lists created - %d IP Lists updated.", createdIPLs, updatedIPLs))
 			utils.LogError(err.Error())
 		}
-		fmt.Printf("[INFO] - %s created - status code %d\r\n", ipl.Name, a.StatusCode)
-		utils.LogInfo(fmt.Sprintf("%s created - status code %d", ipl.Name, a.StatusCode))
+		if a.StatusCode == 406 {
+			utils.LogWarning(fmt.Sprintf("CSV Line %d - %s - 406 Not Acceptable - See workloader.log for more details", newIPL.csvLine, newIPL.IPL.Name), true)
+			utils.LogWarning(a.RespBody, false)
+			skippedIPLs++
+		}
+		if err == nil {
+			fmt.Printf("[INFO] - CSV Line %d - %s created - status code %d\r\n", newIPL.csvLine, ipl.Name, a.StatusCode)
+			utils.LogInfo(fmt.Sprintf("CSV Line %d - %s created - status code %d", newIPL.csvLine, ipl.Name, a.StatusCode))
+			createdIPLs++
+		}
 	}
 
 	// Update IPLs
 	for _, updateIPL := range IPLsToUpdate {
-		a, err := pce.UpdateIPList(updateIPL)
+		a, err := pce.UpdateIPList(updateIPL.IPL)
 		utils.LogAPIResp("UpdateIPList", a)
-		if err != nil {
+		if err != nil && a.StatusCode != 406 {
+			utils.LogError(fmt.Sprintf("Ending run - %d IP Lists created - %d IP Lists updated.", createdIPLs, updatedIPLs))
 			utils.LogError(err.Error())
 		}
-		fmt.Printf("[INFO] - %s updated - status code %d\r\n", updateIPL.Name, a.StatusCode)
-		utils.LogInfo(fmt.Sprintf("%s updated - status code %d", updateIPL.Name, a.StatusCode))
+		if a.StatusCode == 406 {
+			utils.LogWarning(fmt.Sprintf("CSV Line %d - %s - 406 Not Acceptable - See workloader.log for more details", updateIPL.csvLine, updateIPL.IPL.Name), true)
+			utils.LogWarning(a.RespBody, false)
+			skippedIPLs++
+		}
+		if err == nil {
+			fmt.Printf("[INFO] - CSV Line %d - %s updated - status code %d\r\n", updateIPL.csvLine, updateIPL.IPL.Name, a.StatusCode)
+			utils.LogInfo(fmt.Sprintf("CSV Line %d - %s updated - status code %d", updateIPL.csvLine, updateIPL.IPL.Name, a.StatusCode))
+			updatedIPLs++
+		}
 	}
 
 	utils.LogEndCommand("ipl-import")
