@@ -41,35 +41,51 @@ func GetServicePortsPCE(pce illumioapi.PCE, serviceName string) ([][2]int, [][3]
 }
 
 // GetServicePortsCSV returns port proto list from a CSV
-func GetServicePortsCSV(filename string) [][2]int {
+func GetServicePortsCSV(filename string) ([][2]int, error) {
 	// Open CSV File
-	csvFile, _ := os.Open(filename)
-	reader := csv.NewReader(bufio.NewReader(csvFile))
+	csvFile, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer csvFile.Close()
 
-	exclPorts := [][2]int{}
+	reader := csv.NewReader(ClearBOM(bufio.NewReader(csvFile)))
 
+	svcList := [][2]int{}
+
+	// Start the CSV line counter
 	n := 0
+
+	// Iterate over lines
 	for {
+
+		// Increase the counter
 		n++
+
+		// Read the line
 		line, err := reader.Read()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			LogError(fmt.Sprintf("Reading CSV File for port/protocol list - %s", err))
+			return nil, fmt.Errorf("Reading CSV File for port/protocol list - %s", err)
 		}
 
+		// Convert the port
 		port, err := strconv.Atoi(line[0])
 		if err != nil {
-			LogError(fmt.Sprintf("Non-integer port value on line %d - %s", n, err))
+			return nil, fmt.Errorf("Non-integer port value on line %d - %s", n, err)
 		}
+
+		// Convert the protocol
 		protocol, err := strconv.Atoi(line[1])
 		if err != nil {
-			LogError(fmt.Sprintf("Non-integer protocol value on line %d - %s", n, err))
+			return nil, fmt.Errorf("Non-integer protocol value on line %d - %s", n, err)
 		}
 
-		exclPorts = append(exclPorts, [2]int{port, protocol})
+		// Append to the list
+		svcList = append(svcList, [2]int{port, protocol})
 	}
 
-	return exclPorts
+	return svcList, nil
 }
