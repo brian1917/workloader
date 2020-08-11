@@ -71,6 +71,18 @@ func GetServicePortsCSV(filename string) ([][2]int, error) {
 			return nil, fmt.Errorf("Reading CSV File for port/protocol list - %s", err)
 		}
 
+		// Check the first line and skip if it's not integers
+		if n == 1 {
+			_, err = strconv.Atoi(line[0])
+			if err != nil {
+				continue
+			}
+			_, err = strconv.Atoi(line[1])
+			if err != nil {
+				continue
+			}
+		}
+
 		// Convert the port
 		port, err := strconv.Atoi(line[0])
 		if err != nil {

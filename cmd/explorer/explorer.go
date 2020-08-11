@@ -22,12 +22,12 @@ var whm map[string]illumioapi.Workload
 func init() {
 
 	ExplorerCmd.Flags().StringVarP(&loopFile, "loop-label-file", "l", "", "file with label hrefs on separate lines (without header). An explorer query for the label as consumer OR provider is run for each app.")
-	ExplorerCmd.Flags().StringVarP(&inclHrefDstFile, "incl-dst-file", "a", "", "file with hrefs on separate lines to be used in as a provider include. Can be a csv as long as hrefs are in first column. Headers option")
-	ExplorerCmd.Flags().StringVarP(&exclHrefDstFile, "excl-dst-file", "b", "", "file with hrefs on separate lines to be used in as a provider exclude. Can be a csv as long as hrefs are in first column.")
-	ExplorerCmd.Flags().StringVarP(&inclHrefSrcFile, "incl-src-file", "c", "", "file with hrefs on separate lines to be used in as a consumer include. Can be a csv as long as hrefs are in first column.")
-	ExplorerCmd.Flags().StringVarP(&exclHrefSrcFile, "excl-src-file", "d", "", "file with hrefs on separate lines to be used in as a consumer exclude. Can be a csv as long as hrefs are in first column.")
-	ExplorerCmd.Flags().StringVarP(&inclServiceCSV, "incl-svc-file", "i", "", "file location of csv with port/protocols to exclude. CSV should have NO HEADERS with port number in column 1 and IANA numeric protocol in Col 2.")
-	ExplorerCmd.Flags().StringVarP(&exclServiceCSV, "excl-svc-file", "j", "", "file location of csv with port/protocols to exclude. CSV should have NO HEADERS with port number in column 1 and IANA numeric protocol in Col 2.")
+	ExplorerCmd.Flags().StringVarP(&inclHrefDstFile, "incl-dst-file", "a", "", "file with hrefs on separate lines to be used in as a provider include. Can be a csv with hrefs in first column. Headers optional")
+	ExplorerCmd.Flags().StringVarP(&exclHrefDstFile, "excl-dst-file", "b", "", "file with hrefs on separate lines to be used in as a provider exclude. Can be a csv with hrefs in first column. Headers optional")
+	ExplorerCmd.Flags().StringVarP(&inclHrefSrcFile, "incl-src-file", "c", "", "file with hrefs on separate lines to be used in as a consumer include. Can be a csv with hrefs in first column. Headers optional")
+	ExplorerCmd.Flags().StringVarP(&exclHrefSrcFile, "excl-src-file", "d", "", "file with hrefs on separate lines to be used in as a consumer exclude. Can be a csv with hrefs in first column. Headers optional")
+	ExplorerCmd.Flags().StringVarP(&inclServiceCSV, "incl-svc-file", "i", "", "file location of csv with port/protocols to exclude. Port number in column 1 and IANA numeric protocol in Col 2. Headers optional.")
+	ExplorerCmd.Flags().StringVarP(&exclServiceCSV, "excl-svc-file", "j", "", "file location of csv with port/protocols to exclude. Port number in column 1 and IANA numeric protocol in Col 2. Headers optional.")
 	ExplorerCmd.Flags().StringVarP(&start, "start", "s", time.Date(time.Now().Year()-5, time.Now().Month(), time.Now().Day(), 0, 0, 0, 0, time.UTC).Format("2006-01-02"), "start date in the format of yyyy-mm-dd.")
 	ExplorerCmd.Flags().StringVarP(&end, "end", "e", time.Now().Add(time.Hour*24).Format("2006-01-02"), "end date in the format of yyyy-mm-dd.")
 	ExplorerCmd.Flags().BoolVar(&exclAllowed, "excl-allowed", false, "excludes allowed traffic flows.")
@@ -263,7 +263,7 @@ func wkldInterfaceName(hostname, ip string, wkldHostMap map[string]illumioapi.Wo
 func createExplorerCSV(filename string, traffic []illumioapi.TrafficAnalysis) {
 
 	// Build our CSV structure
-	data := [][]string{[]string{"src_ip", "src_interface_name", "src_net_mask", "src_default_gw", "src_hostname", "src_role", "src_app", "src_env", "src_loc", "src_app_group", "dst_ip", "dst_interface_name", "dst_net_mask", "dst_default_gw", "dst_hostname", "dst_role", "dst_app", "dst_env", "dst_loc", "dst_app_group", "port", "protocol", "transmission", "policy_status", "date_first", "date_last", "num_flows"}}
+	data := [][]string{[]string{"src_ip", "src_interface_name", "src_net_mask", "src_default_gw", "src_hostname", "src_role", "src_app", "src_env", "src_loc", "src_app_group", "dst_ip", "dst_interface_name", "dst_net_mask", "dst_default_gw", "dst_hostname", "dst_role", "dst_app", "dst_env", "dst_loc", "dst_app_group", "port", "protocol", "process", "windows_service", "user", "transmission", "policy_status", "date_first", "date_last", "num_flows"}}
 
 	// Add each traffic entry to the data slic
 	for _, t := range traffic {
@@ -299,6 +299,9 @@ func createExplorerCSV(filename string, traffic []illumioapi.TrafficAnalysis) {
 		d := append(src, dst...)
 		d = append(d, strconv.Itoa(t.ExpSrv.Port))
 		d = append(d, protocols[t.ExpSrv.Proto])
+		d = append(d, t.ExpSrv.Process)
+		d = append(d, t.ExpSrv.WindowsService)
+		d = append(d, t.ExpSrv.User)
 		d = append(d, transmissionType)
 		d = append(d, t.PolicyDecision)
 		d = append(d, t.TimestampRange.FirstDetected)
