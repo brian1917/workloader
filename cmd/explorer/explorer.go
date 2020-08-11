@@ -106,7 +106,6 @@ func explorerExport() {
 	if !exclAllowed && !exclPotentiallyBlocked && !exclBlocked {
 		tq.PolicyStatuses = []string{}
 	}
-	utils.LogInfo(fmt.Sprintf("pStatus = %#v", tq.PolicyStatuses))
 
 	// Get the start date
 	tq.StartTime, err = time.Parse(fmt.Sprintf("2006-01-02 MST"), fmt.Sprintf("%s %s", start, "UTC"))
@@ -114,7 +113,6 @@ func explorerExport() {
 		utils.LogError(err.Error())
 	}
 	tq.StartTime = tq.StartTime.In(time.UTC)
-	utils.LogInfo(fmt.Sprintf("startDate = %v", tq.StartTime))
 
 	// Get the end date
 	tq.EndTime, err = time.Parse(fmt.Sprintf("2006-01-02 15:04:05 MST"), fmt.Sprintf("%s 23:59:59 %s", end, "UTC"))
@@ -122,7 +120,6 @@ func explorerExport() {
 		utils.LogError(err.Error())
 	}
 	tq.EndTime = tq.EndTime.In(time.UTC)
-	utils.LogInfo(fmt.Sprintf("endDate = %v", tq.EndTime))
 
 	// Get the services
 	if exclServiceCSV != "" {
