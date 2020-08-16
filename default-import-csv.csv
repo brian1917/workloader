@@ -1,3 +1,0 @@
-host (see workloader import -h for full details),name,role,app,env,loc,interfaces
-host-name1,,DB,CRM,DEV,NY,eth0:192.168.200.15
-host-name2,,WEB,ERP,PROD,BOS,eth0:192.168.200.16;eth1:192.168.100.14
