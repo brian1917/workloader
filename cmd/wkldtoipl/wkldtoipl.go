@@ -2,8 +2,11 @@ package wkldtoipl
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
+
+	"github.com/brian1917/illumioapi"
 
 	"github.com/brian1917/workloader/cmd/iplimport"
 
@@ -12,34 +15,50 @@ import (
 	"github.com/spf13/viper"
 )
 
-var incRole, incApp, incEnv, incLoc, debug, updatePCE, noPrompt bool
-var fromPCE, toPCE string
+var debug, updatePCE, noPrompt, doNotProvision bool
+var csvFile, fromPCE, toPCE string
 
 func init() {
-	WorkloadToIPLCmd.Flags().BoolVarP(&incRole, "role", "r", false, "Include role in workload aggregation.")
-	WorkloadToIPLCmd.Flags().BoolVarP(&incApp, "app", "a", false, "Include app in workload aggregation.")
-	WorkloadToIPLCmd.Flags().BoolVarP(&incEnv, "env", "e", false, "Include env in workload aggregation.")
-	WorkloadToIPLCmd.Flags().BoolVarP(&incLoc, "loc", "l", false, "Include loc in workload aggregation.")
 	WorkloadToIPLCmd.Flags().StringVarP(&fromPCE, "from-pce", "f", "", "Name of the PCE with the existing workloads. Required")
 	WorkloadToIPLCmd.MarkFlagRequired("from-pce")
 	WorkloadToIPLCmd.Flags().StringVarP(&toPCE, "to-pce", "t", "", "Name of the PCE to create or update the IPlists from the workloads. Only required if using --update-pce flag")
+	WorkloadToIPLCmd.Flags().BoolVarP(&doNotProvision, "do-not-prov", "x", false, "Do not provision created/updated IP Lists. Will provision by default.")
 }
 
 // WorkloadToIPLCmd runs the upload command
 var WorkloadToIPLCmd = &cobra.Command{
-	Use:   "wkld-to-ipl",
-	Short: "Create IP lists based on workloads labels.",
+	Use:   "wkld-to-ipl [csv file]",
+	Short: "Create IP lists based on workloads labels and input file.",
 	Long: `
-Create IP lists based on workloads labels.
+Create IP lists based on workloads labels and an input file.
 
-The --role (-r), --app (-r), --env (-e), and --loc (-l) flags are used to specify how to aggregate the IP lists.
+The input file must match the following format and include headers:
++-------+------+---------+------+-----+
+| name  | role |   app   | env  | loc |
++-------+------+---------+------+-----+
+| IPL-1 | WEB  | CRM     | PROD | BOS |
+| IPL-2 |      | CRM;ERP | PROD | BOS |
+|       |      |         | DEV  | BOS |
++-------+------+---------+------+-----+
+
+Note - if the name is left blank, the name will be the provided labels separated by dashes. See example 3 below.
 
 Examples:
-workloader wkld-to-ipl -rael -f default-pce will create an IP list for every unique role-app-env-loc combination (csv-only).
-workloader wkld-to-ipl -e -f default-pce will create an IP list for every envrionment (csv-only).
-workloader wkld-to-ipl rae -f default-pce -t endpoint-pce --update-pce will create an IP list for every unique role-app-env combination and create the IP lists in the endpoint-pce after a user propt.`,
+1) The first row will create an IPList named IPL-1 with all servers that are lableled WEB, CRM, PROD, and BOS.
+2) The second row will create an IPList named IPL-2 with all servers that are labeled (CRM or ERP) and PROD..
+3) the third row will create an IPList named DEV-BOS with all servers that are labeled DEV, and BOS.
+
+This command creates a CSV that is automatically passed into workloader ipl-import.
+`,
 
 	Run: func(cmd *cobra.Command, args []string) {
+
+		// Set the CSV file
+		if len(args) != 1 {
+			fmt.Println("Command requires 1 argument for the csv file. See usage help.")
+			os.Exit(0)
+		}
+		csvFile = args[0]
 
 		// Get the debug value from viper
 		debug = viper.Get("debug").(bool)
@@ -79,77 +98,97 @@ func wkldtoipl() {
 		utils.LogError(err.Error())
 	}
 
-	// Create the map of IPLists
-	ipAddressMap := make(map[string][]string)
+	// Parse the input csv
+	csvData, err := utils.ParseCSV(csvFile)
+	if err != nil {
+		utils.LogError(err.Error())
+	}
 
-	// Iterate through each workload
-	count := 0
-	for _, w := range wklds {
+	// Create a slice to hold IP Lists
+	ipls := []illumioapi.IPList{}
 
-		keyVals := []string{}
+	// Iterate the CSV file
+	for row, d := range csvData {
 
-		// Create the map key. If a workload is missing an included label, it's skipped and logged.
-		if incRole {
-			if w.GetRole(sPce.LabelMapH).Value == "" {
-				utils.LogInfo(fmt.Sprintf("skipping %s because does not have role label", w.Hostname))
-				continue
+		// Skip header
+		if row == 0 {
+			continue
+		}
+
+		// Parse the provided labels by separating at the semicolon
+		roleMap := make(map[string]int)
+		appMap := make(map[string]int)
+		envMap := make(map[string]int)
+		locMap := make(map[string]int)
+
+		mapList := []map[string]int{roleMap, appMap, envMap, locMap}
+		for i := 0; i < 4; i++ {
+			for _, l := range strings.Split(d[i+1], ";") {
+				mapList[i][l] = 1
 			}
-			keyVals = append(keyVals, w.GetRole(sPce.LabelMapH).Value)
-		}
-		if incApp {
-			if w.GetApp(sPce.LabelMapH).Value == "" {
-				utils.LogInfo(fmt.Sprintf("skipping %s because does not have app label", w.Hostname))
-				continue
-			}
-			keyVals = append(keyVals, w.GetApp(sPce.LabelMapH).Value)
-		}
-		if incEnv {
-			if w.GetEnv(sPce.LabelMapH).Value == "" {
-				utils.LogInfo(fmt.Sprintf("skipping %s because does not have env label", w.Hostname))
-				continue
-			}
-			keyVals = append(keyVals, w.GetEnv(sPce.LabelMapH).Value)
-		}
-		if incLoc {
-			if w.GetLoc(sPce.LabelMapH).Value == "" {
-				utils.LogInfo(fmt.Sprintf("skipping %s because does not have location label", w.Hostname))
-				continue
-			}
-			keyVals = append(keyVals, w.GetLoc(sPce.LabelMapH).Value)
-		}
-		key := strings.Join(keyVals, " | ")
-		if key == "" {
-			key = "All servers"
 		}
 
-		// Get the list of IP addresses
-		ipAddresses := []string{}
-		for _, nic := range w.Interfaces {
-			ipAddresses = append(ipAddresses, nic.Address)
-		}
-		count = count + len(ipAddresses)
-
-		// Check if the key exists in the map. If it does, append to value. If not, create
-		if val, ok := ipAddressMap[key]; ok {
-			ipAddressMap[key] = append(val, ipAddresses...)
-		} else {
-			ipAddressMap[key] = ipAddresses
+		// Get the name
+		name := d[0]
+		if name == "" {
+			labels := []string{}
+			for i := 1; i < 5; i++ {
+				if d[i] != "" {
+					labels = append(labels, strings.Split(d[i], ";")...)
+				}
+			}
+			name = strings.Join(labels, "-")
 		}
 
+		// Create a map to check IP addresses so we don't duplicate
+		addresses := make(map[string]int)
+		// Create the IP list
+		ipl := illumioapi.IPList{Name: name}
+	workloads:
+		for _, w := range wklds {
+			// Check each label to see if matches
+			labels := []string{w.GetRole(sPce.LabelMapH).Value, w.GetApp(sPce.LabelMapH).Value, w.GetEnv(sPce.LabelMapH).Value, w.GetLoc(sPce.LabelMapH).Value}
+			for i, l := range labels {
+				if d[i+1] != "" && mapList[i][l] != 1 {
+					continue workloads
+				}
+			}
+			// Only get here the workload should be included
+			// Iterate through each nic on the workload and add it to the IPList
+			for _, nic := range w.Interfaces {
+				// Check the address if it's been put in already
+				if _, ok := addresses[nic.Address]; !ok {
+					// Add it to the map
+					addresses[nic.Address] = 1
+					// Add it to the IPList range
+					ipl.IPRanges = append(ipl.IPRanges, &illumioapi.IPRange{FromIP: nic.Address})
+				}
+			}
+		}
+		// Add the slice
+		ipls = append(ipls, ipl)
 	}
 
 	// Output the CSV
-	csvData := [][]string{[]string{"name", "description", "include", "exclude", "external_ds", "external_ds_ref"}}
-	for name, i := range ipAddressMap {
-		csvData = append(csvData, []string{name, "Created from workloader wkld-to-ipl", strings.Join(i, ";"), "", "", ""})
+	csvOut := [][]string{[]string{"name", "description", "include", "exclude", "external_ds", "external_ds_ref"}}
+	for _, i := range ipls {
+		// Build the include string
+		includes := []string{}
+		for _, ip := range i.IPRanges {
+			if ip.Exclusion {
+				continue
+			}
+			includes = append(includes, ip.FromIP)
+		}
+		csvOut = append(csvOut, []string{i.Name, i.Description, strings.Join(includes, ";"), "", "", ""})
 	}
 
 	fileName := "workloader-wkld-to-ipl-output-" + time.Now().Format("20060102_150405") + ".csv"
-	utils.WriteOutput(csvData, csvData, fileName)
+	utils.WriteOutput(csvOut, csvOut, fileName)
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
-		fmt.Printf("%d iplists identifed with %d ip addresses. See %s for details. To create the IPlists in another PCE, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.\r\n", len(ipAddressMap), count, fileName)
+		fmt.Println("[INFO] - See the output file for IP Lists that would be created. Run again using --to-pce and --update-pce flags to create the IP lists.")
 		utils.LogInfo("completed running wkld-to-ipl command")
 		return
 	}
@@ -160,7 +199,7 @@ func wkldtoipl() {
 	if err != nil {
 		utils.LogError(fmt.Sprintf("error getting to pce - %s", err))
 	}
-	iplimport.ImportIPLists(dPce, fileName, updatePCE, noPrompt, debug)
+	iplimport.ImportIPLists(dPce, fileName, updatePCE, noPrompt, debug, !doNotProvision)
 
 	utils.LogEndCommand("wkld-to-ipl")
 }
