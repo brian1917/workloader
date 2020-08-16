@@ -33,9 +33,9 @@ jobs:
       - name: Make directories and copy CSV files
         run: |
           mkdir windows mac linux
-          cp workload-identifier-default.csv default-import-csv.csv ./windows
-          cp workload-identifier-default.csv default-import-csv.csv ./mac
-          cp workload-identifier-default.csv default-import-csv.csv ./linux
+          cp workload-identifier-default.csv ./windows
+          cp workload-identifier-default.csv ./mac
+          cp workload-identifier-default.csv ./linux
 
       - name: Build Windows executable
         run: GOOS=windows go build -ldflags "-X github.com/brian1917/workloader/utils.Version=$(cat version) -X github.com/brian1917/workloader/utils.Commit=$(git rev-list -1 HEAD)" -o ./windows/workloader.exe
