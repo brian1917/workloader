@@ -19,8 +19,12 @@ import (
 // Declare local global variables
 var pce illumioapi.PCE
 var err error
-var debug, updatePCE, noPrompt bool
+var provision, debug, updatePCE, noPrompt bool
 var csvFile, outFormat string
+
+func init() {
+	IplImportCmd.Flags().BoolVarP(&provision, "provision", "p", false, "Provision IP Lists after creating and/or updating.")
+}
 
 // IplImportCmd runs the iplist import command
 var IplImportCmd = &cobra.Command{
@@ -63,12 +67,12 @@ Recommended to run without --update-pce first to log of what will change. If --u
 		updatePCE = viper.Get("update_pce").(bool)
 		noPrompt = viper.Get("no_prompt").(bool)
 
-		ImportIPLists(pce, csvFile, updatePCE, noPrompt, debug)
+		ImportIPLists(pce, csvFile, updatePCE, noPrompt, debug, provision)
 	},
 }
 
 // ImportIPLists imports IP Lists to a target PCE from a CSV file
-func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debug bool) {
+func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debug, provision bool) {
 
 	// Log command execution
 	utils.LogStartCommand("ipl-import")
@@ -300,6 +304,7 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 
 	// Create new IPLs
 	var updatedIPLs, createdIPLs, skippedIPLs int
+	provisionableIPLs := []string{}
 
 	for _, newIPL := range IPLsToCreate {
 		ipl, a, err := pce.CreateIPList(newIPL.IPL)
@@ -317,6 +322,7 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 			fmt.Printf("[INFO] - CSV Line %d - %s created - status code %d\r\n", newIPL.csvLine, ipl.Name, a.StatusCode)
 			utils.LogInfo(fmt.Sprintf("CSV Line %d - %s created - status code %d", newIPL.csvLine, ipl.Name, a.StatusCode))
 			createdIPLs++
+			provisionableIPLs = append(provisionableIPLs, ipl.Href)
 		}
 	}
 
@@ -337,6 +343,16 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 			fmt.Printf("[INFO] - CSV Line %d - %s updated - status code %d\r\n", updateIPL.csvLine, updateIPL.IPL.Name, a.StatusCode)
 			utils.LogInfo(fmt.Sprintf("CSV Line %d - %s updated - status code %d", updateIPL.csvLine, updateIPL.IPL.Name, a.StatusCode))
 			updatedIPLs++
+			provisionableIPLs = append(provisionableIPLs, updateIPL.IPL.Href)
+		}
+	}
+
+	// Provision
+	if provision {
+		a, err := pce.ProvisionHref(provisionableIPLs, "workloader wkld-to-ipl")
+		utils.LogAPIResp("ProvisionHrefs", a)
+		if err != nil {
+			utils.LogError(err.Error())
 		}
 	}
 
