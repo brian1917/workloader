@@ -30,22 +30,22 @@ var WorkloadToIPLCmd = &cobra.Command{
 	Use:   "wkld-to-ipl [csv file]",
 	Short: "Create IP lists based on workloads labels and input file.",
 	Long: `
-Create IP lists based on workloads labels and an input file.
+Create IP lists in a PCE (--to-pce, -t) based on workload labels in a different PCE (--from-pce, -f) and an input file.
 
-The input file must match the following format and include headers:
-+-------+------+---------+------+-----+
-| name  | role |   app   | env  | loc |
-+-------+------+---------+------+-----+
-| IPL-1 | WEB  | CRM     | PROD | BOS |
-| IPL-2 |      | CRM;ERP | PROD | BOS |
-|       |      |         | DEV  | BOS |
-+-------+------+---------+------+-----+
+The input file must match the following format and include headers (all columns must be present):
++-------+------+---------+----------+-----+
+| name  | role |   app   |   env    | loc |
++-------+------+---------+----------+-----+
+| IPL-1 | WEB  | CRM     | PROD     | BOS |
+| IPL-2 |      | CRM;ERP | PROD;DEV | BOS |
+|       |      |         | DEV      | BOS |
++-------+------+---------+----------+-----+
 
 Note - if the name is left blank, the name will be the provided labels separated by dashes. See example 3 below.
 
 Examples:
 1) The first row will create an IPList named IPL-1 with all servers that are lableled WEB, CRM, PROD, and BOS.
-2) The second row will create an IPList named IPL-2 with all servers that are labeled (CRM or ERP) and PROD..
+2) The second row will create an IPList named IPL-2 with all servers that are labeled (CRM or ERP) and (PROD or DEV).
 3) the third row will create an IPList named DEV-BOS with all servers that are labeled DEV, and BOS.
 
 This command creates a CSV that is automatically passed into workloader ipl-import.
