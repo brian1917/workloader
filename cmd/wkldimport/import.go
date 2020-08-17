@@ -263,7 +263,7 @@ CSVEntries:
 			if f.Umwl {
 				if len(line[f.IntCol]) > 0 {
 					// Create the network interfaces
-					nics := strings.Split(strings.ReplaceAll(line[intCol], " ", ""), ";")
+					nics := strings.Split(strings.ReplaceAll(line[f.IntCol], " ", ""), ";")
 					for _, n := range nics {
 						ipInterface, err := userInputConvert(n)
 						if err != nil {
