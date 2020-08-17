@@ -165,41 +165,48 @@ func wkldtoipl() {
 				}
 			}
 		}
-		// Add the slice
-		ipls = append(ipls, ipl)
+		// Add the slice if we have some ip ranges in
+		if len(ipl.IPRanges) > 0 {
+			ipls = append(ipls, ipl)
+		}
 	}
 
 	// Output the CSV
-	csvOut := [][]string{[]string{"name", "description", "include", "exclude", "external_ds", "external_ds_ref"}}
-	for _, i := range ipls {
-		// Build the include string
-		includes := []string{}
-		for _, ip := range i.IPRanges {
-			if ip.Exclusion {
-				continue
+	if len(ipls) > 0 {
+		csvOut := [][]string{[]string{"name", "description", "include", "exclude", "external_ds", "external_ds_ref"}}
+		for _, i := range ipls {
+			// Build the include string
+			includes := []string{}
+			for _, ip := range i.IPRanges {
+				if ip.Exclusion {
+					continue
+				}
+				includes = append(includes, ip.FromIP)
 			}
-			includes = append(includes, ip.FromIP)
+			csvOut = append(csvOut, []string{i.Name, i.Description, strings.Join(includes, ";"), "", "", ""})
 		}
-		csvOut = append(csvOut, []string{i.Name, i.Description, strings.Join(includes, ";"), "", "", ""})
-	}
 
-	fileName := "workloader-wkld-to-ipl-output-" + time.Now().Format("20060102_150405") + ".csv"
-	utils.WriteOutput(csvOut, csvOut, fileName)
+		fileName := "workloader-wkld-to-ipl-output-" + time.Now().Format("20060102_150405") + ".csv"
+		utils.WriteOutput(csvOut, csvOut, fileName)
 
-	// If updatePCE is disabled, we are just going to alert the user what will happen and log
-	if !updatePCE {
-		fmt.Println("[INFO] - See the output file for IP Lists that would be created. Run again using --to-pce and --update-pce flags to create the IP lists.")
-		utils.LogInfo("completed running wkld-to-ipl command")
-		return
-	}
+		// If updatePCE is disabled, we are just going to alert the user what will happen and log
+		if !updatePCE {
+			fmt.Println("[INFO] - See the output file for IP Lists that would be created. Run again using --to-pce and --update-pce flags to create the IP lists.")
+			utils.LogInfo("completed running wkld-to-ipl command")
+			return
+		}
 
-	// If we get here, create the IP lists in the destination PCE using ipl-import
-	fmt.Printf("[INFO] calling workloader ipl-import to import %s to %s\r\n", fileName, toPCE)
-	dPce, err := utils.GetPCEbyName(toPCE, false)
-	if err != nil {
-		utils.LogError(fmt.Sprintf("error getting to pce - %s", err))
+		// If we get here, create the IP lists in the destination PCE using ipl-import
+		fmt.Printf("[INFO] - calling workloader ipl-import to import %s to %s\r\n", fileName, toPCE)
+		dPce, err := utils.GetPCEbyName(toPCE, false)
+		if err != nil {
+			utils.LogError(fmt.Sprintf("error getting to pce - %s", err))
+		}
+		iplimport.ImportIPLists(dPce, fileName, updatePCE, noPrompt, debug, !doNotProvision)
+	} else {
+		utils.LogInfo("no IP lists created.")
+		fmt.Println("[INFO] - no IP lists created.")
 	}
-	iplimport.ImportIPLists(dPce, fileName, updatePCE, noPrompt, debug, !doNotProvision)
 
 	utils.LogEndCommand("wkld-to-ipl")
 }
