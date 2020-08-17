@@ -76,7 +76,7 @@ func LogStartCommand(commandName string) {
 
 // LogEndCommand is used at the end of each command
 func LogEndCommand(commandName string) {
-	fmt.Printf("[INFO] %s completed.\r\n", commandName)
+	fmt.Printf("[INFO] - %s completed.\r\n", commandName)
 	LogInfo(fmt.Sprintf("completed %s", commandName))
 	Logger.Println("-----------------------------------------------------------------------------")
 }

@@ -26,8 +26,6 @@ func WriteOutput(csvData, stdOutData [][]string, csvFileName string) {
 			table.SetAlignment(tablewriter.ALIGN_LEFT)
 			table.SetRowLine(true)
 			table.Render()
-		} else {
-			fmt.Printf("[INFO] - Data set exceeds stdout limit. To see table in stdout, increase value in pce.yaml")
 		}
 	}
 
