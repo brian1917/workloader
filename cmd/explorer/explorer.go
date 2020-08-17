@@ -181,8 +181,8 @@ func explorerExport() {
 	// If we aren't iterating - generate
 	if len(iterateList) == 0 {
 		traffic, a, err = pce.GetTrafficAnalysis(tq)
-		utils.LogInfo("making single explorer query")
-		utils.LogInfo(a.ReqBody)
+		utils.LogInfo("making single explorer query", false)
+		utils.LogInfo(a.ReqBody, false)
 		utils.LogAPIResp("GetTrafficAnalysis", a)
 		if err != nil {
 			utils.LogError(err.Error())
@@ -197,15 +197,15 @@ func explorerExport() {
 	// Get here if we are iterating.
 	for i, l := range iterateList {
 
-		fmt.Printf("[INFO] - Querying label %d of %d - %s (%s)\r\n", i+1, len(iterateList), pce.LabelMapH[l].Value, pce.LabelMapH[l].Key)
+		utils.LogInfo(fmt.Sprintf("Querying label %d of %d - %s (%s)", i+1, len(iterateList), pce.LabelMapH[l].Value, pce.LabelMapH[l].Key), true)
 
 		// Run the first traffic query with the app as a source
 		newTQ := tq
 		newTQ.SourcesInclude = append(newTQ.SourcesInclude, l)
 		traffic, a, err = pce.GetTrafficAnalysis(newTQ)
 		utils.LogAPIResp("GetTrafficAnalysis", a)
-		utils.LogInfo(fmt.Sprintf("making first explorer query for %s (%s)", pce.LabelMapH[l].Value, pce.LabelMapH[l].Key))
-		utils.LogInfo(a.ReqBody)
+		utils.LogInfo(fmt.Sprintf("making first explorer query for %s (%s)", pce.LabelMapH[l].Value, pce.LabelMapH[l].Key), false)
+		utils.LogInfo(a.ReqBody, false)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -216,8 +216,8 @@ func explorerExport() {
 		newTQ.SourcesExclude = append(newTQ.SourcesExclude, l)
 		traffic2, a, err = pce.GetTrafficAnalysis(newTQ)
 		utils.LogAPIResp("GetTrafficAnalysis", a)
-		utils.LogInfo(fmt.Sprintf("making second explorer query for %s (%s)", pce.LabelMapH[l].Value, pce.LabelMapH[l].Key))
-		utils.LogInfo(a.ReqBody)
+		utils.LogInfo(fmt.Sprintf("making second explorer query for %s (%s)", pce.LabelMapH[l].Value, pce.LabelMapH[l].Key), false)
+		utils.LogInfo(a.ReqBody, false)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -229,9 +229,9 @@ func explorerExport() {
 		if len(combinedTraffic) > 0 {
 			outFileName := fmt.Sprintf("workloader-explorer-%s-%s.csv", pce.LabelMapH[l].Value, time.Now().Format("20060102_150405"))
 			createExplorerCSV(outFileName, combinedTraffic)
-			fmt.Printf("[INFO] - Exported %d traffic records. See %s.\r\n", len(combinedTraffic), outFileName)
+			utils.LogInfo(fmt.Sprintf("Exported %d traffic records. See %s.", len(combinedTraffic), outFileName), true)
 		} else {
-			fmt.Println("[INFO] - No traffic records.")
+			utils.LogInfo(fmt.Sprintln("No traffic records."), true)
 		}
 	}
 
@@ -310,6 +310,6 @@ func createExplorerCSV(filename string, traffic []illumioapi.TrafficAnalysis) {
 		data = append(data, d)
 	}
 
-	utils.LogInfo(fmt.Sprintf("%d traffic records exported", len(traffic)))
+	utils.LogInfo(fmt.Sprintf("%d traffic records exported", len(traffic)), true)
 	utils.WriteOutput(data, data, filename)
 }

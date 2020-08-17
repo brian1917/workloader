@@ -85,13 +85,10 @@ func exportLabels() {
 
 	if len(csvData) > 1 {
 		utils.WriteOutput(csvData, stdOutData, fmt.Sprintf("workloader-label-export-%s.csv", time.Now().Format("20060102_150405")))
-		fmt.Printf("\r\n%d labels exported.\r\n", len(csvData)-1)
-		fmt.Println("Note - the CSV export will include additional columns: external_dataset and external_dataset_ref")
-		utils.LogInfo(fmt.Sprintf("label-export exported - %d labels", len(csvData)-1))
+		utils.LogInfo(fmt.Sprintf("%d labels exported.", len(csvData)-1), true)
 	} else {
 		// Log command execution for 0 results
-		fmt.Println("No labels in PCE.")
-		utils.LogInfo("no labels in PCE.")
+		utils.LogInfo("no labels in PCE.", true)
 	}
 
 	utils.LogEndCommand("label-export")

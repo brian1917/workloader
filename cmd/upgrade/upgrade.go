@@ -155,9 +155,8 @@ func wkldUpgrade() {
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
-		utils.LogInfo(fmt.Sprintf("upgrade identified %d workloads requiring VEN update - see %s for details.", len(targetWklds), outFile.Name()))
-		fmt.Printf("Upgrade identified %d workloads requiring VEN update. See %s for details. To do the upgrade, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.\r\n", len(targetWklds), outFile.Name())
-		utils.LogInfo("completed running upgrade command")
+		utils.LogInfo(fmt.Sprintf("workloader identified %d workloads requiring VEN upgrades. See %s for details. To do the upgrade, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.", len(targetWklds), outFile.Name()), true)
+		utils.LogEndCommand("upgrade")
 		return
 	}
 
@@ -167,9 +166,8 @@ func wkldUpgrade() {
 		fmt.Printf("Upgrade identified %d workloads requiring VEN updates. See %s for details. Do you want to run the upgrade? (yes/no)? ", len(targetWklds), outFile.Name())
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
-			utils.LogInfo(fmt.Sprintf("upgrade identified %d workloads requiring VEN update - see %s for details. user denied prompt", len(targetWklds), outFile.Name()))
-			fmt.Println("Prompt denied.")
-			utils.LogInfo("completed running upgrade command")
+			utils.LogInfo(fmt.Sprintf("prompt denied to upgrade %d workloads", len(targetWklds)), true)
+			utils.LogEndCommand("upgrade")
 			return
 		}
 	}
@@ -177,12 +175,12 @@ func wkldUpgrade() {
 	// We will only get here if we have need to run the upgrade
 	for _, t := range targetWklds {
 		// Log the current version
-		utils.LogInfo(fmt.Sprintf("%s to be upgraded from %s to %s.", t.Hostname, t.Agent.Status.AgentVersion, targetVersion))
+		utils.LogInfo(fmt.Sprintf("%s to be upgraded from %s to %s.", t.Hostname, t.Agent.Status.AgentVersion, targetVersion), false)
 		a, err := pce.WorkloadUpgrade(t.Href, targetVersion)
 		if debug {
 			utils.LogAPIResp("WorkloadUpgrade", a)
 		}
-		utils.LogInfo(fmt.Sprintf("%s ven upgrade to %s received status code of %d", t.Hostname, targetVersion, a.StatusCode))
+		utils.LogInfo(fmt.Sprintf("%s ven upgrade to %s received status code of %d", t.Hostname, targetVersion, a.StatusCode), false)
 		if err != nil {
 			utils.LogError(err.Error())
 		}

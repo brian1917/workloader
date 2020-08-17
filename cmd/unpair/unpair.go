@@ -174,7 +174,7 @@ func unpair() {
 		// Get the hours since last heartbeat
 		timeParsed, err := time.Parse(time.RFC3339, t.Agent.Status.LastHeartbeatOn)
 		if err != nil {
-			utils.LogInfo(fmt.Sprintf("[WARNING] - Error parsing time - %s", err.Error()))
+			utils.LogWarning(fmt.Sprintf("error parsing time - %s", err.Error()), true)
 			hoursSinceLastHB = "NA"
 		} else {
 			now := time.Now().UTC()
@@ -193,9 +193,8 @@ func unpair() {
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
-		utils.LogInfo(fmt.Sprintf("unpair identified %d workloads requiring unpairing - see %s for details.", len(targetWklds), outFile.Name()))
-		fmt.Printf("Unpair identified %d workloads requiring unpairing. See %s for details. To do the unpair, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.\r\n", len(targetWklds), outFile.Name())
-		utils.LogInfo("completed running unpair command")
+		utils.LogInfo(fmt.Sprintf("workloader identified %d workloads requiring unpairing. See %s for details. To do the unpair, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.", len(targetWklds), outFile.Name()), true)
+		utils.LogEndCommand("unpair")
 		return
 	}
 
@@ -205,9 +204,8 @@ func unpair() {
 		fmt.Printf("Unpair identified %d workloads requiring unpairing. See %s for details. Do you want to run the unpair? (yes/no)? ", len(targetWklds), outFile.Name())
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
-			utils.LogInfo(fmt.Sprintf("unpair identified %d workloads requiring unpairing - see %s for details. user denied prompt", len(targetWklds), outFile.Name()))
-			fmt.Println("Prompt denied.")
-			utils.LogInfo("completed running unpair command")
+			utils.LogInfo(fmt.Sprintf("prompt denied to unpair %d workloads.", len(targetWklds)), true)
+			utils.LogEndCommand("unpair")
 			return
 		}
 	}

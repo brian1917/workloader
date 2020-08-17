@@ -210,13 +210,12 @@ func subnetParser() {
 		utils.WriteOutput(data, data, "workloader-subnet-output-"+time.Now().Format("20060102_150405")+".csv")
 
 		// Print number of workloads requiring update to the terminal
-		fmt.Printf("%d workloads requiring label update.\r\n", len(updatedWklds))
+		utils.LogInfo(fmt.Sprintf("%d workloads requiring label update.\r\n", len(updatedWklds)), true)
 
 		// If updatePCE is disabled, we are just going to alert the user what will happen and log
 		if !updatePCE {
-			utils.LogInfo(fmt.Sprintf("%d workloads requiring mode change.", len(data)-1))
-			fmt.Printf("Subnet identified %d workloads requiring label change. To update their labels, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.\r\n", len(data)-1)
-			utils.LogInfo("completed running subnet command")
+			utils.LogInfo(fmt.Sprintf("workloader identified %d workloads requiring label change. To update their labels, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.", len(data)-1), true)
+			utils.LogEndCommand("subnet")
 			return
 		}
 
@@ -226,9 +225,8 @@ func subnetParser() {
 			fmt.Printf("Subnet will change the labels of %d workloads. Do you want to run the change (yes/no)? ", len(data)-1)
 			fmt.Scanln(&prompt)
 			if strings.ToLower(prompt) != "yes" {
-				utils.LogInfo(fmt.Sprintf("subnet identified %d workloads requiring label change. user denied prompt", len(data)-1))
-				fmt.Println("Prompt denied.")
-				utils.LogInfo("completed running subnet command")
+				utils.LogInfo(fmt.Sprintf("prompt denied to change labels of %d workloads.", len(data)-1), true)
+				utils.LogEndCommand("subnet")
 				return
 			}
 		}
@@ -244,15 +242,14 @@ func subnetParser() {
 			utils.LogError(fmt.Sprintf("running bulk update - %s", err))
 		}
 		// Log successful run.
-		utils.LogInfo(fmt.Sprintf("bulk updated %d workloads.", len(updatedWklds)))
+		utils.LogInfo(fmt.Sprintf("bulk updated %d workloads.", len(updatedWklds)), false)
 		if !debug {
 			for _, a := range api {
-				utils.LogInfo(a.RespBody)
+				utils.LogInfo(a.RespBody, false)
 			}
 		}
 	} else {
-		fmt.Println("no workloads identified for label change")
-		utils.LogInfo("subnet completed running without identifying any workloads requiring change.")
+		utils.LogInfo(fmt.Sprintln("no workloads identified for label change"), true)
 	}
 	utils.LogEndCommand("subnet")
 }

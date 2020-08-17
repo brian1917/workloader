@@ -62,9 +62,9 @@ func labelsDeleteUnused() {
 			if a.StatusCode == 401 {
 				message = " which often means account does not have permission to delete labels."
 			}
-			utils.LogInfo(fmt.Sprintf("%s(%s) could not be deleted. Status code %d%s", l.Value, l.Key, a.StatusCode, message))
+			utils.LogInfo(fmt.Sprintf("%s(%s) could not be deleted. Status code %d%s", l.Value, l.Key, a.StatusCode, message), false)
 		} else {
-			utils.LogInfo(fmt.Sprintf("%s(%s) deleted - Status code %d.", l.Value, l.Key, a.StatusCode))
+			utils.LogInfo(fmt.Sprintf("%s(%s) deleted - Status code %d.", l.Value, l.Key, a.StatusCode), false)
 		}
 	}
 

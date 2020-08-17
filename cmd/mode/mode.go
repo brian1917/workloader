@@ -165,7 +165,7 @@ func modeUpdate() {
 		if w, ok := wkldMap[t.workloadHref]; ok {
 			if w.GetMode() != t.targetMode {
 				// Log the change is needed
-				utils.LogInfo(fmt.Sprintf("required Change - %s - current state: %s - desired state: %s\r\n", w.Hostname, w.GetMode(), t.targetMode))
+				utils.LogInfo(fmt.Sprintf("required Change - %s - current state: %s - desired state: %s", w.Hostname, w.GetMode(), t.targetMode), false)
 				data = append(data, []string{w.Hostname, w.Href, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, w.GetMode(), t.targetMode})
 				// Copy workload with the right target mode and append to slice
 				if err := w.SetMode(t.targetMode); err != nil {
@@ -185,13 +185,12 @@ func modeUpdate() {
 
 	if len(workloadUpdates) > 0 {
 		utils.WriteOutput(data, data, fmt.Sprintf("workloader-mode-%s.csv", time.Now().Format("20060102_150405")))
-		fmt.Printf("%d workloads requiring state update.\r\n", len(data)-1)
+		utils.LogInfo(fmt.Sprintf("%d workloads requiring state update.", len(data)-1), true)
 
 		// If updatePCE is disabled, we are just going to alert the user what will happen and log
 		if !updatePCE {
-			utils.LogInfo(fmt.Sprintf("%d workloads requiring mode change.", len(data)-1))
-			fmt.Printf("Mode identified %d workloads requiring mode change. To update their modes, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.\r\n", len(data)-1)
-			utils.LogInfo("completed running mode command")
+			utils.LogInfo(fmt.Sprintf("workloader identified %d workloads requiring mode change. To update their modes, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.", len(data)-1), true)
+			utils.LogEndCommand("mode")
 			return
 		}
 
@@ -201,9 +200,8 @@ func modeUpdate() {
 			fmt.Printf("Mode will change the state of %d workloads. Do you want to run the change (yes/no)? ", len(data)-1)
 			fmt.Scanln(&prompt)
 			if strings.ToLower(prompt) != "yes" {
-				utils.LogInfo(fmt.Sprintf("mode identified %d workloads requiring mode change. user denied prompt", len(data)-1))
-				fmt.Println("Prompt denied.")
-				utils.LogInfo("completed running mode command")
+				utils.LogInfo(fmt.Sprintf("prompt denied to change mode for %d workloads.", len(data)-1), true)
+				utils.LogEndCommand("mode")
 				return
 			}
 		}
@@ -219,15 +217,15 @@ func modeUpdate() {
 			utils.LogError(fmt.Sprintf("running bulk update - %s", err))
 		}
 		// Log successful run.
-		utils.LogInfo(fmt.Sprintf("bulk updated %d workloads. API Responses:", len(workloadUpdates)))
+		utils.LogInfo(fmt.Sprintf("bulk updated %d workloads. API Responses:", len(workloadUpdates)), false)
 		if !debug {
 			for _, a := range api {
-				utils.LogInfo(a.RespBody)
+				utils.LogInfo(a.RespBody, false)
 			}
 		}
 	}
 
 	// Print completion to the terminal
-	fmt.Printf("%d workloads mode updated. See workloader.log for details.\r\n", len(workloadUpdates))
+	utils.LogInfo(fmt.Sprintf("%d workloads mode updated. See workloader.log for details.", len(workloadUpdates)), true)
 	utils.LogEndCommand("mode")
 }

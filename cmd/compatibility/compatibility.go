@@ -92,20 +92,17 @@ func compatibilityReport() {
 
 		// Update stdout
 		if !suppressStdOut {
-			fmt.Printf("\rExported %d of %d workloads (%d%%).", i+1, len(wklds), (i+1)*100/len(wklds))
+			fmt.Printf("\r[INFO] - Exported %d of %d workloads (%d%%).", i+1, len(wklds), (i+1)*100/len(wklds))
 		}
 	}
 
 	// If the CSV data has more than just the headers, create output file and write it.
 	if len(csvData) > 1 {
 		utils.WriteOutput(csvData, stdOutData, fmt.Sprintf("workloader-compatibility-%s.csv", time.Now().Format("20060102_150405")))
-		fmt.Println("[INFO] - Note - CSV will have verbose information on tests for yellow/red status")
-		fmt.Printf("[INFO] - %d compatibility reports exported.\r\n", len(csvData)-1)
-		utils.LogInfo(fmt.Sprintf("export complete - %d workloads exported", len(csvData)-1))
+		utils.LogInfo(fmt.Sprintf("%d compatibility reports exported.", len(csvData)-1), true)
 	} else {
 		// Log command execution for 0 results
-		fmt.Println("No workloads in idle mode.")
-		utils.LogInfo("no workloads in idle mode.")
+		utils.LogInfo("no workloads in idle mode.", true)
 	}
 
 	// Write the mode change CSV
@@ -123,8 +120,7 @@ func compatibilityReport() {
 			utils.LogError(fmt.Sprintf("writing CSV - %s\n", err))
 		}
 		// Log
-		fmt.Printf("\r\n[INFO] - Created a file to be used with workloader mode command to change all green status IDLE workloads to build: %s\r\n", outFile.Name())
-		utils.LogInfo(fmt.Sprintf("created %s", outFile.Name()))
+		utils.LogInfo(fmt.Sprintf("Created a file to be used with workloader mode command to change all green status IDLE workloads to build: %s", outFile.Name()), true)
 	}
 	utils.LogEndCommand("compatibility")
 

@@ -297,13 +297,13 @@ func extract() {
 		utils.LogError(err.Error())
 	}
 	fullPathOutDir := fmt.Sprintf("%s%s%s", d, string(os.PathSeparator), outDir)
-	utils.LogInfo(fmt.Sprintf("temp pce-extract folder set to %s", fullPathOutDir))
+	utils.LogInfo(fmt.Sprintf("temp pce-extract folder set to %s", fullPathOutDir), false)
 
 	// Check if directory exists and remove it
 	if _, err := os.Stat(outDir); os.IsNotExist(err) {
-		utils.LogInfo(fmt.Sprintf("%s does not already exist. creating it.", fullPathOutDir))
+		utils.LogInfo(fmt.Sprintf("%s does not already exist. creating it.", fullPathOutDir), false)
 	} else {
-		utils.LogInfo(fmt.Sprintf("%s exists. removing it and creating new.", fullPathOutDir))
+		utils.LogInfo(fmt.Sprintf("%s exists. removing it and creating new.", fullPathOutDir), false)
 		err := os.RemoveAll(outDir)
 		if err != nil {
 			utils.LogError(err.Error())
@@ -314,7 +314,7 @@ func extract() {
 	if err := os.Mkdir(outDir, 0700); err != nil {
 		utils.LogError(err.Error())
 	}
-	utils.LogInfo(fmt.Sprintf("created %s", fullPathOutDir))
+	utils.LogInfo(fmt.Sprintf("created %s", fullPathOutDir), false)
 
 	// Set provision status for objects that require it
 	pStatus = []string{"draft", "active"}
@@ -331,18 +331,14 @@ func extract() {
 
 	// Zip the extract folder
 	zipit(outDir, "pce-extract.zip")
-
-	fmt.Println("pce-extract.zip created.")
-	utils.LogInfo(fmt.Sprintf("%s%spce-extract.zip created", fullPathOutDir, string(os.PathSeparator)))
+	utils.LogInfo(fmt.Sprintf("%s%spce-extract.zip created", fullPathOutDir, string(os.PathSeparator)), true)
 
 	// Remove the created directory
 	err = os.RemoveAll(outDir)
 	if err != nil {
 		fmt.Println(err)
 	}
-	utils.LogInfo(fmt.Sprintf("%s removed", fullPathOutDir))
-
-	fmt.Println("Temporary directory removed.")
+	utils.LogInfo(fmt.Sprintf("%s removed", fullPathOutDir), true)
 
 	// Log start of command
 	utils.LogEndCommand("extract")

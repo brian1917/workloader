@@ -101,8 +101,7 @@ func serviceFinder() {
 	}
 
 	// Log our target list
-	utils.LogInfo(fmt.Sprintf("identified %d target workloads to check processes.", len(wklds)))
-	fmt.Printf("[INFO] - identified %d target workloads to check processes.\r\n", len(wklds))
+	utils.LogInfo(fmt.Sprintf("identified %d target workloads to check processes.", len(wklds)), true)
 
 	// Start our data struct
 	data := [][]string{[]string{"href", "hostname", "port", "process", "role", "app", "env", "loc", "ip"}}
@@ -129,12 +128,10 @@ func serviceFinder() {
 
 	if len(data) > 1 {
 		utils.WriteOutput(data, data, fmt.Sprintf("workloader-service-finder-%s.csv", time.Now().Format("20060102_150405")))
-		fmt.Printf("\r\n%d workloads identified.\r\n", len(data)-1)
-		utils.LogInfo(fmt.Sprintf("%d workloads identified", len(data)-1))
+		utils.LogInfo(fmt.Sprintf("%d workloads identified", len(data)-1), true)
 	} else {
 		// Log command execution for 0 results
-		fmt.Println("No workloads identified that match port requirements.")
-		utils.LogInfo("no workloads identified that match port requirements.")
+		utils.LogInfo("no workloads identified that match port requirements.", true)
 	}
 
 	utils.LogEndCommand("service-finder")

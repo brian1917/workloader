@@ -191,14 +191,12 @@ func uploadFlows() {
 	}
 
 	// Log response
-	utils.LogInfo(fmt.Sprintf("%d flows in CSV file.", f.TotalFlowsInCSV))
+	utils.LogInfo(fmt.Sprintf("%d flows in CSV file.", f.TotalFlowsInCSV), false)
 	i = 1
 	for _, flowResp := range f.FlowResps {
 		fmt.Printf("API Call %d of %d...\r\n", i, len(f.APIResps))
-		utils.LogInfo(fmt.Sprintf("%d flows received", flowResp.NumFlowsReceived))
-		utils.LogInfo(fmt.Sprintf("%d flows failed", flowResp.NumFlowsFailed))
-		fmt.Printf("%d flows received\r\n", flowResp.NumFlowsReceived)
-		fmt.Printf("%d flows failed\r\n", flowResp.NumFlowsFailed)
+		utils.LogInfo(fmt.Sprintf("%d flows received", flowResp.NumFlowsReceived), true)
+		utils.LogInfo(fmt.Sprintf("%d flows failed", flowResp.NumFlowsFailed), true)
 		if i < len(f.APIResps) {
 			fmt.Println("-------------------------")
 		}
@@ -208,8 +206,7 @@ func uploadFlows() {
 			for _, ff := range flowResp.FailedFlows {
 				failedFlow = append(failedFlow, *ff)
 			}
-			utils.LogInfo(fmt.Sprintf("failed flows: %s", strings.Join(failedFlow, ",")))
-			fmt.Printf("Failed flows: %s\r\n", strings.Join(failedFlow, ","))
+			utils.LogInfo(fmt.Sprintf("failed flows: %s", strings.Join(failedFlow, ",")), true)
 		}
 		i++
 	}

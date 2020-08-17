@@ -118,26 +118,24 @@ func renameLabel() {
 		// Check if it needs to be update
 		existingLabel := labelMap[line[0]+line[1]]
 		if existingLabel.Key == "" {
-			utils.LogInfo(fmt.Sprintf("CSV Line %d - %s (%s) does not exist in the PCE. Workloader will create the desired label %s (%s)", i, line[1], line[0], line[2], line[0]))
+			utils.LogInfo(fmt.Sprintf("CSV Line %d - %s (%s) does not exist in the PCE. Workloader will create the desired label %s (%s)", i, line[1], line[0], line[2], line[0]), false)
 			newLabels = append(newLabels, illumioapi.Label{Key: line[0], Value: line[2]})
 			continue
 		}
 
 		if existingLabel.Value == line[2] {
-			utils.LogInfo(fmt.Sprintf("CSV Line %d - %s (%s) is already in the PCE. No update required.", i, line[2], line[0]))
+			utils.LogInfo(fmt.Sprintf("CSV Line %d - %s (%s) is already in the PCE. No update required.", i, line[2], line[0]), false)
 			continue
 		}
 
-		utils.LogInfo(fmt.Sprintf("CSV Line %d - %s (%s) PCE will be updated to %s (%s)", i, existingLabel.Value, existingLabel.Key, line[2], line[0]))
+		utils.LogInfo(fmt.Sprintf("CSV Line %d - %s (%s) PCE will be updated to %s (%s)", i, existingLabel.Value, existingLabel.Key, line[2], line[0]), false)
 		updateLabels = append(updateLabels, illumioapi.Label{Key: line[0], Value: line[2], Href: labelMap[line[0]+line[1]].Href})
 	}
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
-		utils.LogInfo(fmt.Sprintf("label-rename will update %d labels and create %d labels.", len(updateLabels), len(newLabels)))
-		fmt.Printf("label-rename will update %d labels and create %d labels. See workloader.log for details. Run with --update-pce to make changes.\r\n", len(updateLabels), len(newLabels))
-		utils.LogInfo("completed running label-rename command")
-		return
+		utils.LogInfo(fmt.Sprintf("label-rename will update %d labels and create %d labels. See workloader.log for details. Run with --update-pce to make changes.", len(updateLabels), len(newLabels)), true)
+		utils.LogEndCommand("label-rename")
 	}
 
 	// Prompt the user
@@ -146,9 +144,8 @@ func renameLabel() {
 		fmt.Printf("label-rename will update %d labels and create %d labels. See workloader.log for details. Do you want to run the import (yes/no)? ", len(updateLabels), len(newLabels))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
-			utils.LogInfo(fmt.Sprintf("label-rename identified %d labels requiring update and %d labels to be created. user denied prompt", len(updateLabels), len(newLabels)))
-			fmt.Println("Prompt denied.")
-			utils.LogInfo("completed running label-rename command")
+			utils.LogInfo(fmt.Sprintf("prompt denied to update %d labels and create %d new labels.", len(updateLabels), len(newLabels)), true)
+			utils.LogEndCommand("label-rename")
 			return
 		}
 	}
@@ -160,8 +157,7 @@ func renameLabel() {
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-		utils.LogInfo(fmt.Sprintf("updated %s to %s (%s) - %d", l.Href, l.Value, l.Key, a.StatusCode))
-		fmt.Printf("[INFO] - updated %s to %s (%s) - %d\r\n", l.Href, l.Value, l.Key, a.StatusCode)
+		utils.LogInfo(fmt.Sprintf("updated %s to %s (%s) - %d", l.Href, l.Value, l.Key, a.StatusCode), true)
 	}
 
 	for _, l := range newLabels {
@@ -170,8 +166,7 @@ func renameLabel() {
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-		utils.LogInfo(fmt.Sprintf("created %s to %s (%s) - %d", newL.Href, newL.Value, newL.Key, a.StatusCode))
-		fmt.Printf("created %s to %s (%s) - %d\r\n", newL.Href, newL.Value, newL.Key, a.StatusCode)
+		utils.LogInfo(fmt.Sprintf("created %s to %s (%s) - %d", newL.Href, newL.Value, newL.Key, a.StatusCode), true)
 	}
 
 	utils.LogEndCommand("label-rename")

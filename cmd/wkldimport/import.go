@@ -136,7 +136,7 @@ func checkLabel(label illumioapi.Label) illumioapi.Label {
 			utils.LogError(err.Error())
 		}
 		logJSON, _ := json.Marshal(illumioapi.Label{Href: l.Href, Key: label.Key, Value: label.Value})
-		utils.LogInfo(fmt.Sprintf("created Label - %s", string(logJSON)))
+		utils.LogInfo(fmt.Sprintf("created Label - %s", string(logJSON)), false)
 
 		// Append the label back to the map
 		pce.LabelMapKV[l.Key+l.Value] = l
@@ -146,7 +146,7 @@ func checkLabel(label illumioapi.Label) illumioapi.Label {
 	}
 
 	// If updatePCE is not set, create a placeholder href for provided label, and add it back to the maps
-	utils.LogInfo(fmt.Sprintf("Potential New Label - Key: %s, Value: %s", label.Key, label.Value))
+	utils.LogInfo(fmt.Sprintf("Potential New Label - Key: %s, Value: %s", label.Key, label.Value), false)
 	label.Href = fmt.Sprintf("place-holder-href-%s-%s", label.Key, label.Value)
 	pce.LabelMapKV[label.Key+label.Value] = label
 	pce.LabelMapH[label.Href] = label
@@ -272,7 +272,7 @@ CSVEntries:
 						netInterfaces = append(netInterfaces, &ipInterface)
 					}
 				} else {
-					utils.LogWarning(fmt.Sprintf("CSV line - %d - no interface provided for unmanaged workload %s.", csvLine, line[f.MatchCol]), true)
+					utils.LogWarning(fmt.Sprintf("CSV line %d - no interface provided for unmanaged workload %s.", csvLine, line[f.MatchCol]), true)
 				}
 
 				// Create the labels slice
@@ -307,11 +307,11 @@ CSVEntries:
 						x = append(x, i.Name+":"+i.Address)
 					}
 				}
-				utils.LogInfo(fmt.Sprintf("CSV line %d - %s to be created - %s (role), %s (app), %s (env), %s(loc) - interfaces: %s", csvLine, w.Hostname, w.GetRole(f.PCE.LabelMapH).Value, w.GetApp(f.PCE.LabelMapH).Value, w.GetEnv(f.PCE.LabelMapH).Value, w.GetLoc(f.PCE.LabelMapH).Value, strings.Join(x, ";")))
+				utils.LogInfo(fmt.Sprintf("CSV line %d - %s to be created - %s (role), %s (app), %s (env), %s(loc) - interfaces: %s", csvLine, w.Hostname, w.GetRole(f.PCE.LabelMapH).Value, w.GetApp(f.PCE.LabelMapH).Value, w.GetEnv(f.PCE.LabelMapH).Value, w.GetLoc(f.PCE.LabelMapH).Value, strings.Join(x, ";")), false)
 				continue
 			} else {
 				// If umwl flag is not set, log the entry
-				utils.LogInfo(fmt.Sprintf("CSV line %d - %s is not a workload. Include umwl flag to create it. Nothing done.", csvLine, line[f.MatchCol]))
+				utils.LogInfo(fmt.Sprintf("CSV line %d - %s is not a workload. Include umwl flag to create it. Nothing done.", csvLine, line[f.MatchCol]), false)
 				continue
 			}
 		}
@@ -341,7 +341,7 @@ CSVEntries:
 			if line[columns[i]] == removeValue {
 				change = true
 				// Log change required
-				utils.LogInfo(fmt.Sprintf("%s requiring removal of %s label.", line[f.MatchCol], keys[i]))
+				utils.LogInfo(fmt.Sprintf("%s requiring removal of %s label.", line[f.MatchCol], keys[i]), false)
 				continue
 			}
 
@@ -350,7 +350,7 @@ CSVEntries:
 				// Change the change flag
 				change = true
 				// Log change required
-				utils.LogInfo(fmt.Sprintf("%s requiring %s update from %s to %s.", line[f.MatchCol], keys[i], labels[i].Value, line[columns[i]]))
+				utils.LogInfo(fmt.Sprintf("%s requiring %s update from %s to %s.", line[f.MatchCol], keys[i], labels[i].Value, line[columns[i]]), false)
 				// Get the label HREF
 				l := checkLabel(illumioapi.Label{Key: keys[i], Value: line[columns[i]]})
 				// Add that label to the new labels slice
@@ -422,7 +422,7 @@ CSVEntries:
 					if !userMap[w.Address+cidrText+w.Name] {
 						updateInterfaces = true
 						change = true
-						utils.LogInfo(fmt.Sprintf("CSV line %d - Interface not in user provided data - IP: %s, CIDR: %s, Name: %s", csvLine, w.Address, cidrText, w.Name))
+						utils.LogInfo(fmt.Sprintf("CSV line %d - Interface not in user provided data - IP: %s, CIDR: %s, Name: %s", csvLine, w.Address, cidrText, w.Name), false)
 					}
 				}
 
@@ -435,7 +435,7 @@ CSVEntries:
 					if !wkldIntMap[u.Address+cidrText+u.Name] {
 						updateInterfaces = true
 						change = true
-						utils.LogInfo(fmt.Sprintf("CSV line %d - User provided interface not in workload - IP: %s, CIDR: %s, Name: %s", csvLine, u.Address, cidrText, u.Name))
+						utils.LogInfo(fmt.Sprintf("CSV line %d - User provided interface not in workload - IP: %s, CIDR: %s, Name: %s", csvLine, u.Address, cidrText, u.Name), false)
 					}
 				}
 
@@ -447,7 +447,7 @@ CSVEntries:
 			if strings.Contains(line[f.MatchCol], "/workloads/") {
 				if wkld.Hostname != line[f.HostnameCol] {
 					change = true
-					utils.LogInfo(fmt.Sprintf("CSV line %d - Hostname to be changed from %s to %s", csvLine, wkld.Hostname, line[f.HostnameCol]))
+					utils.LogInfo(fmt.Sprintf("CSV line %d - Hostname to be changed from %s to %s", csvLine, wkld.Hostname, line[f.HostnameCol]), false)
 					wkld.Hostname = line[f.HostnameCol]
 				}
 			}
@@ -456,7 +456,7 @@ CSVEntries:
 		// Change the name if it doesn't match unless the name in the CSV is blank and PCE is reporting the name as the hostname
 		if wkld.Name != line[f.NameCol] && line[f.NameCol] != "" {
 			change = true
-			utils.LogInfo(fmt.Sprintf("CSV line %d - Name to be changed from %s to %s", csvLine, wkld.Name, line[f.NameCol]))
+			utils.LogInfo(fmt.Sprintf("CSV line %d - Name to be changed from %s to %s", csvLine, wkld.Name, line[f.NameCol]), false)
 			wkld.Name = line[f.NameCol]
 		}
 
@@ -465,7 +465,7 @@ CSVEntries:
 			wkld.Labels = newLabels
 			updatedWklds = append(updatedWklds, wkld)
 		} else {
-			utils.LogInfo(fmt.Sprintf("CSV Line - %d - %s has no changes", csvLine, line[f.HostnameCol]))
+			utils.LogInfo(fmt.Sprintf("CSV Line %d - %s has no changes", csvLine, line[f.HostnameCol]), false)
 			unchangedWLs++
 		}
 
@@ -473,16 +473,19 @@ CSVEntries:
 
 	// End run if we have nothing to do
 	if len(updatedWklds) == 0 && len(newUMWLs) == 0 {
-		fmt.Println("Nothing to be done.")
-		utils.LogInfo("nothing to be done. completed running import command.")
+		utils.LogInfo("nothing to be done", true)
+		utils.LogEndCommand("wkld-import")
 		return
 	}
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !f.UpdatePCE {
-		utils.LogInfo(fmt.Sprintf("import identified %d workloads requiring update, %d unmanaged workloads to be created, and %d labels to be created. %d workloads in CSV do not require update in PCE.", len(updatedWklds), len(newUMWLs), len(newLabels), unchangedWLs))
-		fmt.Printf("Import identified:\r\n%d workloads requiring update\r\n%d unmanaged workloads to be created\r\n%d labels to be created\r\n%d workloads in CSV do not require update in PCE\r\n\r\nSee workloader.log for all identified changes. To do the import, run again using --update-pce flag.\r\n\r\n", len(updatedWklds), len(newUMWLs), len(newLabels), unchangedWLs)
-		utils.LogInfo("completed running import command")
+		utils.LogInfo(fmt.Sprintf("workloader identified %d workloads requiring update.", len(updatedWklds)), true)
+		utils.LogInfo(fmt.Sprintf("workloader identified %d unmanaged wklds to create.", len(newUMWLs)), true)
+		utils.LogInfo(fmt.Sprintf("workloader identified %d labels to create.", len(newLabels)), true)
+		utils.LogInfo(fmt.Sprintf("%d entries in CSV require no changes", unchangedWLs), true)
+		utils.LogInfo("See workloader.log for more details. To do the import, run again using --update-pce flag.", true)
+		utils.LogEndCommand("wkld-import")
 		return
 	}
 
@@ -492,9 +495,8 @@ CSVEntries:
 		fmt.Printf("Import will update %d workloads and create %d unmanaged workloads. Do you want to run the import (yes/no)? ", len(updatedWklds), len(newUMWLs))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
-			utils.LogInfo(fmt.Sprintf("import identified %d workloads requiring update and %d unmanaged workloads to be created. user denied prompt", len(updatedWklds), len(newUMWLs)))
-			fmt.Println("Prompt denied.")
-			utils.LogInfo("completed running import command")
+			utils.LogInfo(fmt.Sprintf("prompt denied to update %d workloads and create %d unmanaged workloads.", len(updatedWklds), len(newUMWLs)), true)
+			utils.LogEndCommand("wkld-import")
 			return
 		}
 	}
@@ -508,7 +510,7 @@ CSVEntries:
 		if err != nil {
 			utils.LogError(fmt.Sprintf("bulk updating workloads - %s", err))
 		}
-		utils.LogInfo(fmt.Sprintf("bulk update workload successful for %d workloads", len(updatedWklds)))
+		utils.LogInfo(fmt.Sprintf("bulk update workload successful for %d workloads", len(updatedWklds)), false)
 	}
 
 	// Bulk create if we have new workloads
@@ -521,7 +523,7 @@ CSVEntries:
 		if err != nil {
 			utils.LogError(fmt.Sprintf("bulk creating workloads - %s", err))
 		}
-		utils.LogInfo(fmt.Sprintf("bulk create workload successful for %d unmanaged workloads", len(newUMWLs)))
+		utils.LogInfo(fmt.Sprintf("bulk create workload successful for %d unmanaged workloads", len(newUMWLs)), false)
 	}
 
 	// Log end

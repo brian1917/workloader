@@ -66,19 +66,18 @@ func importTemplate() {
 		for _, l := range t.Labels {
 			_, a, err := pce.CreateLabel(*l)
 			if err != nil {
-				utils.LogInfo(fmt.Sprintf("error creating label: %s (%s) - API Code: %d", l.Value, l.Key, a.StatusCode))
-				fmt.Println(a.RespBody)
+				utils.LogInfo(fmt.Sprintf("error creating label: %s (%s) - API Code: %d", l.Value, l.Key, a.StatusCode), true)
 			} else {
-				utils.LogInfo(fmt.Sprintf("created label: %s (%s)", l.Value, l.Key))
+				utils.LogInfo(fmt.Sprintf("created label: %s (%s)", l.Value, l.Key), false)
 			}
 		}
 		// IPLists
 		for _, i := range t.IPLists {
 			ipl, a, err := pce.CreateIPList(*i)
 			if err != nil {
-				utils.LogInfo(fmt.Sprintf("error creating iplist: %s - API Code: %d", i.Name, a.StatusCode))
+				utils.LogInfo(fmt.Sprintf("error creating iplist: %s - API Code: %d", i.Name, a.StatusCode), false)
 			} else {
-				utils.LogInfo(fmt.Sprintf("created iplist: %s", i.Name))
+				utils.LogInfo(fmt.Sprintf("created iplist: %s", i.Name), false)
 				ipls = append(ipls, &illumioapi.IPList{Href: ipl.Href})
 			}
 		}
@@ -86,10 +85,9 @@ func importTemplate() {
 		for _, s := range t.Services {
 			svc, a, err := pce.CreateService(*s)
 			if err != nil {
-				utils.LogInfo(fmt.Sprintf("error creating service: %s - API Code: %d", s.Name, a.StatusCode))
-				fmt.Println(a.RespBody)
+				utils.LogInfo(fmt.Sprintf("error creating service: %s - API Code: %d", s.Name, a.StatusCode), true)
 			} else {
-				utils.LogInfo(fmt.Sprintf("created service: %s", s.Name))
+				utils.LogInfo(fmt.Sprintf("created service: %s", s.Name), false)
 				services = append(services, &illumioapi.Service{Href: svc.Href})
 			}
 		}

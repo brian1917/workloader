@@ -58,10 +58,9 @@ func dupeCheck() {
 			data = append(data, []string{i, strings.Join(h, ";")})
 		}
 		utils.WriteOutput(data, data, fmt.Sprintf(fmt.Sprintf("workloader-dupeIPs-%s.csv", time.Now().Format("20060102_150405"))))
-		fmt.Printf("%d duplicate IP addresses found.\r\n", len(dupeIPMap))
+		utils.LogInfo(fmt.Sprintf("%d duplicate IP addresses found.", len(dupeIPMap)), true)
 	} else {
-		utils.LogInfo("no duplicate IPs found")
-		fmt.Println("No duplicate IPs found.")
+		utils.LogInfo("no duplicate IPs found", true)
 	}
 
 	// Check for duplicate hostnames
@@ -72,10 +71,9 @@ func dupeCheck() {
 			data = append(data, []string{h, strconv.Itoa(o)})
 		}
 		utils.WriteOutput(data, data, fmt.Sprintf(fmt.Sprintf("workloader-dupe-hostnames-%s.csv", time.Now().Format("20060102_150405"))))
-		fmt.Printf("%d duplicate hostnames found.\r\n", len(dupeHostMap))
+		utils.LogInfo(fmt.Sprintf("%d duplicate hostnames found.", len(dupeHostMap)), true)
 	} else {
-		utils.LogInfo("no duplicate hostnames found")
-		fmt.Println("No duplicate hostnames found.")
+		utils.LogInfo("no duplicate hostnames found", true)
 	}
 	utils.LogEndCommand("dupecheck")
 }

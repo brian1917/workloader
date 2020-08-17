@@ -120,7 +120,7 @@ func snowsync() {
 		if err := os.Remove(snowCSVFile); err != nil {
 			utils.LogWarning(fmt.Sprintf("Could not delete %s", snowCSVFile), true)
 		} else {
-			utils.LogInfo(fmt.Sprintf("Deleted %s", snowCSVFile))
+			utils.LogInfo(fmt.Sprintf("Deleted %s", snowCSVFile), false)
 		}
 	}
 

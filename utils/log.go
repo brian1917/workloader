@@ -39,8 +39,11 @@ func LogWarning(msg string, stdout bool) {
 }
 
 // LogInfo writes the log to workloader.log and never prints to stdout.
-func LogInfo(msg string) {
+func LogInfo(msg string, stdout bool) {
 	Logger.SetPrefix(time.Now().Format("2006-01-02 15:04:05 "))
+	if stdout {
+		fmt.Printf("[INFO] - %s\r\n", msg)
+	}
 	Logger.Printf("[INFO] - %s\r\n", msg)
 }
 
@@ -71,12 +74,11 @@ func LogAPIResp(callType string, apiResp illumioapi.APIResponse) {
 
 // LogStartCommand is used at the beginning of each command
 func LogStartCommand(commandName string) {
-	LogInfo(fmt.Sprintf("workloader version %s - started %s", GetVersion(), commandName))
+	LogInfo(fmt.Sprintf("workloader version %s - started %s", GetVersion(), commandName), false)
 }
 
 // LogEndCommand is used at the end of each command
 func LogEndCommand(commandName string) {
-	fmt.Printf("[INFO] - %s completed.\r\n", commandName)
-	LogInfo(fmt.Sprintf("completed %s", commandName))
+	LogInfo(fmt.Sprintf("%s completed", commandName), true)
 	Logger.Println("-----------------------------------------------------------------------------")
 }

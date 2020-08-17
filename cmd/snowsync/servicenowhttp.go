@@ -114,7 +114,7 @@ func snhttp(url string) string {
 	if err := writer.Error(); err != nil {
 		utils.LogError(fmt.Sprintf("writing CSV - %s\n", err))
 	}
-	utils.LogInfo(fmt.Sprintf("Created temp SNOW file - %s.", snowDataFileName))
+	utils.LogInfo(fmt.Sprintf("Created temp SNOW file - %s.", snowDataFileName), false)
 
 	return snowDataFileName
 }

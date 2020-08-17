@@ -102,7 +102,7 @@ func ReadCSV(file string) [][]string {
 	defer csvfile.Close()
 
 	if err != nil {
-		utils.LogInfo(fmt.Sprint(err))
+		utils.LogInfo(fmt.Sprint(err), false)
 		//utils.Logger.Println(err)
 		os.Exit(1)
 	}
@@ -112,7 +112,7 @@ func ReadCSV(file string) [][]string {
 
 	rawCSVdata, err := reader.ReadAll()
 	if err != nil {
-		utils.LogInfo(fmt.Sprint(err))
+		utils.LogInfo(fmt.Sprint(err), false)
 		os.Exit(1)
 	}
 
@@ -132,9 +132,9 @@ func (r *regex) RelabelFromHostname(failedPCE bool, wkld illumioapi.Workload, lb
 	searchname = wkld.Hostname
 
 	if searchname == "" {
-		utils.LogInfo(fmt.Sprintf("**** No Hostname string configured on the workload. Name : %s, HRef : %s", wkld.Name, wkld.Href))
+		utils.LogInfo(fmt.Sprintf("**** No Hostname string configured on the workload. Name : %s, HRef : %s", wkld.Name, wkld.Href), false)
 	} else {
-		utils.LogInfo(fmt.Sprintf("REGEX Match For - %s", searchname))
+		utils.LogInfo(fmt.Sprintf("REGEX Match For - %s", searchname), false)
 	}
 
 	for _, tmp := range r.Regexdata {
@@ -154,7 +154,7 @@ func (r *regex) RelabelFromHostname(failedPCE bool, wkld illumioapi.Workload, lb
 		// Makes sure the labels have the right capitalization. Write the old labels and new labels to the output file
 		// keep all the labels that arent currently configured on the PCE to be added if NOPrompt or UpdatePCE
 		if match {
-			utils.LogInfo(fmt.Sprintf("%s - Regex: %s - Match: %t", searchname, tmp.regex, match))
+			utils.LogInfo(fmt.Sprintf("%s - Regex: %s - Match: %t", searchname, tmp.regex, match), false)
 			// Save the labels that are existing
 			orgLabels := make(map[string]*illumioapi.Label)
 			for _, l := range wkld.Labels {
@@ -215,9 +215,9 @@ func (r *regex) RelabelFromHostname(failedPCE bool, wkld illumioapi.Workload, lb
 			role, app, env, loc := labelvalues(tmpwkld.Labels)
 
 			if debug {
-				utils.LogInfo(fmt.Sprintf("%s - Replacement Regex: %+v - Labels: %s - %s - %s - %s", searchname, tmp.labelcg, role, app, env, loc))
+				utils.LogInfo(fmt.Sprintf("%s - Replacement Regex: %+v - Labels: %s - %s - %s - %s", searchname, tmp.labelcg, role, app, env, loc), false)
 			}
-			utils.LogInfo(fmt.Sprintf("%s - Current Labels: %s, %s, %s, %s Replaced with: %s, %s, %s, %s", searchname, orgRole, orgApp, orgEnv, orgLoc, role, app, env, loc))
+			utils.LogInfo(fmt.Sprintf("%s - Current Labels: %s, %s, %s, %s Replaced with: %s, %s, %s, %s", searchname, orgRole, orgApp, orgEnv, orgLoc, role, app, env, loc), false)
 
 			// Write out ALL the hostnames with new and old labels in output file
 			fmt.Fprintf(outputfile, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\r\n", tmpwkld.Hostname, role, app, env, loc, tmpwkld.Href, orgRole, orgApp, orgEnv, orgLoc, tmp.regex, tmp.labelcg)
@@ -225,7 +225,7 @@ func (r *regex) RelabelFromHostname(failedPCE bool, wkld illumioapi.Workload, lb
 		}
 
 	}
-	utils.LogInfo(fmt.Sprintf("**** NO REGEX MATCH FOUND **** - %s -", searchname))
+	utils.LogInfo(fmt.Sprintf("**** NO REGEX MATCH FOUND **** - %s -", searchname), false)
 	//return there was no match for that hostname
 	orgRole, orgApp, orgEnv, orgLoc := labelvalues(wkld.Labels)
 	role, app, env, loc := "", "", "", ""
@@ -337,7 +337,7 @@ func hostnameParser() {
 		name := []string{"update-pce", "no-prompt", "all", "role", "app", "env", "loc", "capitalize", "hostfile", "parsefile"}
 		value := []string{strconv.FormatBool(updatePCE), strconv.FormatBool(noPrompt), strconv.FormatBool(allWklds), roleFlag, appFlag, envFlag, locFlag, strconv.Itoa(capitalize), hostFile, parserFile}
 		for i, n := range name {
-			utils.LogInfo(fmt.Sprintf("%s set to %s ", n, value[i]))
+			utils.LogInfo(fmt.Sprintf("%s set to %s ", n, value[i]), false)
 		}
 	}
 
@@ -377,7 +377,7 @@ func hostnameParser() {
 		debug = true
 		updatePCE = false
 		failedPCE = true
-		utils.LogInfo(fmt.Sprintf("Error accessing PCE API - Skipping further PCE API calls"))
+		utils.LogInfo(fmt.Sprintf("Error accessing PCE API - Skipping further PCE API calls"), false)
 		if debug {
 			utils.LogDebug(fmt.Sprintf("Get All Labels Error: %s", err))
 		}
@@ -467,9 +467,9 @@ func hostnameParser() {
 					alllabeledwrkld = append(alllabeledwrkld, labeledwrkld)
 				} else if labeledwrkld.Href == "" && !updatePCE {
 					matchtable.Append([]string{labeledwrkld.Hostname, role, app, env, loc, orgRole, orgApp, orgEnv, orgLoc})
-					utils.LogInfo(fmt.Sprintf("SKIPING UPDATE - %s - No Workload on the PCE", labeledwrkld.Hostname))
+					utils.LogInfo(fmt.Sprintf("SKIPING UPDATE - %s - No Workload on the PCE", labeledwrkld.Hostname), false)
 				} else {
-					utils.LogInfo(fmt.Sprintf("SKIPING UPDATE - %s - No Label Change Required", labeledwrkld.Hostname))
+					utils.LogInfo(fmt.Sprintf("SKIPING UPDATE - %s - No Label Change Required", labeledwrkld.Hostname), false)
 
 				}
 			}
@@ -530,7 +530,7 @@ func hostnameParser() {
 					utils.LogDebug(fmt.Sprintf("Exact label does not exist for %s (%s). Creating new label... ", lbl.Value, lbl.Value))
 					utils.LogAPIResp("CreateLabel", apiResp)
 				} else {
-					utils.LogInfo(fmt.Sprintf("CREATED LABEL %s (%s) with following HREF: %s", newLabel.Value, newLabel.Key, newLabel.Href))
+					utils.LogInfo(fmt.Sprintf("CREATED LABEL %s (%s) with following HREF: %s", newLabel.Value, newLabel.Key, newLabel.Href), false)
 				}
 				lblskv[lbl.Key+"."+lbl.Value] = newLabel.Href
 			}
@@ -548,25 +548,25 @@ func hostnameParser() {
 			apiResp, err := pce.BulkWorkload(alllabeledwrkld, "update")
 
 			//get number of workloads to update
-			utils.LogInfo(fmt.Sprintf("running bulk update on %d workloads. batches run in 1,0000 workload chunks", len(alllabeledwrkld)))
+			utils.LogInfo(fmt.Sprintf("running bulk update on %d workloads. batches run in 1,0000 workload chunks", len(alllabeledwrkld)), false)
 			for i, api := range apiResp {
 				if debug {
 					utils.LogAPIResp("BulkWorkloadUpdate", api)
 				}
 				// Log our error if there is an error
 				if err != nil {
-					utils.LogInfo(err.Error())
+					utils.LogInfo(err.Error(), false)
 				}
 				// If not doing debug level logging, log each complete api
 				if !debug {
-					utils.LogInfo(fmt.Sprintf("bulkworkload update batch %d completed", i))
+					utils.LogInfo(fmt.Sprintf("bulkworkload update batch %d completed", i), false)
 				}
 			}
 
 		}
 	} else {
 		//Make sure to put NO MATCHES into output file
-		utils.LogInfo(fmt.Sprintf("No Workloads will me updated  -  Check the output file"))
+		utils.LogInfo(fmt.Sprintf("No Workloads will me updated  -  Check the output file"), false)
 
 		if !noPrompt && !failedPCE {
 			fmt.Println("***** There were no hostnames that needed updating or matched an entry in the 'parsefile'****")

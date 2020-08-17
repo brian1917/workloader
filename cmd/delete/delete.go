@@ -24,7 +24,7 @@ var err error
 // DeleteCmd runs the unpair
 var DeleteCmd = &cobra.Command{
 	Use:   "delete [csv file with hrefs to delete]",
-	Short: "Delete unmanaged workloads by HREFs provided in file.",
+	Short: "Delete any object with an HREF (e.g., unmanaged workloads, labels, services, IPLists, etc.) from the PCE.",
 	Long: `  
 	Delete any object with an HREF (e.g., unmanaged workloads, labels, services, IPLists, etc.) from the PCE.
 
@@ -121,9 +121,8 @@ func delete() {
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
-		utils.LogInfo(fmt.Sprintf("delete identified %d workloads to be deleted - see %s for details.", deleteCounter, outFile.Name()))
-		fmt.Printf("Delete identified %d workloads to be deleted. See %s for details. To do the delete, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.\r\n", deleteCounter, outFile.Name())
-		utils.LogInfo("completed running delete command")
+		utils.LogInfo(fmt.Sprintf("Delete identified %d workloads to be deleted. See %s for details. To do the delete, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.", deleteCounter, outFile.Name()), true)
+		utils.LogEndCommand("delete")
 		return
 	}
 
@@ -133,9 +132,8 @@ func delete() {
 		fmt.Printf("Delete identified %d workloads to be deleted. See %s for details. Do you want to run the deletion? (yes/no)? ", deleteCounter, outFile.Name())
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
-			utils.LogInfo(fmt.Sprintf("Delete identified %d workloads to be deleted - see %s for details. user denied prompt", deleteCounter, outFile.Name()))
-			fmt.Println("Prompt denied.")
-			utils.LogInfo("completed running delete command")
+			utils.LogInfo(fmt.Sprintf("Prompt denied for deleting %d workloads.", deleteCounter), true)
+			utils.LogEndCommand("delete")
 			return
 		}
 	}

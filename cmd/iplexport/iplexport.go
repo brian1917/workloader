@@ -74,12 +74,10 @@ func exportIPL() {
 
 	if len(csvData) > 1 {
 		utils.WriteOutput(csvData, csvData, fmt.Sprintf("workloader-ipl-export-%s.csv", time.Now().Format("20060102_150405")))
-		fmt.Printf("\r\n%d iplists exported.\r\n", len(csvData)-1)
-		utils.LogInfo(fmt.Sprintf("ipl-export complete - %d iplists exported", len(csvData)-1))
+		utils.LogInfo(fmt.Sprintf("%d iplists exported.", len(csvData)-1), true)
 	} else {
 		// Log command execution for 0 results
-		fmt.Println("No iplists in PCE.")
-		utils.LogInfo("no iplists in PCE.")
+		utils.LogInfo("no iplists in PCE.", true)
 	}
 	utils.LogEndCommand("ipl-export")
 }

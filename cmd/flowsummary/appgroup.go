@@ -105,7 +105,7 @@ func flowSummary() {
 	if !exclBlocked {
 		pStatus = append(pStatus, "blocked")
 	}
-	utils.LogInfo(fmt.Sprintf("policy state: %s", pStatus))
+	utils.LogInfo(fmt.Sprintf("policy state: %s", pStatus), false)
 
 	// Get the state and end date
 	startDate, err := time.Parse(fmt.Sprintf("2006-01-02 MST"), fmt.Sprintf("%s %s", start, "UTC"))
@@ -113,14 +113,14 @@ func flowSummary() {
 		utils.LogError(err.Error())
 	}
 	startDate = startDate.In(time.UTC)
-	utils.LogInfo(fmt.Sprintf("Start date: %s", startDate.String()))
+	utils.LogInfo(fmt.Sprintf("Start date: %s", startDate.String()), false)
 
 	endDate, err := time.Parse(fmt.Sprintf("2006-01-02 MST"), fmt.Sprintf("%s %s", end, "UTC"))
 	if err != nil {
 		utils.LogError(err.Error())
 	}
 	endDate = endDate.In(time.UTC)
-	utils.LogInfo(fmt.Sprintf("End date: %s", endDate.String()))
+	utils.LogInfo(fmt.Sprintf("End date: %s", endDate.String()), false)
 
 	// Create the default query struct
 	tq := illumioapi.TrafficQuery{
@@ -131,7 +131,7 @@ func flowSummary() {
 
 	// If an app is provided, adjust query to include it
 	if app != "" {
-		utils.LogInfo(fmt.Sprintf("Provided app label value: %s", app))
+		utils.LogInfo(fmt.Sprintf("Provided app label value: %s", app), false)
 		label, a, err := pce.GetLabelbyKeyValue("app", app)
 		utils.LogAPIResp("GetLabelbyKeyValue", a)
 		if err != nil {
@@ -140,7 +140,7 @@ func flowSummary() {
 		if label.Href == "" {
 			utils.LogError(fmt.Sprintf("%s does not exist as an app label.", app))
 		}
-		utils.LogInfo(fmt.Sprintf("Provided app label href: %s", label.Href))
+		utils.LogInfo(fmt.Sprintf("Provided app label href: %s", label.Href), false)
 		tq.SourcesInclude = []string{label.Href}
 	}
 
@@ -153,7 +153,7 @@ func flowSummary() {
 		utils.LogError(fmt.Sprintf("making explorer API call - %s", err))
 	}
 
-	utils.LogInfo(fmt.Sprintf("First explorer query result count: %d", len(traffic)))
+	utils.LogInfo(fmt.Sprintf("First explorer query result count: %d", len(traffic)), false)
 
 	// If app is provided, switch to the destination include, clear the sources include, run query again, append to previous result
 	if app != "" {
@@ -166,9 +166,9 @@ func flowSummary() {
 		if err != nil {
 			utils.LogError(fmt.Sprintf("making second explorer API call - %s", err))
 		}
-		utils.LogInfo(fmt.Sprintf("Second explorer query result count: %d", len(traffic2)))
+		utils.LogInfo(fmt.Sprintf("Second explorer query result count: %d", len(traffic2)), false)
 		traffic = append(traffic, traffic2...)
-		utils.LogInfo(fmt.Sprintf("Combined explorer query result count: %d", len(traffic)))
+		utils.LogInfo(fmt.Sprintf("Combined explorer query result count: %d", len(traffic)), false)
 	}
 
 	// Get the protocol list
@@ -270,12 +270,10 @@ func flowSummary() {
 	// Write the data
 	if len(data) > 1 {
 		utils.WriteOutput(data, data, fmt.Sprintf("workloader-flowsummary-%s.csv", time.Now().Format("20060102_150405")))
-		fmt.Printf("\r\n%d summaries exported.\r\n\r\n", len(data)-1)
-		utils.LogInfo(fmt.Sprintf("flowsummary complete - %d summaries exported", len(data)-1))
+		utils.LogInfo(fmt.Sprintf("%d summaries exported.", len(data)-1), true)
 	} else {
 		// Log command execution for 0 results
-		fmt.Println("no explorer data to summarize")
-		utils.LogInfo("no explorer data to summarize")
+		utils.LogInfo("no explorer data to summarize", true)
 	}
 
 	utils.LogEndCommand("flowsummary appgroup")

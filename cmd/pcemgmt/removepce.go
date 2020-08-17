@@ -53,7 +53,7 @@ func removePce() {
 	if clear {
 
 		// Log start of command
-		utils.LogInfo("removing API keys...")
+		utils.LogInfo("removing API keys...", true)
 
 		// Get the PCE
 		pce, err := utils.GetPCEbyName(pceName, false)
@@ -76,8 +76,7 @@ func removePce() {
 					if err != nil {
 						utils.LogError(err.Error())
 					}
-					fmt.Printf("deleted api key: %s\r\n", a.Href)
-					utils.LogInfo(fmt.Sprintf("deleted %s", a.Href))
+					utils.LogInfo(fmt.Sprintf("deleted api key: %s", a.Href), true)
 				} else {
 					saveHref = a.Href
 				}
@@ -88,8 +87,7 @@ func removePce() {
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-		fmt.Printf("deleted api key: %s\r\n", saveHref)
-		utils.LogInfo(fmt.Sprintf("deleted %s", saveHref))
+		utils.LogInfo(fmt.Sprintf("deleted api key: %s", saveHref), true)
 	}
 
 	// Remove login information from YAML
@@ -98,7 +96,7 @@ func removePce() {
 		utils.LogError(err.Error())
 	}
 
-	fmt.Println("Removed pce infomration from pce.yaml.")
+	utils.LogInfo("Removed pce infomration from pce.yaml.", true)
 
 	utils.LogEndCommand("pce-remove")
 

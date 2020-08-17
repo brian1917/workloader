@@ -191,21 +191,20 @@ func wkldtoipl() {
 
 		// If updatePCE is disabled, we are just going to alert the user what will happen and log
 		if !updatePCE {
-			fmt.Println("[INFO] - See the output file for IP Lists that would be created. Run again using --to-pce and --update-pce flags to create the IP lists.")
-			utils.LogInfo("completed running wkld-to-ipl command")
+			utils.LogInfo(fmt.Sprintln("See the output file for IP Lists that would be created. Run again using --to-pce and --update-pce flags to create the IP lists."), true)
+			utils.LogEndCommand("wkld-to-ipl")
 			return
 		}
 
 		// If we get here, create the IP lists in the destination PCE using ipl-import
-		fmt.Printf("[INFO] - calling workloader ipl-import to import %s to %s\r\n", fileName, toPCE)
+		utils.LogInfo(fmt.Sprintf("calling workloader ipl-import to import %s to %s", fileName, toPCE), true)
 		dPce, err := utils.GetPCEbyName(toPCE, false)
 		if err != nil {
 			utils.LogError(fmt.Sprintf("error getting to pce - %s", err))
 		}
 		iplimport.ImportIPLists(dPce, fileName, updatePCE, noPrompt, debug, !doNotProvision)
 	} else {
-		utils.LogInfo("no IP lists created.")
-		fmt.Println("[INFO] - no IP lists created.")
+		utils.LogInfo("no IP lists created.", true)
 	}
 
 	utils.LogEndCommand("wkld-to-ipl")
