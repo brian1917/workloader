@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/brian1917/illumioapi"
 	"github.com/brian1917/workloader/utils"
@@ -17,9 +16,13 @@ import (
 
 // Set global variables for flags
 var hrefFile string
-var debug, updatePCE, noPrompt bool
+var debug, updatePCE, noPrompt, noProv bool
 var pce illumioapi.PCE
 var err error
+
+func init() {
+	DeleteCmd.Flags().BoolVarP(&noPrompt, "no-prov", "x", false, "do not provision deletes for provisionable objects. By default, all deletions will be provisioned.")
+}
 
 // DeleteCmd runs the unpair
 var DeleteCmd = &cobra.Command{
@@ -57,18 +60,15 @@ func delete() {
 
 	utils.LogStartCommand("delete")
 
-	// Get all workloads
-	wkldMap, a, err := pce.GetWkldHrefMap()
-	utils.LogAPIResp("GetAllWkldHrefMap", a)
-	if err != nil {
-		utils.LogError(err.Error())
-	}
-
 	// Get all HREFs from the CSV file
 	csvFile, _ := os.Open(hrefFile)
 	reader := csv.NewReader(bufio.NewReader(csvFile))
-	hrefs := []string{}
+	row := 0
+	provision := []string{}
+	var deleted, skipped int
 	for {
+
+		// Read the CSV
 		line, err := reader.Read()
 		if err == io.EOF {
 			break
@@ -76,75 +76,54 @@ func delete() {
 		if err != nil {
 			utils.LogError(fmt.Sprintf("Reading CSV File - %s", err))
 		}
-		hrefs = append(hrefs, line[0])
-	}
 
-	// Create a CSV with the unpairs
-	outFile, err := os.Create("workloader-delete-" + time.Now().Format("20060102_150405") + ".csv")
-	if err != nil {
-		utils.LogError(fmt.Sprintf("creating CSV - %s\n", err))
-	}
+		// Increment the row counter
+		row++
 
-	// Build the data slice for writing
-	deleteCounter := 0
-	data := [][]string{[]string{"href", "hostname", "role", "app", "env", "loc", "status"}}
-	deleteWorkloads := []illumioapi.Workload{}
-	for _, h := range hrefs {
-		// Check if it is a workload
-		if _, ok := wkldMap[h]; !ok {
-			data = append(data, []string{h, "NOT IN PCE", "NA", "NA", "NA", "NA", "workload does not exist - skipped"})
+		// Check if HREF or header in first row
+		if row == 1 && !strings.Contains(line[0], "/orgs/") {
+			utils.LogInfo(fmt.Sprintf("CSV Line - %d - first row is header - skipping", row), true)
 			continue
 		}
 
-		// If it is a workload, create the variable to stop using map so we can run methods
-		w := wkldMap[h]
-
-		// Check if it's unmanaged
-		if w.GetMode() != "unmanaged" {
-			data = append(data, []string{h, w.Hostname, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, "managed workload - skipped"})
-			continue
-		}
-
-		// Add to deleted list
-		deleteCounter++
-		// Add to the slice to be sent to bulk delete
-		deleteWorkloads = append(deleteWorkloads, w)
-		data = append(data, []string{w.Href, w.Hostname, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, "to be deleted"})
-	}
-
-	// Write CSV data
-	writer := csv.NewWriter(outFile)
-	writer.WriteAll(data)
-	if err := writer.Error(); err != nil {
-		utils.LogError(fmt.Sprintf("writing CSV - %s\n", err))
-	}
-
-	// If updatePCE is disabled, we are just going to alert the user what will happen and log
-	if !updatePCE {
-		utils.LogInfo(fmt.Sprintf("Delete identified %d workloads to be deleted. See %s for details. To do the delete, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.", deleteCounter, outFile.Name()), true)
-		utils.LogEndCommand("delete")
-		return
-	}
-
-	// If updatePCE is set, but not noPrompt, we will prompt the user.
-	if updatePCE && !noPrompt {
-		var prompt string
-		fmt.Printf("Delete identified %d workloads to be deleted. See %s for details. Do you want to run the deletion? (yes/no)? ", deleteCounter, outFile.Name())
-		fmt.Scanln(&prompt)
-		if strings.ToLower(prompt) != "yes" {
-			utils.LogInfo(fmt.Sprintf("Prompt denied for deleting %d workloads.", deleteCounter), true)
-			utils.LogEndCommand("delete")
-			return
+		// For each other entry, delete the href
+		a, err := pce.DeleteHref(line[0])
+		utils.LogAPIResp("DeleteHref", a)
+		if err != nil {
+			utils.LogWarning(fmt.Sprintf("CSV line %d - not deleted - status code %d", row, a.StatusCode), true)
+			skipped++
+		} else {
+			// Increment the delete and log
+			deleted++
+			utils.LogInfo(fmt.Sprintf("CSV line %d - deleted - status code %d", row, a.StatusCode), true)
+			// Check if we need to provision it
+			if strings.Contains(line[0], "/ip_lists/") ||
+				strings.Contains(line[0], "/services/") ||
+				strings.Contains(line[0], "/rule_sets/") ||
+				strings.Contains(line[0], "/label_groups/") ||
+				strings.Contains(line[0], "/virtual_services/") ||
+				strings.Contains(line[0], "/virtual_servers/") ||
+				strings.Contains(line[0], "/firewall_settings/") ||
+				strings.Contains(line[0], "/secure_connect_gateways/") {
+				provision = append(provision, line[0])
+			}
 		}
 	}
 
-	// We will only get here if we have need to run the delete
-	apiResps, err := pce.BulkWorkload(deleteWorkloads, "delete")
-	for _, a := range apiResps {
-		utils.LogAPIResp("bulk delete workloads", a)
+	// Log the deleted total
+	utils.LogInfo(fmt.Sprintf("%d items deleted", deleted), true)
+	utils.LogInfo(fmt.Sprintf("%d items skipped.", skipped), true)
+
+	// Provision if needed
+	if len(provision) > 0 && !noProv {
+		utils.LogInfo(fmt.Sprintf("provisioning deletion of %d provisionable objects.", len(provision)), true)
+		a, err := pce.ProvisionHref(provision, "deleted by workloader")
+		utils.LogAPIResp("ProvisionHref", a)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		utils.LogInfo(fmt.Sprintf("provisioning complete - status code %d", a.StatusCode), true)
 	}
-	if err != nil {
-		utils.LogError(err.Error())
-	}
+
 	utils.LogEndCommand("delete")
 }
