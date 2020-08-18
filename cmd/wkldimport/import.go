@@ -465,7 +465,6 @@ CSVEntries:
 			wkld.Labels = newLabels
 			updatedWklds = append(updatedWklds, wkld)
 		} else {
-			utils.LogInfo(fmt.Sprintf("CSV Line %d - %s has no changes", csvLine, line[f.HostnameCol]), false)
 			unchangedWLs++
 		}
 
