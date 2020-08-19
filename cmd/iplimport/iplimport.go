@@ -298,7 +298,7 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 
 	// Sort our slices by the CSV line
 	sort.SliceStable(IPLsToCreate, func(i, j int) bool { return IPLsToCreate[i].csvLine < IPLsToCreate[j].csvLine })
-	sort.SliceStable(IPLsToUpdate, func(i, j int) bool { return IPLsToCreate[i].csvLine < IPLsToCreate[j].csvLine })
+	sort.SliceStable(IPLsToUpdate, func(i, j int) bool { return IPLsToUpdate[i].csvLine < IPLsToUpdate[j].csvLine })
 
 	// Create new IPLs
 	var updatedIPLs, createdIPLs, skippedIPLs int
