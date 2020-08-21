@@ -139,12 +139,13 @@ func copyruleset() {
 			UnscopedConsumers:           fromrule.UnscopedConsumers,
 		}
 
+		fmt.Print(copyRule)
 		rules, a, err := pce.CreateRuleSetRule(savetoHref, copyRule)
 		utils.LogAPIResp("CreateRuleSetRule", a)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-		fmt.Print(copyRule)
+
 	}
 
 }
