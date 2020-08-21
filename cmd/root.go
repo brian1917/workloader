@@ -9,7 +9,7 @@ import (
 
 	"github.com/brian1917/workloader/cmd/compatibility"
 	"github.com/brian1917/workloader/cmd/delete"
-	"github.com/brian1917/workloader/cmd/deleteunusedlabels"
+	labelsdeleteunused "github.com/brian1917/workloader/cmd/deleteunusedlabels"
 	"github.com/brian1917/workloader/cmd/dupecheck"
 	"github.com/brian1917/workloader/cmd/explorer"
 	"github.com/brian1917/workloader/cmd/extract"
@@ -25,6 +25,7 @@ import (
 	"github.com/brian1917/workloader/cmd/mode"
 	"github.com/brian1917/workloader/cmd/nic"
 	"github.com/brian1917/workloader/cmd/pcemgmt"
+	"github.com/brian1917/workloader/cmd/rulesetcopy"
 	"github.com/brian1917/workloader/cmd/servicefinder"
 	"github.com/brian1917/workloader/cmd/snowsync"
 	"github.com/brian1917/workloader/cmd/subnet"
@@ -124,6 +125,7 @@ func init() {
 
 	// Undocumented
 	RootCmd.AddCommand(extract.ExtractCmd)
+	RootCmd.AddCommand(rulesetcopy.RuleSetCopyCmd)
 
 	// Set the usage templates
 	for _, c := range RootCmd.Commands() {
