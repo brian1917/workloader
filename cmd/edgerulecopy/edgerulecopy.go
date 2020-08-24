@@ -3,6 +3,7 @@ package edgerulecopy
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/brian1917/illumioapi"
 
@@ -15,6 +16,13 @@ var debug, updatePCE, noPrompt, doNotProvision bool
 var csvFile, fromGroup, toGroup string
 var pce illumioapi.PCE
 var err error
+
+// RuleMap - Variable to store Rules from TO Group.
+type RuleMap struct {
+	Href      string    `json:"href,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+}
 
 func init() {
 	EdgeRuleCopyCmd.Flags().StringVarP(&fromGroup, "from-group", "f", "", "Name of Endpoint group to copy rules from. Required")
@@ -100,11 +108,11 @@ func edgerulescopy() {
 	toProvider := []*illumioapi.Providers{&illumioapi.Providers{Label: &newLabel}}
 
 	//Href of TO Ruleset
-	var savetoHref string = ""
+	var savedToRuleSetHref string = ""
 	var foundfrom, foundto bool = false, false
 
 	//Array of Rules copied on Match of FROM Ruleset
-	var fromRules []*illumioapi.Rule
+	var toRules, fromRules []*illumioapi.Rule
 
 	// Iterate the list of Rulesets to match Ruleset you will copy rules from and Ruleset you will copy to.
 	for _, ruleset := range rulesets {
@@ -116,13 +124,38 @@ func edgerulescopy() {
 				fromRules = ruleset.Rules
 				foundfrom = true
 			case toGroup:
-				savetoHref = ruleset.Href
+				toRules = ruleset.Rules
+				savedToRuleSetHref = ruleset.Href
 				foundto = true
 			}
 		} else {
 			break
 		}
 
+	}
+
+	//Load all the rules if any from the copy TO group that have have ExternalDataReference data.  When creating a rule put a referece to the rule that was used to copy.
+	// By having the refence data we can then compare the existing rules to new ones and skip over existing ones.
+
+	rulemap := make(map[string]RuleMap)
+	for _, rule := range toRules {
+		var tmprulemap RuleMap
+		//convert CreatedAt and UpdatedAt strings to time variables
+		ct, err := time.Parse(time.RFC3339, rule.CreatedAt)
+		if err != nil {
+			fmt.Println(err)
+		}
+		ut, err := time.Parse(time.RFC3339, rule.UpdatedAt)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		if rule.ExternalDataReference != "" {
+			tmprulemap.Href = rule.Href
+			tmprulemap.CreatedAt = ct
+			tmprulemap.UpdatedAt = ut
+			rulemap[rule.ExternalDataReference] = tmprulemap
+		}
 	}
 
 	//Check to see there was a match of BOTH TO and FROM Ruleset.
@@ -143,11 +176,15 @@ func edgerulescopy() {
 		utils.LogInfo(fmt.Sprint("--updatePCE not set.  Rules below WOULD BE created."), false)
 	}
 	counter := 0
+	var provisionneeded bool = false //if create or update rules then provision needed.
 	var provisionableRuleHrefs []string
 	//Check to see there are rules to copy before looping rules
 	if len(fromRules) > 0 {
 
 		for _, fromrule := range fromRules {
+
+			//list rule to copy
+			counter++
 
 			//Use Clean Rule Struct
 			copyRule := illumioapi.Rule{Href: "",
@@ -162,37 +199,63 @@ func edgerulescopy() {
 				Stateless:                   fromrule.Stateless,
 				MachineAuth:                 fromrule.MachineAuth,
 				UnscopedConsumers:           fromrule.UnscopedConsumers,
+				ExternalDataReference:       fromrule.Href, //Store rule that this rule comes from.
 			}
-			//list rule to copy
-			counter++
-			//Create Rules
+			//turn updatedat string into time object
+			fromupdatedtime, err := time.Parse(time.RFC3339, fromrule.UpdatedAt)
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			//Create or update Rules
 			if updatePCE {
+				if rulemap[fromrule.Href].Href == "" {
+					//Create Rule
+					newrule, a, err := pce.CreateRuleSetRule(savedToRuleSetHref, copyRule)
+					utils.LogAPIResp("CreateRuleSetRule", a)
+					if err != nil {
+						utils.LogError(err.Error())
+					}
+					utils.LogInfo(fmt.Sprintf("Rule %d - Copied Rule HREF: %s To New Rule %s", counter, fromrule.Href, newrule.Href), false)
+					provisionneeded = true
 
-				_, a, err := pce.CreateRuleSetRule(savetoHref, copyRule)
-				utils.LogAPIResp("CreateRuleSetRule", a)
-				if err != nil {
-					utils.LogError(err.Error())
+					//Check to see that the updated time of the rule is greater than existing rules updated
+				} else if rulemap[fromrule.Href].UpdatedAt.Before(fromupdatedtime) {
+
+					//Place existing rule HREF back into the copyrule struct so you can update.
+					copyRule.Href = rulemap[fromrule.Href].Href
+					//Update Rule
+					a, err := pce.UpdateRuleSetRules(copyRule)
+					utils.LogAPIResp("UpdateRuleSetRules", a)
+					if err != nil {
+						utils.LogError(err.Error())
+					}
+					utils.LogInfo(fmt.Sprintf("Rule %d - Updated Rule HREF: %s", counter, fromrule.Href), false)
+					provisionneeded = true
+				} else {
+					utils.LogInfo(fmt.Sprintf("Rule %d - NO CHANGE HREF: %s", counter, fromrule.Href), false)
 				}
-				utils.LogInfo(fmt.Sprintf("Rule %d - Copied Rule HREF: %s", counter, fromrule.Href), false)
-
 			} else {
-				utils.LogInfo(fmt.Sprintf("RuleSet- HREF:%s  RULE- Consumer:%+v  Ingress-Service:%+v", savetoHref, copyRule.Consumers, copyRule.IngressServices[0]), false)
+				utils.LogInfo(fmt.Sprintf("RuleSet- HREF:%s  RULE- Consumer:%+v  Ingress-Service:%+v", savedToRuleSetHref, copyRule.Consumers, copyRule.IngressServices[0]), false)
+
 			}
 
 		}
-		provisionableRuleHrefs = append(provisionableRuleHrefs, savetoHref)
-		utils.LogInfo(fmt.Sprintf("%d Rules found in group %s.", len(fromRules), fromGroup), true)
+		//if 1 or more copy or update task run we need to provision those changes.  Otherwise skip.
+		if provisionneeded {
+			provisionableRuleHrefs = append(provisionableRuleHrefs, savedToRuleSetHref)
+			utils.LogInfo(fmt.Sprintf("%d Rules found in group %s.", len(fromRules), fromGroup), true)
 
-		if updatePCE {
-
-			//If do not provision flag set skip otherwise provision all rule hrefs created.
-			if !doNotProvision {
-				a, err := pce.ProvisionHref(provisionableRuleHrefs, "workloader edgerulecopy")
-				utils.LogAPIResp("ProvisionHrefs", a)
-				if err != nil {
-					utils.LogError(err.Error())
+			if updatePCE {
+				//If do not provision flag set skip otherwise provision all rule hrefs created.
+				if !doNotProvision {
+					a, err := pce.ProvisionHref(provisionableRuleHrefs, "workloader edgerulecopy")
+					utils.LogAPIResp("ProvisionHrefs", a)
+					if err != nil {
+						utils.LogError(err.Error())
+					}
+					utils.LogInfo(fmt.Sprintf("Provisioning successful - status code %d", a.StatusCode), true)
 				}
-				utils.LogInfo(fmt.Sprintf("Provisioning successful - status code %d", a.StatusCode), true)
 			}
 		}
 	}
