@@ -216,7 +216,7 @@ func edgerulescopy() {
 					if err != nil {
 						utils.LogError(err.Error())
 					}
-					utils.LogInfo(fmt.Sprintf("Rule %d - Copied Rule HREF: %s To New Rule %s", counter, fromrule.Href, newrule.Href), false)
+					utils.LogInfo(fmt.Sprintf("Rule %d - Created new Rule %s based on Rule HREF: %s ", counter, newrule.Href, fromrule.Href), false)
 					provisionneeded = true
 
 					//Check to see that the updated time of the rule is greater than existing rules updated
@@ -230,10 +230,10 @@ func edgerulescopy() {
 					if err != nil {
 						utils.LogError(err.Error())
 					}
-					utils.LogInfo(fmt.Sprintf("Rule %d - Updated Rule HREF: %s", counter, fromrule.Href), false)
+					utils.LogInfo(fmt.Sprintf("Rule %d - Updated Rule HREF: %s  With Rule HREF: %s", counter, copyRule.Href, fromrule.Href), false)
 					provisionneeded = true
 				} else {
-					utils.LogInfo(fmt.Sprintf("Rule %d - NO CHANGE HREF: %s", counter, fromrule.Href), false)
+					utils.LogInfo(fmt.Sprintf("Rule %d - NO CHANGE to Rule HREF: %s with Rule HREF: %s", counter, rulemap[fromrule.Href].Href, fromrule.Href), false)
 				}
 			} else {
 				utils.LogInfo(fmt.Sprintf("RuleSet- HREF:%s  RULE- Consumer:%+v  Ingress-Service:%+v", savedToRuleSetHref, copyRule.Consumers, copyRule.IngressServices[0]), false)
@@ -241,10 +241,10 @@ func edgerulescopy() {
 			}
 
 		}
+		utils.LogInfo(fmt.Sprintf("%d Rules found in group %s.", len(fromRules), fromGroup), true)
 		//if 1 or more copy or update task run we need to provision those changes.  Otherwise skip.
 		if provisionneeded {
 			provisionableRuleHrefs = append(provisionableRuleHrefs, savedToRuleSetHref)
-			utils.LogInfo(fmt.Sprintf("%d Rules found in group %s.", len(fromRules), fromGroup), true)
 
 			if updatePCE {
 				//If do not provision flag set skip otherwise provision all rule hrefs created.
@@ -254,7 +254,7 @@ func edgerulescopy() {
 					if err != nil {
 						utils.LogError(err.Error())
 					}
-					utils.LogInfo(fmt.Sprintf("Provisioning successful - status code %d", a.StatusCode), true)
+					utils.LogInfo(fmt.Sprintf("Provisioning successful - status code %d", a.StatusCode), false)
 				}
 			}
 		}
