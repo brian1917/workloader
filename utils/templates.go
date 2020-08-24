@@ -23,7 +23,7 @@ func RootTemplate() string {
   Reporting Commands:{{range .Commands}}{{if (or (eq .Name "mislabel") (eq .Name "dupecheck") (eq .Name "flowsummary") (eq .Name "explorer") (eq .Name "nic") (eq .Name "service-finder"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
-  PCE-to-PCE Commands:{{range .Commands}}{{if (or (eq .Name "wkld-to-ipl"))}}
+  Edge Commands:{{range .Commands}}{{if (or (eq .Name "wkld-to-ipl") (eq .Name "edge-rule-copy"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
   Other Commands:{{range .Commands}}{{if (or (eq .Name "delete"))}}

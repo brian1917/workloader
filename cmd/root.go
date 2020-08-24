@@ -120,12 +120,12 @@ func init() {
 	RootCmd.AddCommand(servicefinder.ServiceFinderCmd)
 	RootCmd.AddCommand(versionCmd)
 
-	// PCE-to-PCE
+	// Edge Commands
 	RootCmd.AddCommand(wkldtoipl.WorkloadToIPLCmd)
+	RootCmd.AddCommand(edgerulecopy.EdgeRuleCopyCmd)
 
 	// Undocumented
 	RootCmd.AddCommand(extract.ExtractCmd)
-	RootCmd.AddCommand(edgerulecopy.EdgeRuleCopyCmd)
 
 	// Set the usage templates
 	for _, c := range RootCmd.Commands() {
