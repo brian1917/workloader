@@ -86,7 +86,7 @@ func edgerulescopy() {
 		utils.LogError("Command requires to-Group Name to match a Group Name. If Endpoint group name has spaces ecapsulate the group with \" \". See usage help.")
 	}
 
-	// Create maps of each ruleset's rules with the externdal data reference as the key
+	// Create map for fromRuleSet to check for rules in delete
 	fromRuleSetRules := make(map[string]illumioapi.Rule)
 	for _, r := range fromRuleSet.Rules {
 		fromRuleSetRules[r.Href] = *r
