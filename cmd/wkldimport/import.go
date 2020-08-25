@@ -26,7 +26,7 @@ type FromCSVInput struct {
 }
 
 // Global variables
-var matchCol, roleCol, appCol, envCol, locCol, intCol, hostnameCol, nameCol int
+var matchCol, roleCol, appCol, envCol, locCol, intCol, hostnameCol, nameCol, createdLabels int
 var removeValue, csvFile string
 var umwl, keepAllPCEInterfaces, fqdnToHostname, debug, updatePCE, noPrompt bool
 var pce illumioapi.PCE
@@ -129,9 +129,7 @@ func checkLabel(label illumioapi.Label) illumioapi.Label {
 	// Create the label if it doesn't exist
 	if updatePCE {
 		l, a, err := pce.CreateLabel(illumioapi.Label{Key: label.Key, Value: label.Value})
-		if debug {
-			utils.LogAPIResp("CreateLabel", a)
-		}
+		utils.LogAPIResp("CreateLabel", a)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -141,6 +139,9 @@ func checkLabel(label illumioapi.Label) illumioapi.Label {
 		// Append the label back to the map
 		pce.LabelMapKV[l.Key+l.Value] = l
 		pce.LabelMapH[l.Href] = l
+
+		// Increment counter
+		createdLabels++
 
 		return l
 	}
@@ -318,7 +319,7 @@ CSVEntries:
 
 		// Get here if the workload does exist.
 		// Create a slice told hold new labels if we need to change them
-		newLabels := []*illumioapi.Label{}
+		newWkldLabels := []*illumioapi.Label{}
 
 		// Initialize the change variable
 		change := false
@@ -334,6 +335,8 @@ CSVEntries:
 
 			// If the value is blank, skip it
 			if line[columns[i]] == "" {
+				// Put the old labels back in case there is a change
+				newWkldLabels = append(newWkldLabels, &labels[i])
 				continue
 			}
 
@@ -354,10 +357,10 @@ CSVEntries:
 				// Get the label HREF
 				l := checkLabel(illumioapi.Label{Key: keys[i], Value: line[columns[i]]})
 				// Add that label to the new labels slice
-				newLabels = append(newLabels, &illumioapi.Label{Href: l.Href})
+				newWkldLabels = append(newWkldLabels, &illumioapi.Label{Href: l.Href})
 			} else {
 				// Keep the existing label if it matches
-				newLabels = append(newLabels, &illumioapi.Label{Href: labels[i].Href})
+				newWkldLabels = append(newWkldLabels, &illumioapi.Label{Href: labels[i].Href})
 			}
 		}
 
@@ -462,7 +465,7 @@ CSVEntries:
 
 		// If change was flagged, get the workload, update the labels, append to updated slice.
 		if change {
-			wkld.Labels = newLabels
+			wkld.Labels = newWkldLabels
 			updatedWklds = append(updatedWklds, wkld)
 		} else {
 			unchangedWLs++
@@ -477,12 +480,18 @@ CSVEntries:
 		return
 	}
 
+	// Log findings
+	if !updatePCE {
+		utils.LogInfo(fmt.Sprintf("workloader identified %d labels to create.", len(newLabels)), true)
+	} else {
+		utils.LogInfo(fmt.Sprintf("workloader created %d labels.", createdLabels), true)
+	}
+	utils.LogInfo(fmt.Sprintf("workloader identified %d workloads requiring updates.", len(updatedWklds)), true)
+	utils.LogInfo(fmt.Sprintf("workloader identified %d unmanaged workloads to create.", len(newUMWLs)), true)
+	utils.LogInfo(fmt.Sprintf("%d entries in CSV require no changes", unchangedWLs), true)
+
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !f.UpdatePCE {
-		utils.LogInfo(fmt.Sprintf("workloader identified %d workloads requiring update.", len(updatedWklds)), true)
-		utils.LogInfo(fmt.Sprintf("workloader identified %d unmanaged wklds to create.", len(newUMWLs)), true)
-		utils.LogInfo(fmt.Sprintf("workloader identified %d labels to create.", len(newLabels)), true)
-		utils.LogInfo(fmt.Sprintf("%d entries in CSV require no changes", unchangedWLs), true)
 		utils.LogInfo("See workloader.log for more details. To do the import, run again using --update-pce flag.", true)
 		utils.LogEndCommand("wkld-import")
 		return
@@ -491,7 +500,7 @@ CSVEntries:
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if f.UpdatePCE && !f.NoPrompt {
 		var prompt string
-		fmt.Printf("Import will update %d workloads and create %d unmanaged workloads. Do you want to run the import (yes/no)? ", len(updatedWklds), len(newUMWLs))
+		fmt.Printf("\r\n[PROMPT] - workloader created %d labels in the PCE in preparation of updating %d workloads and creating %d unmanaged workloads. Do you want to run the import (yes/no)? ", createdLabels, len(updatedWklds), len(newUMWLs))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo(fmt.Sprintf("prompt denied to update %d workloads and create %d unmanaged workloads.", len(updatedWklds), len(newUMWLs)), true)
@@ -509,7 +518,7 @@ CSVEntries:
 		if err != nil {
 			utils.LogError(fmt.Sprintf("bulk updating workloads - %s", err))
 		}
-		utils.LogInfo(fmt.Sprintf("bulk update workload successful for %d workloads", len(updatedWklds)), false)
+		utils.LogInfo(fmt.Sprintf("bulk update workload successful for %d workloads - status code %d", len(updatedWklds), api[0].StatusCode), true)
 	}
 
 	// Bulk create if we have new workloads
@@ -522,7 +531,7 @@ CSVEntries:
 		if err != nil {
 			utils.LogError(fmt.Sprintf("bulk creating workloads - %s", err))
 		}
-		utils.LogInfo(fmt.Sprintf("bulk create workload successful for %d unmanaged workloads", len(newUMWLs)), false)
+		utils.LogInfo(fmt.Sprintf("bulk create workload successful for %d unmanaged workloads - status code %d", len(newUMWLs), api[0].StatusCode), true)
 	}
 
 	// Log end
