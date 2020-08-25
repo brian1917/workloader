@@ -76,10 +76,12 @@ func edgerulescopy() {
 	}
 
 	// Check matches for provided from and to groups
-	if fromRuleSet, ok := rulesets[fromGroup]; !ok {
+	var fromRuleSet, toRuleSet illumioapi.RuleSet
+	var ok bool
+	if fromRuleSet, ok = rulesets[fromGroup]; !ok {
 		utils.LogError("Command requires from-Group Name to match a Group Name. If Endpoint group name has spaces ecapsulate the group with \" \". See usage help.")
 	}
-	if toRuleSet, ok := rulesets[toGroup]; !ok {
+	if toRuleSet, ok = rulesets[toGroup]; !ok {
 		utils.LogError("Command requires to-Group Name to match a Group Name. If Endpoint group name has spaces ecapsulate the group with \" \". See usage help.")
 	}
 
