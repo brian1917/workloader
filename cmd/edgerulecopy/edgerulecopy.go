@@ -123,7 +123,7 @@ func edgerulescopy() {
 			rulemap[rule.ExternalDataReference] = tmpToRuleMap
 		}
 
-		// THe rule externaldata reference has the fromRuleSet href, see if it's still there. If it's not, add to the delete slice.
+		// If the delete flag is set and the rule external data reference has the from ruleset href, check if the rule is still in the from ruleset. If it's not, add to the delete slice.
 		if delete && strings.Contains(rule.ExternalDataReference, fromRuleSet.Href) {
 			if _, ok := fromRuleSetRules[rule.ExternalDataReference]; !ok {
 				fmt.Println(fromRuleSetRules)
