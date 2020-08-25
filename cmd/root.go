@@ -9,8 +9,9 @@ import (
 
 	"github.com/brian1917/workloader/cmd/compatibility"
 	"github.com/brian1917/workloader/cmd/delete"
-	"github.com/brian1917/workloader/cmd/deleteunusedlabels"
+	labelsdeleteunused "github.com/brian1917/workloader/cmd/deleteunusedlabels"
 	"github.com/brian1917/workloader/cmd/dupecheck"
+	"github.com/brian1917/workloader/cmd/edgerulecopy"
 	"github.com/brian1917/workloader/cmd/explorer"
 	"github.com/brian1917/workloader/cmd/extract"
 	"github.com/brian1917/workloader/cmd/flowimport"
@@ -119,8 +120,9 @@ func init() {
 	RootCmd.AddCommand(servicefinder.ServiceFinderCmd)
 	RootCmd.AddCommand(versionCmd)
 
-	// PCE-to-PCE
+	// Edge Commands
 	RootCmd.AddCommand(wkldtoipl.WorkloadToIPLCmd)
+	RootCmd.AddCommand(edgerulecopy.EdgeRuleCopyCmd)
 
 	// Undocumented
 	RootCmd.AddCommand(extract.ExtractCmd)
