@@ -94,8 +94,8 @@ func edgerulescopy() {
 
 	// Create an internal struct to store to rules
 	type toRuleMapEntry struct {
-		href                 string
-		createdAt, updatedAt time.Time
+		href      string
+		updatedAt time.Time
 	}
 
 	// Iterate through each toGroup rules. If there is an ExternalDataReference, calculate times, and put into map.
@@ -107,18 +107,13 @@ func edgerulescopy() {
 		// Populate ruleMap if ExternalDataReference is not blank
 		if rule.ExternalDataReference != "" {
 
-			// Convert CreatedAt and UpdatedAt strings to time variables and add new toRuleMapEntry to map
-			ct, err := time.Parse(time.RFC3339, rule.CreatedAt)
-			if err != nil {
-				utils.LogError(err.Error())
-			}
+			// Convert UpdatedAt strings to time variables and add new toRuleMapEntry to map
 			ut, err := time.Parse(time.RFC3339, rule.UpdatedAt)
 			if err != nil {
 				utils.LogError(err.Error())
 			}
 			tmpToRuleMap := toRuleMapEntry{
 				href:      rule.Href,
-				createdAt: ct,
 				updatedAt: ut}
 			rulemap[rule.ExternalDataReference] = tmpToRuleMap
 		}
@@ -143,7 +138,7 @@ func edgerulescopy() {
 	newRules := []illumioapi.Rule{}
 	updatedRules := []illumioapi.Rule{}
 
-	// Get href to replace every copied rule provider with.  Necessary for Edge.
+	// Get href to replace every copied rule provider with. Edge ruleset names are based on the group (role label).
 	toLabel, a, err := pce.GetLabelbyKeyValue("role", toGroup)
 	utils.LogAPIResp("GetLabelbyKeyValue", a)
 	if err != nil {
