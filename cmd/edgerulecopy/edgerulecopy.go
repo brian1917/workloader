@@ -126,8 +126,6 @@ func edgerulescopy() {
 		// If the delete flag is set and the rule external data reference has the from ruleset href, check if the rule is still in the from ruleset. If it's not, add to the delete slice.
 		if delete && strings.Contains(rule.ExternalDataReference, fromRuleSet.Href) {
 			if _, ok := fromRuleSetRules[rule.ExternalDataReference]; !ok {
-				fmt.Println(fromRuleSetRules)
-				fmt.Println(rule.ExternalDataReference)
 				deleteRules = append(deleteRules, rule.Href)
 				utils.LogInfo(fmt.Sprintf("rule %s to be deleted based on %s", rule.Href, fromRuleSet.Href), false)
 			}
