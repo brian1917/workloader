@@ -76,10 +76,10 @@ func edgerulescopy() {
 	}
 
 	// Check matches for provided from and to groups
-	if _, ok := rulesets[fromGroup]; !ok {
+	if fromRuleSet, ok := rulesets[fromGroup]; !ok {
 		utils.LogError("Command requires from-Group Name to match a Group Name. If Endpoint group name has spaces ecapsulate the group with \" \". See usage help.")
 	}
-	if _, ok := rulesets[toGroup]; !ok {
+	if toRuleSet, ok := rulesets[toGroup]; !ok {
 		utils.LogError("Command requires to-Group Name to match a Group Name. If Endpoint group name has spaces ecapsulate the group with \" \". See usage help.")
 	}
 
@@ -92,7 +92,7 @@ func edgerulescopy() {
 	// Iterate through each toGroup rules. If there is an ExternalDataReference, calculate times, and put into map.
 	// By having the refence data we can then compare the existing rules to new ones and skip over existing ones.
 	rulemap := make(map[string]toRuleMapEntry)
-	for _, rule := range rulesets[toGroup].Rules {
+	for _, rule := range toRuleSet.Rules {
 
 		// Populate ruleMap if ExternalDataReference is not blank
 		if rule.ExternalDataReference != "" {
@@ -115,7 +115,7 @@ func edgerulescopy() {
 	}
 
 	// Check to see there are rules to copy before iterating
-	if len(rulesets[fromGroup].Rules) == 0 {
+	if len(fromRuleSet.Rules) == 0 {
 		utils.LogInfo("no rules to copy", true)
 		utils.LogEndCommand("edge-rule-copy")
 		return
@@ -134,7 +134,7 @@ func edgerulescopy() {
 	}
 
 	// Iterate through the fromRules
-	for _, fromRule := range rulesets[fromGroup].Rules {
+	for _, fromRule := range fromRuleSet.Rules {
 
 		// Increment the counter
 		counter++
@@ -177,7 +177,7 @@ func edgerulescopy() {
 	}
 
 	// Log the total number of rules copied
-	utils.LogInfo(fmt.Sprintf("%d Rules found in group %s.", len(rulesets[fromGroup].Rules), fromGroup), true)
+	utils.LogInfo(fmt.Sprintf("%d Rules found in group %s.", len(fromRuleSet.Rules), fromGroup), true)
 
 	// Return if there is nothing to process
 	if len(newRules)+len(updatedRules) == 0 {
@@ -207,7 +207,7 @@ func edgerulescopy() {
 
 	// Create rules
 	for _, nr := range newRules {
-		newRule, a, err := pce.CreateRuleSetRule(rulesets[toGroup].Href, nr)
+		newRule, a, err := pce.CreateRuleSetRule(toRuleSet.Href, nr)
 		utils.LogAPIResp("CreateRuleSetRule", a)
 		utils.LogInfo(fmt.Sprintf("created new rule %s from %s - status code %d", newRule.Href, newRule.ExternalDataReference, a.StatusCode), true)
 		if err != nil {
@@ -227,7 +227,7 @@ func edgerulescopy() {
 
 	// Provision any changes
 	if !doNotProvision {
-		a, err := pce.ProvisionHref([]string{rulesets[toGroup].Href}, "workloader edge-rules-copy")
+		a, err := pce.ProvisionHref([]string{toRuleSet.Href}, "workloader edge-rules-copy")
 		utils.LogAPIResp("ProvisionHref", a)
 		if err != nil {
 			utils.LogError(err.Error())
