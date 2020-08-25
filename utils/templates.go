@@ -29,7 +29,7 @@ func RootTemplate() string {
   Other Commands:{{range .Commands}}{{if (or (eq .Name "delete"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
-  Version Command:{{range .Commands}}{{if (or (eq .Name "version"))}}
+  Version Command:{{range .Commands}}{{if (or (eq .Name "version") (eq .Name "check-version"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
   
 Use "{{.CommandPath}} [command] --help" for more information on a command.{{end}}

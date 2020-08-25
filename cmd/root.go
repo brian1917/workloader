@@ -7,6 +7,7 @@ import (
 
 	"github.com/brian1917/workloader/utils"
 
+	"github.com/brian1917/workloader/cmd/checkversion"
 	"github.com/brian1917/workloader/cmd/compatibility"
 	"github.com/brian1917/workloader/cmd/delete"
 	labelsdeleteunused "github.com/brian1917/workloader/cmd/deleteunusedlabels"
@@ -118,11 +119,14 @@ func init() {
 	RootCmd.AddCommand(explorer.ExplorerCmd)
 	RootCmd.AddCommand(nic.NICCmd)
 	RootCmd.AddCommand(servicefinder.ServiceFinderCmd)
-	RootCmd.AddCommand(versionCmd)
 
 	// Edge Commands
 	RootCmd.AddCommand(wkldtoipl.WorkloadToIPLCmd)
 	RootCmd.AddCommand(edgerulecopy.EdgeRuleCopyCmd)
+
+	// Version Commands
+	RootCmd.AddCommand(versionCmd)
+	RootCmd.AddCommand(checkversion.CheckVersionCmd)
 
 	// Undocumented
 	RootCmd.AddCommand(extract.ExtractCmd)
