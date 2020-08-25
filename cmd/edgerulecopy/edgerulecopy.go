@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var debug, updatePCE, noPrompt, doNotProvision bool
+var debug, updatePCE, noPrompt, delete, doNotProvision bool
 var csvFile, fromGroup, toGroup string
 var pce illumioapi.PCE
 var err error
@@ -22,6 +22,7 @@ func init() {
 	EdgeRuleCopyCmd.MarkFlagRequired("from-group")
 	EdgeRuleCopyCmd.Flags().StringVarP(&toGroup, "to-group", "t", "", "Name of Endpoint group to create rules from rules copied from other Endpoint group. Required.")
 	EdgeRuleCopyCmd.MarkFlagRequired("to-group")
+	EdgeRuleCopyCmd.Flags().BoolVarP(&delete, "delete", "d", false, "Delete rules that were copied previously from the from-group to the to-group but are no longer in the from-group.")
 	EdgeRuleCopyCmd.Flags().BoolVarP(&doNotProvision, "do-not-prov", "x", false, "Do not provision created Endpoint group rules. Will provision by default.")
 
 	EdgeRuleCopyCmd.Flags().SortFlags = false
@@ -85,6 +86,12 @@ func edgerulescopy() {
 		utils.LogError("Command requires to-Group Name to match a Group Name. If Endpoint group name has spaces ecapsulate the group with \" \". See usage help.")
 	}
 
+	// Create maps of each ruleset's rules with the externdal data reference as the key
+	fromRuleSetRules := make(map[string]illumioapi.Rule)
+	for _, r := range fromRuleSet.Rules {
+		fromRuleSetRules[r.Href] = *r
+	}
+
 	// Create an internal struct to store to rules
 	type toRuleMapEntry struct {
 		href                 string
@@ -94,6 +101,7 @@ func edgerulescopy() {
 	// Iterate through each toGroup rules. If there is an ExternalDataReference, calculate times, and put into map.
 	// By having the refence data we can then compare the existing rules to new ones and skip over existing ones.
 	rulemap := make(map[string]toRuleMapEntry)
+	deleteRules := []string{}
 	for _, rule := range toRuleSet.Rules {
 
 		// Populate ruleMap if ExternalDataReference is not blank
@@ -114,6 +122,16 @@ func edgerulescopy() {
 				updatedAt: ut}
 			rulemap[rule.ExternalDataReference] = tmpToRuleMap
 		}
+
+		// THe rule externaldata reference has the fromRuleSet href, see if it's still there. If it's not, add to the delete slice.
+		if delete && strings.Contains(rule.ExternalDataReference, fromRuleSet.Href) {
+			if _, ok := fromRuleSetRules[rule.ExternalDataReference]; !ok {
+				fmt.Println(fromRuleSetRules)
+				fmt.Println(rule.ExternalDataReference)
+				deleteRules = append(deleteRules, rule.Href)
+				utils.LogInfo(fmt.Sprintf("rule %s to be deleted based on %s", rule.Href, fromRuleSet.Href), false)
+			}
+		}
 	}
 
 	// Check to see there are rules to copy before iterating
@@ -124,7 +142,6 @@ func edgerulescopy() {
 	}
 
 	// Set variables for processing rules
-	counter := 0
 	newRules := []illumioapi.Rule{}
 	updatedRules := []illumioapi.Rule{}
 
@@ -136,10 +153,7 @@ func edgerulescopy() {
 	}
 
 	// Iterate through the fromRules
-	for _, fromRule := range fromRuleSet.Rules {
-
-		// Increment the counter
-		counter++
+	for i, fromRule := range fromRuleSet.Rules {
 
 		// Create the copy rule struct
 		copiedRule := illumioapi.Rule{Href: "",
@@ -165,16 +179,16 @@ func edgerulescopy() {
 
 		// If the href doesn't exist, create the rule.
 		if rulemap[fromRule.Href].href == "" {
-			utils.LogInfo(fmt.Sprintf("Rule %d - rule to be created based on %s", counter, fromRule.Href), false)
+			utils.LogInfo(fmt.Sprintf("rule %d - rule to be created based on %s", i+1, fromRule.Href), false)
 			newRules = append(newRules, copiedRule)
 			// If the fromUpdatedTime is UpdatedAt time is before the fromUpdatedTime, replace the HREF and update the rule
 		} else if rulemap[fromRule.Href].updatedAt.Before(fromUpdatedTime) {
 			copiedRule.Href = rulemap[fromRule.Href].href
-			utils.LogInfo(fmt.Sprintf("Rule %d - %s to be updated base on %s", counter, copiedRule.Href, fromRule.Href), false)
+			utils.LogInfo(fmt.Sprintf("rule %d - %s to be updated base on %s", i+1, copiedRule.Href, fromRule.Href), false)
 			updatedRules = append(updatedRules, copiedRule)
 			// Otherwise, no changes
 		} else {
-			utils.LogInfo(fmt.Sprintf("Rule %d - no change to %s with %s", counter, rulemap[fromRule.Href].href, fromRule.Href), false)
+			utils.LogInfo(fmt.Sprintf("rule %d - no change to %s with %s", i+1, rulemap[fromRule.Href].href, fromRule.Href), false)
 		}
 	}
 
@@ -182,7 +196,7 @@ func edgerulescopy() {
 	utils.LogInfo(fmt.Sprintf("%d Rules found in group %s.", len(fromRuleSet.Rules), fromGroup), true)
 
 	// Return if there is nothing to process
-	if len(newRules)+len(updatedRules) == 0 {
+	if len(newRules)+len(updatedRules)+len(deleteRules) == 0 {
 		utils.LogInfo("nothing to be done.", true)
 		utils.LogEndCommand("edge-rule-copy")
 		return
@@ -211,20 +225,30 @@ func edgerulescopy() {
 	for _, nr := range newRules {
 		newRule, a, err := pce.CreateRuleSetRule(toRuleSet.Href, nr)
 		utils.LogAPIResp("CreateRuleSetRule", a)
-		utils.LogInfo(fmt.Sprintf("created new rule %s from %s - status code %d", newRule.Href, newRule.ExternalDataReference, a.StatusCode), true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
+		utils.LogInfo(fmt.Sprintf("created new rule %s from %s - status code %d", newRule.Href, newRule.ExternalDataReference, a.StatusCode), true)
 	}
 
 	// Updated rules
 	for _, ur := range updatedRules {
 		a, err := pce.UpdateRuleSetRules(ur)
 		utils.LogAPIResp("UpdateRuleSetRules", a)
-		utils.LogInfo(fmt.Sprintf("updated rule %s from %s - status code %d", ur.Href, ur.ExternalDataReference, a.StatusCode), true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
+		utils.LogInfo(fmt.Sprintf("updated rule %s from %s - status code %d", ur.Href, ur.ExternalDataReference, a.StatusCode), true)
+	}
+
+	// Delete Rules
+	for _, d := range deleteRules {
+		a, err := pce.DeleteHref(d)
+		utils.LogAPIResp("DeleteHref", a)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		utils.LogInfo(fmt.Sprintf("delete rule %s from %s - status code %d", d, toRuleSet.Href, a.StatusCode), true)
 	}
 
 	// Provision any changes
