@@ -98,25 +98,15 @@ func edgerulescopy() {
 		updatedAt time.Time
 	}
 
+	// toRuleMap will have a key of fromRuleSet.Href (populated by the external data reference)
+	toRuleMap := make(map[string]toRuleMapEntry)
+
+	// Slice to hold rules that need to be deleted if we are updating PCE
+	deleteRules := []string{}
+
 	// Iterate through each toGroup rules. If there is an ExternalDataReference, calculate times, and put into map.
 	// By having the refence data we can then compare the existing rules to new ones and skip over existing ones.
-	rulemap := make(map[string]toRuleMapEntry)
-	deleteRules := []string{}
 	for _, rule := range toRuleSet.Rules {
-
-		// Populate ruleMap if ExternalDataReference is not blank
-		if rule.ExternalDataReference != "" {
-
-			// Convert UpdatedAt strings to time variables and add new toRuleMapEntry to map
-			ut, err := time.Parse(time.RFC3339, rule.UpdatedAt)
-			if err != nil {
-				utils.LogError(err.Error())
-			}
-			tmpToRuleMap := toRuleMapEntry{
-				href:      rule.Href,
-				updatedAt: ut}
-			rulemap[rule.ExternalDataReference] = tmpToRuleMap
-		}
 
 		// If the delete flag is set and the rule external data reference has the from ruleset href, check if the rule is still in the from ruleset. If it's not, add to the delete slice.
 		if delete && strings.Contains(rule.ExternalDataReference, fromRuleSet.Href) {
@@ -125,6 +115,18 @@ func edgerulescopy() {
 				utils.LogInfo(fmt.Sprintf("rule %s to be deleted based on %s", rule.Href, fromRuleSet.Href), false)
 			}
 		}
+
+		// If the rule external data reference is blank, do nothing else.
+		if rule.ExternalDataReference == "" {
+			continue
+		}
+
+		// Convert UpdatedAt string to time variables and add new toRuleMapEntry to map
+		ut, err := time.Parse(time.RFC3339, rule.UpdatedAt)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		toRuleMap[rule.ExternalDataReference] = toRuleMapEntry{href: rule.Href, updatedAt: ut}
 	}
 
 	// Check to see there are rules to copy before iterating
@@ -171,17 +173,17 @@ func edgerulescopy() {
 		}
 
 		// If the href doesn't exist, create the rule.
-		if rulemap[fromRule.Href].href == "" {
+		if toRuleMap[fromRule.Href].href == "" {
 			utils.LogInfo(fmt.Sprintf("rule %d - rule to be created based on %s", i+1, fromRule.Href), false)
 			newRules = append(newRules, copiedRule)
 			// If the fromUpdatedTime is UpdatedAt time is before the fromUpdatedTime, replace the HREF and update the rule
-		} else if rulemap[fromRule.Href].updatedAt.Before(fromUpdatedTime) {
-			copiedRule.Href = rulemap[fromRule.Href].href
+		} else if toRuleMap[fromRule.Href].updatedAt.Before(fromUpdatedTime) {
+			copiedRule.Href = toRuleMap[fromRule.Href].href
 			utils.LogInfo(fmt.Sprintf("rule %d - %s to be updated base on %s", i+1, copiedRule.Href, fromRule.Href), false)
 			updatedRules = append(updatedRules, copiedRule)
 			// Otherwise, no changes
 		} else {
-			utils.LogInfo(fmt.Sprintf("rule %d - no change to %s with %s", i+1, rulemap[fromRule.Href].href, fromRule.Href), false)
+			utils.LogInfo(fmt.Sprintf("rule %d - no change to %s with %s", i+1, toRuleMap[fromRule.Href].href, fromRule.Href), false)
 		}
 	}
 
