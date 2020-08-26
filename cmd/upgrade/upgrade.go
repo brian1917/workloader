@@ -26,7 +26,7 @@ func init() {
 
 	UpgradeCmd.Flags().StringVar(&targetVersion, "version", "", "Target VEN version in format of \"19.1.0-5631\"")
 	UpgradeCmd.MarkFlagRequired("version")
-	UpgradeCmd.Flags().StringVarP(&hostFile, "hostFile", "i", "", "Input CSV file with hostname list. Using this ignore loc, env, app, and role label flags.")
+	UpgradeCmd.Flags().StringVarP(&hostFile, "hostFile", "i", "", "Input CSV file with hostname list. Hostnames in first column (other columns are ok). Header is optional. Using this ignore loc, env, app, and role label flags.")
 	UpgradeCmd.Flags().StringVarP(&loc, "loc", "l", "", "Location Label. Blank means all locations.")
 	UpgradeCmd.Flags().StringVarP(&env, "env", "e", "", "Environment Label. Blank means all environments.")
 	UpgradeCmd.Flags().StringVarP(&app, "app", "a", "", "Application Label. Blank means all applications.")
