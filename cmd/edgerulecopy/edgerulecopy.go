@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var debug, updatePCE, noPrompt, delete, doNotProvision bool
+var debug, updatePCE, noPrompt, delete, doNotProvision, ignoreRuleUpdate bool
 var csvFile, fromGroup, toGroup, toGroupFile string
 var pce illumioapi.PCE
 var err error
@@ -25,6 +25,7 @@ func init() {
 	EdgeRuleCopyCmd.Flags().StringVarP(&toGroupFile, "to-group-file", "l", "", "Name of file with list of groups to copy rules to.")
 	// EdgeRuleCopyCmd.MarkFlagRequired("to-group")
 	EdgeRuleCopyCmd.Flags().BoolVarP(&delete, "delete", "d", false, "Delete rules that were copied previously from the from-group to the to-group but are no longer in the from-group.")
+	EdgeRuleCopyCmd.Flags().BoolVarP(&ignoreRuleUpdate, "ignore-rule-update", "i", false, "Delete rules that were copied previously from the from-group to the to-group but are no longer in the from-group.")
 	EdgeRuleCopyCmd.Flags().BoolVarP(&doNotProvision, "do-not-prov", "x", false, "Do not provision created Endpoint group rules. Will provision by default.")
 
 	EdgeRuleCopyCmd.Flags().SortFlags = false
@@ -234,7 +235,7 @@ func edgerulescopy() {
 				newRules = append(newRules, newRule{rule: copiedRule, rulesetHref: toRuleSet.Href})
 				nCreate++
 				// If the fromUpdatedTime is UpdatedAt time is before the fromUpdatedTime, replace the HREF and update the rule
-			} else if toRuleMap[fromRule.Href].updatedAt.Before(fromUpdatedTime) {
+			} else if toRuleMap[fromRule.Href].updatedAt.Before(fromUpdatedTime) || !ignoreRuleUpdate {
 				copiedRule.Href = toRuleMap[fromRule.Href].href
 				utils.LogInfo(fmt.Sprintf("rule %d - %s to be updated base on %s", i+1, copiedRule.Href, fromRule.Href), false)
 				updatedRules = append(updatedRules, copiedRule)
