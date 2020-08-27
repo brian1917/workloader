@@ -1,6 +1,7 @@
 package edgerulecopy
 
 import (
+	"crypto/rand"
 	"fmt"
 	"strings"
 	"time"
@@ -13,15 +14,16 @@ import (
 )
 
 var debug, updatePCE, noPrompt, delete, doNotProvision bool
-var csvFile, fromGroup, toGroup string
+var csvFile, fromGroup, toGroup, toGroupFile string
 var pce illumioapi.PCE
 var err error
 
 func init() {
 	EdgeRuleCopyCmd.Flags().StringVarP(&fromGroup, "from-group", "f", "", "Name of Endpoint group to copy rules from. Required")
 	EdgeRuleCopyCmd.MarkFlagRequired("from-group")
-	EdgeRuleCopyCmd.Flags().StringVarP(&toGroup, "to-group", "t", "", "Name of Endpoint group to create rules from rules copied from other Endpoint group. Required.")
-	EdgeRuleCopyCmd.MarkFlagRequired("to-group")
+	EdgeRuleCopyCmd.Flags().StringVarP(&toGroup, "to-group", "t", "", "Name of Endpoint group to create rules from rules copied from other Endpoint group.")
+	EdgeRuleCopyCmd.Flags().StringVarP(&toGroupFile, "to-group-file", "l", "", "Name of file with list of groups to copy rules to.")
+	// EdgeRuleCopyCmd.MarkFlagRequired("to-group")
 	EdgeRuleCopyCmd.Flags().BoolVarP(&delete, "delete", "d", false, "Delete rules that were copied previously from the from-group to the to-group but are no longer in the from-group.")
 	EdgeRuleCopyCmd.Flags().BoolVarP(&doNotProvision, "do-not-prov", "x", false, "Do not provision created Endpoint group rules. Will provision by default.")
 
@@ -63,11 +65,50 @@ NOTE - All rules will be copied only.  Currently, you cannot update rules across
 	},
 }
 
-//
+// This is used for generating a UniqueID in the external data reference
+func generateUniqueID() string {
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
+	if err != nil {
+		utils.LogError(err.Error())
+	}
+	uuid := fmt.Sprintf("%x-%x-%x-%x-%x",
+		b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+	return uuid
+}
+
+func trimUniqueID(s string) string {
+	return strings.Split(s, ":::")[0]
+}
+
 func edgerulescopy() {
 
 	// Log start of run
 	utils.LogStartCommand("edge-rule-copy")
+
+	// Build the toGroupList
+	toGroupList := []string{}
+
+	// Add the to group to it if we are not using the file
+	if toGroup != "" {
+		toGroupList = append(toGroupList, toGroup)
+	}
+
+	// Pasrse the from group file
+	if toGroupFile != "" {
+		data, err := utils.ParseCSV(toGroupFile)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		for _, l := range data {
+			toGroupList = append(toGroupList, l[0])
+		}
+	}
+
+	// Check to make sure we have at least one entry in the to group
+	if len(toGroupList) < 1 {
+		utils.LogError("Either --to-group (-t) or --to-group-file (-l) must be used.")
+	}
 
 	// Get all rulesets
 	rulesets, a, err := pce.GetRuleSetMapName("draft")
@@ -82,9 +123,9 @@ func edgerulescopy() {
 	if fromRuleSet, ok = rulesets[fromGroup]; !ok {
 		utils.LogError("Command requires from-Group Name to match a Group Name. If Endpoint group name has spaces ecapsulate the group with \" \". See usage help.")
 	}
-	if toRuleSet, ok = rulesets[toGroup]; !ok {
-		utils.LogError("Command requires to-Group Name to match a Group Name. If Endpoint group name has spaces ecapsulate the group with \" \". See usage help.")
-	}
+
+	// Log the total number of rules copied
+	utils.LogInfo(fmt.Sprintf("%d Rules found in group %s.", len(fromRuleSet.Rules), fromGroup), true)
 
 	// Create map for fromRuleSet to check for rules in delete
 	fromRuleSetRules := make(map[string]illumioapi.Rule)
@@ -98,97 +139,114 @@ func edgerulescopy() {
 		updatedAt time.Time
 	}
 
-	// toRuleMap will have a key of fromRuleSet.Href (populated by the external data reference)
-	toRuleMap := make(map[string]toRuleMapEntry)
-
-	// Slice to hold rules that need to be deleted if we are updating PCE
-	deleteRules := []string{}
-
-	// Iterate through each toGroup rules. If there is an ExternalDataReference, calculate times, and put into map.
-	// By having the refence data we can then compare the existing rules to new ones and skip over existing ones.
-	for _, rule := range toRuleSet.Rules {
-
-		// If the delete flag is set and the rule external data reference has the from ruleset href, check if the rule is still in the from ruleset. If it's not, add to the delete slice.
-		if delete && strings.Contains(rule.ExternalDataReference, fromRuleSet.Href) {
-			if _, ok := fromRuleSetRules[rule.ExternalDataReference]; !ok {
-				deleteRules = append(deleteRules, rule.Href)
-				utils.LogInfo(fmt.Sprintf("rule %s to be deleted based on %s", rule.Href, fromRuleSet.Href), false)
-			}
-		}
-
-		// If the rule external data reference is blank, do nothing else.
-		if rule.ExternalDataReference == "" {
-			continue
-		}
-
-		// Convert UpdatedAt string to time variables and add new toRuleMapEntry to map
-		ut, err := time.Parse(time.RFC3339, rule.UpdatedAt)
-		if err != nil {
-			utils.LogError(err.Error())
-		}
-		toRuleMap[rule.ExternalDataReference] = toRuleMapEntry{href: rule.Href, updatedAt: ut}
-	}
-
-	// Check to see there are rules to copy before iterating
-	if len(fromRuleSet.Rules) == 0 {
-		utils.LogInfo("no rules to copy", true)
-		utils.LogEndCommand("edge-rule-copy")
-		return
+	// newRule struct
+	type newRule struct {
+		rule        illumioapi.Rule
+		rulesetHref string
 	}
 
 	// Set variables for processing rules
-	newRules := []illumioapi.Rule{}
+	newRules := []newRule{}
 	updatedRules := []illumioapi.Rule{}
+	deleteRules := []string{}
 
-	// Get href to replace every copied rule provider with. Edge ruleset names are based on the group (role label).
-	toLabel, a, err := pce.GetLabelbyKeyValue("role", toGroup)
-	utils.LogAPIResp("GetLabelbyKeyValue", a)
-	if err != nil {
-		utils.LogError(err.Error())
-	}
+	// Iterate through each to group
+	for n, t := range toGroupList {
+		// Reset values
+		nDelete, nUpdate, nCreate := 0, 0, 0
 
-	// Iterate through the fromRules
-	for i, fromRule := range fromRuleSet.Rules {
-
-		// Create the copy rule struct
-		copiedRule := illumioapi.Rule{Href: "",
-			Consumers:                   fromRule.Consumers,
-			ConsumingSecurityPrincipals: fromRule.ConsumingSecurityPrincipals,
-			Description:                 fromRule.Description,
-			Enabled:                     fromRule.Enabled,
-			IngressServices:             fromRule.IngressServices,
-			ResolveLabelsAs:             fromRule.ResolveLabelsAs,
-			Providers:                   []*illumioapi.Providers{&illumioapi.Providers{Label: &illumioapi.Label{Href: toLabel.Href}}},
-			SecConnect:                  fromRule.SecConnect,
-			Stateless:                   fromRule.Stateless,
-			MachineAuth:                 fromRule.MachineAuth,
-			UnscopedConsumers:           fromRule.UnscopedConsumers,
-			ExternalDataReference:       fromRule.Href, //Store rule that this rule comes from.
+		// Check to make sure the toRuleSet exists
+		if toRuleSet, ok = rulesets[t]; !ok {
+			utils.LogWarning(fmt.Sprintf("%s is not a group. If Endpoint group name has spaces ecapsulate the group with \"\"", t), true)
+			continue
 		}
 
-		// Turn UpdatedAt string into time object
-		fromUpdatedTime, err := time.Parse(time.RFC3339, fromRule.UpdatedAt)
+		// toRuleMap will have a key of fromRuleSet.Href (populated by the external data reference)
+		toRuleMap := make(map[string]toRuleMapEntry)
+
+		// Iterate through each toGroup rules. If there is an ExternalDataReference, calculate times, and put into map.
+		// By having the refence data we can then compare the existing rules to new ones and skip over existing ones.
+		for _, rule := range toRuleSet.Rules {
+
+			// If the delete flag is set and the rule external data reference has the from ruleset href, check if the rule is still in the from ruleset. If it's not, add to the delete slice.
+			if delete && strings.Contains(rule.ExternalDataReference, fromRuleSet.Href) {
+				if _, ok := fromRuleSetRules[trimUniqueID(rule.ExternalDataReference)]; !ok {
+					deleteRules = append(deleteRules, rule.Href)
+					nDelete++
+					utils.LogInfo(fmt.Sprintf("rule %s to be deleted based on %s", rule.Href, fromRuleSet.Href), false)
+				}
+			}
+
+			// If the rule external data reference is blank, do nothing else.
+			if rule.ExternalDataReference == "" {
+				continue
+			}
+
+			// Convert UpdatedAt string to time variables and add new toRuleMapEntry to map
+			ut, err := time.Parse(time.RFC3339, rule.UpdatedAt)
+			if err != nil {
+				utils.LogError(err.Error())
+			}
+			toRuleMap[trimUniqueID(rule.ExternalDataReference)] = toRuleMapEntry{href: rule.Href, updatedAt: ut}
+		}
+
+		// Check to see there are rules to copy before iterating
+		if len(fromRuleSet.Rules) == 0 {
+			utils.LogInfo(fmt.Sprintf("no rules to copy from %s", t), true)
+			continue
+		}
+
+		// Get href to replace every copied rule provider with. Edge ruleset names are based on the group (role label).
+		toLabel, a, err := pce.GetLabelbyKeyValue("role", t)
+		utils.LogAPIResp("GetLabelbyKeyValue", a)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
 
-		// If the href doesn't exist, create the rule.
-		if toRuleMap[fromRule.Href].href == "" {
-			utils.LogInfo(fmt.Sprintf("rule %d - rule to be created based on %s", i+1, fromRule.Href), false)
-			newRules = append(newRules, copiedRule)
-			// If the fromUpdatedTime is UpdatedAt time is before the fromUpdatedTime, replace the HREF and update the rule
-		} else if toRuleMap[fromRule.Href].updatedAt.Before(fromUpdatedTime) {
-			copiedRule.Href = toRuleMap[fromRule.Href].href
-			utils.LogInfo(fmt.Sprintf("rule %d - %s to be updated base on %s", i+1, copiedRule.Href, fromRule.Href), false)
-			updatedRules = append(updatedRules, copiedRule)
-			// Otherwise, no changes
-		} else {
-			utils.LogInfo(fmt.Sprintf("rule %d - no change to %s with %s", i+1, toRuleMap[fromRule.Href].href, fromRule.Href), false)
-		}
-	}
+		// Iterate through the fromRules
+		for i, fromRule := range fromRuleSet.Rules {
 
-	// Log the total number of rules copied
-	utils.LogInfo(fmt.Sprintf("%d Rules found in group %s.", len(fromRuleSet.Rules), fromGroup), true)
+			// Create the copy rule struct
+			copiedRule := illumioapi.Rule{Href: "",
+				Consumers:                   fromRule.Consumers,
+				ConsumingSecurityPrincipals: fromRule.ConsumingSecurityPrincipals,
+				Description:                 fromRule.Description,
+				Enabled:                     fromRule.Enabled,
+				IngressServices:             fromRule.IngressServices,
+				ResolveLabelsAs:             fromRule.ResolveLabelsAs,
+				Providers:                   []*illumioapi.Providers{&illumioapi.Providers{Label: &illumioapi.Label{Href: toLabel.Href}}},
+				SecConnect:                  fromRule.SecConnect,
+				Stateless:                   fromRule.Stateless,
+				MachineAuth:                 fromRule.MachineAuth,
+				UnscopedConsumers:           fromRule.UnscopedConsumers,
+				ExternalDataReference:       fmt.Sprintf("%s:::%s", fromRule.Href, generateUniqueID()), //Store rule that this rule comes from.
+			}
+
+			// Turn UpdatedAt string into time object
+			fromUpdatedTime, err := time.Parse(time.RFC3339, fromRule.UpdatedAt)
+			if err != nil {
+				utils.LogError(err.Error())
+			}
+
+			// If the href doesn't exist, create the rule.
+			if toRuleMap[fromRule.Href].href == "" {
+				utils.LogInfo(fmt.Sprintf("rule %d - rule to be created based on %s", i+1, fromRule.Href), false)
+				newRules = append(newRules, newRule{rule: copiedRule, rulesetHref: toRuleSet.Href})
+				nCreate++
+				// If the fromUpdatedTime is UpdatedAt time is before the fromUpdatedTime, replace the HREF and update the rule
+			} else if toRuleMap[fromRule.Href].updatedAt.Before(fromUpdatedTime) {
+				copiedRule.Href = toRuleMap[fromRule.Href].href
+				utils.LogInfo(fmt.Sprintf("rule %d - %s to be updated base on %s", i+1, copiedRule.Href, fromRule.Href), false)
+				updatedRules = append(updatedRules, copiedRule)
+				nUpdate++
+				// Otherwise, no changes
+			} else {
+				utils.LogInfo(fmt.Sprintf("rule %d - no change to %s with %s", i+1, toRuleMap[fromRule.Href].href, fromRule.Href), false)
+			}
+		}
+		utils.LogInfo(fmt.Sprintf("%s (group %d of %d) - %d rules to be created, %d rules to updated, %d rules to be deleted", t, n+1, len(toGroupList), nCreate, nUpdate, nDelete), true)
+
+	}
 
 	// Return if there is nothing to process
 	if len(newRules)+len(updatedRules)+len(deleteRules) == 0 {
@@ -207,7 +265,7 @@ func edgerulescopy() {
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if updatePCE && !noPrompt {
 		var prompt string
-		fmt.Printf("[INFO] - edge-rule-copy will create %d rules and update %d rules. Do you want to run the import (yes/no)? ", len(newRules), len(updatedRules))
+		fmt.Printf("[PROMPT] - edge-rule-copy will create %d rules and update %d rules. Do you want to run the import (yes/no)? ", len(newRules), len(updatedRules))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo(fmt.Sprintf("Prompt denied for creating %d rules and updating %d rules.", len(newRules), len(updatedRules)), true)
@@ -216,14 +274,18 @@ func edgerulescopy() {
 		}
 	}
 
+	// Create a provision slice
+	provisionHrefs := make(map[string]bool)
+
 	// Create rules
 	for _, nr := range newRules {
-		newRule, a, err := pce.CreateRuleSetRule(toRuleSet.Href, nr)
+		newRule, a, err := pce.CreateRuleSetRule(nr.rulesetHref, nr.rule)
 		utils.LogAPIResp("CreateRuleSetRule", a)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-		utils.LogInfo(fmt.Sprintf("created new rule %s from %s - status code %d", newRule.Href, newRule.ExternalDataReference, a.StatusCode), true)
+		provisionHrefs[strings.Split(newRule.Href, "/sec_rules")[0]] = true
+		utils.LogInfo(fmt.Sprintf("created new rule %s from %s - status code %d", newRule.Href, trimUniqueID(newRule.ExternalDataReference), a.StatusCode), true)
 	}
 
 	// Updated rules
@@ -233,7 +295,8 @@ func edgerulescopy() {
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-		utils.LogInfo(fmt.Sprintf("updated rule %s from %s - status code %d", ur.Href, ur.ExternalDataReference, a.StatusCode), true)
+		provisionHrefs[strings.Split(ur.Href, "/sec_rules")[0]] = true
+		utils.LogInfo(fmt.Sprintf("updated rule %s from %s - status code %d", ur.Href, trimUniqueID(ur.ExternalDataReference), a.StatusCode), true)
 	}
 
 	// Delete Rules
@@ -243,12 +306,17 @@ func edgerulescopy() {
 		if err != nil {
 			utils.LogError(err.Error())
 		}
+		provisionHrefs[strings.Split(d, "/sec_rules")[0]] = true
 		utils.LogInfo(fmt.Sprintf("delete rule %s from %s - status code %d", d, toRuleSet.Href, a.StatusCode), true)
 	}
 
 	// Provision any changes
+	p := []string{}
+	for a := range provisionHrefs {
+		p = append(p, a)
+	}
 	if !doNotProvision {
-		a, err := pce.ProvisionHref([]string{toRuleSet.Href}, "workloader edge-rules-copy")
+		a, err := pce.ProvisionHref(p, "workloader edge-rules-copy")
 		utils.LogAPIResp("ProvisionHref", a)
 		if err != nil {
 			utils.LogError(err.Error())
