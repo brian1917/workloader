@@ -22,8 +22,7 @@ var LabelsDeleteUnused = &cobra.Command{
 	Long: `  
 Delete labels that are not used.
 
-Use the --update-pce command to run the delete with a user prompt confirmation.
-Use --update-pce and --no-prompt to run the delete with no prompts.`,
+The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {

@@ -61,6 +61,8 @@ Including the consolidate flag (--consolidate, -c) will combine all entries betw
 +------------------------------+------------------------------+----------------------+----------------------------------+----------------------+
 | 45.54.45.54                  | Point-of-Sale | Staging      |                      | 443 TCP (126 flows)              |                      |
 +------------------------------+------------------------------+----------------------+----------------------------------+----------------------+
+
+The update-pce and --no-prompt flags are ignored for this command.
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 

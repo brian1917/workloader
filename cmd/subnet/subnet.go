@@ -222,7 +222,7 @@ func subnetParser() {
 		// If updatePCE is set, but not noPrompt, we will prompt the user.
 		if updatePCE && !noPrompt {
 			var prompt string
-			fmt.Printf("Subnet will change the labels of %d workloads. Do you want to run the change (yes/no)? ", len(data)-1)
+			fmt.Printf("[PROMPT] - workloader will change the labels of %d workloads in %s (%s). Do you want to run the change (yes/no)? ", len(data)-1, viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".fqdn").(string))
 			fmt.Scanln(&prompt)
 			if strings.ToLower(prompt) != "yes" {
 				utils.LogInfo(fmt.Sprintf("prompt denied to change labels of %d workloads.", len(data)-1), true)

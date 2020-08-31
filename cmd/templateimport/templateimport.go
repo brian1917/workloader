@@ -20,7 +20,9 @@ var TemplateImportCmd = &cobra.Command{
 	Use:   "template-import [template file to import]",
 	Short: "Import an Illumio segmentation template.",
 	Long: `
-Import an Illumio segmentation template.`,
+Import an Illumio segmentation template.
+
+The update-pce and --no-prompt flags are ignored for this command.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 

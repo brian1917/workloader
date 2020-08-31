@@ -23,7 +23,9 @@ var IplExportCmd = &cobra.Command{
 	Use:   "ipl-export",
 	Short: "Create a CSV export of all IP lists in the PCE.",
 	Long: `
-Create a CSV export of all workloads in the PCE. The update-pce and --no-prompt flags are ignored for this command.`,
+Create a CSV export of all workloads in the PCE. The update-pce and --no-prompt flags are ignored for this command.
+
+The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE

@@ -49,7 +49,9 @@ Export explorer traffic data enhanced with some additional information (e.g., su
 
 See the flags for filtering options.
 
-Use the following commands to get necessary HREFs for include/exlude files: label-export, ipl-export, wkld-export `,
+Use the following commands to get necessary HREFs for include/exlude files: label-export, ipl-export, wkld-export.
+
+The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		pce, err = utils.GetDefaultPCE(true)

@@ -38,7 +38,7 @@ var EdgeRuleCopyCmd = &cobra.Command{
 	Long: `
 Copy all the rules for one group to another.  To select the rules from one endpoint group specify the group name by placing the name after --from-ruleset (-f) option.
 The group name that will receive these rules should be entered after the --to-group (-t) option.  Both groups must exist on the PCE.  Exact match is required.
-If Endpoint names have spaces in them, the entire group names needs to be encapsulated with \" (e.g. \"New Group\")
+If Endpoint names have spaces in them, the entire group names needs to be encapsulated with "" (e.g. "New Group")
 
 NOTE - All rules will be copied only.  Currently, you cannot update rules across multiple groups.  Running this more than once will copy the rules each time.
 `,
@@ -258,7 +258,7 @@ func edgerulescopy() {
 
 	// If updatePCE is disabled, we are return
 	if !updatePCE {
-		utils.LogInfo(fmt.Sprintf("edge-rule-copy identified %d rules to create and %d rules to update. See workloader.log for details. To do the import, run agai useing --update-pce flag.", len(newRules), len(updatedRules)), true)
+		utils.LogInfo(fmt.Sprintf("workloader identified %d rules to create and %d rules to update. See workloader.log for details. To do the import, run agai useing --update-pce flag.", len(newRules), len(updatedRules)), true)
 		utils.LogEndCommand("edge-rule-copy")
 		return
 	}
@@ -266,7 +266,7 @@ func edgerulescopy() {
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if updatePCE && !noPrompt {
 		var prompt string
-		fmt.Printf("[PROMPT] - edge-rule-copy will create %d rules and update %d rules. Do you want to run the import (yes/no)? ", len(newRules), len(updatedRules))
+		fmt.Printf("[PROMPT] - workloader will create %d rules and update %d rules in %s (%s). Do you want to run the import (yes/no)? ", len(newRules), len(updatedRules), viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".fqdn").(string))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo(fmt.Sprintf("Prompt denied for creating %d rules and updating %d rules.", len(newRules), len(updatedRules)), true)

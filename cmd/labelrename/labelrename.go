@@ -141,7 +141,7 @@ func renameLabel() {
 	// Prompt the user
 	if updatePCE && !noPrompt {
 		var prompt string
-		fmt.Printf("label-rename will update %d labels and create %d labels. See workloader.log for details. Do you want to run the import (yes/no)? ", len(updateLabels), len(newLabels))
+		fmt.Printf("label-rename will update %d labels and create %d labels in %s (%s). See workloader.log for details. Do you want to run the import (yes/no)? ", len(updateLabels), len(newLabels), viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".fqdn").(string))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo(fmt.Sprintf("prompt denied to update %d labels and create %d new labels.", len(updateLabels), len(newLabels)), true)

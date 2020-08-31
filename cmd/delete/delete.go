@@ -29,11 +29,9 @@ var DeleteCmd = &cobra.Command{
 	Use:   "delete [csv file with hrefs to delete]",
 	Short: "Delete any object with an HREF (e.g., unmanaged workloads, labels, services, IPLists, etc.) from the PCE.",
 	Long: `  
-	Delete any object with an HREF (e.g., unmanaged workloads, labels, services, IPLists, etc.) from the PCE.
+Delete any object with an HREF (e.g., unmanaged workloads, labels, services, IPLists, etc.) from the PCE.
 
-Default output is a CSV file with what would be deleted.
-Use the --update-pce command to run the delete with a user prompt confirmation.
-Use --update-pce and --no-prompt to run the delete with no prompts.`,
+The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {

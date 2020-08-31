@@ -507,7 +507,7 @@ func hostnameParser() {
 		if noPrompt {
 			response = "yes"
 		} else if updatePCE {
-			fmt.Printf("Do you want to update Workloads and potentially create new labels(yes/no)? ")
+			fmt.Printf("Do you want to update Workloads and potentially create new labels in %s (%s) (yes/no)? ", viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".fqdn").(string))
 			fmt.Scanln(&response)
 		} else {
 			fmt.Println("List of ALL Regex Matched Hostnames even if no Workloada exist on the PCE. ")

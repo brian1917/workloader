@@ -500,7 +500,7 @@ CSVEntries:
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if f.UpdatePCE && !f.NoPrompt {
 		var prompt string
-		fmt.Printf("\r\n[PROMPT] - workloader created %d labels in the PCE in preparation of updating %d workloads and creating %d unmanaged workloads. Do you want to run the import (yes/no)? ", createdLabels, len(updatedWklds), len(newUMWLs))
+		fmt.Printf("\r\n[PROMPT] - workloader created %d labels in %s (%s) in preparation of updating %d workloads and creating %d unmanaged workloads. Do you want to run the import (yes/no)? ", createdLabels, viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".fqdn").(string), len(updatedWklds), len(newUMWLs))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo(fmt.Sprintf("prompt denied to update %d workloads and create %d unmanaged workloads.", len(updatedWklds), len(newUMWLs)), true)

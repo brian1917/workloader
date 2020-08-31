@@ -48,7 +48,9 @@ Example input:
 | 192.168.200.21 |  asset-mgt-web1 |   443 |  tcp   |
 | asset-mgt-web1 |  asset-mgt-db1  |  3306 |  tcp   |
 | asset-mgt-web2 |  ntp-1          |   123 |  17    |
-+----------------+-----------------+-------+--------+`,
++----------------+-----------------+-------+--------+
+
+The update-pce and --no-prompt flags are ignored for this command.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 

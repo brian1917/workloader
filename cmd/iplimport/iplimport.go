@@ -279,7 +279,7 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
-		utils.LogInfo(fmt.Sprintf("import-ipl identified %d ip-lists to create and %d ip-lists to update. See workloader.log for all identified changes. To do the import, run again using --update-pce flag", len(IPLsToCreate), len(IPLsToUpdate)), true)
+		utils.LogInfo(fmt.Sprintf("workloader identified %d ip-lists to create and %d ip-lists to update. See workloader.log for all identified changes. To do the import, run again using --update-pce flag", len(IPLsToCreate), len(IPLsToUpdate)), true)
 		utils.LogEndCommand("ipl-import")
 		return
 	}
@@ -287,7 +287,8 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if updatePCE && !noPrompt {
 		var prompt string
-		fmt.Printf("[INFO] - import-ipl will create %d iplists and update %d iplists. Do you want to run the import (yes/no)? ", len(IPLsToCreate), len(IPLsToUpdate))
+		fmt.Printf("[PROMPT] - workloader will create %d iplists and update %d iplists in %s (%s). Do you want to run the import (yes/no)? ", len(IPLsToCreate), len(IPLsToUpdate), viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".fqdn").(string))
+
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo(fmt.Sprintf("Prompt denied for creating %d iplists and updating %d iplists.", len(IPLsToCreate), len(IPLsToUpdate)), true)

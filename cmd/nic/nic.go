@@ -21,7 +21,7 @@ var NICCmd = &cobra.Command{
 	Long: `
 Export all network interfaces for all managed and unmanaged workloads.
 
-The created CSV includes the following headers: wkld_hostname, wkld_href, interface_name, ip_address, net_mask, cidr, default_gw`,
+The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		pce, err = utils.GetDefaultPCE(true)

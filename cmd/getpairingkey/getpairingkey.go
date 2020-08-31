@@ -30,7 +30,9 @@ var GetPairingKey = &cobra.Command{
 	Use:   "get-pk",
 	Short: "Get a pairing key.",
 	Long: `
-Gets a pairing key. The default pairing profile is used unless a profile name is specified with --profile (-p).`,
+Gets a pairing key. The default pairing profile is used unless a profile name is specified with --profile (-p).
+
+The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
