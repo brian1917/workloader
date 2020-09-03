@@ -22,14 +22,17 @@ import (
 	"github.com/brian1917/workloader/cmd/iplexport"
 	"github.com/brian1917/workloader/cmd/iplimport"
 	"github.com/brian1917/workloader/cmd/labelexport"
+	"github.com/brian1917/workloader/cmd/labelgroupexport"
 	"github.com/brian1917/workloader/cmd/labelrename"
 	"github.com/brian1917/workloader/cmd/mislabel"
 	"github.com/brian1917/workloader/cmd/mode"
 	"github.com/brian1917/workloader/cmd/nic"
 	"github.com/brian1917/workloader/cmd/pcemgmt"
+	"github.com/brian1917/workloader/cmd/ruleexport"
 	"github.com/brian1917/workloader/cmd/servicefinder"
 	"github.com/brian1917/workloader/cmd/snowsync"
 	"github.com/brian1917/workloader/cmd/subnet"
+	"github.com/brian1917/workloader/cmd/svcexport"
 	"github.com/brian1917/workloader/cmd/templateimport"
 	"github.com/brian1917/workloader/cmd/traffic"
 	"github.com/brian1917/workloader/cmd/unpair"
@@ -90,9 +93,11 @@ func init() {
 	RootCmd.AddCommand(wkldimport.WkldImportCmd)
 	RootCmd.AddCommand(iplexport.IplExportCmd)
 	RootCmd.AddCommand(iplimport.IplImportCmd)
-	RootCmd.AddCommand(flowimport.FlowImportCmd)
 	RootCmd.AddCommand(labelexport.LabelExportCmd)
-	RootCmd.AddCommand(labelrename.LabelRenameCmd)
+	RootCmd.AddCommand(svcexport.SvcExportCmd)
+	RootCmd.AddCommand(ruleexport.RuleExportCmd)
+	RootCmd.AddCommand(labelgroupexport.LabelGroupExportCmd)
+	RootCmd.AddCommand(flowimport.FlowImportCmd)
 	RootCmd.AddCommand(templateimport.TemplateImportCmd)
 
 	// Automated Labeling
@@ -111,6 +116,7 @@ func init() {
 
 	// Label management
 	RootCmd.AddCommand(labelsdeleteunused.LabelsDeleteUnused)
+	RootCmd.AddCommand(labelrename.LabelRenameCmd)
 
 	// Reporting
 	RootCmd.AddCommand(mislabel.MisLabelCmd)
