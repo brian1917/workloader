@@ -35,6 +35,7 @@ func init() {
 	ExplorerCmd.Flags().BoolVar(&exclBlocked, "excl-blocked", false, "excludes blocked traffic flows.")
 	ExplorerCmd.Flags().BoolVar(&nonUni, "incl-non-unicast", false, "includes non-unicast (broadcast and multicast) flows in the output. Default is unicast only.")
 	ExplorerCmd.Flags().IntVarP(&maxResults, "max-results", "m", 100000, "max results in explorer. Maximum value is 100000")
+	ExplorerCmd.Flags().BoolVar(&consolidate, "consolidate", false, "consolidate flows that have same source IP, destination IP, port, and protocol.")
 	ExplorerCmd.Flags().BoolVar(&appGroupLoc, "loc-in-ag", false, "includes the location in the app group in CSV output.")
 
 	ExplorerCmd.Flags().SortFlags = false
@@ -190,7 +191,20 @@ func explorerExport() {
 			utils.LogError(err.Error())
 		}
 		outFileName := fmt.Sprintf("workloader-explorer-%s.csv", time.Now().Format("20060102_150405"))
+
+		// Consolidate if needed
+		originalFlowCount := len(traffic)
+		if consolidate {
+			cf := consolidateFlows(traffic)
+			traffic = nil
+			traffic = append(traffic, cf...)
+		}
 		createExplorerCSV(outFileName, traffic)
+		if consolidate {
+			utils.LogInfo(fmt.Sprintf("%d consolidated traffic records exported from %d total records", len(traffic), originalFlowCount), true)
+		} else {
+			utils.LogInfo(fmt.Sprintf("%d traffic records exported", len(traffic)), true)
+		}
 		// Log end
 		utils.LogEndCommand("explorer")
 		return
@@ -227,10 +241,23 @@ func explorerExport() {
 		// Append the results
 		combinedTraffic := append(traffic, traffic2...)
 
+		// Consolidate if needed
+		originalFlowCount := len(combinedTraffic)
+		if consolidate {
+			cf := consolidateFlows(combinedTraffic)
+			combinedTraffic = nil
+			combinedTraffic = append(combinedTraffic, cf...)
+		}
+
 		// Generate the CSV
 		if len(combinedTraffic) > 0 {
 			outFileName := fmt.Sprintf("workloader-explorer-%s-%s.csv", pce.LabelMapH[l].Value, time.Now().Format("20060102_150405"))
 			createExplorerCSV(outFileName, combinedTraffic)
+			if consolidate {
+				utils.LogInfo(fmt.Sprintf("%d consolidated traffic records exported from %d total records", len(traffic), originalFlowCount), true)
+			} else {
+				utils.LogInfo(fmt.Sprintf("%d traffic records exported", len(traffic)), true)
+			}
 			utils.LogInfo(fmt.Sprintf("Exported %d traffic records. See %s.", len(combinedTraffic), outFileName), true)
 		} else {
 			utils.LogInfo(fmt.Sprintln("No traffic records."), true)
@@ -260,6 +287,38 @@ func wkldInterfaceName(hostname, ip string, wkldHostMap map[string]illumioapi.Wo
 		return wkld.GetInterfaceName(ip)
 	}
 	return "NA"
+}
+
+func consolidateFlows(trafficFlows []illumioapi.TrafficAnalysis) []illumioapi.TrafficAnalysis {
+	cTraffic := make(map[string]illumioapi.TrafficAnalysis)
+	for _, t := range trafficFlows {
+		if val, ok := cTraffic[fmt.Sprintf("%s%s%d%d", t.Src.IP, t.Dst.IP, t.ExpSrv.Port, t.ExpSrv.Proto)]; !ok {
+			t.PolicyDecision = fmt.Sprintf("%s (%d)", t.PolicyDecision, t.NumConnections)
+			cTraffic[fmt.Sprintf("%s%s%d%d", t.Src.IP, t.Dst.IP, t.ExpSrv.Port, t.ExpSrv.Proto)] = t
+		} else {
+			// We already have an entry so we consolidate. Start by building the new with src, dst, port, and proto
+			tNew := illumioapi.TrafficAnalysis{Src: t.Src, Dst: t.Dst, ExpSrv: &illumioapi.ExpSrv{Port: t.ExpSrv.Port, Proto: t.ExpSrv.Proto}}
+			// New connections is the old value plus this new one.
+			tNew.NumConnections = val.NumConnections + t.NumConnections
+			// The time stamps are semi-colon separated
+			tNew.TimestampRange = &illumioapi.TimestampRange{FirstDetected: fmt.Sprintf("%s; %s", val.TimestampRange.FirstDetected, t.TimestampRange.FirstDetected), LastDetected: fmt.Sprintf("%s; %s", val.TimestampRange.LastDetected, t.TimestampRange.LastDetected)}
+			// Process, windows, service, and transmission type are also semi-colon separated
+			tNew.ExpSrv.Process = fmt.Sprintf("%s; %s", val.ExpSrv.Process, t.ExpSrv.Process)
+			tNew.ExpSrv.WindowsService = fmt.Sprintf("%s; %s", val.ExpSrv.WindowsService, t.ExpSrv.WindowsService)
+			tNew.ExpSrv.User = fmt.Sprintf("%s; %s", val.ExpSrv.User, t.ExpSrv.User)
+			tNew.Transmission = fmt.Sprintf("%s; %s", val.Transmission, t.Transmission)
+			// Policy decision includes the flow counter
+			tNew.PolicyDecision = fmt.Sprintf("%s; %s(%d)", val.PolicyDecision, t.PolicyDecision, t.NumConnections)
+			// Replace the value
+			cTraffic[fmt.Sprintf("%s%s%d%d", t.Src.IP, t.Dst.IP, t.ExpSrv.Port, t.ExpSrv.Proto)] = tNew
+		}
+	}
+
+	var returnResults []illumioapi.TrafficAnalysis
+	for _, t := range cTraffic {
+		returnResults = append(returnResults, t)
+	}
+	return returnResults
 }
 
 func createExplorerCSV(filename string, traffic []illumioapi.TrafficAnalysis) {
@@ -311,7 +370,5 @@ func createExplorerCSV(filename string, traffic []illumioapi.TrafficAnalysis) {
 		d = append(d, strconv.Itoa(t.NumConnections))
 		data = append(data, d)
 	}
-
-	utils.LogInfo(fmt.Sprintf("%d traffic records exported", len(traffic)), true)
 	utils.WriteOutput(data, data, filename)
 }
