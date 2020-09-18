@@ -55,6 +55,7 @@ Workloader is a tool that helps manage resources in an Illumio PCE.`,
 		viper.Set("debug", debug)
 		viper.Set("update_pce", updatePCE)
 		viper.Set("no_prompt", noPrompt)
+		viper.Set("verbose", verbose)
 
 		//Output format
 		outFormat = strings.ToLower(outFormat)
@@ -73,7 +74,7 @@ Workloader is a tool that helps manage resources in an Illumio PCE.`,
 	},
 }
 
-var updatePCE, noPrompt, debug bool
+var updatePCE, noPrompt, debug, verbose bool
 var outFormat string
 
 // All subcommand flags are taken care of in their package's init.

@@ -20,6 +20,7 @@ func init() {
 		log.Fatal(err)
 	}
 	Logger.SetOutput(f)
+
 }
 
 // LogError writes the error the workloader.log and always prints an error to stdout.
@@ -69,7 +70,9 @@ func LogAPIResp(callType string, apiResp illumioapi.APIResponse) {
 	LogDebug(fmt.Sprintf("%s HTTP Request: %s %v", callType, apiResp.Request.Method, apiResp.Request.URL))
 	LogDebug(fmt.Sprintf("%s Reqest Header: %v", callType, apiResp.Request.Header))
 	LogDebug(fmt.Sprintf("%s Response Status Code: %d", callType, apiResp.StatusCode))
-	LogDebug(fmt.Sprintf("%s Response Body: %s", callType, apiResp.RespBody))
+	if viper.Get("verbose").(bool) {
+		LogDebug(fmt.Sprintf("%s Response Body: %s", callType, apiResp.RespBody))
+	}
 }
 
 // LogStartCommand is used at the beginning of each command
