@@ -1,4 +1,4 @@
-package labelsdeleteunused
+package deleteunusedlabels
 
 import (
 	"fmt"
@@ -15,8 +15,8 @@ var debug, updatePCE, noPrompt bool
 var pce illumioapi.PCE
 var err error
 
-// LabelsDeleteUnused runs the unpair
-var LabelsDeleteUnused = &cobra.Command{
+// LabelsDeleteUnusedCmd runs the unpair
+var LabelsDeleteUnusedCmd = &cobra.Command{
 	Use:   "labels-delete-unused",
 	Short: "Delete labels that are not used.",
 	Long: `  

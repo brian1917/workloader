@@ -10,7 +10,7 @@ import (
 	"github.com/brian1917/workloader/cmd/checkversion"
 	"github.com/brian1917/workloader/cmd/compatibility"
 	"github.com/brian1917/workloader/cmd/delete"
-	labelsdeleteunused "github.com/brian1917/workloader/cmd/deleteunusedlabels"
+	"github.com/brian1917/workloader/cmd/deleteunusedlabels"
 	"github.com/brian1917/workloader/cmd/dupecheck"
 	"github.com/brian1917/workloader/cmd/edgerulecopy"
 	"github.com/brian1917/workloader/cmd/edgeruleexport"
@@ -117,7 +117,7 @@ func init() {
 	RootCmd.AddCommand(delete.DeleteCmd)
 
 	// Label management
-	RootCmd.AddCommand(labelsdeleteunused.LabelsDeleteUnused)
+	RootCmd.AddCommand(deleteunusedlabels.LabelsDeleteUnusedCmd)
 	RootCmd.AddCommand(labelrename.LabelRenameCmd)
 
 	// Reporting
@@ -161,6 +161,7 @@ func init() {
 	RootCmd.PersistentFlags().BoolVar(&updatePCE, "update-pce", false, "Command will update the PCE after a single user prompt. Default will just log potentialy changes to workloads.")
 	RootCmd.PersistentFlags().BoolVar(&noPrompt, "no-prompt", false, "Remove the user prompt when used with update-pce.")
 	RootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug level logging for troubleshooting.")
+	RootCmd.PersistentFlags().BoolVar(&verbose, "verbose", false, "When debug is enabled, include the raw API responses. This makes workloader.log increase in size significantly.")
 	RootCmd.PersistentFlags().StringVar(&outFormat, "out", "csv", "Output format. 3 options: csv, stdout, both")
 
 	RootCmd.Flags().SortFlags = false
