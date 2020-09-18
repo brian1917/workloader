@@ -16,7 +16,7 @@ import (
 // Declare local global variables
 var pce illumioapi.PCE
 var err error
-var debug, useActive bool
+var debug, useActive, edge, doNotExpandServices bool
 var outFormat, role, app, env, loc string
 
 // Init handles flags
@@ -26,6 +26,8 @@ func init() {
 	RuleExportCmd.Flags().StringVarP(&app, "app", "a", "", "Only include rules with app label (directly or via a label group) in the rule or scope.")
 	RuleExportCmd.Flags().StringVarP(&env, "env", "e", "", "Only include rules with env label (directly or via a label group) in the rule or scope.")
 	RuleExportCmd.Flags().StringVarP(&loc, "loc", "l", "", "Only include rules with loc label (directly or via a label group) in the rule or scope.")
+	RuleExportCmd.Flags().BoolVar(&edge, "edge", false, "Edge rule format")
+	RuleExportCmd.Flags().MarkHidden("edge")
 	RuleExportCmd.Flags().SortFlags = false
 
 }
@@ -50,14 +52,19 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 		debug = viper.Get("debug").(bool)
 		outFormat = viper.Get("output_format").(string)
 
-		exportRules()
+		ExportRules(pce, useActive, app, env, loc, edge, true, debug)
 	},
 }
 
-func exportRules() {
+// ExportRules exports rules from the PCE
+func ExportRules(pce illumioapi.PCE, useActive bool, app, env, loc string, edge, expandSVCs, debug bool) {
 
 	// Log command execution
-	utils.LogStartCommand("ruleset-export")
+	if edge {
+		utils.LogStartCommand("edge-rule-export")
+	} else {
+		utils.LogStartCommand("ruleset-export")
+	}
 
 	// Check active/draft
 	provisionStatus := "draft"
@@ -113,6 +120,7 @@ func exportRules() {
 
 	// Start the data slice with headers
 	csvData := [][]string{[]string{"ruleset", "ruleset_enabled", "ruleset_description", "scopes (app | env | loc)", "rule_type", "rule_enabled", "consumer", "consumer_resolve_labels_as", "provider", "provider_resolve_labels_as", "service", "notes", "secure_connect", "machine_auth", "stateless", "ruleset_contains_custom_iptables", "ruleset_href", "rule_href"}}
+	edgeCSVData := [][]string{[]string{"group", "consumer_iplist", "consumer_group", "service", "rule_enabled", "machine_auth", "rule_href"}}
 
 	// GetAllRulesets
 	allRuleSets, a, err := pce.GetAllRuleSets(provisionStatus)
@@ -210,6 +218,13 @@ func exportRules() {
 			scopesSlice = append(scopesSlice, scopeString)
 		}
 
+		// If there are no rules here, add the csv entry
+		if len(rs.Rules) == 0 {
+			csvData = append(csvData, []string{rs.Name, strconv.FormatBool(rs.Enabled), rs.Description, strings.Join(scopesSlice, ";"), "no rules", "no rules", "no rules", "no rules", "no rules", "no rules", "no rules", "no rules", "no rules", "no rules", "no rules", "no rules", rs.Href, "no rules"})
+			edgeCSVData = append(edgeCSVData, []string{rs.Name, "no rules", "no rules", "no rules", "no rules", strconv.FormatBool(rs.Enabled), "no rules", "no rules", rs.Href})
+
+		}
+
 		// Process each rule
 		for _, r := range rs.Rules {
 			// Reset the filter
@@ -219,6 +234,8 @@ func exportRules() {
 			}
 			// Consumers
 			consumers := []string{}
+			edgeConsGrps := []string{}
+			edgeConsIPLs := []string{}
 			for _, c := range r.Consumers {
 				if c.Actors == "ams" {
 					consumers = append(consumers, "All Workloads")
@@ -275,6 +292,12 @@ func exportRules() {
 					}
 				}
 
+				if key == "role_label" {
+					edgeConsGrps = append(edgeConsGrps, name)
+				}
+				if key == "iplist" {
+					edgeConsIPLs = append(edgeConsIPLs, name)
+				}
 				consumers = append(consumers, fmt.Sprintf("%s (%s)", name, key))
 			}
 
@@ -336,6 +359,7 @@ func exportRules() {
 						}
 					}
 				}
+
 				providers = append(providers, fmt.Sprintf("%s (%s)", name, key))
 			}
 
@@ -345,7 +369,11 @@ func exportRules() {
 				if s.Href != "" && pce.ServiceMapH[s.Href].WindowsServices != nil {
 					a := pce.ServiceMapH[s.Href]
 					b, _ := a.ParseService()
-					services = append(services, fmt.Sprintf("%s (%s)", pce.ServiceMapH[s.Href].Name, strings.Join(b, ";")))
+					if !expandSVCs {
+						services = append(services, pce.ServiceMapH[s.Href].Name)
+					} else {
+						services = append(services, fmt.Sprintf("%s (%s)", pce.ServiceMapH[s.Href].Name, strings.Join(b, ";")))
+					}
 				}
 				if s.Href != "" && pce.ServiceMapH[s.Href].ServicePorts != nil {
 					a := pce.ServiceMapH[s.Href]
@@ -353,7 +381,11 @@ func exportRules() {
 					if pce.ServiceMapH[s.Href].Name == "All Services" {
 						services = append(services, "All Services")
 					} else {
-						services = append(services, fmt.Sprintf("%s (%s)", pce.ServiceMapH[s.Href].Name, strings.Join(b, ";")))
+						if !expandSVCs {
+							services = append(services, pce.ServiceMapH[s.Href].Name)
+						} else {
+							services = append(services, fmt.Sprintf("%s (%s)", pce.ServiceMapH[s.Href].Name, strings.Join(b, ";")))
+						}
 					}
 				}
 				if s.Href == "" {
@@ -389,6 +421,9 @@ func exportRules() {
 				csvData = append(csvData, []string{rs.Name, strconv.FormatBool(rs.Enabled), rs.Description, strings.Join(scopesSlice, ";"), ruleType, strconv.FormatBool(r.Enabled), strings.Join(consumers, ";"), consumerResolveLabelsAs, strings.Join(providers, ";"), providerResolveLabelsAs, strings.Join(services, ";"), r.Description, strconv.FormatBool(r.SecConnect), strconv.FormatBool(r.MachineAuth), strconv.FormatBool(r.Stateless), strconv.FormatBool(customIPTables), rs.Href, r.Href})
 				utils.LogInfo(fmt.Sprintf("exported %s", r.Href), false)
 				matchedRules++
+
+				//edgeCSVData := [][]string{[]string{"group", "consumer_iplist", "consumer_group", "service", "rule_enabled", "machine_auth", "rule_href"}}
+				edgeCSVData = append(edgeCSVData, []string{rs.Name, strings.Join(edgeConsIPLs, ";"), strings.Join(edgeConsGrps, ";"), strings.Join(services, ";"), strconv.FormatBool(r.Enabled), strconv.FormatBool(r.MachineAuth), r.Href})
 			}
 		}
 		utils.LogInfo(fmt.Sprintf("%d rules exported.", matchedRules), false)
@@ -396,6 +431,9 @@ func exportRules() {
 
 	// Output the CSV Data
 	if len(csvData) > 1 {
+		if edge {
+			csvData = edgeCSVData
+		}
 		utils.WriteOutput(csvData, csvData, fmt.Sprintf("workloader-ruleset-export-%s.csv", time.Now().Format("20060102_150405")))
 		utils.LogInfo(fmt.Sprintf("%d rules from %d rulesets exported", len(csvData)-1, i), true)
 	} else {
@@ -403,6 +441,10 @@ func exportRules() {
 		utils.LogInfo("no rulesets in PCE.", true)
 	}
 
-	utils.LogEndCommand("ruleset-export")
+	if edge {
+		utils.LogEndCommand("edge-rule-export")
+	} else {
+		utils.LogEndCommand("ruleset-export")
+	}
 
 }
