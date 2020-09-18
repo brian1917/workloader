@@ -50,7 +50,7 @@ import (
 var RootCmd = &cobra.Command{
 	Use: "workloader",
 	Long: `
-Workloader is a tool that helps discover, label, and manage workloads in an Illumio PCE.`,
+Workloader is a tool that helps manage resources in an Illumio PCE.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		viper.Set("debug", debug)
 		viper.Set("update_pce", updatePCE)
