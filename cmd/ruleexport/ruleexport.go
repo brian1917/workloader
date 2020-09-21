@@ -120,7 +120,7 @@ func ExportRules(pce illumioapi.PCE, useActive bool, app, env, loc string, edge,
 
 	// Start the data slice with headers
 	csvData := [][]string{[]string{"ruleset", "ruleset_enabled", "ruleset_description", "scopes (app | env | loc)", "rule_type", "rule_enabled", "consumer", "consumer_resolve_labels_as", "provider", "provider_resolve_labels_as", "service", "notes", "secure_connect", "machine_auth", "stateless", "ruleset_contains_custom_iptables", "ruleset_href", "rule_href"}}
-	edgeCSVData := [][]string{[]string{"group", "consumer_iplist", "consumer_group", "service", "rule_enabled", "machine_auth", "rule_href"}}
+	edgeCSVData := [][]string{[]string{"group", "consumer_iplist", "consumer_group", "service", "rule_enabled", "machine_auth", "rule_href", "ruleset_href"}}
 
 	// GetAllRulesets
 	allRuleSets, a, err := pce.GetAllRuleSets(provisionStatus)
@@ -221,7 +221,7 @@ func ExportRules(pce illumioapi.PCE, useActive bool, app, env, loc string, edge,
 		// If there are no rules here, add the csv entry
 		if len(rs.Rules) == 0 {
 			csvData = append(csvData, []string{rs.Name, strconv.FormatBool(rs.Enabled), rs.Description, strings.Join(scopesSlice, ";"), "no rules", "no rules", "no rules", "no rules", "no rules", "no rules", "no rules", "no rules", "no rules", "no rules", "no rules", "no rules", rs.Href, "no rules"})
-			edgeCSVData = append(edgeCSVData, []string{rs.Name, "no rules", "no rules", "no rules", "no rules", strconv.FormatBool(rs.Enabled), "no rules", "no rules", rs.Href})
+			edgeCSVData = append(edgeCSVData, []string{rs.Name, "no rules", "no rules", "no rules", "no rules", "no rules", "no rules", rs.Href})
 
 		}
 
@@ -423,7 +423,7 @@ func ExportRules(pce illumioapi.PCE, useActive bool, app, env, loc string, edge,
 				matchedRules++
 
 				//edgeCSVData := [][]string{[]string{"group", "consumer_iplist", "consumer_group", "service", "rule_enabled", "machine_auth", "rule_href"}}
-				edgeCSVData = append(edgeCSVData, []string{rs.Name, strings.Join(edgeConsIPLs, ";"), strings.Join(edgeConsGrps, ";"), strings.Join(services, ";"), strconv.FormatBool(r.Enabled), strconv.FormatBool(r.MachineAuth), r.Href})
+				edgeCSVData = append(edgeCSVData, []string{rs.Name, strings.Join(edgeConsIPLs, ";"), strings.Join(edgeConsGrps, ";"), strings.Join(services, ";"), strconv.FormatBool(r.Enabled), strconv.FormatBool(r.MachineAuth), r.Href, rs.Href})
 			}
 		}
 		utils.LogInfo(fmt.Sprintf("%d rules exported.", matchedRules), false)
