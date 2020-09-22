@@ -2,6 +2,7 @@ package nic
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/brian1917/illumioapi"
@@ -42,7 +43,7 @@ func nicExport() {
 	utils.LogStartCommand("nic")
 
 	// Build our CSV data output
-	data := [][]string{[]string{"wkld_hostname", "wkld_href", "nic_name", "address", "cidr", "ipv4_net_mask", "default_gw"}}
+	data := [][]string{[]string{"wkld_hostname", "nic_name", "ignored", "address", "cidr", "ipv4_net_mask", "default_gw", "wkld_href"}}
 
 	// Get all workloads
 	wklds, a, err := pce.GetAllWorkloads()
@@ -54,6 +55,13 @@ func nicExport() {
 	// For each workload, iterate through the network interfaces and add to the data slice
 	for _, w := range wklds {
 		for _, i := range w.Interfaces {
+			// Check if the interface is ignored
+			ignored := false
+			for _, ignoredInt := range w.IgnoredInterfaceNames {
+				if ignoredInt == i.Name {
+					ignored = true
+				}
+			}
 			// Convert the CIDR
 			var cidr string
 			if i.CidrBlock == nil {
@@ -61,7 +69,7 @@ func nicExport() {
 			} else {
 				cidr = fmt.Sprintf("%s/%d", i.Address, *i.CidrBlock)
 			}
-			data = append(data, []string{w.Hostname, w.Href, i.Name, i.Address, cidr, w.GetNetMask(i.Address), i.DefaultGatewayAddress})
+			data = append(data, []string{w.Hostname, i.Name, strconv.FormatBool(ignored), i.Address, cidr, w.GetNetMask(i.Address), i.DefaultGatewayAddress, w.Href})
 		}
 	}
 
