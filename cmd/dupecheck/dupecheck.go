@@ -2,7 +2,6 @@ package dupecheck
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -13,20 +12,28 @@ import (
 )
 
 var pce illumioapi.PCE
-var debug bool
+var caseSensitive, debug bool
 var err error
+
+func init() {
+	DupeCheckCmd.Flags().BoolVarP(&caseSensitive, "case-sensitive", "c", false, "Require hostname/name matches to be case-sensitve.")
+
+	DupeCheckCmd.Flags().SortFlags = false
+}
 
 // DupeCheckCmd summarizes flows
 var DupeCheckCmd = &cobra.Command{
 	Use:   "dupecheck",
 	Short: "Identifies duplicate hostnames and IP addresses in the PCE.",
 	Long: `
-Identifies duplicate hostnames and IP addresses in the PCE.
+Identifies unmanaged workloads with hostnames, names, or IP addresses also assigned to managed workloads.
+
+Interfaces with the default gateway are used on managed workloads.
 
 The --update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetDefaultPCE(false)
+		pce, err = utils.GetDefaultPCE(true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -43,101 +50,84 @@ func dupeCheck() {
 
 	// Get all workloads
 	wklds, a, err := pce.GetAllWorkloads()
-	if debug {
-		utils.LogAPIResp("GetAllWorkloads", a)
-	}
+	utils.LogAPIResp("GetAllWorkloads", a)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
 
-	// Check for duplicate IPs
-	dupeIPs, dupeIPMap := DupeIPCheck(pce, wklds)
-	if dupeIPs {
-		data := [][]string{[]string{"ip_addess", "hostnames"}}
-		for i, h := range dupeIPMap {
-			data = append(data, []string{i, strings.Join(h, ";")})
-		}
-		utils.WriteOutput(data, data, fmt.Sprintf(fmt.Sprintf("workloader-dupeIPs-%s.csv", time.Now().Format("20060102_150405"))))
-		utils.LogInfo(fmt.Sprintf("%d duplicate IP addresses found.", len(dupeIPMap)), true)
-	} else {
-		utils.LogInfo("no duplicate IPs found", true)
-	}
-
-	// Check for duplicate hostnames
-	dupeHostnames, dupeHostMap := DupeHostnameCheck(pce, wklds)
-	if dupeHostnames {
-		data := [][]string{[]string{"hostname", "occurrences"}}
-		for h, o := range dupeHostMap {
-			data = append(data, []string{h, strconv.Itoa(o)})
-		}
-		utils.WriteOutput(data, data, fmt.Sprintf(fmt.Sprintf("workloader-dupe-hostnames-%s.csv", time.Now().Format("20060102_150405"))))
-		utils.LogInfo(fmt.Sprintf("%d duplicate hostnames found.", len(dupeHostMap)), true)
-	} else {
-		utils.LogInfo("no duplicate hostnames found", true)
-	}
-	utils.LogEndCommand("dupecheck")
-}
-
-// DupeIPCheck looks for an duplicate IP addresses in a PCE.
-// If any are found it returns true with a map with they key as the ip address and the value as the slice of hostnames.
-func DupeIPCheck(p illumioapi.PCE, wklds []illumioapi.Workload) (bool, map[string][]string) {
-	// Create a map to hold interfaces and workloads
-	interfaceMap := make(map[string][]string)
-
-	// Iterate through the workloads to build the initial map
+	// Get all managed workloads
+	managedHostNameMap := make(map[string]illumioapi.Workload)
+	managedIPAddressMap := make(map[string]illumioapi.Workload)
+	unmanagedWklds := []illumioapi.Workload{}
 	for _, w := range wklds {
-		for _, i := range w.Interfaces {
-			if v, ok := interfaceMap[i.Address]; !ok {
-				interfaceMap[i.Address] = []string{w.Hostname}
+		if w.GetMode() == "unmanaged" {
+			unmanagedWklds = append(unmanagedWklds, w)
+		} else {
+			if caseSensitive {
+				managedHostNameMap[w.Hostname] = w
 			} else {
-				interfaceMap[i.Address] = append(v, w.Hostname)
+				managedHostNameMap[strings.ToLower(w.Hostname)] = w
+			}
+			managedIPAddressMap[w.GetIPWithDefaultGW()] = w
+		}
+	}
+
+	// Start the header
+	data := [][]string{[]string{"href", "hostname", "name", "interfaces", "role", "app", "env", "loc", "reason"}}
+
+	// Iterate through unmanaged workloads
+	for _, umwl := range unmanagedWklds {
+		// Start our reason list. If this has a length 0 at the end, we don't have a dupe.
+		reason := []string{}
+
+		// Check managed hostnames
+		hostname := strings.ToLower(umwl.Hostname)
+		if caseSensitive {
+			hostname = umwl.Hostname
+		}
+		if val, ok := managedHostNameMap[hostname]; ok {
+			reason = append(reason, fmt.Sprintf("unmanaged workload hostname matches with hostname of managed workload %s", val.Href))
+		}
+
+		// Check managed names
+		name := strings.ToLower(umwl.Name)
+		if caseSensitive {
+			name = umwl.Name
+		}
+		if val, ok := managedHostNameMap[name]; ok {
+			reason = append(reason, fmt.Sprintf("unmanaged workload name matches with hostname of managed workload %s", val.Href))
+		}
+
+		// Check interfaces - all must exist in managed workloads to count.
+		ifaceMatchCount := 0
+		matches := []string{}
+		interfaceList := []string{}
+		for _, iface := range umwl.Interfaces {
+			interfaceList = append(interfaceList, fmt.Sprintf("%s:%s", iface.Name, iface.Address))
+			if val, ok := managedIPAddressMap[iface.Address]; ok {
+				ifaceMatchCount++
+				matches = append(matches, val.Href)
 			}
 		}
-
-	}
-
-	// Create the map of just duplicates
-	duplicateMap := make(map[string][]string)
-	for a, b := range interfaceMap {
-		if len(b) > 1 {
-			duplicateMap[a] = b
+		if ifaceMatchCount == len(umwl.Interfaces) {
+			reason = append(reason, fmt.Sprintf("unmanaged interfaces match to managed IP addresses of %s", strings.Join(matches, "; ")))
 		}
-	}
 
-	// Return
-	if len(duplicateMap) > 0 {
-		return true, duplicateMap
-	}
-
-	return false, duplicateMap
-}
-
-// DupeHostnameCheck looks for duplicate hostnames in a PCE.
-// If any are found it returns true with a slice of the duplicated host names.
-func DupeHostnameCheck(p illumioapi.PCE, wklds []illumioapi.Workload) (bool, map[string]int) {
-	// Create a map to hold interfaces and workloads
-	hostnameMap := make(map[string]int)
-
-	// Iterate through workloads
-	for _, w := range wklds {
-		if v, ok := hostnameMap[strings.ToLower(w.Hostname)]; !ok {
-			hostnameMap[strings.ToLower(w.Hostname)] = 1
-		} else {
-			hostnameMap[strings.ToLower(w.Hostname)] = v + 1
+		// If we have reasons, append
+		if len(reason) > 0 {
+			data = append(data, []string{umwl.Href, umwl.Hostname, umwl.Name, strings.Join(interfaceList, ";"), umwl.GetRole(pce.LabelMapH).Value, umwl.GetApp(pce.LabelMapH).Value, umwl.GetEnv(pce.LabelMapH).Value, umwl.GetLoc(pce.LabelMapH).Value, strings.Join(reason, ";")})
 		}
+
+	}
+	// Write the output
+	if len(data) > 1 {
+		fileName := fmt.Sprintf("workloader-dupecheck-%s.csv", time.Now().Format("20060102_150405"))
+		utils.WriteOutput(data, data, fileName)
+		utils.LogInfo(fmt.Sprintf("%d unmanaged workloads found. See %s for output. The output file can be used as input to workloader delete command.", len(data)-1, fileName), true)
+	} else {
+		utils.LogInfo("No duplicates found", true)
 	}
 
-	// Create duplicated map
-	dupeHostName := make(map[string]int)
-	for h, count := range hostnameMap {
-		if count > 1 {
-			dupeHostName[h] = count
-		}
-	}
-
-	// Return
-	if len(dupeHostName) > 0 {
-		return true, dupeHostName
-	}
-	return false, dupeHostName
+	// Log End
+	utils.LogEndCommand("dupecheck")
 }
