@@ -19,14 +19,14 @@ import (
 
 // FromCSVInput is the data structure the FromCSV function expects
 type FromCSVInput struct {
-	PCE                                                                     illumioapi.PCE
-	ImportFile                                                              string
-	MatchCol, HostnameCol, NameCol, RoleCol, AppCol, EnvCol, LocCol, IntCol int
-	Umwl, KeepAllPCEInterfaces, FQDNtoHostname, UpdatePCE, NoPrompt         bool
+	PCE                                                                              illumioapi.PCE
+	ImportFile                                                                       string
+	MatchCol, HostnameCol, NameCol, RoleCol, AppCol, EnvCol, LocCol, IntCol, DescCol int
+	Umwl, KeepAllPCEInterfaces, FQDNtoHostname, UpdatePCE, NoPrompt                  bool
 }
 
 // Global variables
-var matchCol, roleCol, appCol, envCol, locCol, intCol, hostnameCol, nameCol, createdLabels int
+var matchCol, roleCol, appCol, envCol, locCol, intCol, hostnameCol, nameCol, descCol, createdLabels int
 var removeValue, csvFile string
 var umwl, keepAllPCEInterfaces, fqdnToHostname, debug, updatePCE, noPrompt bool
 var pce illumioapi.PCE
@@ -44,8 +44,8 @@ func init() {
 	WkldImportCmd.Flags().IntVarP(&envCol, "env", "e", 5, "Column number with new env label.")
 	WkldImportCmd.Flags().IntVarP(&locCol, "loc", "l", 6, "Column number with new loc label.")
 	WkldImportCmd.Flags().IntVarP(&intCol, "ifaces", "i", 7, "Column number with network interfaces for when creating unmanaged workloads. Each interface should be of the like eth1:192.168.200.20. Separate multiple NICs by semicolons.")
+	WkldImportCmd.Flags().IntVarP(&descCol, "descCol", "d", 13, "Column number with the workload description.")
 	WkldImportCmd.Flags().StringVar(&removeValue, "remove-value", "", "Value in CSV used to remove existing labels. Blank values in the CSV will not change existing. If you want to delete a label do something like --remove-value DELETE and use DELETE in CSV to indicate where to clear existing labels on a workload.")
-
 	// Hidden flag for use when called from SNOW command
 	WkldImportCmd.Flags().BoolVarP(&fqdnToHostname, "fqdn-to-hostname", "f", false, "Convert FQDN hostnames reported by Illumio VEN to short hostnames by removing everything after first period (e.g., test.domain.com becomes test).")
 	WkldImportCmd.Flags().MarkHidden("fqdn-to-hostname")
@@ -110,6 +110,7 @@ Recommended to run without --update-pce first to log of what will change. If --u
 			EnvCol:               envCol,
 			LocCol:               locCol,
 			IntCol:               intCol,
+			DescCol:              descCol,
 			FQDNtoHostname:       fqdnToHostname, // This is only used when coming from SNOW when a flag is set.
 			KeepAllPCEInterfaces: keepAllPCEInterfaces,
 			UpdatePCE:            updatePCE,
@@ -175,6 +176,7 @@ func FromCSV(f FromCSVInput) {
 	f.IntCol--
 	f.HostnameCol--
 	f.NameCol--
+	f.DescCol--
 
 	// Open CSV File
 	file, err := os.Open(f.ImportFile)
@@ -245,8 +247,12 @@ CSVEntries:
 			utils.LogError(fmt.Sprintf("reading CSV file - %s", err))
 		}
 
-		// Skip the header row
+		// Check if we are processing description and skip the first row
 		if csvLine == 1 {
+			if f.DescCol+1 > len(line) {
+				f.DescCol = 0
+				utils.LogInfo("description col number exceeds input column number. description will be ignored.", false)
+			}
 			continue
 		}
 
@@ -464,6 +470,14 @@ CSVEntries:
 			change = true
 			utils.LogInfo(fmt.Sprintf("CSV line %d - Name to be changed from %s to %s", csvLine, wkld.Name, line[f.NameCol]), false)
 			wkld.Name = line[f.NameCol]
+		}
+
+		if f.DescCol != 0 {
+			if line[f.DescCol] != wkld.Description {
+				change = true
+				utils.LogInfo(fmt.Sprintf("CSV line %d - Desciption to be changed from %s to %s", csvLine, wkld.Description, line[f.DescCol]), false)
+				wkld.Description = line[f.DescCol]
+			}
 		}
 
 		// If change was flagged, get the workload, update the labels, append to updated slice.
