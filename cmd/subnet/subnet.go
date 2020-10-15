@@ -164,6 +164,10 @@ func subnetParser() {
 		for _, nets := range subnetLabels {
 			// Check to see if it matches
 			for _, i := range w.Interfaces {
+				// If the workload is managed and the interface is not the interface with default gateway, skip it
+				if w.GetMode() != "unmanaged" && i.DefaultGatewayAddress == "" {
+					continue
+				}
 				if nets.network.Contains(net.ParseIP(i.Address)) {
 					// Update labels (not in PCE yet, just on object)
 					if nets.loc != "" && nets.loc != w.GetLoc(pce.LabelMapH).Value {
