@@ -113,7 +113,7 @@ func locParser(csvFile string, netCol, envCol, locCol int) []subnet {
 			utils.LogError(err.Error())
 		}
 
-		// Skipe the header row
+		// Skip the header row
 		if i == 1 {
 			continue
 		}
