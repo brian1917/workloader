@@ -342,8 +342,8 @@ CSVEntries:
 
 			// If the value is blank, skip it
 			if line[columns[i]] == "" {
-				// Put the old labels back in case there is a change
-				if labels[1].Href != "" {
+				// Put the old labels back if there is one.
+				if labels[i].Href != "" {
 					newWkldLabels = append(newWkldLabels, &labels[i])
 				}
 				continue
