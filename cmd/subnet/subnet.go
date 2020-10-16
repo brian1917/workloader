@@ -16,9 +16,9 @@ import (
 	"github.com/spf13/viper"
 )
 
-var csvFile string
+var csvFile, role, app, env, loc string
 var netCol, envCol, locCol int
-var debug, updatePCE, noPrompt bool
+var debug, updatePCE, noPrompt, setLabelExcl bool
 var pce illumioapi.PCE
 var err error
 
@@ -39,6 +39,11 @@ func init() {
 	SubnetCmd.Flags().IntVarP(&netCol, "net", "n", 1, "Column number with network. First column is 1.")
 	SubnetCmd.Flags().IntVarP(&envCol, "env", "e", 2, "Column number with new env label.")
 	SubnetCmd.Flags().IntVarP(&locCol, "loc", "l", 3, "Column number with new loc label.")
+	SubnetCmd.Flags().StringVarP(&role, "role", "r", "", "Role Label. Blank means all roles.")
+	SubnetCmd.Flags().StringVarP(&app, "app", "a", "", "Application Label. Blank means all applications.")
+	SubnetCmd.Flags().StringVarP(&env, "env", "e", "", "Environment Label. Blank means all environments.")
+	SubnetCmd.Flags().StringVarP(&loc, "loc", "l", "", "Location Label. Blank means all locations.")
+	SubnetCmd.Flags().BoolVarP(&setLabelExcl, "exclude-labels", "x", false, "Use provided label filters as excludes.")
 
 	SubnetCmd.Flags().SortFlags = false
 
@@ -146,10 +151,34 @@ func subnetParser() {
 	subnetLabels := locParser(csvFile, netCol, envCol, locCol)
 
 	// GetAllWorkloads
-	wklds, a, err := pce.GetAllWorkloads()
+	allWklds, a, err := pce.GetAllWorkloads()
 	utils.LogAPIResp("GetAllWorkloads", a)
 	if err != nil {
 		utils.LogError(err.Error())
+	}
+
+	// Confirm it's not unmanaged and check the labels to find our matches.
+	wklds := []illumioapi.Workload{}
+	for _, w := range allWklds {
+
+		roleCheck, appCheck, envCheck, locCheck := true, true, true, true
+		if app != "" && w.GetApp(pce.LabelMapH).Value != app {
+			appCheck = false
+		}
+		if role != "" && w.GetRole(pce.LabelMapH).Value != role {
+			roleCheck = false
+		}
+		if env != "" && w.GetEnv(pce.LabelMapH).Value != env {
+			envCheck = false
+		}
+		if loc != "" && w.GetLoc(pce.LabelMapH).Value != loc {
+			locCheck = false
+		}
+		if roleCheck && appCheck && locCheck && envCheck && !setLabelExcl {
+			wklds = append(wklds, w)
+		} else if (!roleCheck || !appCheck || !locCheck || !envCheck) && setLabelExcl {
+			wklds = append(wklds, w)
+		}
 	}
 
 	// Create a slice to store our results
@@ -201,17 +230,18 @@ func subnetParser() {
 	if len(updatedWklds) > 0 {
 
 		// Create our data slice
-		data := [][]string{[]string{"hostname", "href", "interfaces", "role", "app", "original_env", "original_loc", "new_env", "new_loc"}}
+		data := [][]string{[]string{"hostname", "name", "role", "app", "updated_env", "updated_loc", "interfaces", "original_env", "original_loc", "href"}}
 		for _, m := range matches {
 			// Get interfaces
 			interfaceSlice := []string{}
 			for _, i := range m.workload.Interfaces {
 				interfaceSlice = append(interfaceSlice, fmt.Sprintf("%s:%s", i.Name, i.Address))
 			}
-			data = append(data, []string{m.workload.Hostname, m.workload.Href, strings.Join(interfaceSlice, ";"), m.workload.GetRole(pce.LabelMapH).Value, m.workload.GetApp(pce.LabelMapH).Value, m.oldEnv, m.oldLoc, m.workload.GetEnv(pce.LabelMapH).Value, m.workload.GetLoc(pce.LabelMapH).Value})
+			data = append(data, []string{m.workload.Hostname, m.workload.Name, m.workload.GetRole(pce.LabelMapH).Value, m.workload.GetApp(pce.LabelMapH).Value, m.workload.GetEnv(pce.LabelMapH).Value, m.workload.GetLoc(pce.LabelMapH).Value, strings.Join(interfaceSlice, ";"), m.oldEnv, m.oldLoc, m.workload.Href})
 		}
 
-		utils.WriteOutput(data, data, "workloader-subnet-output-"+time.Now().Format("20060102_150405")+".csv")
+		// Write the output file
+		utils.WriteOutput(data, data, "workloader-subnet-"+time.Now().Format("20060102_150405")+".csv")
 
 		// Print number of workloads requiring update to the terminal
 		utils.LogInfo(fmt.Sprintf("%d workloads requiring label update.\r\n", len(updatedWklds)), true)
