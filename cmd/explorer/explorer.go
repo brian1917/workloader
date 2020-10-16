@@ -13,7 +13,7 @@ import (
 )
 
 var app, env, inclHrefDstFile, exclHrefDstFile, inclHrefSrcFile, exclHrefSrcFile, exclServiceObj, inclServiceCSV, exclServiceCSV, start, end, loopFile string
-var exclAllowed, exclPotentiallyBlocked, exclBlocked, appGroupLoc, ignoreIPGroup, consolidate, nonUni, debug bool
+var exclAllowed, exclPotentiallyBlocked, exclBlocked, appGroupLoc, ignoreIPGroup, consolidate, nonUni, debug, legacyOutput bool
 var maxResults int
 var pce illumioapi.PCE
 var err error
@@ -37,6 +37,9 @@ func init() {
 	ExplorerCmd.Flags().IntVarP(&maxResults, "max-results", "m", 100000, "max results in explorer. Maximum value is 100000")
 	ExplorerCmd.Flags().BoolVar(&consolidate, "consolidate", false, "consolidate flows that have same source IP, destination IP, port, and protocol.")
 	ExplorerCmd.Flags().BoolVar(&appGroupLoc, "loc-in-ag", false, "includes the location in the app group in CSV output.")
+
+	ExplorerCmd.Flags().BoolVar(&legacyOutput, "legacy", false, "legacy output")
+	ExplorerCmd.Flags().MarkHidden("legacy")
 
 	ExplorerCmd.Flags().SortFlags = false
 }
@@ -326,6 +329,10 @@ func createExplorerCSV(filename string, traffic []illumioapi.TrafficAnalysis) {
 	// Build our CSV structure
 	data := [][]string{[]string{"src_ip", "src_interface_name", "src_net_mask", "src_default_gw", "src_hostname", "src_role", "src_app", "src_env", "src_loc", "src_app_group", "dst_ip", "dst_interface_name", "dst_net_mask", "dst_default_gw", "dst_hostname", "dst_role", "dst_app", "dst_env", "dst_loc", "dst_app_group", "port", "protocol", "process", "windows_service", "user", "transmission", "policy_status", "date_first", "date_last", "num_flows"}}
 
+	if legacyOutput {
+		data = [][]string{[]string{"src_ip", "src_interface_name", "src_net_mask", "src_default_gw", "src_hostname", "src_role", "src_app", "src_env", "src_loc", "src_app_group", "dst_ip", "dst_interface_name", "dst_net_mask", "dst_default_gw", "dst_hostname", "dst_role", "dst_app", "dst_env", "dst_loc", "dst_app_group", "port", "protocol", "policy_status", "date_first", "date_last", "num_flows"}}
+	}
+
 	// Add each traffic entry to the data slic
 	for _, t := range traffic {
 		src := []string{t.Src.IP, "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA"}
@@ -360,10 +367,12 @@ func createExplorerCSV(filename string, traffic []illumioapi.TrafficAnalysis) {
 		d := append(src, dst...)
 		d = append(d, strconv.Itoa(t.ExpSrv.Port))
 		d = append(d, protocols[t.ExpSrv.Proto])
-		d = append(d, t.ExpSrv.Process)
-		d = append(d, t.ExpSrv.WindowsService)
-		d = append(d, t.ExpSrv.User)
-		d = append(d, transmissionType)
+		if !legacyOutput {
+			d = append(d, t.ExpSrv.Process)
+			d = append(d, t.ExpSrv.WindowsService)
+			d = append(d, t.ExpSrv.User)
+			d = append(d, transmissionType)
+		}
 		d = append(d, t.PolicyDecision)
 		d = append(d, t.TimestampRange.FirstDetected)
 		d = append(d, t.TimestampRange.LastDetected)
