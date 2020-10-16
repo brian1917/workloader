@@ -254,7 +254,13 @@ func explorerExport() {
 
 		// Generate the CSV
 		if len(combinedTraffic) > 0 {
-			outFileName := fmt.Sprintf("workloader-explorer-%s-%s.csv", pce.LabelMapH[l].Value, time.Now().Format("20060102_150405"))
+			badChars := []string{"/", "\\", "$", "^", "&", "%", "!", "@", "#", "*", "(", ")", "{", "}", "[", "]", "~", "`"}
+			labelValue := pce.LabelMapH[l].Value
+			for _, b := range badChars {
+				labelValue = strings.ReplaceAll(labelValue, b, "")
+			}
+
+			outFileName := fmt.Sprintf("workloader-explorer-%s-%s.csv", labelValue, time.Now().Format("20060102_150405"))
 			createExplorerCSV(outFileName, combinedTraffic)
 			if consolidate {
 				utils.LogInfo(fmt.Sprintf("%d consolidated traffic records exported from %d total records", len(traffic), originalFlowCount), true)
