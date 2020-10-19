@@ -1,11 +1,8 @@
 package wkldimport
 
 import (
-	"bufio"
-	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -19,14 +16,14 @@ import (
 
 // FromCSVInput is the data structure the FromCSV function expects
 type FromCSVInput struct {
-	PCE                                                                              illumioapi.PCE
-	ImportFile                                                                       string
-	MatchCol, HostnameCol, NameCol, RoleCol, AppCol, EnvCol, LocCol, IntCol, DescCol int
-	Umwl, KeepAllPCEInterfaces, FQDNtoHostname, UpdatePCE, NoPrompt                  bool
+	PCE                                                                                                           illumioapi.PCE
+	ImportFile                                                                                                    string
+	MatchIndex, HostnameIndex, NameIndex, RoleIndex, AppIndex, EnvIndex, LocIndex, IntIndex, DescIndex, HrefIndex int
+	Umwl, KeepAllPCEInterfaces, FQDNtoHostname, UpdatePCE, NoPrompt                                               bool
 }
 
 // Global variables
-var matchCol, roleCol, appCol, envCol, locCol, intCol, hostnameCol, nameCol, descCol, createdLabels int
+var matchCol, roleCol, appCol, envCol, locCol, intCol, hostnameCol, nameCol, descCol, hrefCol, createdLabels int
 var removeValue, csvFile string
 var umwl, keepAllPCEInterfaces, fqdnToHostname, debug, updatePCE, noPrompt bool
 var pce illumioapi.PCE
@@ -36,21 +33,32 @@ var newLabels []illumioapi.Label
 func init() {
 
 	WkldImportCmd.Flags().BoolVar(&umwl, "umwl", false, "Create unmanaged workloads if the host does not exist. Disabled if matching on href.")
-	WkldImportCmd.Flags().IntVarP(&matchCol, "match", "m", 1, "Column number with hostname or href to match workloads. If href is used, --umwl is disabled. First column is 1.")
-	WkldImportCmd.Flags().IntVarP(&hostnameCol, "hostname", "s", 1, "Column with hostname. Only needs to be set if matching on HREF.")
-	WkldImportCmd.Flags().IntVarP(&nameCol, "name", "n", 2, "Column with name. When creating UMWLs, if kept blank (recommended), hostname will be assigned to name field.")
-	WkldImportCmd.Flags().IntVarP(&roleCol, "role", "r", 3, "Column number with new role label.")
-	WkldImportCmd.Flags().IntVarP(&appCol, "app", "a", 4, "Column number with new app label.")
-	WkldImportCmd.Flags().IntVarP(&envCol, "env", "e", 5, "Column number with new env label.")
-	WkldImportCmd.Flags().IntVarP(&locCol, "loc", "l", 6, "Column number with new loc label.")
-	WkldImportCmd.Flags().IntVarP(&intCol, "ifaces", "i", 7, "Column number with network interfaces for when creating unmanaged workloads. Each interface should be of the like eth1:192.168.200.20. Separate multiple NICs by semicolons.")
-	WkldImportCmd.Flags().IntVarP(&descCol, "desc", "d", 13, "Column number with the workload description.")
 	WkldImportCmd.Flags().StringVar(&removeValue, "remove-value", "", "Value in CSV used to remove existing labels. Blank values in the CSV will not change existing. If you want to delete a label do something like --remove-value DELETE and use DELETE in CSV to indicate where to clear existing labels on a workload.")
+	WkldImportCmd.Flags().IntVarP(&matchCol, "match", "m", 99999, "Column number to override selected column to match workloads.")
+	WkldImportCmd.Flags().IntVarP(&hostnameCol, "hostname", "s", 99999, "Column with hostname.")
+	WkldImportCmd.Flags().MarkHidden("hostname")
+	WkldImportCmd.Flags().IntVarP(&hrefCol, "href", "z", 99999, "Column with href.")
+	WkldImportCmd.Flags().MarkHidden("href")
+	WkldImportCmd.Flags().IntVarP(&nameCol, "name", "n", 99999, "Column with name. When creating UMWLs, if kept blank (recommended), hostname will be assigned to name field.")
+	WkldImportCmd.Flags().MarkHidden("name")
+	WkldImportCmd.Flags().IntVarP(&roleCol, "role", "r", 99999, "Column number with new role label.")
+	WkldImportCmd.Flags().MarkHidden("role")
+	WkldImportCmd.Flags().IntVarP(&appCol, "app", "a", 99999, "Column number with new app label.")
+	WkldImportCmd.Flags().MarkHidden("app")
+	WkldImportCmd.Flags().IntVarP(&envCol, "env", "e", 99999, "Column number with new env label.")
+	WkldImportCmd.Flags().MarkHidden("env")
+	WkldImportCmd.Flags().IntVarP(&locCol, "loc", "l", 99999, "Column number with new loc label.")
+	WkldImportCmd.Flags().MarkHidden("loc")
+	WkldImportCmd.Flags().IntVarP(&intCol, "interfaces", "i", 99999, "Column number with network interfaces for when creating unmanaged workloads. Each interface should be of the like eth1:192.168.200.20. Separate multiple NICs by semicolons.")
+	WkldImportCmd.Flags().MarkHidden("interfaces")
+	WkldImportCmd.Flags().IntVarP(&descCol, "description", "d", 99999, "Column number with the workload description.")
+	WkldImportCmd.Flags().MarkHidden("description")
+
 	// Hidden flag for use when called from SNOW command
 	WkldImportCmd.Flags().BoolVarP(&fqdnToHostname, "fqdn-to-hostname", "f", false, "Convert FQDN hostnames reported by Illumio VEN to short hostnames by removing everything after first period (e.g., test.domain.com becomes test).")
 	WkldImportCmd.Flags().MarkHidden("fqdn-to-hostname")
 	WkldImportCmd.Flags().BoolVarP(&keepAllPCEInterfaces, "keep-all-pce-interfaces", "k", false, "Will not delete an interface on an unmanaged workload if it's not in the import. It will only add interfaces to the workload.")
-	WkldImportCmd.Flags().MarkHidden("keepAllPCEInterfaces")
+	WkldImportCmd.Flags().MarkHidden("keep-all-pce-interfaces")
 
 	WkldImportCmd.Flags().SortFlags = false
 
@@ -63,19 +71,28 @@ var WkldImportCmd = &cobra.Command{
 	Long: `
 Create and assign labels to existing workloads and/or create unmanaged workloads (using --umwl) from a CSV file.
 
-The input file requires:
-  - Header row (first line is always skipped)
-  - At least seven columns (others are ok, but will be ignored)
-  - Interfaces should be in the format of "192.168.200.20", "192.168.200.20/24", "eth0:192.168.200.20", or "eth0:192.168.200.20/24". If no interface name is provided with a colon (e.g., "eth0:"), then "umwl:" is used. Multiple interfaces should be separated by a semicolon.
-  - Default column order is below. The order matches the first 7 columns of the wkld-export command to easily export workloads, edit, and re-import.
-  - Override column numbers for other input formats using flags.
+The input file requires headers and matches fields to header values. The following headers can be used:
+- hostname
+- name
+- role
+- app
+- env
+- loc
+- interfaces
+- description
+- href
 
-+---------------+------+------+----------+------+-----+---------------------------------------+
-|   hostname    | name | role |   app    | env  | loc |              interfaces               |
-+---------------+------+------+----------+------+-----+---------------------------------------+
-| assetmgtdbp1  |      | DB   | ASSETMGT | PROD | BOS | eth0:192.168.200.15                   |
-| assetmgtwebd1 |      | WEB  | ASSETMGT | DEV  | BOS | eth0:192.168.200.15;eth1:10.10.100.22 |
-+---------------+------+------+----------+------+-----+---------------------------------------+
+Besides either href or hostname for matching, no field is required.
+For example, to only update the location field you can provide just two columns: href and loc (or hostname and loc). All other workload properties will be preserved.
+Similarily, if to only update labels, you do not need to include an interface, name, description, etc.
+
+If you need to override the header to to field matching you can specify the column number with any flag.
+For example --name 2 will force workloader to use the second column in the CSV as the name field, regardless of what the header value is.
+
+Other columns are alloewd but will be ignored.
+
+Interfaces should be in the format of "192.168.200.20", "192.168.200.20/24", "eth0:192.168.200.20", or "eth0:192.168.200.20/24".
+If no interface name is provided with a colon (e.g., "eth0:"), then "umwl:" is used. Multiple interfaces should be separated by a semicolon.
 
 Recommended to run without --update-pce first to log of what will change. If --update-pce is used, import will create labels without prompt, but it will not create/update workloads without user confirmation, unless --no-prompt is used.`,
 
@@ -102,15 +119,16 @@ Recommended to run without --update-pce first to log of what will change. If --u
 			PCE:                  pce,
 			ImportFile:           csvFile,
 			Umwl:                 umwl,
-			MatchCol:             matchCol,
-			HostnameCol:          hostnameCol,
-			NameCol:              nameCol,
-			RoleCol:              roleCol,
-			AppCol:               appCol,
-			EnvCol:               envCol,
-			LocCol:               locCol,
-			IntCol:               intCol,
-			DescCol:              descCol,
+			MatchIndex:           matchCol,
+			HostnameIndex:        hostnameCol,
+			NameIndex:            nameCol,
+			HrefIndex:            hrefCol,
+			RoleIndex:            roleCol,
+			AppIndex:             appCol,
+			EnvIndex:             envCol,
+			LocIndex:             locCol,
+			IntIndex:             intCol,
+			DescIndex:            descCol,
 			FQDNtoHostname:       fqdnToHostname, // This is only used when coming from SNOW when a flag is set.
 			KeepAllPCEInterfaces: keepAllPCEInterfaces,
 			UpdatePCE:            updatePCE,
@@ -164,27 +182,20 @@ func FromCSV(f FromCSVInput) {
 	// Log start of the command
 	utils.LogStartCommand("wkld-import")
 
-	// If debug, log the columns before adjusting by 1
-	utils.LogDebug(fmt.Sprintf("CSV Columns. Host: %d; Role: %d; App: %d; Env: %d; Loc: %d; Interface: %d", f.MatchCol, f.RoleCol, f.AppCol, f.EnvCol, f.LocCol, f.IntCol))
+	// Parse the CSV File
+	data, err := utils.ParseCSV(f.ImportFile)
+	if err != nil {
+		utils.LogError(err.Error())
+	}
+
+	// Process the headers
+	f.processHeaders(data[0])
 
 	// Adjust the columns by one
-	f.MatchCol--
-	f.RoleCol--
-	f.AppCol--
-	f.EnvCol--
-	f.LocCol--
-	f.IntCol--
-	f.HostnameCol--
-	f.NameCol--
-	f.DescCol--
+	f.decreaseColBy1()
 
-	// Open CSV File
-	file, err := os.Open(f.ImportFile)
-	if err != nil {
-		utils.LogError(fmt.Sprintf("opening CSV - %s", err))
-	}
-	defer file.Close()
-	reader := csv.NewReader(utils.ClearBOM(bufio.NewReader(file)))
+	// Log our intput
+	f.log()
 
 	// Get workload map by hostname
 	wkldMap := make(map[string]illumioapi.Workload)
@@ -228,50 +239,40 @@ func FromCSV(f FromCSVInput) {
 	newUMWLs := []illumioapi.Workload{}
 
 	// Start the counters
-	csvLine := 0
 	unchangedWLs := 0
 
 	// Iterate through CSV entries
 CSVEntries:
-	for {
+	for i, line := range data {
 
 		// Increment the counter
-		csvLine++
-
-		// Read the line
-		line, err := reader.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			utils.LogError(fmt.Sprintf("reading CSV file - %s", err))
-		}
+		csvLine := i + 1
 
 		// Check if we are processing description and skip the first row
 		if csvLine == 1 {
-			if f.DescCol+1 > len(line) {
-				f.DescCol = 0
-				utils.LogInfo("description col number exceeds input column number. description will be ignored.", false)
-			}
 			continue
 		}
 
-		if csvLine == 2 && strings.Contains(line[f.MatchCol], "/workloads/") {
-			f.Umwl = false
+		// Check if we are matching on href or hostname
+		if csvLine == 2 && strings.Contains(line[f.MatchIndex], "/workloads/") && f.Umwl {
+			utils.LogError("cannot match on hrefs and create unmanaged workloads")
 		}
 
-		if line[f.MatchCol] == "" {
+		// Check to make sure we have an entry in the match column
+		if line[f.MatchIndex] == "" {
 			utils.LogWarning(fmt.Sprintf("CSV line %d - the match column cannot be blank - hostname or href required.", csvLine), true)
 			continue
 		}
 
 		// Check if the workload exists. If exist, we check if UMWL is set and take action.
-		if _, ok := wkldMap[line[f.MatchCol]]; !ok {
+		if _, ok := wkldMap[line[f.MatchIndex]]; !ok {
 			var netInterfaces []*illumioapi.Interface
 			if f.Umwl {
-				if len(line[f.IntCol]) > 0 {
+				// Process if interface is in import and if interface entry has values
+				if f.IntIndex != 99998 && len(line[f.IntIndex]) > 0 {
 					// Create the network interfaces
-					nics := strings.Split(strings.ReplaceAll(line[f.IntCol], " ", ""), ";")
+
+					nics := strings.Split(strings.ReplaceAll(line[f.IntIndex], " ", ""), ";")
 					for _, n := range nics {
 						ipInterface, err := userInputConvert(n)
 						if err != nil {
@@ -280,14 +281,34 @@ CSVEntries:
 						netInterfaces = append(netInterfaces, &ipInterface)
 					}
 				} else {
-					utils.LogWarning(fmt.Sprintf("CSV line %d - no interface provided for unmanaged workload %s.", csvLine, line[f.MatchCol]), true)
+					utils.LogWarning(fmt.Sprintf("CSV line %d - no interface provided for unmanaged workload %s.", csvLine, line[f.MatchIndex]), true)
 				}
 
 				// Create the labels slice
 				labels := []*illumioapi.Label{}
-				columns := []int{f.AppCol, f.RoleCol, f.EnvCol, f.LocCol}
-				keys := []string{"app", "role", "env", "loc"}
-				for i := 0; i <= 3; i++ {
+
+				// Create the columns and keys slices
+				columns := []int{}
+				keys := []string{}
+				if f.AppIndex != 99998 {
+					columns = append(columns, f.AppIndex)
+					keys = append(keys, "app")
+				}
+				if f.RoleIndex != 99998 {
+					columns = append(columns, f.RoleIndex)
+					keys = append(keys, "role")
+				}
+				if f.EnvIndex != 99998 {
+					columns = append(columns, f.EnvIndex)
+					keys = append(keys, "env")
+				}
+				if f.LocIndex != 99998 {
+					columns = append(columns, f.LocIndex)
+					keys = append(keys, "loc")
+				}
+
+				// Iterate through our labels
+				for i := 0; i <= len(columns)-1; i++ {
 					if line[columns[i]] == "" {
 						continue
 					}
@@ -298,12 +319,17 @@ CSVEntries:
 					labels = append(labels, &illumioapi.Label{Href: l.Href})
 				}
 
-				// Add to the slice to process via bulk and go to next CSV entry
-				name := line[f.NameCol]
-				if name == "" {
-					name = line[f.MatchCol]
+				// Proces the name
+				var name string
+				if f.NameIndex != 99998 {
+					name := line[f.NameIndex]
+					if name == "" {
+						name = line[f.MatchIndex]
+					}
 				}
-				w := illumioapi.Workload{Hostname: line[f.MatchCol], Name: name, Interfaces: netInterfaces, Labels: labels}
+
+				// Create the unmanaged workload object and add to slice
+				w := illumioapi.Workload{Hostname: line[f.MatchIndex], Name: name, Interfaces: netInterfaces, Labels: labels}
 				newUMWLs = append(newUMWLs, w)
 
 				// Log the entry
@@ -319,26 +345,65 @@ CSVEntries:
 				continue
 			} else {
 				// If umwl flag is not set, log the entry
-				utils.LogInfo(fmt.Sprintf("CSV line %d - %s is not a workload. Include umwl flag to create it. Nothing done.", csvLine, line[f.MatchCol]), false)
+				utils.LogInfo(fmt.Sprintf("CSV line %d - %s is not a workload. Include umwl flag to create it. Nothing done.", csvLine, line[f.MatchIndex]), false)
 				continue
 			}
 		}
 
-		// Get here if the workload does exist.
+		// *******************************************
+		// *** Get here if the workload does exist ***
+		// *******************************************
+
 		// Create a slice told hold new labels if we need to change them
 		newWkldLabels := []*illumioapi.Label{}
 
 		// Initialize the change variable
 		change := false
 
-		// Set slices to iterate through the 4 keys
-		columns := []int{f.AppCol, f.RoleCol, f.EnvCol, f.LocCol}
-		wkld := wkldMap[line[f.MatchCol]] // Need this since can't perform pointer method on map element
-		labels := []illumioapi.Label{wkld.GetApp(f.PCE.LabelMapH), wkld.GetRole(f.PCE.LabelMapH), wkld.GetEnv(f.PCE.LabelMapH), wkld.GetLoc(f.PCE.LabelMapH)}
-		keys := []string{"app", "role", "env", "loc"}
+		// Create the columns, keys, and labels slices
+		columns := []int{}
+		keys := []string{}
+		labels := []illumioapi.Label{}
+		wkld := wkldMap[line[f.MatchIndex]] // Need this since can't perform pointer method on map element
+		// Application
+		if f.AppIndex != 99998 {
+			columns = append(columns, f.AppIndex)
+			keys = append(keys, "app")
+			labels = append(labels, wkld.GetApp(f.PCE.LabelMapH))
+		} else if wkld.GetApp(f.PCE.LabelMapH).Value != "" {
+			current := wkld.GetApp(f.PCE.LabelMapH)
+			newWkldLabels = append(newWkldLabels, &current)
+		}
+		// Role
+		if f.RoleIndex != 99998 {
+			columns = append(columns, f.RoleIndex)
+			keys = append(keys, "role")
+			labels = append(labels, wkld.GetRole(f.PCE.LabelMapH))
+		} else if wkld.GetRole(f.PCE.LabelMapH).Value != "" {
+			current := wkld.GetRole(f.PCE.LabelMapH)
+			newWkldLabels = append(newWkldLabels, &current)
+		}
+		// Env
+		if f.EnvIndex != 99998 {
+			columns = append(columns, f.EnvIndex)
+			keys = append(keys, "env")
+			labels = append(labels, wkld.GetEnv(f.PCE.LabelMapH))
+		} else if wkld.GetEnv(f.PCE.LabelMapH).Value != "" {
+			current := wkld.GetEnv(f.PCE.LabelMapH)
+			newWkldLabels = append(newWkldLabels, &current)
+		}
+		// Loc
+		if f.LocIndex != 99998 {
+			columns = append(columns, f.LocIndex)
+			keys = append(keys, "loc")
+			labels = append(labels, wkld.GetLoc(f.PCE.LabelMapH))
+		} else if wkld.GetLoc(f.PCE.LabelMapH).Value != "" {
+			current := wkld.GetLoc(f.PCE.LabelMapH)
+			newWkldLabels = append(newWkldLabels, &current)
+		}
 
 		// Cycle through each of the four keys
-		for i := 0; i <= 3; i++ {
+		for i := 0; i <= len(columns)-1; i++ {
 
 			// If the value is blank, skip it
 			if line[columns[i]] == "" {
@@ -353,16 +418,16 @@ CSVEntries:
 			if line[columns[i]] == removeValue {
 				change = true
 				// Log change required
-				utils.LogInfo(fmt.Sprintf("%s requiring removal of %s label.", line[f.MatchCol], keys[i]), false)
+				utils.LogInfo(fmt.Sprintf("%s requiring removal of %s label.", line[f.MatchIndex], keys[i]), false)
 				continue
 			}
 
-			// If the workload's  value does not equal what's in the CSV
+			// If the workload's value does not equal what's in the CSV
 			if labels[i].Value != line[columns[i]] {
 				// Change the change flag
 				change = true
 				// Log change required
-				utils.LogInfo(fmt.Sprintf("%s requiring %s update from %s to %s.", line[f.MatchCol], keys[i], labels[i].Value, line[columns[i]]), false)
+				utils.LogInfo(fmt.Sprintf("CSV Line - %d - %s requiring %s update from %s to %s.", csvLine, line[f.MatchIndex], keys[i], labels[i].Value, line[columns[i]]), false)
 				// Get the label HREF
 				l := checkLabel(illumioapi.Label{Key: keys[i], Value: line[columns[i]]})
 				// Add that label to the new labels slice
@@ -375,11 +440,11 @@ CSVEntries:
 
 		// We need to check if interfaces have changed
 		if wkld.GetMode() == "unmanaged" {
-			// If IP address is provided, check it out
-			if len(line[f.IntCol]) > 0 {
+			// If IP field is there and  IP address is provided, check it out
+			if f.IntIndex != 99998 && len(line[f.IntIndex]) > 0 {
 				// Build out the netInterfaces slice provided by the user
 				netInterfaces := []*illumioapi.Interface{}
-				nics := strings.Split(line[f.IntCol], ";")
+				nics := strings.Split(strings.ReplaceAll(line[f.IntIndex], " ", ""), ";")
 				for _, n := range nics {
 					ipInterface, err := userInputConvert(n)
 					if err != nil {
@@ -455,28 +520,29 @@ CSVEntries:
 					wkld.Interfaces = netInterfaces
 				}
 			}
-			// Update the hostname if matching on Href
-			if strings.Contains(line[f.MatchCol], "/workloads/") {
-				if wkld.Hostname != line[f.HostnameCol] {
+			// Update the hostname if field provided and matching on Href
+			if f.HostnameIndex != 99998 && strings.Contains(line[f.MatchIndex], "/workloads/") {
+				if wkld.Hostname != line[f.HostnameIndex] {
 					change = true
-					utils.LogInfo(fmt.Sprintf("CSV line %d - Hostname to be changed from %s to %s", csvLine, wkld.Hostname, line[f.HostnameCol]), false)
-					wkld.Hostname = line[f.HostnameCol]
+					utils.LogInfo(fmt.Sprintf("CSV line %d - Hostname to be changed from %s to %s", csvLine, wkld.Hostname, line[f.HostnameIndex]), false)
+					wkld.Hostname = line[f.HostnameIndex]
 				}
 			}
 		}
 
-		// Change the name if it doesn't match unless the name in the CSV is blank and PCE is reporting the name as the hostname
-		if wkld.Name != line[f.NameCol] && line[f.NameCol] != "" {
+		// Change the name if the name field is provided  it doesn't match unless the name in the CSV is blank and PCE is reporting the name as the hostname
+		if f.NameIndex != 99998 && wkld.Name != line[f.NameIndex] && line[f.NameIndex] != "" {
 			change = true
-			utils.LogInfo(fmt.Sprintf("CSV line %d - Name to be changed from %s to %s", csvLine, wkld.Name, line[f.NameCol]), false)
-			wkld.Name = line[f.NameCol]
+			utils.LogInfo(fmt.Sprintf("CSV line %d - Name to be changed from %s to %s", csvLine, wkld.Name, line[f.NameIndex]), false)
+			wkld.Name = line[f.NameIndex]
 		}
 
-		if f.DescCol != 0 {
-			if line[f.DescCol] != wkld.Description {
+		// Update the description column if provided
+		if f.DescIndex != 99998 {
+			if line[f.DescIndex] != wkld.Description {
 				change = true
-				utils.LogInfo(fmt.Sprintf("CSV line %d - Desciption to be changed from %s to %s", csvLine, wkld.Description, line[f.DescCol]), false)
-				wkld.Description = line[f.DescCol]
+				utils.LogInfo(fmt.Sprintf("CSV line %d - Desciption to be changed from %s to %s", csvLine, wkld.Description, line[f.DescIndex]), false)
+				wkld.Description = line[f.DescIndex]
 			}
 		}
 
