@@ -93,7 +93,6 @@ func removePce() {
 	}
 
 	// Remove login information from YAML
-
 	configMap := viper.AllSettings()
 	delete(configMap, pceName)
 	encodedConfig, _ := json.MarshalIndent(configMap, "", " ")
@@ -102,11 +101,6 @@ func removePce() {
 		utils.LogError(err.Error())
 	}
 	viper.WriteConfig()
-
-	// viper.Set(pceName, "")
-	// if err := viper.WriteConfig(); err != nil {
-	// 	utils.LogError(err.Error())
-	// }
 
 	utils.LogInfo("Removed pce infomration from pce.yaml.", true)
 
