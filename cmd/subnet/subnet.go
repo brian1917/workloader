@@ -36,9 +36,9 @@ type subnet struct {
 
 func init() {
 	SubnetCmd.MarkFlagRequired("in")
-	SubnetCmd.Flags().IntVarP(&netCol, "net", "n", 1, "Column number with network. First column is 1.")
-	SubnetCmd.Flags().IntVarP(&envCol, "env", "e", 2, "Column number with new env label.")
-	SubnetCmd.Flags().IntVarP(&locCol, "loc", "l", 3, "Column number with new loc label.")
+	SubnetCmd.Flags().IntVar(&netCol, "net-col", 1, "Column number with network. First column is 1.")
+	SubnetCmd.Flags().IntVar(&envCol, "env-col", 2, "Column number with new env label.")
+	SubnetCmd.Flags().IntVar(&locCol, "loc-col", 3, "Column number with new loc label.")
 	SubnetCmd.Flags().StringVarP(&role, "role", "r", "", "Role Label. Blank means all roles.")
 	SubnetCmd.Flags().StringVarP(&app, "app", "a", "", "Application Label. Blank means all applications.")
 	SubnetCmd.Flags().StringVarP(&env, "env", "e", "", "Environment Label. Blank means all environments.")
