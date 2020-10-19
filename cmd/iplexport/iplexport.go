@@ -48,7 +48,7 @@ func exportIPL() {
 	utils.LogStartCommand("ipl-export")
 
 	// Start the data slice with headers
-	csvData := [][]string{[]string{"name", "description", "include", "exclude", "external_data_set", "external_data_ref", "href"}}
+	csvData := [][]string{[]string{"name", "description", "include", "exclude", "fqdns", "external_data_set", "external_data_ref", "href"}}
 
 	// Get all IPLists
 	ipls, a, err := pce.GetAllDraftIPLists()
@@ -71,7 +71,13 @@ func exportIPL() {
 				include = append(include, entry)
 			}
 		}
-		csvData = append(csvData, []string{i.Name, i.Description, strings.Join(include, ";"), strings.Join(exclude, ";"), i.ExternalDataSet, i.ExternalDataReference, i.Href})
+
+		fqdns := []string{}
+		for _, f := range i.FQDNs {
+			fqdns = append(fqdns, f.FQDN)
+
+		}
+		csvData = append(csvData, []string{i.Name, i.Description, strings.Join(include, ";"), strings.Join(exclude, ";"), strings.Join(fqdns, ";"), i.ExternalDataSet, i.ExternalDataReference, i.Href})
 	}
 
 	if len(csvData) > 1 {

@@ -36,14 +36,16 @@ Create and update IPlists from a CSV file.
 The input should have a header row as the first row will be skipped. An example input file is below.
 	
 The default import format is below. It matches the columns of the workloader ipl-export command to easily export workloads, edit, and reimport.
-	
-+---------------+------------------+--------------------------------------------------+-----------------------------------------+------------------+-------------------+
-|     name      |   description    |                     include                      |                 exclude                 | external_dataset | external_data_ref |
-+---------------+------------------+--------------------------------------------------+-----------------------------------------+------------------+-------------------+
-| RFC-1918      | Private IP space | 10.0.0.0/8;172.16.0.0/12;192.168.0.0/16          |                                         |                  |                   |
-| Non-RFC-1918  | Public IP space  | 0.0.0.0/0                                        | 10.0.0.0/8;172.16.0.0/12;192.168.0.0/16 |                  |                   |
-| Range Example | Random List      | 192.168.5.4;192.168.5.4-192.168.5.12;10.0.1.0/24 |                                         | Data set         | Reference         |
-+---------------+------------------+--------------------------------------------------+-----------------------------------------+------------------+-------------------+
+
++------------+-------------+-----------------------------------------+----------------------------------------------------------------------------------+-----------------+-------------------+-------------------+
+|    name    | description |                 include                 |                                     exclude                                      |      fqdns      | external_data_set | external_data_ref |
++------------+-------------+-----------------------------------------+----------------------------------------------------------------------------------+-----------------+-------------------+-------------------+
+| Internet   |             | 0.0.0.0/0                               | 10.0.0.0/8;172.16.0.0/12;192.168.0.0/16;169.254.0.0/16;224.0.0.0-239.255.255.255 |                 |                   |                   |
+| Link Local |             | 169.254.0.0/16                          |                                                                                  |                 |                   |                   |
+| RFC 1918   |             | 10.0.0.0/8;172.16.0.0/12;192.168.0.0/16 |                                                                                  |                 |                   |                   |
+| Multicast  |             | 224.0.0.0-239.255.255.255               |                                                                                  |                 |                   |                   |
+| Microsoft  |             |                                         |                                                                                  | *.microsoft.com |                   |                   |
++------------+-------------+-----------------------------------------+----------------------------------------------------------------------------------+-----------------+-------------------+-------------------+
 	
 Recommended to run without --update-pce first to log of what will change. If --update-pce is used, ipl-import will create the IP lists with a  user prompt. To disable the prompt, use --no-prompt.`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -82,14 +84,16 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 	descCol := 2
 	incCol := 3
 	excCol := 4
-	extDsCol := 5
-	extDrCol := 6
+	fqdnsCol := 5
+	extDsCol := 6
+	extDrCol := 7
 
 	// Lower the hard-coded values by 1
 	nameCol--
 	descCol--
 	incCol--
 	excCol--
+	fqdnsCol--
 	extDsCol--
 	extDrCol--
 
@@ -138,6 +142,7 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 		// Build our ranges for include
 		includeCSV := strings.Split(strings.ReplaceAll(line[incCol], " ", ""), ";")
 		excludeCSV := strings.Split(strings.ReplaceAll(line[excCol], " ", ""), ";")
+		fqdns := strings.Split(strings.ReplaceAll(line[fqdnsCol], " ", ""), ";")
 
 		// Iterate the includes
 		for _, i := range includeCSV {
@@ -167,10 +172,18 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 			ranges = append(ranges, &iprange)
 		}
 
+		// Iterate the FQDNs
+		fqdnsEntry := []*illumioapi.FQDN{}
+		for _, i := range fqdns {
+			if i != "" {
+				fqdnsEntry = append(fqdnsEntry, &illumioapi.FQDN{FQDN: i})
+			}
+		}
+
 		// Add our IPlist to our CSV Map
 		csvIPLs[line[nameCol]] = entry{
 			csvLine: i,
-			IPL:     illumioapi.IPList{Name: line[nameCol], Description: line[descCol], IPRanges: ranges, ExternalDataSet: line[extDsCol], ExternalDataReference: line[extDrCol]}}
+			IPL:     illumioapi.IPList{Name: line[nameCol], Description: line[descCol], IPRanges: ranges, FQDNs: fqdnsEntry, ExternalDataSet: line[extDsCol], ExternalDataReference: line[extDrCol]}}
 	}
 
 	// Get all IP lists in the pce
@@ -190,7 +203,9 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 		for _, iplr := range ipl.IPL.IPRanges {
 			csvRangeMap[fmt.Sprintf("%s%s%s%t", ipl.IPL.Name, iplr.FromIP, iplr.ToIP, iplr.Exclusion)] = true
 		}
-
+		for _, f := range ipl.IPL.FQDNs {
+			csvRangeMap[fmt.Sprintf("%s%s", ipl.IPL.Name, f.FQDN)] = true
+		}
 	}
 
 	// Create a map of Existing IP ranges
@@ -199,7 +214,9 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 		for _, iplr := range ipl.IPRanges {
 			existingRangeMap[fmt.Sprintf("%s%s%s%t", ipl.Name, iplr.FromIP, iplr.ToIP, iplr.Exclusion)] = true
 		}
-
+		for _, f := range ipl.FQDNs {
+			existingRangeMap[fmt.Sprintf("%s%s", ipl.Name, f.FQDN)] = true
+		}
 	}
 
 	// Create slice to hold new IPLs and IPLs that need update
@@ -250,6 +267,22 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 						rangeTxt = fmt.Sprintf("!%s", rangeTxt)
 					}
 					logMsg = fmt.Sprintf("%s %s is not in the CSV but is existing in the PCE. It will be removed from the IP List in the PCE.", logMsg, rangeTxt)
+					update = true
+				}
+			}
+
+			// Check that FQDNs in the CSV are in the PCE
+			for _, f := range csvIPL.IPL.FQDNs {
+				if !existingRangeMap[fmt.Sprintf("%s%s", csvIPL.IPL.Name, f.FQDN)] {
+					logMsg = fmt.Sprintf("%s %s is in the CSV but not in the PCE FQDN list. It will be added to the IP List in the PCE.", logMsg, f.FQDN)
+					update = true
+				}
+			}
+
+			// Check that FQDNs in the PCE are in the CSV
+			for _, f := range existingIPL.FQDNs {
+				if !csvRangeMap[fmt.Sprintf("%s%s", existingIPL.Name, f.FQDN)] {
+					logMsg = fmt.Sprintf("%s %s is not in the CSV but is existing in the PCE FQDN list. It will be removed from the IP List in the PCE.", logMsg, f.FQDN)
 					update = true
 				}
 			}
