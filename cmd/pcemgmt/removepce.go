@@ -1,6 +1,8 @@
 package pcemgmt
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -91,10 +93,20 @@ func removePce() {
 	}
 
 	// Remove login information from YAML
-	viper.Set(pceName, "")
-	if err := viper.WriteConfig(); err != nil {
+
+	configMap := viper.AllSettings()
+	delete(configMap, pceName)
+	encodedConfig, _ := json.MarshalIndent(configMap, "", " ")
+	err := viper.ReadConfig(bytes.NewReader(encodedConfig))
+	if err != nil {
 		utils.LogError(err.Error())
 	}
+	viper.WriteConfig()
+
+	// viper.Set(pceName, "")
+	// if err := viper.WriteConfig(); err != nil {
+	// 	utils.LogError(err.Error())
+	// }
 
 	utils.LogInfo("Removed pce infomration from pce.yaml.", true)
 
