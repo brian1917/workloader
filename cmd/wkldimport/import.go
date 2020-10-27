@@ -1,7 +1,6 @@
 package wkldimport
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -139,7 +138,7 @@ Recommended to run without --update-pce first to log of what will change. If --u
 	},
 }
 
-func checkLabel(label illumioapi.Label) illumioapi.Label {
+func checkLabel(label illumioapi.Label, csvLine int) illumioapi.Label {
 
 	// Check if it exists or not
 	if _, ok := pce.LabelMapKV[label.Key+label.Value]; ok {
@@ -153,8 +152,7 @@ func checkLabel(label illumioapi.Label) illumioapi.Label {
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-		logJSON, _ := json.Marshal(illumioapi.Label{Href: l.Href, Key: label.Key, Value: label.Value})
-		utils.LogInfo(fmt.Sprintf("created Label - %s", string(logJSON)), false)
+		utils.LogInfo(fmt.Sprintf("CSV line - %d - created label - %s (%s) - %s", csvLine, l.Value, l.Key, l.Href), true)
 
 		// Append the label back to the map
 		pce.LabelMapKV[l.Key+l.Value] = l
@@ -197,41 +195,29 @@ func FromCSV(f FromCSVInput) {
 	// Log our intput
 	f.log()
 
-	// Get workload map by hostname
-	wkldMap := make(map[string]illumioapi.Workload)
-	var a illumioapi.APIResponse
-	if !f.FQDNtoHostname {
-		wkldMap, a, err = f.PCE.GetWkldHostMap()
-		utils.LogAPIResp("GetWkldHostMap", a)
-		if err != nil {
-			utils.LogError(fmt.Sprintf("getting workload host map - %s", err))
-		}
-	}
-
-	// If we need to, strip hostnames for after "."
-	if f.FQDNtoHostname {
-		tempWkldMap, a, err := f.PCE.GetWkldHostMap()
-		utils.LogAPIResp("GetWkldHostMap", a)
-		if err != nil {
-			utils.LogError(fmt.Sprintf("getting workload host map - %s", err))
-		}
-		for _, w := range tempWkldMap {
-			newHost := strings.Split(w.Hostname, ".")[0]
-			w.Hostname = newHost
-			wkldMap[w.Hostname] = w
-		}
-	}
-
-	// Get the workload map by href so we can look up either
-	wkldHrefMap, a, err := f.PCE.GetWkldHrefMap()
+	// Get the workload map by href
+	utils.LogInfo("Starting GET all workloads.", true)
+	wkldMap, a, err := f.PCE.GetWkldHrefMap()
 	utils.LogAPIResp("GetWkldHrefMap", a)
 	if err != nil {
 		utils.LogError(fmt.Sprintf("getting workload href map - %s", err))
 	}
+	utils.LogInfo(fmt.Sprintf("GET all workloads complete - %d workloads", len(wkldMap)), true)
 
-	// Combine the two workload maps
-	for _, w := range wkldHrefMap {
-		wkldMap[w.Href] = w
+	// Get the hostnames
+	wkldHostNameMap := make(map[string]illumioapi.Workload)
+	for _, w := range wkldMap {
+		hostname := w.Hostname
+		if f.FQDNtoHostname {
+			hostname = strings.Split(w.Hostname, ".")[0]
+			w.Hostname = hostname
+		}
+		wkldHostNameMap[hostname] = w
+	}
+
+	// Combine the maps
+	for _, w := range wkldHostNameMap {
+		wkldMap[w.Hostname] = w
 	}
 
 	// Create slices to hold the workloads we will update and create
@@ -313,7 +299,7 @@ CSVEntries:
 						continue
 					}
 					// Get the label HREF
-					l := checkLabel(illumioapi.Label{Key: keys[i], Value: line[columns[i]]})
+					l := checkLabel(illumioapi.Label{Key: keys[i], Value: line[columns[i]]}, csvLine)
 
 					// Add that label to the new labels slice
 					labels = append(labels, &illumioapi.Label{Href: l.Href})
@@ -429,7 +415,7 @@ CSVEntries:
 				// Log change required
 				utils.LogInfo(fmt.Sprintf("CSV Line - %d - %s requiring %s update from %s to %s.", csvLine, line[f.MatchIndex], keys[i], labels[i].Value, line[columns[i]]), false)
 				// Get the label HREF
-				l := checkLabel(illumioapi.Label{Key: keys[i], Value: line[columns[i]]})
+				l := checkLabel(illumioapi.Label{Key: keys[i], Value: line[columns[i]]}, csvLine)
 				// Add that label to the new labels slice
 				newWkldLabels = append(newWkldLabels, &illumioapi.Label{Href: l.Href})
 			} else {
@@ -594,7 +580,7 @@ CSVEntries:
 
 	// We will only get here if updatePCE and noPrompt is set OR the user accepted the prompt
 	if len(updatedWklds) > 0 {
-		api, err := f.PCE.BulkWorkload(updatedWklds, "update")
+		api, err := f.PCE.BulkWorkload(updatedWklds, "update", true)
 		for _, a := range api {
 			utils.LogAPIResp("BulkWorkloadUpdate", a)
 		}
@@ -606,7 +592,7 @@ CSVEntries:
 
 	// Bulk create if we have new workloads
 	if len(newUMWLs) > 0 {
-		api, err := f.PCE.BulkWorkload(newUMWLs, "create")
+		api, err := f.PCE.BulkWorkload(newUMWLs, "create", true)
 		for _, a := range api {
 			utils.LogAPIResp("BulkWorkloadCreate", a)
 
