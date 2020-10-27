@@ -207,7 +207,7 @@ func modeUpdate() {
 		}
 
 		// If we get here, user accepted prompt or no-prompt was set.
-		api, err := pce.BulkWorkload(workloadUpdates, "update")
+		api, err := pce.BulkWorkload(workloadUpdates, "update", true)
 		if debug {
 			for _, a := range api {
 				utils.LogAPIResp("BulkWorkloadUpdate", a)

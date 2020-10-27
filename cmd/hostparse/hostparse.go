@@ -545,7 +545,7 @@ func hostnameParser() {
 				}
 			}
 			// Send parsed workloads and new labels to BulkUpdate
-			apiResp, err := pce.BulkWorkload(alllabeledwrkld, "update")
+			apiResp, err := pce.BulkWorkload(alllabeledwrkld, "update", true)
 
 			//get number of workloads to update
 			utils.LogInfo(fmt.Sprintf("running bulk update on %d workloads. batches run in 1,0000 workload chunks", len(alllabeledwrkld)), false)

@@ -266,7 +266,7 @@ func subnetParser() {
 		}
 
 		// If we get here, user accepted prompt or no-prompt was set.
-		api, err := pce.BulkWorkload(updatedWklds, "update")
+		api, err := pce.BulkWorkload(updatedWklds, "update", true)
 		if debug {
 			for _, a := range api {
 				utils.LogAPIResp("BulkWorkloadUpdate", a)
