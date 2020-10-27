@@ -32,8 +32,6 @@ Changes the default PCE to be used for all commands targeting a single PCE (i.e.
 		}
 		newDefaultPCE := args[0]
 
-		utils.LogStartCommand("set-default")
-
 		// Make sure PCE exists in the YAML file
 		if viper.Get(newDefaultPCE+".fqdn") == nil {
 			utils.LogError(fmt.Sprintf("%s PCE does not exist.", newDefaultPCE))
@@ -45,8 +43,6 @@ Changes the default PCE to be used for all commands targeting a single PCE (i.e.
 		}
 
 		fmt.Printf("%s is default PCE.\r\n", newDefaultPCE)
-
-		utils.LogEndCommand("set-default")
 
 	},
 }
@@ -86,8 +82,6 @@ var PCEListCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 
-		utils.LogStartCommand("pce-list")
-
 		allSettings := viper.AllSettings()
 
 		defaultPCEName := viper.Get("default_pce_name").(string)
@@ -95,14 +89,12 @@ var PCEListCmd = &cobra.Command{
 		for k := range allSettings {
 			if viper.Get(k+".fqdn") != nil {
 				if k == defaultPCEName {
-					fmt.Printf("%s (%s) - DEFAULT\r\n", k, viper.Get(k+".fqdn").(string))
+					fmt.Printf("* %s (%s)\r\n", k, viper.Get(k+".fqdn").(string))
 				} else {
-					fmt.Printf("%s (%s)\r\n", k, viper.Get(k+".fqdn").(string))
+					fmt.Printf("  %s (%s)\r\n", k, viper.Get(k+".fqdn").(string))
 				}
 			}
 		}
-
-		utils.LogEndCommand("pce-list")
 
 	},
 }
