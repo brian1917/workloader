@@ -26,7 +26,7 @@ func init() {
 // LogError writes the error the workloader.log and always prints an error to stdout.
 func LogError(msg string) {
 	Logger.SetPrefix(time.Now().Format("2006-01-02 15:04:05 "))
-	fmt.Printf("[ERROR] - %s - run with --debug and see workloader.log for detailed API response information.\r\n", msg)
+	fmt.Printf("%s [ERROR] - %s - run with --debug and see workloader.log for detailed API response information.\r\n", time.Now().Format("2006-01-02 15:04:05 "), msg)
 	Logger.Fatalf("[ERROR] - %s\r\n", msg)
 }
 
@@ -34,7 +34,7 @@ func LogError(msg string) {
 func LogWarning(msg string, stdout bool) {
 	Logger.SetPrefix(time.Now().Format("2006-01-02 15:04:05 "))
 	if stdout {
-		fmt.Printf("[WARNING] - %s\r\n", msg)
+		fmt.Printf("%s [WARNING] - %s\r\n", time.Now().Format("2006-01-02 15:04:05 "), msg)
 	}
 	Logger.Printf("[WARNING] - %s\r\n", msg)
 }
@@ -43,7 +43,7 @@ func LogWarning(msg string, stdout bool) {
 func LogInfo(msg string, stdout bool) {
 	Logger.SetPrefix(time.Now().Format("2006-01-02 15:04:05 "))
 	if stdout {
-		fmt.Printf("[INFO] - %s\r\n", msg)
+		fmt.Printf("%s [INFO] - %s\r\n", time.Now().Format("2006-01-02 15:04:05 "), msg)
 	}
 	Logger.Printf("[INFO] - %s\r\n", msg)
 }
