@@ -16,8 +16,13 @@ import (
 // Declare local global variables
 var pce illumioapi.PCE
 var err error
-var debug bool
+var debug, managedOnly, unmanagedOnly bool
 var outFormat string
+
+func init() {
+	WkldExportCmd.Flags().BoolVarP(&managedOnly, "managed-only", "m", false, "Only export managed workloads.")
+	WkldExportCmd.Flags().BoolVarP(&unmanagedOnly, "unmanaged-only", "u", false, "Only export unmanaged workloads.")
+}
 
 // WkldExportCmd runs the workload identifier
 var WkldExportCmd = &cobra.Command{
@@ -53,7 +58,14 @@ func exportWorkloads() {
 	stdOutData := [][]string{[]string{"hostname", "role", "app", "env", "loc", "mode"}}
 
 	// GetAllWorkloads
-	wklds, a, err := pce.GetAllWorkloads()
+	qp := make(map[string]string)
+	if unmanagedOnly {
+		qp["managed"] = "false"
+	}
+	if managedOnly {
+		qp["managed"] = "true"
+	}
+	wklds, a, err := pce.GetAllWorkloadsQP(qp)
 	utils.LogAPIResp("GetAllWorkloads", a)
 	if err != nil {
 		utils.LogError(fmt.Sprintf("getting all workloads - %s", err))
