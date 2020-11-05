@@ -33,7 +33,7 @@ Delete any object with an HREF (e.g., unmanaged workloads, labels, services, IPL
 
 The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		pce, err = utils.GetDefaultPCE(true)
+		pce, err = utils.GetTargetPCE(true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}

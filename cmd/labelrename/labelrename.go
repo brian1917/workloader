@@ -41,7 +41,7 @@ Use --update-pce to make the changes in the PCE.
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetDefaultPCE(true)
+		pce, err = utils.GetTargetPCE(true)
 		if err != nil {
 			utils.LogError(fmt.Sprintf("error getting pce - %s", err))
 		}

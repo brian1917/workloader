@@ -26,7 +26,7 @@ var ExtractCmd = &cobra.Command{
 	Hidden: true,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetDefaultPCE(false)
+		pce, err = utils.GetTargetPCE(false)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -167,7 +167,7 @@ func virtualServices() {
 	for _, p := range pStatus {
 		// Reset the services API and then call it for each provision status
 		vsAPI := illumioapi.APIResponse{}
-		vs, vsAPI, err := pce.GetAllVirtualServices(p)
+		vs, vsAPI, err := pce.GetAllVirtualServices(nil, p)
 		if err != nil {
 			utils.LogError(err.Error())
 		}

@@ -98,7 +98,7 @@ Recommended to run without --update-pce first to log of what will change. If --u
 
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetDefaultPCE(true)
+		pce, err = utils.GetTargetPCE(true)
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for csv command - %s", err)
 		}

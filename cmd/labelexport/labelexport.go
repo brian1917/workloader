@@ -31,7 +31,7 @@ Create a CSV export of all labels in the PCE. The update-pce and --no-prompt fla
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
-		pce, err = utils.GetDefaultPCE(true)
+		pce, err = utils.GetTargetPCE(true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}

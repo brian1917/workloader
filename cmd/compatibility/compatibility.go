@@ -31,7 +31,7 @@ Generate a compatibility report for all Idle workloads.
 The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetDefaultPCE(false)
+		pce, err = utils.GetTargetPCE(false)
 		if err != nil {
 			utils.LogError(err.Error())
 		}

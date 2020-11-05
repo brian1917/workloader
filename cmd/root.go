@@ -56,6 +56,12 @@ Workloader is a tool that helps manage resources in an Illumio PCE.`,
 		viper.Set("update_pce", updatePCE)
 		viper.Set("no_prompt", noPrompt)
 		viper.Set("verbose", verbose)
+		// If the targetPCE is not set in the persistent flag, we clear it from the YAML
+		if targetPCE == "" {
+			viper.Set("target_pce", "")
+		} else {
+			viper.Set("target_pce", targetPCE)
+		}
 
 		//Output format
 		outFormat = strings.ToLower(outFormat)
@@ -75,7 +81,7 @@ Workloader is a tool that helps manage resources in an Illumio PCE.`,
 }
 
 var updatePCE, noPrompt, debug, verbose bool
-var outFormat string
+var outFormat, targetPCE string
 
 // All subcommand flags are taken care of in their package's init.
 // Root init sets up everything else - all usage templates, Viper, etc.
@@ -164,6 +170,7 @@ func init() {
 	RootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug level logging for troubleshooting.")
 	RootCmd.PersistentFlags().BoolVar(&verbose, "verbose", false, "When debug is enabled, include the raw API responses. This makes workloader.log increase in size significantly.")
 	RootCmd.PersistentFlags().StringVar(&outFormat, "out", "csv", "Output format. 3 options: csv, stdout, both")
+	RootCmd.PersistentFlags().StringVar(&targetPCE, "pce", "", "PCE to use in command if not using default PCE.")
 
 	RootCmd.Flags().SortFlags = false
 

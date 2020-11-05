@@ -48,7 +48,7 @@ All workloads will be upgraded if there is no hostfile and no provided labels.
 
 Default output is a CSV file with what would be upgraded. Use the --update-pce command to run the upgrades with a user prompt confirmation. Use --update-pce and --no-prompt to run upgrade with no prompts.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		pce, err = utils.GetDefaultPCE(true)
+		pce, err = utils.GetTargetPCE(true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}

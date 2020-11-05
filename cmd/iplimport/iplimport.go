@@ -51,7 +51,7 @@ Recommended to run without --update-pce first to log of what will change. If --u
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
-		pce, err = utils.GetDefaultPCE(true)
+		pce, err = utils.GetTargetPCE(true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}

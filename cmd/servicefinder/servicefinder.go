@@ -45,7 +45,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetDefaultPCE(true)
+		pce, err = utils.GetTargetPCE(true)
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for csv command - %s", err)
 		}
