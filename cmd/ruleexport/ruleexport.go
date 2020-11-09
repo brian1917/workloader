@@ -43,7 +43,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
-		pce, err = utils.GetDefaultPCE(true)
+		pce, err = utils.GetTargetPCE(true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -121,7 +121,7 @@ func ExportRules(pce illumioapi.PCE, useActive bool, app, env, loc string, edge,
 	// Start the data slice with headers
 	csvData := [][]string{[]string{"ruleset", "ruleset_enabled", "ruleset_description", "scopes (app | env | loc)", "rule_type", "rule_enabled", "consumer", "consumer_resolve_labels_as", "provider", "provider_resolve_labels_as", "service", "notes", "secure_connect", "machine_auth", "stateless", "ruleset_contains_custom_iptables", "ruleset_href", "rule_href"}}
 
-	edgeCSVData := [][]string{[]string{"group", "consumer_iplist", "consumer_group", "service", "provider_group", "rule_enabled", "machine_auth", "rule_href", "ruleset_href"}}
+	edgeCSVData := [][]string{[]string{"group", "consumer_iplist", "consumer_group", "consumer_user_group", "service", "provider_group", "provider_iplist", "rule_enabled", "machine_auth", "rule_href", "ruleset_href"}}
 
 	// GetAllRulesets
 	allRuleSets, a, err := pce.GetAllRuleSets(provisionStatus)
@@ -240,6 +240,7 @@ func ExportRules(pce illumioapi.PCE, useActive bool, app, env, loc string, edge,
 			for _, c := range r.Consumers {
 				if c.Actors == "ams" {
 					consumers = append(consumers, "All Workloads")
+					edgeConsGrps = append(edgeConsGrps, "All Workloads")
 					if r.UnscopedConsumers && len(filter) > 0 {
 						for rf := range ruleFilter {
 							ruleFilter[rf] = ruleFilter[rf] + 1
@@ -302,9 +303,16 @@ func ExportRules(pce illumioapi.PCE, useActive bool, app, env, loc string, edge,
 				consumers = append(consumers, fmt.Sprintf("%s (%s)", name, key))
 			}
 
+			// Consuming Security Principals
+			consumingSecPrincipals := []string{}
+			for _, csp := range r.ConsumingSecurityPrincipals {
+				consumingSecPrincipals = append(consumingSecPrincipals, csp.Name)
+			}
+
 			// Providers
 			providers := []string{}
 			edgeProvsGrps := []string{}
+			edgeProvsIPLs := []string{}
 			for _, p := range r.Providers {
 
 				if p.Actors == "ams" {
@@ -363,6 +371,9 @@ func ExportRules(pce illumioapi.PCE, useActive bool, app, env, loc string, edge,
 				}
 				if key == "role_label" {
 					edgeProvsGrps = append(edgeProvsGrps, name)
+				}
+				if key == "iplist" {
+					edgeProvsIPLs = append(edgeProvsIPLs, name)
 				}
 				providers = append(providers, fmt.Sprintf("%s (%s)", name, key))
 			}
@@ -427,7 +438,7 @@ func ExportRules(pce illumioapi.PCE, useActive bool, app, env, loc string, edge,
 				matchedRules++
 
 				//edgeCSVData := [][]string{[]string{"group", "consumer_iplist", "consumer_group", "service", "rule_enabled", "machine_auth", "rule_href"}}
-				edgeCSVData = append(edgeCSVData, []string{rs.Name, strings.Join(edgeConsIPLs, ";"), strings.Join(edgeConsGrps, ";"), strings.Join(services, ";"), strings.Join(edgeProvsGrps, ";"), strconv.FormatBool(r.Enabled), strconv.FormatBool(r.MachineAuth), r.Href, rs.Href})
+				edgeCSVData = append(edgeCSVData, []string{rs.Name, strings.Join(edgeConsIPLs, ";"), strings.Join(edgeConsGrps, ";"), strings.Join(consumingSecPrincipals, ";"), strings.Join(services, ";"), strings.Join(edgeProvsGrps, ";"), strings.Join(edgeProvsIPLs, ";"), strconv.FormatBool(r.Enabled), strconv.FormatBool(r.MachineAuth), r.Href, rs.Href})
 			}
 		}
 		utils.LogInfo(fmt.Sprintf("%d rules exported.", matchedRules), false)
