@@ -12,13 +12,13 @@ import (
 	"github.com/spf13/viper"
 )
 
-var debug, modeChangeInput, suppressStdOut bool
+var debug, modeChangeInput, issuesOnly bool
 var pce illumioapi.PCE
 var err error
 
 func init() {
 	CompatibilityCmd.Flags().BoolVarP(&modeChangeInput, "mode-input", "m", false, "generate the input file to change all idle workloads to build using workloader mode command")
-	CompatibilityCmd.Flags().BoolVarP(&suppressStdOut, "no-std-out", "n", false, "Suppress stdout counter.")
+	CompatibilityCmd.Flags().BoolVarP(&issuesOnly, "issues-only", "i", false, "only export compatibility checks with an issue")
 }
 
 // CompatibilityCmd runs the workload identifier
@@ -54,8 +54,9 @@ func compatibilityReport() {
 	stdOutData = append(stdOutData, []string{"hostname", "href", "status"})
 	modeChangeInputData = append(modeChangeInputData, []string{"href", "mode"})
 
-	// Get all workloads
-	wklds, a, err := pce.GetAllWorkloads()
+	// Get all idle  workloads
+	qp := map[string]string{"mode": "idle"}
+	wklds, a, err := pce.GetAllWorkloadsQP(qp)
 	if debug {
 		utils.LogAPIResp("GetAllWorkloadsH", a)
 	}
@@ -83,18 +84,25 @@ func compatibilityReport() {
 			utils.LogError(fmt.Sprintf("getting compatibility report for %s (%s) - %s", w.Hostname, w.Href, err))
 		}
 
-		csvData = append(csvData, []string{w.Hostname, w.Href, cr.QualifyStatus, a.RespBody})
-		stdOutData = append(stdOutData, []string{w.Hostname, w.Href, cr.QualifyStatus})
+		// Put into slice if it's NOT green and issuesOnly is true
+		if (cr.QualifyStatus != "green" && issuesOnly) || !issuesOnly {
+			csvData = append(csvData, []string{w.Hostname, w.Href, cr.QualifyStatus, a.RespBody})
+			stdOutData = append(stdOutData, []string{w.Hostname, w.Href, cr.QualifyStatus})
+		}
 
 		if cr.QualifyStatus == "green" {
 			modeChangeInputData = append(modeChangeInputData, []string{w.Href, "build"})
 		}
 
 		// Update stdout
-		if !suppressStdOut {
-			fmt.Printf("\r[INFO] - Exported %d of %d workloads (%d%%).", i+1, len(wklds), (i+1)*100/len(wklds))
+		end := ""
+		if i+1 == len(idleWklds) {
+			end = "\r\n"
 		}
+		fmt.Printf("\r[INFO] - Exported %d of %d idle workloads (%d%%).%s", i+1, len(wklds), (i+1)*100/len(wklds), end)
 	}
+
+	// Print a line at the end of our counter
 
 	// If the CSV data has more than just the headers, create output file and write it.
 	if len(csvData) > 1 {
