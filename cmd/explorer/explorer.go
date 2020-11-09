@@ -21,7 +21,7 @@ var whm map[string]illumioapi.Workload
 
 func init() {
 
-	ExplorerCmd.Flags().StringVarP(&loopFile, "loop-label-file", "l", "", "file with label hrefs on separate lines (without header). An explorer query for the label as consumer OR provider is run for each app.")
+	ExplorerCmd.Flags().StringVarP(&loopFile, "loop-label-file", "l", "", "file with columns of label hrefs on separate lines (without header). An explorer query for the label(s) as consumer OR provider is run for each app. For example, to iterate on app group, put the app label href in the first column and the environment href in the second column.")
 	ExplorerCmd.Flags().StringVarP(&inclHrefDstFile, "incl-dst-file", "a", "", "file with hrefs on separate lines to be used in as a provider include. Can be a csv with hrefs in first column. Headers optional")
 	ExplorerCmd.Flags().StringVarP(&exclHrefDstFile, "excl-dst-file", "b", "", "file with hrefs on separate lines to be used in as a provider exclude. Can be a csv with hrefs in first column. Headers optional")
 	ExplorerCmd.Flags().StringVarP(&inclHrefSrcFile, "incl-src-file", "c", "", "file with hrefs on separate lines to be used in as a consumer include. Can be a csv with hrefs in first column. Headers optional")
@@ -165,18 +165,19 @@ func explorerExport() {
 	}
 
 	// Get the iterative list
-	iterateList := []string{}
+	iterateList := [][]string{}
 	if loopFile != "" {
 		d, err := utils.ParseCSV(loopFile)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
+
 		for _, n := range d {
 			// If it's not an HREF, skip it since it's a header file.
 			if !strings.Contains(n[0], "/orgs/") {
 				continue
 			}
-			iterateList = append(iterateList, n[0])
+			iterateList = append(iterateList, n)
 		}
 	}
 
@@ -214,28 +215,44 @@ func explorerExport() {
 	}
 
 	// Get here if we are iterating.
-	for i, l := range iterateList {
+	for i, labels := range iterateList {
 
-		utils.LogInfo(fmt.Sprintf("Querying label %d of %d - %s (%s)", i+1, len(iterateList), pce.LabelMapH[l].Value, pce.LabelMapH[l].Key), true)
+		// Build the new query struct
+		newTQ := tq
+
+		// Add the labels to the include and build a string for logging
+		logString := []string{}
+		fileName := []string{}
+		for _, label := range labels {
+			newTQ.SourcesInclude = append(newTQ.SourcesInclude, label)
+			logString = append(logString, fmt.Sprintf("%s(%s)", pce.LabelMapH[label].Value, pce.LabelMapH[label].Key))
+			fileName = append(fileName, pce.LabelMapH[label].Value)
+		}
+
+		// Log the query
+		utils.LogInfo(fmt.Sprintf("Querying label set %d of %d - %s", i+1, len(iterateList), strings.Join(logString, ";")), true)
 
 		// Run the first traffic query with the app as a source
-		newTQ := tq
-		newTQ.SourcesInclude = append(newTQ.SourcesInclude, l)
 		traffic, a, err = pce.GetTrafficAnalysis(newTQ)
 		utils.LogAPIResp("GetTrafficAnalysis", a)
-		utils.LogInfo(fmt.Sprintf("making first explorer query for %s (%s)", pce.LabelMapH[l].Value, pce.LabelMapH[l].Key), false)
+		utils.LogInfo(fmt.Sprintf("making first explorer query for %s", strings.Join(logString, ";")), false)
 		utils.LogInfo(a.ReqBody, false)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
 
-		// Run the second traffic query with the app as a destination and exclude it as a source since we have that.
+		// Get ready for second query - restore original
 		newTQ = tq
-		newTQ.DestinationsInclude = append(newTQ.DestinationsInclude, l)
-		newTQ.SourcesExclude = append(newTQ.SourcesExclude, l)
+
+		// Set the destinations include with new labels and exclude the source since we already have it from first query
+		for _, label := range labels {
+			newTQ.DestinationsInclude = append(newTQ.DestinationsInclude, label)
+			newTQ.SourcesExclude = append(newTQ.SourcesExclude, label)
+		}
+
 		traffic2, a, err = pce.GetTrafficAnalysis(newTQ)
 		utils.LogAPIResp("GetTrafficAnalysis", a)
-		utils.LogInfo(fmt.Sprintf("making second explorer query for %s (%s)", pce.LabelMapH[l].Value, pce.LabelMapH[l].Key), false)
+		utils.LogInfo(fmt.Sprintf("making second explorer query for %s", strings.Join(logString, ";")), false)
 		utils.LogInfo(a.ReqBody, false)
 		if err != nil {
 			utils.LogError(err.Error())
@@ -255,19 +272,17 @@ func explorerExport() {
 		// Generate the CSV
 		if len(combinedTraffic) > 0 {
 			badChars := []string{"/", "\\", "$", "^", "&", "%", "!", "@", "#", "*", "(", ")", "{", "}", "[", "]", "~", "`"}
-			labelValue := pce.LabelMapH[l].Value
+			f := strings.Join(fileName, "-")
 			for _, b := range badChars {
-				labelValue = strings.ReplaceAll(labelValue, b, "")
+				f = strings.ReplaceAll(f, b, "")
 			}
 
-			outFileName := fmt.Sprintf("workloader-explorer-%s-%s.csv", labelValue, time.Now().Format("20060102_150405"))
+			outFileName := fmt.Sprintf("workloader-explorer-%s-%s.csv", f, time.Now().Format("20060102_150405"))
 			createExplorerCSV(outFileName, combinedTraffic)
 			if consolidate {
-				utils.LogInfo(fmt.Sprintf("%d consolidated traffic records exported from %d total records", len(traffic), originalFlowCount), true)
-			} else {
-				utils.LogInfo(fmt.Sprintf("%d traffic records exported", len(traffic)), true)
+				utils.LogInfo(fmt.Sprintf("%d consolidated traffic records exported from %d total records", len(combinedTraffic), originalFlowCount), true)
 			}
-			utils.LogInfo(fmt.Sprintf("Exported %d traffic records. See %s.", len(combinedTraffic), outFileName), true)
+			utils.LogInfo(fmt.Sprintf("Exported %d traffic records.", len(combinedTraffic)), true)
 		} else {
 			utils.LogInfo(fmt.Sprintln("No traffic records."), true)
 		}
