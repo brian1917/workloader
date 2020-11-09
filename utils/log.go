@@ -67,10 +67,15 @@ func LogDebug(msg string) {
 // This call will not do anything if the debug flag isn't set. A debug conditional is not required in app code.
 func LogAPIResp(callType string, apiResp illumioapi.APIResponse) {
 
+	// If we have a bad API response, set the debug to true
+	if apiResp.StatusCode > 299 {
+		viper.Set("debug", true)
+	}
+
 	LogDebug(fmt.Sprintf("%s HTTP Request: %s %v", callType, apiResp.Request.Method, apiResp.Request.URL))
 	LogDebug(fmt.Sprintf("%s Reqest Header: %v", callType, apiResp.Request.Header))
 	LogDebug(fmt.Sprintf("%s Response Status Code: %d", callType, apiResp.StatusCode))
-	if viper.Get("verbose").(bool) {
+	if viper.Get("verbose").(bool) || apiResp.StatusCode > 299 {
 		LogDebug(fmt.Sprintf("%s Response Body: %s", callType, apiResp.RespBody))
 	}
 }
