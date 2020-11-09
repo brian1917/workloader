@@ -34,23 +34,23 @@ Create and update rules in an Edge PCE from a CSV file.
 
 To get the input format, first run a workloader edge-rule-export. Example format is below:
 
-+--------+-----------------+----------------+---------+----------------+--------------+--------------+--------------------------------------------------------+-----------------------------------------+
-| group  | consumer_iplist | consumer_group | service | provider_group | rule_enabled | machine_auth | rule_href                                              | ruleset_href                            |
-+--------+-----------------+----------------+---------+----------------+--------------+--------------+--------------------------------------------------------+-----------------------------------------+
-| Admins | Private         |                | Nomad   | Admins         | TRUE         | FALSE        | /orgs/33/sec_policy/draft/rule_sets/881/sec_rules/1694 | /orgs/33/sec_policy/draft/rule_sets/881 |
-+--------+-----------------+----------------+---------+----------------+--------------+--------------+--------------------------------------------------------+-----------------------------------------+
++--------+-----------------+----------------+---------------------+----------+----------------+-----------------+--------------+--------------+----------------------------------------------------+---------------------------------------+
+| group  | consumer_iplist | consumer_group | consumer_user_group |  service | provider_group | provider_iplist | rule_enabled | machine_auth |                     rule_href                      |             ruleset_href              |
++--------+-----------------+----------------+---------------------+----------+----------------+-----------------+--------------+--------------+----------------------------------------------------+---------------------------------------+
+| Admins | VPN; HQ         |                |                     | RDP; SSH | LINAPP         |                 | TRUE         | FALSE        | /orgs/1/sec_policy/draft/rule_sets/15/sec_rules/79 | /orgs/1/sec_policy/draft/rule_sets/15 |
++--------+-----------------+----------------+---------------------+----------+----------------+-----------------+--------------+--------------+----------------------------------------------------+---------------------------------------+
 
 With no rule_href (e.g., Sales example above), the rule will be created. If there is a rule_href provided (e.g., HR example above), the rule will be updated.
 
 A ruleset_href is always needed.
 
-Note - consumer_group and machine_auth should not be generally used.
+Multiple values can be provided by using a semi-colon to separate as shown above in the service and consumer_iplist examples.
 
 Recommended to run without --update-pce first to log of what will change. If --update-pce is used, import will create labels without prompt, but it will not create/update workloads without user confirmation, unless --no-prompt is used.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetDefaultPCE(true)
+		pce, err = utils.GetTargetPCE(true)
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for csv command - %s", err)
 		}
@@ -81,12 +81,14 @@ func importEdgeRules() {
 	groupCol := 0
 	conIPLCol := 1
 	conGrpCol := 2
-	svcCol := 3
-	provGroupCol := 4
-	ruleEnabledCol := 5
-	maCol := 6
-	rHrefCol := 7
-	rsHrefCol := 8
+	conUserGrpCol := 3
+	svcCol := 4
+	provGroupCol := 5
+	provIPLCol := 6
+	ruleEnabledCol := 7
+	maCol := 8
+	rHrefCol := 9
+	rsHrefCol := 10
 
 	// Get all the rulesets and make a map
 	allRS, a, err := pce.GetAllRuleSets("draft")
@@ -116,9 +118,10 @@ func importEdgeRules() {
 	if err != nil {
 		utils.LogError(err.Error())
 	}
-	iplNameMap := make(map[string]illumioapi.IPList)
+	iplMap := make(map[string]illumioapi.IPList)
 	for _, ipl := range allIPLs {
-		iplNameMap[ipl.Name] = ipl
+		iplMap[ipl.Name] = ipl
+		iplMap[ipl.Href] = ipl
 	}
 
 	// Get all services by name
@@ -130,13 +133,15 @@ func importEdgeRules() {
 	svcNameMap := make(map[string]illumioapi.Service)
 	for _, svc := range allSvcs {
 		svcNameMap[svc.Name] = svc
+		svcNameMap[svc.Href] = svc
 	}
 
-	// Get LabelMaps
-	a, err = pce.GetLabelMaps()
-	utils.LogAPIResp("GetLabelMaps", a)
-	if err != nil {
-		utils.LogError(err.Error())
+	// Get the user groups
+	userGroups, a, err := pce.GetAllADUserGroups()
+	userGroupMapName := make(map[string]illumioapi.ConsumingSecurityPrincipals)
+	for _, ug := range userGroups {
+		userGroupMapName[ug.Name] = ug
+		userGroupMapName[ug.Href] = ug
 	}
 
 	// Parse the CSV file
@@ -164,116 +169,154 @@ func importEdgeRules() {
 		// Reset the update
 		update := false
 
+		/******************** Ruleset and Rule existence ********************/
+
 		// Check  if the ruleset exists
 		rs := illumioapi.RuleSet{}
 		rsCheck := false
 
 		// If a ruleset HREF is provided, we make sure it exists
 		if rs, rsCheck = rsHrefMap[l[rsHrefCol]]; !rsCheck {
-			utils.LogWarning(fmt.Sprintf("CSV line - %d - the provided ruleset href does not exist. skipping.", i+1), true)
+			utils.LogWarning(fmt.Sprintf("CSV line %d - the provided ruleset href does not exist. Skipping.", i+1), true)
 			continue
 		}
 
 		// Check if the rule exists
 		if l[rHrefCol] != "" {
 			if _, rCheck := rHrefMap[l[rHrefCol]]; !rCheck {
-				utils.LogWarning(fmt.Sprintf("CSV line - %d - the provided rule href does not exist. skipping.", i+1), true)
+				utils.LogWarning(fmt.Sprintf("CSV line %d - the provided rule href does not exist. Skipping.", i+1), true)
 				continue
 			}
 		}
 
-		// Consumers
+		// ******************** Consumers ********************
 		consumers := []*illumioapi.Consumers{}
-		if l[conIPLCol] != "" {
-			if ipl, iplCheck := iplNameMap[l[conIPLCol]]; !iplCheck {
-				utils.LogError(fmt.Sprintf("CSV line - %d - %s does not exist as an IP List.", i+1, l[conIPLCol]))
-			} else {
-				// Check if we need to update
-				if l[rHrefCol] != "" {
-					if len(rHrefMap[l[rHrefCol]].Consumers) > 1 || rHrefMap[l[rHrefCol]].Consumers[0].IPList.Href != ipl.Href {
-						update = true
-						utils.LogInfo(fmt.Sprintf("CSV Line - %d - consumer IP list needs to be updated.", i), false)
-					}
-				}
-				consumers = append(consumers, &illumioapi.Consumers{IPList: &illumioapi.IPList{Href: ipl.Href}})
-			}
+
+		// IP Lists
+		consCSVipls := strings.Split(strings.ReplaceAll(l[conIPLCol], "; ", ";"), ";")
+		if l[conIPLCol] == "" {
+			consCSVipls = nil
 		}
-		if l[conGrpCol] != "" {
-			if label, labelCheck := pce.LabelMapKV["role"+l[conGrpCol]]; !labelCheck {
-				utils.LogError(fmt.Sprintf("CSV line - %d - %s does not exist as a group", i+1, l[conGrpCol]))
-			} else {
-				// Check if we need to update
-				if l[rHrefCol] != "" {
-					if len(rHrefMap[l[rHrefCol]].Consumers) > 1 || rHrefMap[l[rHrefCol]].Consumers[0].Label.Href != label.Href {
-						update = true
-						utils.LogInfo(fmt.Sprintf("CSV Line - %d - consumer group list needs to be updated.", i), false)
-					}
-				}
-				consumers = append(consumers, &illumioapi.Consumers{Label: &illumioapi.Label{Href: label.Href}})
+		iplChange, ipls := iplComparison(consCSVipls, rHrefMap[l[rHrefCol]], iplMap, i+1, false)
+		if iplChange {
+			update = true
+		}
+		for _, ipl := range ipls {
+			consumers = append(consumers, &illumioapi.Consumers{IPList: ipl})
+		}
+
+		// Labels - parse the CSV entry to split by semicolon and remove spaces
+		csvLabels := strings.Split(strings.ReplaceAll(l[conGrpCol], "; ", ";"), ";")
+		if l[conGrpCol] == "" {
+			csvLabels = nil
+		}
+		// Labels - check for All Workloads
+		for _, l := range csvLabels {
+			if strings.ToLower(l) == "all workloads" {
+				consumers = append(consumers, &illumioapi.Consumers{Actors: "ams"})
 			}
 		}
 
-		// Providers
+		// Labels - run comparison
+		labelUpdate, labels := labelComparison("role", csvLabels, pce, rHrefMap[l[rHrefCol]], i+1, false)
+		if labelUpdate {
+			update = true
+		}
+		for _, l := range labels {
+			consumers = append(consumers, &illumioapi.Consumers{Label: &illumioapi.Label{Href: l.Href}})
+		}
+
+		// User Groups - parse and run comparison
+		csvUserGroups := strings.Split(strings.ReplaceAll(l[conUserGrpCol], "; ", ";"), ";")
+		if l[conUserGrpCol] == "" {
+			csvUserGroups = nil
+		}
+		ugUpdate, consumingSecPrincipals := userGroupComaprison(csvUserGroups, rHrefMap[l[rHrefCol]], userGroupMapName, i+1)
+		if ugUpdate {
+			update = true
+		}
+
+		// ******************** Providers ********************
+
+		// Labels - parse the CSV entry to split by semicolon and remove spaces
+		csvLabels = strings.Split(strings.ReplaceAll(l[provGroupCol], "; ", ";"), ";")
+		if l[provGroupCol] == "" {
+			csvLabels = nil
+		}
+
 		providers := []*illumioapi.Providers{}
-		if label, labelCheck := pce.LabelMapKV["role"+l[provGroupCol]]; !labelCheck {
-			utils.LogError(fmt.Sprintf("CSV line - %d - %s does not exist as a group", i+1, l[groupCol]))
-		} else {
-			// Check if we need to update
-			if l[rHrefCol] != "" {
-				if len(rHrefMap[l[rHrefCol]].Providers) > 1 || rHrefMap[l[rHrefCol]].Providers[0].Label.Href != label.Href {
-					update = true
-					utils.LogInfo(fmt.Sprintf("CSV Line - %d - provider group needs to be updated.", i), false)
-				}
+
+		// Labels - check for All Workloads
+		for _, l := range csvLabels {
+			if strings.ToLower(l) == "all workloads" {
+				providers = append(providers, &illumioapi.Providers{Actors: "ams"})
 			}
-			providers = append(providers, &illumioapi.Providers{Label: &illumioapi.Label{Href: label.Href}})
 		}
 
-		// Services
-		ingressSvc := []*illumioapi.IngressServices{}
-		if svc, svcCheck := svcNameMap[l[svcCol]]; !svcCheck {
-			utils.LogError(fmt.Sprintf("CSV line - %d - %s does not exist as a service.", i+1, l[svcCol]))
-		} else {
-			// Check if we need to update
-			if l[rHrefCol] != "" {
-				if len(rHrefMap[l[rHrefCol]].IngressServices) > 1 || rHrefMap[l[rHrefCol]].IngressServices[0].Href != svc.Href {
-					update = true
-					utils.LogInfo(fmt.Sprintf("CSV Line - %d - service needs to be updated.", i), false)
-				}
-			}
-			ingressSvc = append(ingressSvc, &illumioapi.IngressServices{Href: svcNameMap[l[svcCol]].Href})
+		// Labels - run comparison
+		labelUpdate, labels = labelComparison("role", csvLabels, pce, rHrefMap[l[rHrefCol]], i+1, true)
+		if labelUpdate {
+			update = true
+		}
+		for _, l := range labels {
+			providers = append(providers, &illumioapi.Providers{Label: &illumioapi.Label{Href: l.Href}})
 		}
 
-		// Enabled
+		// IP Lists
+		provCSVipls := strings.Split(strings.ReplaceAll(l[provIPLCol], "; ", ";"), ";")
+		if l[provIPLCol] == "" {
+			provCSVipls = nil
+		}
+		iplChange, ipls = iplComparison(provCSVipls, rHrefMap[l[rHrefCol]], iplMap, i+1, true)
+		if iplChange {
+			update = true
+		}
+		for _, ipl := range ipls {
+			providers = append(providers, &illumioapi.Providers{IPList: ipl})
+		}
+
+		// ******************** Services ********************
+
+		csvServices := strings.Split(strings.ReplaceAll(l[svcCol], "; ", ";"), ";")
+		if l[svcCol] == "" {
+			csvServices = nil
+		}
+		svcChange, ingressSvc := serviceComparison(csvServices, rHrefMap[l[rHrefCol]], svcNameMap, i+1)
+		if svcChange {
+			update = true
+		}
+
+		// ******************** Enabled ********************
 		enabled, err := strconv.ParseBool(l[ruleEnabledCol])
 		if err != nil {
-			utils.LogError(fmt.Sprintf("CSV line - %d - %s is not valid boolean", i+1, l[ruleEnabledCol]))
+			utils.LogError(fmt.Sprintf("CSV line %d - %s is not valid boolean", i+1, l[ruleEnabledCol]))
 		}
 		if l[rHrefCol] != "" {
 			if rHrefMap[l[rHrefCol]].Enabled != enabled {
 				update = true
-				utils.LogInfo(fmt.Sprintf("CSV Line - %d - enabled status needs to be updated.", i), false)
+				utils.LogInfo(fmt.Sprintf("CSV line %d - enabled status needs to be updated.", i), false)
 			}
 		}
 
-		// MachineAuth
+		// ******************** Machine Auth ********************/
 		machineAuth, err := strconv.ParseBool(l[maCol])
 		if err != nil {
-			utils.LogError(fmt.Sprintf("CSV line - %d - %s is not valid boolean", i+1, l[maCol]))
+			utils.LogError(fmt.Sprintf("CSV line %d - %s is not valid boolean", i+1, l[maCol]))
 		}
 		if l[rHrefCol] != "" {
 			if rHrefMap[l[rHrefCol]].MachineAuth != machineAuth {
 				update = true
-				utils.LogInfo(fmt.Sprintf("CSV Line - %d - machine auth status needs to be updated.", i), false)
+				utils.LogInfo(fmt.Sprintf("CSV line %d - machine auth status needs to be updated.", i), false)
 			}
 		}
 
 		// Create the rule
-		csvRule := illumioapi.Rule{Consumers: consumers, Providers: providers, IngressServices: ingressSvc, Enabled: enabled, MachineAuth: machineAuth, ResolveLabelsAs: &illumioapi.ResolveLabelsAs{Consumers: []string{"workloads"}, Providers: []string{"workloads"}}}
+		csvRule := illumioapi.Rule{Consumers: consumers, ConsumingSecurityPrincipals: consumingSecPrincipals, Providers: providers, IngressServices: ingressSvc, Enabled: enabled, MachineAuth: machineAuth, ResolveLabelsAs: &illumioapi.ResolveLabelsAs{Consumers: []string{"workloads"}, Providers: []string{"workloads"}}}
 
 		// Add to our array
 		if l[rHrefCol] == "" {
 			newRules = append(newRules, toAdd{ruleSetHref: rs.Href, rule: csvRule, csvLine: i + 1})
-			utils.LogInfo(fmt.Sprintf("CSV Line - %d - create new rule for group %s", i, l[groupCol]), true)
+			utils.LogInfo(fmt.Sprintf("CSV line %d - create new rule for group %s", i+1, l[groupCol]), true)
 		} else {
 			if update {
 				csvRule.Href = l[rHrefCol]
@@ -318,7 +361,7 @@ func importEdgeRules() {
 				utils.LogError(err.Error())
 			}
 			provisionHrefs[strings.Split(rule.Href, "/sec_rules")[0]] = true
-			utils.LogInfo(fmt.Sprintf("CSV Line - %d - created rule %s - %d", newRule.csvLine, rule.Href, a.StatusCode), true)
+			utils.LogInfo(fmt.Sprintf("CSV line %d - created rule %s - %d", newRule.csvLine, rule.Href, a.StatusCode), true)
 		}
 	}
 
@@ -331,7 +374,7 @@ func importEdgeRules() {
 				utils.LogError(err.Error())
 			}
 			provisionHrefs[strings.Split(updatedRule.rule.Href, "/sec_rules")[0]] = true
-			utils.LogInfo(fmt.Sprintf("CSV Line - %d - updated rule %s - %d", updatedRule.csvLine, updatedRule.rule.Href, a.StatusCode), true)
+			utils.LogInfo(fmt.Sprintf("CSV line %d - updated rule %s - %d", updatedRule.csvLine, updatedRule.rule.Href, a.StatusCode), true)
 		}
 	}
 
