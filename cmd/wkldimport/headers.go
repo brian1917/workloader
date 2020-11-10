@@ -108,6 +108,7 @@ func fieldMapping() map[string]string {
 	fieldMapping["role label"] = "role"
 	fieldMapping["role_label"] = "role"
 	fieldMapping["rolelabel"] = "role"
+	fieldMapping["suggested_role"] = "role" // for traffic command
 
 	// App
 	fieldMapping["app"] = "app"
@@ -118,6 +119,7 @@ func fieldMapping() map[string]string {
 	fieldMapping["application label"] = "app"
 	fieldMapping["application_label"] = "app"
 	fieldMapping["applicationlabel"] = "app"
+	fieldMapping["suggested_app"] = "app" // for traffic command
 
 	// Env
 	fieldMapping["env"] = "env"
@@ -128,6 +130,7 @@ func fieldMapping() map[string]string {
 	fieldMapping["environment label"] = "env"
 	fieldMapping["environment"] = "env"
 	fieldMapping["environmentlabel"] = "env"
+	fieldMapping["suggested_env"] = "env" // for traffic command
 
 	// Loc
 	fieldMapping["loc"] = "loc"
@@ -138,6 +141,7 @@ func fieldMapping() map[string]string {
 	fieldMapping["location label"] = "loc"
 	fieldMapping["location"] = "loc"
 	fieldMapping["locationlabel"] = "loc"
+	fieldMapping["suggested_loc"] = "env" // for traffic command
 
 	// Interfaces
 	fieldMapping["interfaces"] = "interfaces"

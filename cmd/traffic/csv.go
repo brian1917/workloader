@@ -180,7 +180,7 @@ func parseCoreServices(filename string) []coreService {
 func csvWriter(results []result, exclWLs bool, outputFileName string) {
 
 	// Start the data array with headers
-	data := [][]string{[]string{"ip_address", "name", "status", "current_role", "current_app", "current_env", "current_loc", "suggested_role", "suggested_app", "suggested_env", "suggested_loc", "reason"}}
+	data := [][]string{[]string{"ip_address", "hostname", "status", "current_role", "current_app", "current_env", "current_loc", "suggested_role", "suggested_app", "suggested_env", "suggested_loc", "reason"}}
 
 	// Sort the slice
 	sort.Slice(results, func(i, j int) bool { return results[i].matchStatus < results[j].matchStatus })
