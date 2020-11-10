@@ -14,11 +14,13 @@ import (
 
 var debug, modeChangeInput, issuesOnly bool
 var pce illumioapi.PCE
+var outputFileName string
 var err error
 
 func init() {
 	CompatibilityCmd.Flags().BoolVarP(&modeChangeInput, "mode-input", "m", false, "generate the input file to change all idle workloads to build using workloader mode command")
 	CompatibilityCmd.Flags().BoolVarP(&issuesOnly, "issues-only", "i", false, "only export compatibility checks with an issue")
+	CompatibilityCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 }
 
 // CompatibilityCmd runs the workload identifier
@@ -106,6 +108,7 @@ func compatibilityReport() {
 
 	// If the CSV data has more than just the headers, create output file and write it.
 	if len(csvData) > 1 {
+
 		utils.WriteOutput(csvData, stdOutData, fmt.Sprintf("workloader-compatibility-%s.csv", time.Now().Format("20060102_150405")))
 		utils.LogInfo(fmt.Sprintf("%d compatibility reports exported.", len(csvData)-1), true)
 	} else {
@@ -116,7 +119,10 @@ func compatibilityReport() {
 	// Write the mode change CSV
 	if modeChangeInput && len(modeChangeInputData) > 1 {
 		// Create CSV
-		outFile, err := os.Create(fmt.Sprintf("workloader-mode-input-%s.csv", time.Now().Format("20060102_150405")))
+		if outputFileName == "" {
+			outputFileName = fmt.Sprintf("workloader-mode-input-%s.csv", time.Now().Format("20060102_150405"))
+		}
+		outFile, err := os.Create(outputFileName)
 		if err != nil {
 			utils.LogError(fmt.Sprintf("creating CSV - %s\n", err))
 		}

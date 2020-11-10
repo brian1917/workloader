@@ -16,10 +16,12 @@ import (
 var pce illumioapi.PCE
 var err error
 var debug bool
-var search, outFormat string
+var search, outFormat, outputFileName string
 
 func init() {
 	LabelExportCmd.Flags().StringVarP(&search, "search", "s", "", "Only export labels containing a specific string (not case sensitive)")
+	LabelExportCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+
 }
 
 // LabelExportCmd runs the label-export command
@@ -84,7 +86,10 @@ func exportLabels() {
 	}
 
 	if len(csvData) > 1 {
-		utils.WriteOutput(csvData, stdOutData, fmt.Sprintf("workloader-label-export-%s.csv", time.Now().Format("20060102_150405")))
+		if outputFileName == "" {
+			outputFileName = fmt.Sprintf("workloader-label-export-%s.csv", time.Now().Format("20060102_150405"))
+		}
+		utils.WriteOutput(csvData, stdOutData, outputFileName)
 		utils.LogInfo(fmt.Sprintf("%d labels exported.", len(csvData)-1), true)
 	} else {
 		// Log command execution for 0 results

@@ -16,13 +16,15 @@ import (
 )
 
 var debug, updatePCE, noPrompt, doNotProvision bool
-var csvFile, fromPCE, toPCE string
+var csvFile, fromPCE, toPCE, outputFileName string
 
 func init() {
 	WorkloadToIPLCmd.Flags().StringVarP(&fromPCE, "from-pce", "f", "", "Name of the PCE with the existing workloads. Required")
 	WorkloadToIPLCmd.MarkFlagRequired("from-pce")
 	WorkloadToIPLCmd.Flags().StringVarP(&toPCE, "to-pce", "t", "", "Name of the PCE to create or update the IPlists from the workloads. Only required if using --update-pce flag")
 	WorkloadToIPLCmd.Flags().BoolVarP(&doNotProvision, "do-not-prov", "x", false, "Do not provision created/updated IP Lists. Will provision by default.")
+	WorkloadToIPLCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+
 }
 
 // WorkloadToIPLCmd runs the upload command
@@ -186,8 +188,10 @@ func wkldtoipl() {
 			csvOut = append(csvOut, []string{i.Name, i.Description, strings.Join(includes, ";"), "", "", ""})
 		}
 
-		fileName := "workloader-wkld-to-ipl-output-" + time.Now().Format("20060102_150405") + ".csv"
-		utils.WriteOutput(csvOut, csvOut, fileName)
+		if outputFileName == "" {
+			outputFileName = "workloader-wkld-to-ipl-output-" + time.Now().Format("20060102_150405") + ".csv"
+		}
+		utils.WriteOutput(csvOut, csvOut, outputFileName)
 
 		// If updatePCE is disabled, we are just going to alert the user what will happen and log
 		if !updatePCE {
@@ -197,12 +201,12 @@ func wkldtoipl() {
 		}
 
 		// If we get here, create the IP lists in the destination PCE using ipl-import
-		utils.LogInfo(fmt.Sprintf("calling workloader ipl-import to import %s to %s", fileName, toPCE), true)
+		utils.LogInfo(fmt.Sprintf("calling workloader ipl-import to import %s to %s", outputFileName, toPCE), true)
 		dPce, err := utils.GetPCEbyName(toPCE, false)
 		if err != nil {
 			utils.LogError(fmt.Sprintf("error getting to pce - %s", err))
 		}
-		iplimport.ImportIPLists(dPce, fileName, updatePCE, noPrompt, debug, !doNotProvision)
+		iplimport.ImportIPLists(dPce, outputFileName, updatePCE, noPrompt, debug, !doNotProvision)
 	} else {
 		utils.LogInfo("no IP lists created.", true)
 	}

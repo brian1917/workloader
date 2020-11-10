@@ -17,7 +17,7 @@ import (
 var pce illumioapi.PCE
 var err error
 var debug, useActive, edge, doNotExpandServices bool
-var outFormat, role, app, env, loc string
+var outFormat, role, app, env, loc, outputFileName string
 
 // Init handles flags
 func init() {
@@ -26,6 +26,7 @@ func init() {
 	RuleExportCmd.Flags().StringVarP(&app, "app", "a", "", "Only include rules with app label (directly or via a label group) in the rule or scope.")
 	RuleExportCmd.Flags().StringVarP(&env, "env", "e", "", "Only include rules with env label (directly or via a label group) in the rule or scope.")
 	RuleExportCmd.Flags().StringVarP(&loc, "loc", "l", "", "Only include rules with loc label (directly or via a label group) in the rule or scope.")
+	RuleExportCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 	RuleExportCmd.Flags().BoolVar(&edge, "edge", false, "Edge rule format")
 	RuleExportCmd.Flags().MarkHidden("edge")
 	RuleExportCmd.Flags().SortFlags = false
@@ -52,12 +53,12 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 		debug = viper.Get("debug").(bool)
 		outFormat = viper.Get("output_format").(string)
 
-		ExportRules(pce, useActive, app, env, loc, edge, true, debug)
+		ExportRules(pce, useActive, app, env, loc, edge, true, outputFileName, debug)
 	},
 }
 
 // ExportRules exports rules from the PCE
-func ExportRules(pce illumioapi.PCE, useActive bool, app, env, loc string, edge, expandSVCs, debug bool) {
+func ExportRules(pce illumioapi.PCE, useActive bool, app, env, loc string, edge, expandSVCs bool, outputFileName string, debug bool) {
 
 	// Log command execution
 	if edge {
@@ -449,7 +450,10 @@ func ExportRules(pce illumioapi.PCE, useActive bool, app, env, loc string, edge,
 		if edge {
 			csvData = edgeCSVData
 		}
-		utils.WriteOutput(csvData, csvData, fmt.Sprintf("workloader-ruleset-export-%s.csv", time.Now().Format("20060102_150405")))
+		if outputFileName == "" {
+			outputFileName = fmt.Sprintf("workloader-ruleset-export-%s.csv", time.Now().Format("20060102_150405"))
+		}
+		utils.WriteOutput(csvData, csvData, outputFileName)
 		utils.LogInfo(fmt.Sprintf("%d rules from %d rulesets exported", len(csvData)-1, i), true)
 	} else {
 		// Log command execution for 0 results

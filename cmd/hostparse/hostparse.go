@@ -32,6 +32,8 @@ func init() {
 	HostnameCmd.Flags().StringVarP(&locFlag, "loc", "l", "", "Location label to identify workloads to parse hostnames. No value will look for workloads with no location label.")
 	HostnameCmd.Flags().BoolVar(&allWklds, "all", false, "Parse all PCE workloads no matter what labels are assigned. Individual label flags are ignored if set.")
 	HostnameCmd.Flags().IntVar(&capitalize, "capitalize", 1, "Set 1 for uppercase labels(default), 2 for lowercase labels or 0 to leave capitalization as is in parsed hostname.")
+	HostnameCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+
 	HostnameCmd.Flags().SortFlags = false
 
 }
@@ -330,7 +332,9 @@ func hostnameParser() {
 	utils.LogStartCommand("hostparse")
 
 	// Set output file
-	outputFileName = "workloader-hostparse-" + time.Now().Format("20060102_150405") + ".csv"
+	if outputFileName == "" {
+		outputFileName = "workloader-hostparse-" + time.Now().Format("20060102_150405") + ".csv"
+	}
 
 	// Log configuration
 	if debug {

@@ -16,10 +16,12 @@ import (
 var pce illumioapi.PCE
 var err error
 var debug, useActive bool
-var search, outFormat string
+var search, outFormat, outputFileName string
 
 func init() {
 	LabelGroupExportCmd.Flags().BoolVar(&useActive, "active", false, "Use active policy versus draft. Draft is default.")
+	LabelGroupExportCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+
 }
 
 // LabelGroupExportCmd runs the label-export command
@@ -103,7 +105,10 @@ func exportLabels() {
 	}
 
 	if len(csvData) > 1 {
-		utils.WriteOutput(csvData, csvData, fmt.Sprintf("workloader-label-group-export-%s.csv", time.Now().Format("20060102_150405")))
+		if outputFileName == "" {
+			outputFileName = fmt.Sprintf("workloader-label-group-export-%s.csv", time.Now().Format("20060102_150405"))
+		}
+		utils.WriteOutput(csvData, csvData, outputFileName)
 		utils.LogInfo(fmt.Sprintf("%d label-groups exported.", len(csvData)-1), true)
 	} else {
 		// Log command execution for 0 results

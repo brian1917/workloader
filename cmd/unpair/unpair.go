@@ -16,7 +16,7 @@ import (
 )
 
 // Set global variables for flags
-var hrefFile, role, app, env, loc, restore string
+var hrefFile, role, app, env, loc, restore, outputFileName string
 var debug, updatePCE, noPrompt, setLabelExcl, includeOnline bool
 var hoursSinceLastHB int
 var pce illumioapi.PCE
@@ -33,6 +33,8 @@ func init() {
 	UnpairCmd.Flags().BoolVarP(&setLabelExcl, "exclude-labels", "x", false, "Use provided label filters as excludes.")
 	UnpairCmd.Flags().IntVar(&hoursSinceLastHB, "hours", 0, "Hours since last heartbeat. No value (i.e., 0) will ignore heartbeats.")
 	UnpairCmd.Flags().BoolVar(&includeOnline, "include-online", false, "Include workloads that are online. By default only offline workloads that meet criteria will be unpaired.")
+	UnpairCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+
 	UnpairCmd.Flags().SortFlags = false
 }
 
@@ -193,13 +195,14 @@ func unpair() {
 	}
 
 	// Write CSV data
-
-	outfile := fmt.Sprintf("workloader-unpair-%s.csv", time.Now().Format("20060102_150405"))
-	utils.WriteOutput(data, data, outfile)
+	if outputFileName == "" {
+		outputFileName = fmt.Sprintf("workloader-unpair-%s.csv", time.Now().Format("20060102_150405"))
+	}
+	utils.WriteOutput(data, data, outputFileName)
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
-		utils.LogInfo(fmt.Sprintf("workloader identified %d workloads requiring unpairing. See %s for details. To do the unpair, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.", len(targetWklds), outfile), true)
+		utils.LogInfo(fmt.Sprintf("workloader identified %d workloads requiring unpairing. See %s for details. To do the unpair, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.", len(targetWklds), outputFileName), true)
 		utils.LogEndCommand("unpair")
 		return
 	}
@@ -207,7 +210,7 @@ func unpair() {
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if updatePCE && !noPrompt {
 		var prompt string
-		fmt.Printf("[PROMPT] - workloader identified %d workloads requiring unpairing in %s (%s). See %s for details. Do you want to run the unpair? (yes/no)? ", len(targetWklds), viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".fqdn").(string), outfile)
+		fmt.Printf("[PROMPT] - workloader identified %d workloads requiring unpairing in %s (%s). See %s for details. Do you want to run the unpair? (yes/no)? ", len(targetWklds), viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".fqdn").(string), outputFileName)
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo(fmt.Sprintf("prompt denied to unpair %d workloads.", len(targetWklds)), true)

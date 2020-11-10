@@ -16,7 +16,7 @@ import (
 )
 
 // Set global variables for flags
-var targetVersion, hostFile, loc, env, app, role string
+var targetVersion, hostFile, loc, env, app, role, outputFileName string
 var debug, updatePCE, noPrompt bool
 var pce illumioapi.PCE
 var err error
@@ -31,6 +31,8 @@ func init() {
 	UpgradeCmd.Flags().StringVarP(&env, "env", "e", "", "Environment Label. Blank means all environments.")
 	UpgradeCmd.Flags().StringVarP(&app, "app", "a", "", "Application Label. Blank means all applications.")
 	UpgradeCmd.Flags().StringVarP(&role, "role", "r", "", "Role Label. Blank means all roles.")
+	UpgradeCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+
 	UpgradeCmd.Flags().SortFlags = false
 
 }
@@ -135,7 +137,10 @@ func wkldUpgrade() {
 	}
 
 	// Create a CSV wtih the upgrades
-	outFile, err := os.Create("workloader-upgrade-" + time.Now().Format("20060102_150405") + ".csv")
+	if outputFileName == "" {
+		outputFileName = "workloader-upgrade-" + time.Now().Format("20060102_150405") + ".csv"
+	}
+	outFile, err := os.Create(outputFileName)
 	if err != nil {
 		utils.LogError(fmt.Sprintf("creating CSV - %s\n", err))
 	}
@@ -147,6 +152,7 @@ func wkldUpgrade() {
 	}
 
 	// Write CSV data
+
 	writer := csv.NewWriter(outFile)
 	writer.WriteAll(data)
 	if err := writer.Error(); err != nil {

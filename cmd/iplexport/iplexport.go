@@ -16,7 +16,12 @@ import (
 var pce illumioapi.PCE
 var err error
 var debug bool
-var outFormat string
+var outFormat, outputFileName string
+
+func init() {
+	IplExportCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+
+}
 
 // IplExportCmd runs the workload identifier
 var IplExportCmd = &cobra.Command{
@@ -81,7 +86,10 @@ func exportIPL() {
 	}
 
 	if len(csvData) > 1 {
-		utils.WriteOutput(csvData, csvData, fmt.Sprintf("workloader-ipl-export-%s.csv", time.Now().Format("20060102_150405")))
+		if outputFileName == "" {
+			outputFileName = fmt.Sprintf("workloader-ipl-export-%s.csv", time.Now().Format("20060102_150405"))
+		}
+		utils.WriteOutput(csvData, csvData, outputFileName)
 		utils.LogInfo(fmt.Sprintf("%d iplists exported.", len(csvData)-1), true)
 	} else {
 		// Log command execution for 0 results

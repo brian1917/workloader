@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var appFlag, exclWkldFile, exclPortFile, exclAppFile, outFormat string
+var appFlag, exclWkldFile, exclPortFile, exclAppFile, outFormat, outputFileName string
 var debug, ignoreLoc, inclUnmanagedAppGroups bool
 var pce illumioapi.PCE
 var err error
@@ -27,6 +27,8 @@ func init() {
 	MisLabelCmd.Flags().StringVarP(&exclAppFile, "aExclude", "x", "", "File location of app labels to exclude as orphans.")
 	MisLabelCmd.Flags().StringVarP(&exclPortFile, "pExclude", "p", "", "File location of ports to exclude in traffic query.")
 	MisLabelCmd.Flags().BoolVar(&ignoreLoc, "ignore-location", false, "Do not use location in comparing app groups.")
+	MisLabelCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+
 	MisLabelCmd.Flags().SortFlags = false
 }
 
@@ -265,7 +267,10 @@ func misLabel() {
 	}
 
 	if len(data) > 1 {
-		utils.WriteOutput(data, data, fmt.Sprintf("workloader-mislabel-%s.csv", time.Now().Format("20060102_150405")))
+		if outputFileName == "" {
+			outputFileName = fmt.Sprintf("workloader-mislabel-%s.csv", time.Now().Format("20060102_150405"))
+		}
+		utils.WriteOutput(data, data, outputFileName)
 		utils.LogInfo(fmt.Sprintf("%d potentially mislabeled workloads detected.", len(data)-1), true)
 	} else {
 		// Log if we don't find any

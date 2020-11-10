@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var csvFile, app, consExcl string
+var csvFile, app, consExcl, outputFileName string
 var lookupTO int
 var privOnly, exclWLs, debug bool
 var pce illumioapi.PCE
@@ -26,6 +26,7 @@ func init() {
 	TrafficCmd.Flags().StringVarP(&consExcl, "exclConsumer", "e", "", "label to exclude as a consumer role")
 	TrafficCmd.Flags().BoolVarP(&privOnly, "exclPubIPs", "p", false, "exclude public IP addresses and limit suggested workloads to the RFC 1918 address space")
 	TrafficCmd.Flags().BoolVarP(&exclWLs, "exclWklds", "w", false, "exclude IP addresses already assigned to workloads to suggest or verify labels")
+	TrafficCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 
 	TrafficCmd.Flags().SortFlags = false
 
@@ -277,7 +278,7 @@ func workloadIdentifier() {
 
 	// If we have results, send to writing CSV
 	if len(results) > 0 {
-		csvWriter(finalMatches, exclWLs)
+		csvWriter(finalMatches, exclWLs, outputFileName)
 	}
 
 	utils.LogEndCommand("traffic")

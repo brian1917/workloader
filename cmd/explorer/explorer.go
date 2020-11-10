@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var app, env, inclHrefDstFile, exclHrefDstFile, inclHrefSrcFile, exclHrefSrcFile, exclServiceObj, inclServiceCSV, exclServiceCSV, start, end, loopFile string
+var app, env, inclHrefDstFile, exclHrefDstFile, inclHrefSrcFile, exclHrefSrcFile, exclServiceObj, inclServiceCSV, exclServiceCSV, start, end, loopFile, outputFileName string
 var exclAllowed, exclPotentiallyBlocked, exclBlocked, appGroupLoc, ignoreIPGroup, consolidate, nonUni, debug, legacyOutput bool
 var maxResults int
 var pce illumioapi.PCE
@@ -37,6 +37,7 @@ func init() {
 	ExplorerCmd.Flags().IntVarP(&maxResults, "max-results", "m", 100000, "max results in explorer. Maximum value is 100000")
 	ExplorerCmd.Flags().BoolVar(&consolidate, "consolidate", false, "consolidate flows that have same source IP, destination IP, port, and protocol.")
 	ExplorerCmd.Flags().BoolVar(&appGroupLoc, "loc-in-ag", false, "includes the location in the app group in CSV output.")
+	ExplorerCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 
 	ExplorerCmd.Flags().BoolVar(&legacyOutput, "legacy", false, "legacy output")
 	ExplorerCmd.Flags().MarkHidden("legacy")
@@ -194,7 +195,11 @@ func explorerExport() {
 		if err != nil {
 			utils.LogError(err.Error())
 		}
+
 		outFileName := fmt.Sprintf("workloader-explorer-%s.csv", time.Now().Format("20060102_150405"))
+		if outputFileName != "" {
+			outFileName = outputFileName
+		}
 
 		// Consolidate if needed
 		originalFlowCount := len(traffic)
@@ -278,6 +283,9 @@ func explorerExport() {
 			}
 
 			outFileName := fmt.Sprintf("workloader-explorer-%s-%s.csv", f, time.Now().Format("20060102_150405"))
+			if outputFileName != "" {
+				outFileName = outputFileName
+			}
 			createExplorerCSV(outFileName, combinedTraffic)
 			if consolidate {
 				utils.LogInfo(fmt.Sprintf("%d consolidated traffic records exported from %d total records", len(combinedTraffic), originalFlowCount), true)

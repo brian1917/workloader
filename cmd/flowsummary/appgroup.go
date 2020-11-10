@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var app, start, end string
+var app, start, end, outputFileName string
 var exclAllowed, exclPotentiallyBlocked, exclBlocked, appGroupLoc, ignoreIPGroup, consolidate, debug bool
 var pce illumioapi.PCE
 var err error
@@ -28,6 +28,8 @@ func init() {
 	AppGroupFlowSummaryCmd.Flags().BoolVarP(&appGroupLoc, "appgrp-loc", "l", false, "use location in app group")
 	AppGroupFlowSummaryCmd.Flags().BoolVarP(&ignoreIPGroup, "ignore-ip", "i", false, "exlude IP address app groups from output")
 	AppGroupFlowSummaryCmd.Flags().BoolVarP(&consolidate, "consolidate", "c", false, "consolidate all communication between 2 app groups into one CSV entry. See description below for example of output formats.")
+	AppGroupFlowSummaryCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+
 	AppGroupFlowSummaryCmd.Flags().SortFlags = false
 
 }
@@ -271,7 +273,10 @@ func flowSummary() {
 
 	// Write the data
 	if len(data) > 1 {
-		utils.WriteOutput(data, data, fmt.Sprintf("workloader-flowsummary-%s.csv", time.Now().Format("20060102_150405")))
+		if outputFileName == "" {
+			outputFileName = fmt.Sprintf("workloader-flowsummary-%s.csv", time.Now().Format("20060102_150405"))
+		}
+		utils.WriteOutput(data, data, outputFileName)
 		utils.LogInfo(fmt.Sprintf("%d summaries exported.", len(data)-1), true)
 	} else {
 		// Log command execution for 0 results

@@ -17,11 +17,13 @@ import (
 var pce illumioapi.PCE
 var err error
 var debug, managedOnly, unmanagedOnly bool
-var outFormat string
+var outFormat, outputFileName string
 
 func init() {
 	WkldExportCmd.Flags().BoolVarP(&managedOnly, "managed-only", "m", false, "Only export managed workloads.")
 	WkldExportCmd.Flags().BoolVarP(&unmanagedOnly, "unmanaged-only", "u", false, "Only export unmanaged workloads.")
+	WkldExportCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+
 }
 
 // WkldExportCmd runs the workload identifier
@@ -139,7 +141,10 @@ func exportWorkloads() {
 	}
 
 	if len(csvData) > 1 {
-		utils.WriteOutput(csvData, stdOutData, fmt.Sprintf("workloader-wkld-export-%s.csv", time.Now().Format("20060102_150405")))
+		if outputFileName == "" {
+			outputFileName = fmt.Sprintf("workloader-wkld-export-%s.csv", time.Now().Format("20060102_150405"))
+		}
+		utils.WriteOutput(csvData, stdOutData, outputFileName)
 		utils.LogInfo(fmt.Sprintf("%d workloads exported", len(csvData)-1), true)
 	} else {
 		// Log command execution for 0 results

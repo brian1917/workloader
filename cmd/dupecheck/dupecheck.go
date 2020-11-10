@@ -13,10 +13,12 @@ import (
 
 var pce illumioapi.PCE
 var caseSensitive, debug bool
+var outputFileName string
 var err error
 
 func init() {
 	DupeCheckCmd.Flags().BoolVarP(&caseSensitive, "case-sensitive", "c", false, "Require hostname/name matches to be case-sensitve.")
+	DupeCheckCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 
 	DupeCheckCmd.Flags().SortFlags = false
 }
@@ -121,9 +123,11 @@ func dupeCheck() {
 	}
 	// Write the output
 	if len(data) > 1 {
-		fileName := fmt.Sprintf("workloader-dupecheck-%s.csv", time.Now().Format("20060102_150405"))
-		utils.WriteOutput(data, data, fileName)
-		utils.LogInfo(fmt.Sprintf("%d unmanaged workloads found. See %s for output. The output file can be used as input to workloader delete command.", len(data)-1, fileName), true)
+		if outputFileName == "" {
+			outputFileName = fmt.Sprintf("workloader-dupecheck-%s.csv", time.Now().Format("20060102_150405"))
+		}
+		utils.WriteOutput(data, data, outputFileName)
+		utils.LogInfo(fmt.Sprintf("%d unmanaged workloads found. See %s for output. The output file can be used as input to workloader delete command.", len(data)-1, outputFileName), true)
 	} else {
 		utils.LogInfo("No duplicates found", true)
 	}

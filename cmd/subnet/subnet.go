@@ -16,7 +16,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var csvFile, role, app, env, loc string
+var csvFile, role, app, env, loc, outputFileName string
 var netCol, envCol, locCol int
 var debug, updatePCE, noPrompt, setLabelExcl bool
 var pce illumioapi.PCE
@@ -44,6 +44,7 @@ func init() {
 	SubnetCmd.Flags().StringVarP(&env, "env", "e", "", "Environment Label. Blank means all environments.")
 	SubnetCmd.Flags().StringVarP(&loc, "loc", "l", "", "Location Label. Blank means all locations.")
 	SubnetCmd.Flags().BoolVarP(&setLabelExcl, "exclude-labels", "x", false, "Use provided label filters as excludes.")
+	SubnetCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 
 	SubnetCmd.Flags().SortFlags = false
 
@@ -241,7 +242,10 @@ func subnetParser() {
 		}
 
 		// Write the output file
-		utils.WriteOutput(data, data, "workloader-subnet-"+time.Now().Format("20060102_150405")+".csv")
+		if outputFileName == "" {
+			outputFileName = fmt.Sprintf("workloader-subnet-%s.csv", time.Now().Format("20060102_150405"))
+		}
+		utils.WriteOutput(data, data, outputFileName)
 
 		// Print number of workloads requiring update to the terminal
 		utils.LogInfo(fmt.Sprintf("%d workloads requiring label update.\r\n", len(updatedWklds)), true)

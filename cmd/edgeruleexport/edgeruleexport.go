@@ -14,13 +14,15 @@ import (
 var pce illumioapi.PCE
 var err error
 var debug, useActive, expandSVCs bool
-var outFormat, group string
+var outFormat, group, outputFileName string
 
 // Init handles flags
 func init() {
 
 	EdgeRuleExportCmd.Flags().BoolVar(&useActive, "active", false, "Use active policy versus draft. Draft is default.")
 	EdgeRuleExportCmd.Flags().BoolVarP(&expandSVCs, "expand-services", "e", false, "Expand all services. Do not use if re-importing to edit/add rules.")
+	EdgeRuleExportCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+
 	EdgeRuleExportCmd.Flags().SortFlags = false
 
 }
@@ -50,5 +52,5 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 }
 
 func exportEdgeRules() {
-	ruleexport.ExportRules(pce, useActive, "", "", "", true, expandSVCs, debug)
+	ruleexport.ExportRules(pce, useActive, "", "", "", true, expandSVCs, outputFileName, debug)
 }

@@ -14,6 +14,12 @@ import (
 var debug bool
 var pce illumioapi.PCE
 var err error
+var outputFileName string
+
+func init() {
+	NICCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+
+}
 
 // NICCmd produces a report of all network interfaces
 var NICCmd = &cobra.Command{
@@ -74,7 +80,10 @@ func nicExport() {
 	}
 
 	// Write the data
-	utils.WriteOutput(data, data, fmt.Sprintf(fmt.Sprintf("workloader-nic-%s.csv", time.Now().Format("20060102_150405"))))
+	if outputFileName == "" {
+		outputFileName = fmt.Sprintf("workloader-nic-%s.csv", time.Now().Format("20060102_150405"))
+	}
+	utils.WriteOutput(data, data, outputFileName)
 
 	// Log end of command
 	utils.LogEndCommand("nic")

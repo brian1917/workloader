@@ -177,7 +177,7 @@ func parseCoreServices(filename string) []coreService {
 
 }
 
-func csvWriter(results []result, exclWLs bool) {
+func csvWriter(results []result, exclWLs bool, outputFileName string) {
 
 	// Start the data array with headers
 	data := [][]string{[]string{"ip_address", "name", "status", "current_role", "current_app", "current_env", "current_loc", "suggested_role", "suggested_app", "suggested_env", "suggested_loc", "reason"}}
@@ -206,5 +206,8 @@ func csvWriter(results []result, exclWLs bool) {
 	}
 
 	// Write the CSV data
-	utils.WriteOutput(data, data, fmt.Sprintf("workloader-traffic-%s.csv", time.Now().Format("20060102_150405")))
+	if outputFileName == "" {
+		outputFileName = fmt.Sprintf("workloader-traffic-%s.csv", time.Now().Format("20060102_150405"))
+	}
+	utils.WriteOutput(data, data, outputFileName)
 }

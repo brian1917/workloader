@@ -14,7 +14,7 @@ import (
 )
 
 // Global variables
-var ports string
+var ports, outputFileName string
 var idleOnly, orOperator, debug, updatePCE, noPrompt bool
 var pce illumioapi.PCE
 var err error
@@ -23,6 +23,7 @@ func init() {
 
 	ServiceFinderCmd.Flags().BoolVarP(&idleOnly, "idle-only", "i", false, "Only look at idle workloads.")
 	ServiceFinderCmd.Flags().StringVarP(&ports, "ports", "p", "", "Comma-separated list of ports.")
+	ServiceFinderCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 
 	ServiceFinderCmd.Flags().SortFlags = false
 
@@ -129,7 +130,10 @@ func serviceFinder() {
 	fmt.Println()
 
 	if len(data) > 1 {
-		utils.WriteOutput(data, data, fmt.Sprintf("workloader-service-finder-%s.csv", time.Now().Format("20060102_150405")))
+		if outputFileName != "" {
+			outputFileName = fmt.Sprintf("workloader-service-finder-%s.csv", time.Now().Format("20060102_150405"))
+		}
+		utils.WriteOutput(data, data, outputFileName)
 		utils.LogInfo(fmt.Sprintf("%d workloads identified", len(data)-1), true)
 	} else {
 		// Log command execution for 0 results
