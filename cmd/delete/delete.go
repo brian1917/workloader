@@ -1,10 +1,7 @@
 package delete
 
 import (
-	"bufio"
-	"encoding/csv"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 
@@ -15,13 +12,14 @@ import (
 )
 
 // Set global variables for flags
-var hrefFile string
+var hrefFile, headerValue string
 var debug, updatePCE, noPrompt, noProv bool
 var pce illumioapi.PCE
 var err error
 
 func init() {
 	DeleteCmd.Flags().BoolVarP(&noPrompt, "no-prov", "x", false, "do not provision deletes for provisionable objects. By default, all deletions will be provisioned.")
+	DeleteCmd.Flags().StringVar(&headerValue, "header", "", "header to find the column with the hrefs to delete. If it's blank, the first column is used.")
 }
 
 // DeleteCmd runs the unpair
@@ -59,51 +57,63 @@ func delete() {
 	utils.LogStartCommand("delete")
 
 	// Get all HREFs from the CSV file
-	csvFile, _ := os.Open(hrefFile)
-	reader := csv.NewReader(bufio.NewReader(csvFile))
-	row := 0
 	provision := []string{}
 	var deleted, skipped int
-	for {
 
-		// Read the CSV
-		line, err := reader.Read()
-		if err == io.EOF {
-			break
+	// Parse the CSV data
+	csvData, err := utils.ParseCSV(hrefFile)
+	if err != nil {
+		utils.LogError(err.Error())
+	}
+
+	// Set the column to 0 for default.
+	col := 0
+
+	// If a headervalue is provided, set the column number to where that is
+	match := false
+	if headerValue != "" {
+		for i, c := range csvData[0] {
+			if c == headerValue {
+				col = i
+				match = true
+				break
+			}
 		}
-		if err != nil {
-			utils.LogError(fmt.Sprintf("Reading CSV File - %s", err))
+		if !match {
+			utils.LogError(fmt.Sprintf("%s does not exist as a header", headerValue))
 		}
+	}
 
-		// Increment the row counter
-		row++
+	utils.LogInfo(fmt.Sprintf("deleting hrefs in col %d", col), true)
 
-		// Check if HREF or header in first row
-		if row == 1 && !strings.Contains(line[0], "/orgs/") {
-			utils.LogInfo(fmt.Sprintf("CSV Line - %d - first row is header - skipping", row), true)
+	// Iterate throguh the CSV data
+	for i, line := range csvData {
+
+		if i == 0 && !strings.Contains(line[col], "/orgs/") {
+			utils.LogInfo(fmt.Sprintf("CSV Line - %d - first row is header - skipping", i+1), true)
 			continue
 		}
 
 		// For each other entry, delete the href
-		a, err := pce.DeleteHref(line[0])
+		a, err := pce.DeleteHref(line[col])
 		utils.LogAPIResp("DeleteHref", a)
 		if err != nil {
-			utils.LogWarning(fmt.Sprintf("CSV line %d - not deleted - status code %d", row, a.StatusCode), true)
+			utils.LogWarning(fmt.Sprintf("CSV line %d - not deleted - status code %d", i+1, a.StatusCode), true)
 			skipped++
 		} else {
 			// Increment the delete and log
 			deleted++
-			utils.LogInfo(fmt.Sprintf("CSV line %d - deleted - status code %d", row, a.StatusCode), true)
+			utils.LogInfo(fmt.Sprintf("CSV line %d - deleted - status code %d", i+1, a.StatusCode), true)
 			// Check if we need to provision it
-			if strings.Contains(line[0], "/ip_lists/") ||
-				strings.Contains(line[0], "/services/") ||
-				strings.Contains(line[0], "/rule_sets/") ||
-				strings.Contains(line[0], "/label_groups/") ||
-				strings.Contains(line[0], "/virtual_services/") ||
-				strings.Contains(line[0], "/virtual_servers/") ||
-				strings.Contains(line[0], "/firewall_settings/") ||
-				strings.Contains(line[0], "/secure_connect_gateways/") {
-				provision = append(provision, line[0])
+			if strings.Contains(line[col], "/ip_lists/") ||
+				strings.Contains(line[col], "/services/") ||
+				strings.Contains(line[col], "/rule_sets/") ||
+				strings.Contains(line[col], "/label_groups/") ||
+				strings.Contains(line[col], "/virtual_services/") ||
+				strings.Contains(line[col], "/virtual_servers/") ||
+				strings.Contains(line[col], "/firewall_settings/") ||
+				strings.Contains(line[col], "/secure_connect_gateways/") {
+				provision = append(provision, line[col])
 			}
 		}
 	}
