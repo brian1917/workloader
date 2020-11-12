@@ -108,8 +108,11 @@ func compatibilityReport() {
 
 	// If the CSV data has more than just the headers, create output file and write it.
 	if len(csvData) > 1 {
+		if outputFileName == "" {
+			outputFileName = fmt.Sprintf("workloader-compatibility-%s.csv", time.Now().Format("20060102_150405"))
+		}
 
-		utils.WriteOutput(csvData, stdOutData, fmt.Sprintf("workloader-compatibility-%s.csv", time.Now().Format("20060102_150405")))
+		utils.WriteOutput(csvData, stdOutData, outputFileName)
 		utils.LogInfo(fmt.Sprintf("%d compatibility reports exported.", len(csvData)-1), true)
 	} else {
 		// Log command execution for 0 results
@@ -120,7 +123,7 @@ func compatibilityReport() {
 	if modeChangeInput && len(modeChangeInputData) > 1 {
 		// Create CSV
 		if outputFileName == "" {
-			outputFileName = fmt.Sprintf("workloader-mode-input-%s.csv", time.Now().Format("20060102_150405"))
+			outputFileName = "mode-input-" + outputFileName
 		}
 		outFile, err := os.Create(outputFileName)
 		if err != nil {
