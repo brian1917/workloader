@@ -37,6 +37,7 @@ import (
 	"github.com/brian1917/workloader/cmd/svcexport"
 	"github.com/brian1917/workloader/cmd/templateimport"
 	"github.com/brian1917/workloader/cmd/traffic"
+	"github.com/brian1917/workloader/cmd/umwlcleanup"
 	"github.com/brian1917/workloader/cmd/unpair"
 	"github.com/brian1917/workloader/cmd/upgrade"
 	"github.com/brian1917/workloader/cmd/wkldexport"
@@ -122,6 +123,7 @@ func init() {
 	RootCmd.AddCommand(getpairingkey.GetPairingKey)
 	RootCmd.AddCommand(unpair.UnpairCmd)
 	RootCmd.AddCommand(delete.DeleteCmd)
+	RootCmd.AddCommand(umwlcleanup.UMWLCleanUpCmd)
 
 	// Label management
 	RootCmd.AddCommand(deleteunusedlabels.LabelsDeleteUnusedCmd)
