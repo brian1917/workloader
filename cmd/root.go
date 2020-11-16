@@ -25,6 +25,7 @@ import (
 	"github.com/brian1917/workloader/cmd/iplimport"
 	"github.com/brian1917/workloader/cmd/labelexport"
 	"github.com/brian1917/workloader/cmd/labelgroupexport"
+	"github.com/brian1917/workloader/cmd/labelgroupimport"
 	"github.com/brian1917/workloader/cmd/labelrename"
 	"github.com/brian1917/workloader/cmd/mislabel"
 	"github.com/brian1917/workloader/cmd/mode"
@@ -104,9 +105,10 @@ func init() {
 	RootCmd.AddCommand(iplexport.IplExportCmd)
 	RootCmd.AddCommand(iplimport.IplImportCmd)
 	RootCmd.AddCommand(labelexport.LabelExportCmd)
+	RootCmd.AddCommand(labelgroupexport.LabelGroupExportCmd)
+	RootCmd.AddCommand(labelgroupimport.LabelGroupImportCmd)
 	RootCmd.AddCommand(svcexport.SvcExportCmd)
 	RootCmd.AddCommand(ruleexport.RuleExportCmd)
-	RootCmd.AddCommand(labelgroupexport.LabelGroupExportCmd)
 	RootCmd.AddCommand(flowimport.FlowImportCmd)
 	RootCmd.AddCommand(templateimport.TemplateImportCmd)
 

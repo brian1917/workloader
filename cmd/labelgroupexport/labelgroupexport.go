@@ -61,7 +61,7 @@ func exportLabels() {
 	utils.LogInfo(fmt.Sprintf("provision status: %s", provisionStatus), false)
 
 	// Start the data slice with headers
-	csvData := [][]string{[]string{"href", "name", "key", "members", "fully_exapnded_members"}}
+	csvData := [][]string{[]string{"name", "key", "description", "member_labels", "member_label_groups", "fully_expanded_members", "href"}}
 
 	// GetAllLabelGroups
 	lgs, a, err := pce.GetAllLabelGroups(provisionStatus)
@@ -90,10 +90,10 @@ func exportLabels() {
 		}
 		// Iterate sub groups
 		for _, sg := range lg.SubGroups {
-			sgs = append(sgs, fmt.Sprintf("%s (label_group)", sg.Name))
+			sgs = append(sgs, sg.Name)
 		}
 
-		// Expand all subgroupspce.LabelGroupMapH := make(map[string]illumioapi.LabelGroup)
+		// Expand all subgroups
 		fullLabelHrefs := pce.ExpandLabelGroup(lg.Href)
 		fullLabels := []string{}
 		for _, f := range fullLabelHrefs {
@@ -101,7 +101,7 @@ func exportLabels() {
 		}
 
 		// Append to data slice
-		csvData = append(csvData, []string{lg.Href, lg.Name, lg.Key, strings.Join(append(labels, sgs...), "; "), strings.Join(fullLabels, "; ")})
+		csvData = append(csvData, []string{lg.Name, lg.Key, lg.Description, strings.Join(labels, "; "), strings.Join(sgs, ";"), strings.Join(fullLabels, "; "), lg.Href})
 	}
 
 	if len(csvData) > 1 {
