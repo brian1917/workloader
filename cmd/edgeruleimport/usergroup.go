@@ -53,7 +53,9 @@ func userGroupComaprison(csvUserGroupNames []string, rule illumioapi.Rule, userG
 			consumingSecPrincipals = append(consumingSecPrincipals, &illumioapi.ConsumingSecurityPrincipals{Href: ug.Href})
 		}
 	} else {
-		consumingSecPrincipals = rule.ConsumingSecurityPrincipals
+		for _, cp := range rule.ConsumingSecurityPrincipals {
+			consumingSecPrincipals = append(consumingSecPrincipals, &illumioapi.ConsumingSecurityPrincipals{Href: cp.Href})
+		}
 	}
 	return change, consumingSecPrincipals
 }
