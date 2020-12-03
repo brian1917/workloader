@@ -130,7 +130,7 @@ func serviceFinder() {
 	fmt.Println()
 
 	if len(data) > 1 {
-		if outputFileName != "" {
+		if outputFileName == "" {
 			outputFileName = fmt.Sprintf("workloader-service-finder-%s.csv", time.Now().Format("20060102_150405"))
 		}
 		utils.WriteOutput(data, data, outputFileName)
