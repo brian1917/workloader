@@ -149,24 +149,28 @@ CSVEntries:
 			}
 
 			// Member Labels
-			labels := strings.Split(strings.Replace(line[c.MemberLabelsIndex], "; ", ";", -1), ";")
-			for _, l := range labels {
-				if pceLabel, check := pce.LabelMapKV[line[c.KeyIndex]+l]; !check {
-					utils.LogWarning(fmt.Sprintf("CSV Line %d - the label %s (%s) does not exist. Skipping entry.", i+1, l, line[c.KeyIndex]), true)
-					continue CSVEntries
-				} else {
-					newLG.Labels = append(newLG.Labels, &illumioapi.Label{Href: pceLabel.Href})
+			if line[c.MemberLabelsIndex] != "" {
+				labels := strings.Split(strings.Replace(line[c.MemberLabelsIndex], "; ", ";", -1), ";")
+				for _, l := range labels {
+					if pceLabel, check := pce.LabelMapKV[line[c.KeyIndex]+l]; !check {
+						utils.LogWarning(fmt.Sprintf("CSV Line %d - the label %s (%s) does not exist. Skipping entry.", i+1, l, line[c.KeyIndex]), true)
+						continue CSVEntries
+					} else {
+						newLG.Labels = append(newLG.Labels, &illumioapi.Label{Href: pceLabel.Href})
+					}
 				}
 			}
 
 			// Member Label Groups
-			labelGroups := strings.Split(strings.Replace(line[c.MemberSGsIndex], "; ", ";", -1), ";")
-			for _, lg := range labelGroups {
-				if pceLabelGroup, check := pceLGKeyNameMap[line[c.KeyIndex]+lg]; !check {
-					utils.LogWarning(fmt.Sprintf("CSV Line %d - the label group %s (%s) does not exist. Skipping entry.", i+1, lg, line[c.KeyIndex]), true)
-					continue CSVEntries
-				} else {
-					newLG.SubGroups = append(newLG.SubGroups, &illumioapi.SubGroups{Href: pceLabelGroup.Href})
+			if line[c.MemberSGsIndex] != "" {
+				labelGroups := strings.Split(strings.Replace(line[c.MemberSGsIndex], "; ", ";", -1), ";")
+				for _, lg := range labelGroups {
+					if pceLabelGroup, check := pceLGKeyNameMap[line[c.KeyIndex]+lg]; !check {
+						utils.LogWarning(fmt.Sprintf("CSV Line %d - the label group %s (%s) does not exist. Skipping entry.", i+1, lg, line[c.KeyIndex]), true)
+						continue CSVEntries
+					} else {
+						newLG.SubGroups = append(newLG.SubGroups, &illumioapi.SubGroups{Href: pceLabelGroup.Href})
+					}
 				}
 			}
 
