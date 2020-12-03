@@ -147,30 +147,37 @@ CSVEntries:
 				utils.LogWarning(fmt.Sprintf("CSV Line %d - key field cannot be blank for new label group. Skipping entry", i+1), true)
 				continue CSVEntries
 			}
+			if strings.ToLower(line[c.KeyIndex]) != "role" && strings.ToLower(line[c.KeyIndex]) != "app" && strings.ToLower(line[c.KeyIndex]) != "loc" && strings.ToLower(line[c.KeyIndex]) != "env" {
+				utils.LogWarning(fmt.Sprintf("CSV Line %d - key field must be either role, app, env, or loc", i+1), true)
+			}
+			newLG.Key = strings.ToLower(line[c.KeyIndex])
 
 			// Member Labels
-			if line[c.MemberLabelsIndex] != "" {
-				labels := strings.Split(strings.Replace(line[c.MemberLabelsIndex], "; ", ";", -1), ";")
-				for _, l := range labels {
-					if pceLabel, check := pce.LabelMapKV[line[c.KeyIndex]+l]; !check {
-						utils.LogWarning(fmt.Sprintf("CSV Line %d - the label %s (%s) does not exist. Skipping entry.", i+1, l, line[c.KeyIndex]), true)
-						continue CSVEntries
-					} else {
-						newLG.Labels = append(newLG.Labels, &illumioapi.Label{Href: pceLabel.Href})
-					}
+			labels := strings.Split(strings.Replace(line[c.MemberLabelsIndex], "; ", ";", -1), ";")
+			if line[c.MemberLabelsIndex] == "" {
+				labels = []string{}
+			}
+			for _, l := range labels {
+				if pceLabel, check := pce.LabelMapKV[line[c.KeyIndex]+l]; !check {
+					utils.LogWarning(fmt.Sprintf("CSV Line %d - the label %s (%s) does not exist. Skipping entry.", i+1, l, line[c.KeyIndex]), true)
+					continue CSVEntries
+				} else {
+					newLG.Labels = append(newLG.Labels, &illumioapi.Label{Href: pceLabel.Href})
 				}
 			}
 
 			// Member Label Groups
-			if line[c.MemberSGsIndex] != "" {
-				labelGroups := strings.Split(strings.Replace(line[c.MemberSGsIndex], "; ", ";", -1), ";")
-				for _, lg := range labelGroups {
-					if pceLabelGroup, check := pceLGKeyNameMap[line[c.KeyIndex]+lg]; !check {
-						utils.LogWarning(fmt.Sprintf("CSV Line %d - the label group %s (%s) does not exist. Skipping entry.", i+1, lg, line[c.KeyIndex]), true)
-						continue CSVEntries
-					} else {
-						newLG.SubGroups = append(newLG.SubGroups, &illumioapi.SubGroups{Href: pceLabelGroup.Href})
-					}
+			labelGroups := strings.Split(strings.Replace(line[c.MemberSGsIndex], "; ", ";", -1), ";")
+			if line[c.MemberSGsIndex] == "" {
+				labelGroups = []string{}
+			}
+
+			for _, lg := range labelGroups {
+				if pceLabelGroup, check := pceLGKeyNameMap[line[c.KeyIndex]+lg]; !check {
+					utils.LogWarning(fmt.Sprintf("CSV Line %d - the label group %s (%s) does not exist. Skipping entry.", i+1, lg, line[c.KeyIndex]), true)
+					continue CSVEntries
+				} else {
+					newLG.SubGroups = append(newLG.SubGroups, &illumioapi.SubGroups{Href: pceLabelGroup.Href})
 				}
 			}
 
