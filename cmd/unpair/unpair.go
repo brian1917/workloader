@@ -169,7 +169,7 @@ func unpair() {
 
 	if len(targetWklds) == 0 {
 		if !includeOnline {
-			utils.LogInfo("zero workloads identified. The --include-only option was not set so only offline workloads were evaluated.", true)
+			utils.LogInfo("zero workloads identified. The --include-online option was not set so only offline workloads were evaluated.", true)
 		} else {
 			utils.LogInfo("zero workloads identified.", true)
 		}
