@@ -194,7 +194,7 @@ func workloadIdentifier() {
 		if label.Href == "" {
 			utils.LogError(fmt.Sprintf("%s does not exist as an app label.", app))
 		}
-		tq.SourcesInclude = []string{label.Href}
+		tq.SourcesInclude = [][]string{[]string{label.Href}}
 	}
 
 	// Run traffic query
@@ -209,7 +209,7 @@ func workloadIdentifier() {
 	// If app is provided, switch to the destination include, clear the sources include, run query again, append to previous result
 	if app != "" {
 		tq.DestinationsInclude = tq.SourcesInclude
-		tq.SourcesInclude = []string{}
+		tq.SourcesInclude = [][]string{}
 		traffic2, a, err := pce.GetTrafficAnalysis(tq)
 		if debug {
 			utils.LogAPIResp("GetTrafficAnalysis", a)

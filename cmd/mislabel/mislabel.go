@@ -144,7 +144,7 @@ func misLabel() {
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-		tq.SourcesInclude = []string{l.Href}
+		tq.SourcesInclude = [][]string{[]string{l.Href}}
 	}
 
 	// Get traffic
@@ -160,7 +160,7 @@ func misLabel() {
 	// We will have duplicate entries here, but it won't matter with logic.
 	if appFlag != "" {
 		tq.DestinationsInclude = tq.SourcesInclude
-		tq.SourcesInclude = []string{}
+		tq.SourcesInclude = [][]string{}
 		traffic2, apiResp, err := pce.GetTrafficAnalysis(tq)
 		if debug {
 			utils.LogAPIResp("GetTrafficAnalysis", apiResp)
