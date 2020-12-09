@@ -13,7 +13,7 @@ import (
 )
 
 var app, env, inclHrefDstFile, exclHrefDstFile, inclHrefSrcFile, exclHrefSrcFile, exclServiceObj, inclServiceCSV, exclServiceCSV, start, end, loopFile, outputFileName string
-var exclAllowed, exclPotentiallyBlocked, exclBlocked, appGroupLoc, ignoreIPGroup, consolidate, nonUni, debug, legacyOutput bool
+var exclAllowed, exclPotentiallyBlocked, exclBlocked, appGroupLoc, ignoreIPGroup, consolidate, nonUni, debug, legacyOutput, consAndProvierOnLoop bool
 var maxResults int
 var pce illumioapi.PCE
 var err error
@@ -22,9 +22,10 @@ var whm map[string]illumioapi.Workload
 func init() {
 
 	ExplorerCmd.Flags().StringVarP(&loopFile, "loop-label-file", "l", "", "file with columns of label hrefs on separate lines (without header). An explorer query for the label(s) as consumer OR provider is run for each app. For example, to iterate on app group, put the app label href in the first column and the environment href in the second column.")
-	ExplorerCmd.Flags().StringVarP(&inclHrefDstFile, "incl-dst-file", "a", "", "file with hrefs on separate lines to be used in as a provider include. Can be a csv with hrefs in first column. Headers optional")
+	ExplorerCmd.Flags().BoolVarP(&consAndProvierOnLoop, "consumer-and-provider", "z", false, "when looping, run two queries - one as the consumer and another as the provider and de-dupe")
+	ExplorerCmd.Flags().StringVarP(&inclHrefDstFile, "incl-dst-file", "a", "", "file with hrefs on separate lines to be used in as a provider include. Each line is treated as OR logic. On same line, combine hrefs of same object type for an AND logic. Headers optional")
 	ExplorerCmd.Flags().StringVarP(&exclHrefDstFile, "excl-dst-file", "b", "", "file with hrefs on separate lines to be used in as a provider exclude. Can be a csv with hrefs in first column. Headers optional")
-	ExplorerCmd.Flags().StringVarP(&inclHrefSrcFile, "incl-src-file", "c", "", "file with hrefs on separate lines to be used in as a consumer include. Can be a csv with hrefs in first column. Headers optional")
+	ExplorerCmd.Flags().StringVarP(&inclHrefSrcFile, "incl-src-file", "c", "", "file with hrefs on separate lines to be used in as a consumer include. Each line is treated as OR logic. On same line, combine hrefs of same object type for an AND logic. Headers optional")
 	ExplorerCmd.Flags().StringVarP(&exclHrefSrcFile, "excl-src-file", "d", "", "file with hrefs on separate lines to be used in as a consumer exclude. Can be a csv with hrefs in first column. Headers optional")
 	ExplorerCmd.Flags().StringVarP(&inclServiceCSV, "incl-svc-file", "i", "", "file location of csv with port/protocols to exclude. Port number in column 1 and IANA numeric protocol in Col 2. Headers optional.")
 	ExplorerCmd.Flags().StringVarP(&exclServiceCSV, "excl-svc-file", "j", "", "file location of csv with port/protocols to exclude. Port number in column 1 and IANA numeric protocol in Col 2. Headers optional.")
@@ -142,22 +143,62 @@ func explorerExport() {
 		}
 	}
 
-	// Get the source and destination include/exclude hrefs
-	files := []string{inclHrefSrcFile, inclHrefDstFile, exclHrefSrcFile, exclHrefDstFile}
-	targets := []*[]string{&tq.SourcesInclude, &tq.DestinationsInclude, &tq.SourcesExclude, &tq.DestinationsExclude}
-	for i, f := range files {
-		if f == "" {
-			continue
-		}
-		d, err := utils.ParseCSV(f)
+	// Get the Include Source
+	if inclHrefSrcFile != "" {
+		// Parse the file
+		d, err := utils.ParseCSV(inclHrefSrcFile)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-		new := []string{}
-		for _, n := range d {
-			new = append(new, n[0])
+		// For each entry in the file, add an include - OR operator
+		// Semi-colons are used to differentiate hrefs in the same include - AND operator.
+		for _, entry := range d {
+			tq.SourcesInclude = append(tq.SourcesInclude, strings.Split(strings.ReplaceAll(entry[0], "; ", ";"), ";"))
 		}
-		*targets[i] = append(*targets[i], new...)
+	} else {
+		tq.SourcesInclude = append(tq.SourcesInclude, make([]string, 0))
+	}
+
+	// Get the Include Destination
+	if inclHrefDstFile != "" {
+		// Parse the file
+		d, err := utils.ParseCSV(inclHrefDstFile)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		// For each entry in the file, add an include - OR operator
+		// Semi-colons are used to differentiate hrefs in the same include - AND operator.
+		for _, entry := range d {
+			tq.DestinationsInclude = append(tq.DestinationsInclude, strings.Split(strings.ReplaceAll(entry[0], "; ", ";"), ";"))
+		}
+	} else {
+		tq.DestinationsInclude = append(tq.DestinationsInclude, make([]string, 0))
+	}
+
+	// Get the Exclude Sources
+	if exclHrefSrcFile != "" {
+		// Parse the file
+		d, err := utils.ParseCSV(exclHrefSrcFile)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		// For each entry in the file, add an exclude - OR operator
+		for _, entry := range d {
+			tq.SourcesExclude = append(tq.SourcesExclude, entry[0])
+		}
+	}
+
+	// Get the Exclude Destinations
+	if exclHrefDstFile != "" {
+		// Parse the file
+		d, err := utils.ParseCSV(exclHrefDstFile)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		// For each entry in the file, add an exclude - OR operator
+		for _, entry := range d {
+			tq.DestinationsExclude = append(tq.DestinationsExclude, entry[0])
+		}
 	}
 
 	// Exclude broadcast and multicast, unless flag set to include non-unicast flows
@@ -225,59 +266,62 @@ func explorerExport() {
 		// Build the new query struct
 		newTQ := tq
 
-		// Add the labels to the include and build a string for logging
-		logString := []string{}
-		fileName := []string{}
+		// Append the combination of labels. Each combination of labels is it's own include (if there is multiple, they are an AND)
+		newTQ.SourcesInclude = append(newTQ.SourcesInclude, labels)
+
+		// Build the file name and log string by iterating over all the labels
+		var logEntries, fileNameEntries []string
 		for _, label := range labels {
-			newTQ.SourcesInclude = append(newTQ.SourcesInclude, label)
-			logString = append(logString, fmt.Sprintf("%s(%s)", pce.LabelMapH[label].Value, pce.LabelMapH[label].Key))
-			fileName = append(fileName, pce.LabelMapH[label].Value)
+			logEntries = append(logEntries, fmt.Sprintf("%s(%s)", pce.LabelMapH[label].Value, pce.LabelMapH[label].Key))
+			fileNameEntries = append(fileNameEntries, pce.LabelMapH[label].Value)
 		}
 
 		// Log the query
-		utils.LogInfo(fmt.Sprintf("Querying label set %d of %d - %s", i+1, len(iterateList), strings.Join(logString, ";")), true)
+		utils.LogInfo(fmt.Sprintf("Querying label set %d of %d - %s as a source", i+1, len(iterateList), strings.Join(logEntries, ";")), true)
 
 		// Run the first traffic query with the app as a source
 		traffic, a, err = pce.GetTrafficAnalysis(newTQ)
 		utils.LogAPIResp("GetTrafficAnalysis", a)
-		utils.LogInfo(fmt.Sprintf("making first explorer query for %s", strings.Join(logString, ";")), false)
 		utils.LogInfo(a.ReqBody, false)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
 
-		// Get ready for second query - restore original
-		newTQ = tq
+		if consAndProvierOnLoop {
 
-		// Set the destinations include with new labels and exclude the source since we already have it from first query
-		for _, label := range labels {
-			newTQ.DestinationsInclude = append(newTQ.DestinationsInclude, label)
-			newTQ.SourcesExclude = append(newTQ.SourcesExclude, label)
+			// Run the second traffic query wth the app as a desitnation
+			newTQ.SourcesInclude = tq.SourcesInclude
+			newTQ.DestinationsInclude = append(newTQ.SourcesInclude, labels)
+
+			// Log the query
+			utils.LogInfo(fmt.Sprintf("Querying label set %d of %d - %s as a destination and depduping from source query", i+1, len(iterateList), strings.Join(logEntries, ";")), true)
+
+			// Run the first traffic query with the app as a source
+			traffic2, a, err = pce.GetTrafficAnalysis(newTQ)
+			utils.LogAPIResp("GetTrafficAnalysis", a)
+			utils.LogInfo(a.ReqBody, false)
+			if err != nil {
+				utils.LogError(err.Error())
+			}
+
+			// Now we need to de-dupe traffic1 and traffic 2
+			dedupedTraffic := illumioapi.DedupeExplorerTraffic(traffic, traffic2)
+			traffic = nil
+			traffic = dedupedTraffic
 		}
-
-		traffic2, a, err = pce.GetTrafficAnalysis(newTQ)
-		utils.LogAPIResp("GetTrafficAnalysis", a)
-		utils.LogInfo(fmt.Sprintf("making second explorer query for %s", strings.Join(logString, ";")), false)
-		utils.LogInfo(a.ReqBody, false)
-		if err != nil {
-			utils.LogError(err.Error())
-		}
-
-		// Append the results
-		combinedTraffic := append(traffic, traffic2...)
 
 		// Consolidate if needed
-		originalFlowCount := len(combinedTraffic)
+		originalFlowCount := len(traffic)
 		if consolidate {
-			cf := consolidateFlows(combinedTraffic)
-			combinedTraffic = nil
-			combinedTraffic = append(combinedTraffic, cf...)
+			cf := consolidateFlows(traffic)
+			traffic = nil
+			traffic = append(traffic, cf...)
 		}
 
 		// Generate the CSV
-		if len(combinedTraffic) > 0 {
+		if len(traffic) > 0 {
 			badChars := []string{"/", "\\", "$", "^", "&", "%", "!", "@", "#", "*", "(", ")", "{", "}", "[", "]", "~", "`"}
-			f := strings.Join(fileName, "-")
+			f := strings.Join(fileNameEntries, "-")
 			for _, b := range badChars {
 				f = strings.ReplaceAll(f, b, "")
 			}
@@ -286,11 +330,11 @@ func explorerExport() {
 			if outputFileName != "" {
 				outFileName = outputFileName
 			}
-			createExplorerCSV(outFileName, combinedTraffic)
+			createExplorerCSV(outFileName, traffic)
 			if consolidate {
-				utils.LogInfo(fmt.Sprintf("%d consolidated traffic records exported from %d total records", len(combinedTraffic), originalFlowCount), true)
+				utils.LogInfo(fmt.Sprintf("%d consolidated traffic records exported from %d total records", len(traffic), originalFlowCount), true)
 			}
-			utils.LogInfo(fmt.Sprintf("Exported %d traffic records.", len(combinedTraffic)), true)
+			utils.LogInfo(fmt.Sprintf("Exported %d traffic records.", len(traffic)), true)
 		} else {
 			utils.LogInfo(fmt.Sprintln("No traffic records."), true)
 		}
