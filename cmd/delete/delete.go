@@ -12,7 +12,7 @@ import (
 )
 
 // Set global variables for flags
-var hrefFile, headerValue string
+var userInput, headerValue string
 var debug, updatePCE, noPrompt, noProv bool
 var pce illumioapi.PCE
 var err error
@@ -24,7 +24,7 @@ func init() {
 
 // DeleteCmd runs the unpair
 var DeleteCmd = &cobra.Command{
-	Use:   "delete [csv file with hrefs to delete]",
+	Use:   "delete [csv file with hrefs to delete or semi-colon separate list of hrefs]",
 	Short: "Delete any object with an HREF (e.g., unmanaged workloads, labels, services, IPLists, etc.) from the PCE.",
 	Long: `  
 Delete any object with an HREF (e.g., unmanaged workloads, labels, services, IPLists, etc.) from the PCE.
@@ -41,7 +41,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 			fmt.Println("Command requires 1 argument for the csv file. See usage help.")
 			os.Exit(0)
 		}
-		hrefFile = args[0]
+		userInput = args[0]
 
 		// Get persistent flags from Viper
 		debug = viper.Get("debug").(bool)
@@ -54,68 +54,153 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 
 func delete() {
 
+	// Log Start of the command
 	utils.LogStartCommand("delete")
 
-	// Get all HREFs from the CSV file
-	provision := []string{}
+	// Create our hrefSlice
+	hrefs := []string{}
+
+	// Get the HREFs from user input or the file
+	if strings.Contains(userInput, "/orgs/") {
+		if _, err := os.Stat(userInput); !os.IsNotExist(err) {
+			utils.LogError("the provided input could be an href (contains \"/orgs/\") and is also a file. Rename the file for clarity.")
+		}
+		hrefs = strings.Split(strings.ReplaceAll(userInput, "; ", ";"), ";")
+	} else {
+		// Parse the CSV data
+		csvData, err := utils.ParseCSV(userInput)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		// Set the column to 0 for default.
+		col := 0
+		// If a headervalue is provided, set the column number to where that is
+		match := false
+		if headerValue != "" {
+			for i, c := range csvData[0] {
+				if c == headerValue {
+					col = i
+					match = true
+					break
+				}
+			}
+			if !match {
+				utils.LogError(fmt.Sprintf("%s does not exist as a header", headerValue))
+			}
+		}
+		for i, line := range csvData {
+			if i == 0 && !strings.Contains(line[col], "/orgs/") {
+				utils.LogInfo(fmt.Sprintf("CSV Line - %d - first row is header - skipping", i+1), true)
+				continue
+			}
+			hrefs = append(hrefs, line[col])
+
+			// Log column
+			utils.LogInfo(fmt.Sprintf("hrefs are in col %d", col+1), false)
+		}
+	}
+
 	var deleted, skipped int
 
-	// Parse the CSV data
-	csvData, err := utils.ParseCSV(hrefFile)
-	if err != nil {
-		utils.LogError(err.Error())
+	// Create the provision slice
+	provisionMap := make(map[string]bool)
+
+	// Make a map of unique types
+	deleteCounts := make(map[string]int)
+
+	// Iterate throguh the delete Hrefs
+	for _, entry := range hrefs {
+
+		key := ""
+		if strings.Contains(entry, "/labels/") {
+			key = "labels"
+		} else if strings.Contains(entry, "/ip_lists/") {
+			key = "ip_lists"
+		} else if strings.Contains(entry, "/services/") {
+			key = "services"
+		} else if strings.Contains(entry, "/virtual_services/") {
+			key = "virtual_services"
+		} else if strings.Contains(entry, "/virtual_servers/") {
+			key = "virtual_servers"
+		} else if strings.Contains(entry, "/pairing_profiles/") {
+			key = "pairing_profiles"
+		} else if strings.Contains(entry, "/sec_rules/") {
+			key = "rules"
+		} else if strings.Contains(entry, "/rule_sets/") {
+			key = "rule_sets"
+		} else if strings.Contains(entry, "/users/") {
+			key = "users"
+		} else {
+			x := strings.Split(entry, "/")
+			x = x[:len(x)-1]
+			key = strings.Join(x, "/")
+		}
+		// Add to the map
+		deleteCounts[key] = deleteCounts[key] + 1
+
 	}
 
-	// Set the column to 0 for default.
-	col := 0
+	// Print out
+	utils.LogInfo(fmt.Sprintf("%d records identified to be deleted:", len(hrefs)), true)
+	for key, value := range deleteCounts {
+		utils.LogInfo(fmt.Sprintf("%s:%d", key, value), true)
+	}
 
-	// If a headervalue is provided, set the column number to where that is
-	match := false
-	if headerValue != "" {
-		for i, c := range csvData[0] {
-			if c == headerValue {
-				col = i
-				match = true
-				break
-			}
-		}
-		if !match {
-			utils.LogError(fmt.Sprintf("%s does not exist as a header", headerValue))
+	// Log findings
+	if !updatePCE {
+		utils.LogInfo("Run command again with --update-pce to do the delete.", true)
+		return
+	}
+
+	// If updatePCE is set, but not noPrompt, we will prompt the user.
+	if updatePCE && !noPrompt {
+		var prompt string
+		fmt.Printf("\r\n[PROMPT] - workloader identified %d objects to attempt to delete in %s (%s). Do you want to run the delete (yes/no)? ", len(hrefs), viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".fqdn").(string))
+		fmt.Scanln(&prompt)
+		if strings.ToLower(prompt) != "yes" {
+			utils.LogInfo("prompt denied.", true)
+			utils.LogEndCommand("delete")
+			return
 		}
 	}
 
-	utils.LogInfo(fmt.Sprintf("deleting hrefs in col %d", col), true)
-
-	// Iterate throguh the CSV data
-	for i, line := range csvData {
-
-		if i == 0 && !strings.Contains(line[col], "/orgs/") {
-			utils.LogInfo(fmt.Sprintf("CSV Line - %d - first row is header - skipping", i+1), true)
-			continue
-		}
+	// If we get here - we do the delete
+	for _, href := range hrefs {
 
 		// For each other entry, delete the href
-		a, err := pce.DeleteHref(line[col])
+		a, _ := pce.DeleteHref(href)
 		utils.LogAPIResp("DeleteHref", a)
-		if err != nil {
-			utils.LogWarning(fmt.Sprintf("CSV line %d - not deleted - status code %d", i+1, a.StatusCode), true)
+		if a.StatusCode != 204 {
+			utils.LogWarning(fmt.Sprintf("%s - not deleted - status code %d", href, a.StatusCode), true)
 			skipped++
-		} else {
+		} else if a.StatusCode == 204 {
 			// Increment the delete and log
 			deleted++
-			utils.LogInfo(fmt.Sprintf("CSV line %d - deleted - status code %d", i+1, a.StatusCode), true)
+			utils.LogInfo(fmt.Sprintf("%s - deleted - status code %d", href, a.StatusCode), true)
 			// Check if we need to provision it
-			if strings.Contains(line[col], "/ip_lists/") ||
-				strings.Contains(line[col], "/services/") ||
-				strings.Contains(line[col], "/rule_sets/") ||
-				strings.Contains(line[col], "/label_groups/") ||
-				strings.Contains(line[col], "/virtual_services/") ||
-				strings.Contains(line[col], "/virtual_servers/") ||
-				strings.Contains(line[col], "/firewall_settings/") ||
-				strings.Contains(line[col], "/secure_connect_gateways/") {
-				provision = append(provision, line[col])
+			if strings.Contains(href, "/ip_lists/") ||
+				strings.Contains(href, "/services/") ||
+				strings.Contains(href, "/rule_sets/") ||
+				strings.Contains(href, "/label_groups/") ||
+				strings.Contains(href, "/virtual_services/") ||
+				strings.Contains(href, "/virtual_servers/") ||
+				strings.Contains(href, "/firewall_settings/") ||
+				strings.Contains(href, "/secure_connect_gateways/") {
+				// If it's a rule, only provion the ruleset
+				if strings.Contains(href, "/sec_rules/") {
+					r := illumioapi.Rule{Href: href}
+					provisionMap[r.GetRuleSetHrefFromRuleHref()] = true
+				} else {
+					provisionMap[href] = true
+				}
 			}
 		}
+	}
+
+	// Turn the map into slice (so we have no dupes)
+	provision := []string{}
+	for p := range provisionMap {
+		provision = append(provision, p)
 	}
 
 	// Log the deleted total
