@@ -14,7 +14,7 @@ import (
 
 var app, env, inclHrefDstFile, exclHrefDstFile, inclHrefSrcFile, exclHrefSrcFile, exclServiceObj, inclServiceCSV, exclServiceCSV, start, end, loopFile, outputFileName string
 var exclAllowed, exclPotentiallyBlocked, exclBlocked, appGroupLoc, ignoreIPGroup, consolidate, nonUni, debug, legacyOutput, consAndProvierOnLoop bool
-var maxResults int
+var maxResults, iterativeThreshold int
 var pce illumioapi.PCE
 var err error
 var whm map[string]illumioapi.Workload
@@ -39,6 +39,7 @@ func init() {
 	ExplorerCmd.Flags().BoolVar(&consolidate, "consolidate", false, "consolidate flows that have same source IP, destination IP, port, and protocol.")
 	ExplorerCmd.Flags().BoolVar(&appGroupLoc, "loc-in-ag", false, "includes the location in the app group in CSV output.")
 	ExplorerCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+	ExplorerCmd.Flags().IntVar(&iterativeThreshold, "iterative-query-threshold", 0, "If set greater than 0, workloader will run iterative explorer queries to maximize the return records. (Not advisable for most usecases).")
 
 	ExplorerCmd.Flags().BoolVar(&legacyOutput, "legacy", false, "legacy output")
 	ExplorerCmd.Flags().MarkHidden("legacy")
@@ -79,6 +80,14 @@ func explorerExport() {
 
 	// Log start
 	utils.LogStartCommand("explorer")
+
+	// Run some checks on iterative query value
+	if iterativeThreshold > 0 && iterativeThreshold > maxResults {
+		utils.LogError("iterative-query-threshold must be less than or equal to max results")
+	}
+	if float64(iterativeThreshold) > 0.9*float64(maxResults) {
+		utils.LogWarning("recommended to set iterative-query-threshold lower than 90% of max results.", true)
+	}
 
 	// Create the default query struct
 	tq := illumioapi.TrafficQuery{}
@@ -229,10 +238,15 @@ func explorerExport() {
 
 	// If we aren't iterating - generate
 	if len(iterateList) == 0 {
-		traffic, a, err = pce.GetTrafficAnalysis(tq)
-		utils.LogInfo("making single explorer query", false)
-		utils.LogInfo(a.ReqBody, false)
-		utils.LogAPIResp("GetTrafficAnalysis", a)
+		if iterativeThreshold == 0 {
+			traffic, a, err = pce.GetTrafficAnalysis(tq)
+			utils.LogInfo("making single explorer query", false)
+			utils.LogInfo(a.ReqBody, false)
+			utils.LogAPIResp("GetTrafficAnalysis", a)
+		} else {
+			illumioapi.Threshold = iterativeThreshold
+			traffic, err = pce.IterateTraffic(tq, true)
+		}
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -280,9 +294,14 @@ func explorerExport() {
 		utils.LogInfo(fmt.Sprintf("Querying label set %d of %d - %s as a source", i+1, len(iterateList), strings.Join(logEntries, ";")), true)
 
 		// Run the first traffic query with the app as a source
-		traffic, a, err = pce.GetTrafficAnalysis(newTQ)
-		utils.LogAPIResp("GetTrafficAnalysis", a)
-		utils.LogInfo(a.ReqBody, false)
+		if iterativeThreshold == 0 {
+			traffic, a, err = pce.GetTrafficAnalysis(newTQ)
+			utils.LogAPIResp("GetTrafficAnalysis", a)
+			utils.LogInfo(a.ReqBody, false)
+
+		} else {
+			traffic, err = pce.IterateTraffic(newTQ, true)
+		}
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -297,9 +316,13 @@ func explorerExport() {
 			utils.LogInfo(fmt.Sprintf("Querying label set %d of %d - %s as a destination and depduping from source query", i+1, len(iterateList), strings.Join(logEntries, ";")), true)
 
 			// Run the first traffic query with the app as a source
-			traffic2, a, err = pce.GetTrafficAnalysis(newTQ)
-			utils.LogAPIResp("GetTrafficAnalysis", a)
-			utils.LogInfo(a.ReqBody, false)
+			if iterativeThreshold == 0 {
+				traffic2, a, err = pce.GetTrafficAnalysis(newTQ)
+				utils.LogAPIResp("GetTrafficAnalysis", a)
+				utils.LogInfo(a.ReqBody, false)
+			} else {
+				traffic2, err = pce.IterateTraffic(newTQ, true)
+			}
 			if err != nil {
 				utils.LogError(err.Error())
 			}
