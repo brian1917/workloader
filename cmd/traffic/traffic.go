@@ -162,6 +162,13 @@ func workloadIdentifier() {
 		}
 	}
 
+	// Create the default query struct
+	tq := illumioapi.TrafficQuery{
+		StartTime:      time.Date(2013, 1, 1, 0, 0, 0, 0, time.UTC),
+		EndTime:        time.Date(2020, 12, 30, 0, 0, 0, 0, time.UTC),
+		PolicyStatuses: []string{"allowed", "potentially_blocked", "blocked"},
+		MaxFLows:       100000}
+
 	// Get the label if we are going to do a consumer exclude
 	var exclLabel illumioapi.Label
 	if len(consExcl) > 0 {
@@ -172,15 +179,8 @@ func workloadIdentifier() {
 		if exclLabel.Href == "" {
 			utils.LogError(fmt.Sprintf("%s does not exist as an role label.", consExcl))
 		}
+		tq.SourcesExclude = []string{exclLabel.Href}
 	}
-
-	// Create the default query struct
-	tq := illumioapi.TrafficQuery{
-		StartTime:      time.Date(2013, 1, 1, 0, 0, 0, 0, time.UTC),
-		EndTime:        time.Date(2020, 12, 30, 0, 0, 0, 0, time.UTC),
-		PolicyStatuses: []string{"allowed", "potentially_blocked", "blocked"},
-		SourcesExclude: []string{exclLabel.Href},
-		MaxFLows:       100000}
 
 	// If an app is provided, adjust query to include it
 	if app != "" {
