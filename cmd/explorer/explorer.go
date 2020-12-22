@@ -38,7 +38,7 @@ func init() {
 	ExplorerCmd.Flags().IntVarP(&maxResults, "max-results", "m", 100000, "max results in explorer. Maximum value is 100000")
 	ExplorerCmd.Flags().BoolVar(&consolidate, "consolidate", false, "consolidate flows that have same source IP, destination IP, port, and protocol.")
 	ExplorerCmd.Flags().BoolVar(&appGroupLoc, "loc-in-ag", false, "includes the location in the app group in CSV output.")
-	ExplorerCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+	ExplorerCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename. If iterating through labels, the labels will be appended to the provided name before the provided file extension. To name the files for the labels, use just an extension (--output-file .csv).")
 	ExplorerCmd.Flags().IntVar(&iterativeThreshold, "iterative-query-threshold", 0, "If set greater than 0, workloader will run iterative explorer queries to maximize the return records. (Not advisable for most usecases).")
 
 	ExplorerCmd.Flags().BoolVar(&legacyOutput, "legacy", false, "legacy output")
@@ -343,7 +343,7 @@ func explorerExport() {
 
 		// Generate the CSV
 		if len(traffic) > 0 {
-			badChars := []string{"/", "\\", "$", "^", "&", "%", "!", "@", "#", "*", "(", ")", "{", "}", "[", "]", "~", "`"}
+			badChars := []string{"/", "\\", "$", "^", "&", "%", "!", "@", "#", "*", "{", "}", "[", "]", "~", "`"}
 			f := strings.Join(fileNameEntries, "-")
 			for _, b := range badChars {
 				f = strings.ReplaceAll(f, b, "")
@@ -351,7 +351,20 @@ func explorerExport() {
 
 			outFileName := fmt.Sprintf("workloader-explorer-%s-%s.csv", f, time.Now().Format("20060102_150405"))
 			if outputFileName != "" {
-				outFileName = outputFileName
+				// Split it on periods
+				x := strings.Split(outputFileName, ".")
+				// Get the extension
+				ext := x[len(x)-1]
+				// Remove the extension from x
+				x = x[:len(x)-1]
+				// Rejoin the remaining and append the app
+				if x[0] == "" {
+					outFileName = fmt.Sprintf("%s.%s", f, ext)
+				} else {
+					outFileName = fmt.Sprintf("%s-%s.%s", strings.Join(x, "."), f, ext)
+				}
+
+				// Remove leading "-" if it exists
 			}
 			createExplorerCSV(outFileName, traffic)
 			if consolidate {
