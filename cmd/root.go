@@ -9,6 +9,7 @@ import (
 
 	"github.com/brian1917/workloader/cmd/checkversion"
 	"github.com/brian1917/workloader/cmd/compatibility"
+	"github.com/brian1917/workloader/cmd/dagsync"
 	"github.com/brian1917/workloader/cmd/delete"
 	"github.com/brian1917/workloader/cmd/deleteunusedlabels"
 	"github.com/brian1917/workloader/cmd/dupecheck"
@@ -151,6 +152,7 @@ func init() {
 
 	// Undocumented
 	RootCmd.AddCommand(extract.ExtractCmd)
+	RootCmd.AddCommand(dagsync.DAGSyncCmd)
 
 	// Set the usage templates
 	for _, c := range RootCmd.Commands() {
