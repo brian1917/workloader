@@ -109,6 +109,7 @@ func fieldMapping() map[string]string {
 	fieldMapping["role_label"] = "role"
 	fieldMapping["rolelabel"] = "role"
 	fieldMapping["suggested_role"] = "role" // for traffic command
+	fieldMapping["edge_group"] = "role"     // for edge
 
 	// App
 	fieldMapping["app"] = "app"
