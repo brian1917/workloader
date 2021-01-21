@@ -16,12 +16,16 @@ import (
 
 var debug, modeChangeInput, issuesOnly bool
 var pce illumioapi.PCE
-var outputFileName string
+var outputFileName, role, app, env, loc string
 var err error
 
 func init() {
 	CompatibilityCmd.Flags().BoolVarP(&modeChangeInput, "mode-input", "m", false, "generate the input file to change all idle workloads to build using workloader mode command")
 	CompatibilityCmd.Flags().BoolVarP(&issuesOnly, "issues-only", "i", false, "only export compatibility checks with an issue")
+	CompatibilityCmd.Flags().StringVarP(&role, "role", "r", "", "role label value")
+	CompatibilityCmd.Flags().StringVarP(&app, "app", "a", "", "app label value")
+	CompatibilityCmd.Flags().StringVarP(&env, "env", "e", "", "env label value")
+	CompatibilityCmd.Flags().StringVarP(&loc, "loc", "l", "", "loc label value")
 	CompatibilityCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 }
 
@@ -31,6 +35,8 @@ var CompatibilityCmd = &cobra.Command{
 	Short: "Generate a compatibility report for all Idle workloads.",
 	Long: `
 Generate a compatibility report for all Idle workloads.
+
+Multiple labels are processed with an "AND" operator. For example, -a ERP -e PROD will return compatibility reports for all IDLE workloads that are labeled as ERP application and PROD envrionment.
 
 The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -58,10 +64,33 @@ func compatibilityReport() {
 	stdOutData = append(stdOutData, []string{"hostname", "href", "status"})
 	modeChangeInputData = append(modeChangeInputData, []string{"href", "mode"})
 
-	// Get all idle  workloads
+	providedValues := []string{role, app, env, loc}
+	keys := []string{"role", "app", "env", "loc"}
+	queryLabels := []string{}
+	for i, labelValue := range providedValues {
+		// Do nothing if the labelValue is blank
+		if labelValue == "" {
+			continue
+		}
+		// Confirm the label exists
+		if label, ok := pce.LabelMapKV[keys[i]+labelValue]; !ok {
+			utils.LogError(fmt.Sprintf("%s does not exist as a %s label", labelValue, keys[i]))
+		} else {
+			queryLabels = append(queryLabels, label.Href)
+		}
+
+	}
+
+	// Get all idle  workloads - start query with just idle
 	qp := map[string]string{"mode": "idle"}
+
+	// If we have query labels add to the map
+	if len(queryLabels) > 0 {
+		fmt.Println(fmt.Sprintf("[[\"%s\"]]", strings.Join(queryLabels, "\",\"")))
+		qp["labels"] = fmt.Sprintf("[[\"%s\"]]", strings.Join(queryLabels, "\",\""))
+	}
 	wklds, a, err := pce.GetAllWorkloadsQP(qp)
-	utils.LogAPIResp("GetAllWorkloadsH", a)
+	utils.LogAPIResp("GetAllWorkloadsQP", a)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -181,7 +210,7 @@ func compatibilityReport() {
 		utils.LogInfo(fmt.Sprintf("%d compatibility reports exported.", len(csvData)-1), true)
 	} else {
 		// Log command execution for 0 results
-		utils.LogInfo("no workloads in idle mode.", true)
+		utils.LogInfo("no workloads in idle mode for provided query.", true)
 	}
 
 	// Write the mode change CSV
