@@ -4,7 +4,6 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -113,24 +112,24 @@ func compatibilityReport() {
 			utils.LogError(fmt.Sprintf("getting compatibility report for %s (%s) - %s", w.Hostname, w.Href, err))
 		}
 
-		// Set the initial values that should throw no status errors
-		requiredPackagesInstalled := "true"
+		// Set the initial values for Linux, AIX, and Solaris and override for Windows
+		requiredPackagesInstalled := "green"
 		requiredPackagesMissing := ""
-		ipsecServiceEnabled := "true"
+		ipsecServiceEnabled := "green"
 		iPv6Enabled := "na"
 		unwantedNics := "na"
 		groupPolicy := "na"
-		ipv4ForwardingEnabled := "false"
-		ipv4ForwardingPktCnt := "0"
-		iptablesRuleCnt := "0"
-		ipv6GlobalScope := "false"
-		ipv6ActiveConnCnt := "0"
-		iP6TablesRuleCnt := "0"
-		routingTableConflict := "false"
+		ipv4ForwardingEnabled := "green"
+		ipv4ForwardingPktCnt := "green"
+		iptablesRuleCnt := "green"
+		ipv6GlobalScope := "green"
+		ipv6ActiveConnCnt := "green"
+		iP6TablesRuleCnt := "green"
+		routingTableConflict := "green"
 		if strings.Contains(w.OsID, "win") {
-			iPv6Enabled = "false"
-			unwantedNics = "false"
-			groupPolicy = "false"
+			iPv6Enabled = "green"
+			unwantedNics = "green"
+			groupPolicy = "green"
 			ipv4ForwardingEnabled = "na"
 			ipv4ForwardingPktCnt = "na"
 			iptablesRuleCnt = "na"
@@ -141,45 +140,42 @@ func compatibilityReport() {
 		}
 
 		for _, c := range cr.Results.QualifyTests {
-			// If the value is not the default, we set the value to the non-default
-			if strings.ToLower(c.IpsecServiceEnabled) == "false" {
-				ipsecServiceEnabled = "false"
+			variables := []*string{
+				&requiredPackagesInstalled,
+				&ipsecServiceEnabled,
+				&iPv6Enabled,
+				&unwantedNics,
+				&groupPolicy,
+				&ipv4ForwardingEnabled,
+				&ipv4ForwardingPktCnt,
+				&iptablesRuleCnt,
+				&ipv6GlobalScope,
+				&ipv6ActiveConnCnt,
+				&iP6TablesRuleCnt,
+				&routingTableConflict}
+			checks := []*string{
+				c.RequiredPackagesInstalled,
+				c.IpsecServiceEnabled,
+				c.IPv6Enabled,
+				c.UnwantedNics,
+				c.GroupPolicy,
+				c.Ipv4ForwardingEnabled,
+				c.Ipv4ForwardingPktCnt,
+				c.IptablesRuleCnt,
+				c.Ipv6GlobalScope,
+				c.Ipv6ActiveConnCnt,
+				c.IP6TablesRuleCnt,
+				c.RoutingTableConflict}
+
+			for i, variable := range variables {
+				if checks[i] != nil {
+					*variable = *c.Status
+				}
 			}
-			if c.Ipv4ForwardingEnabled != false {
-				ipv4ForwardingEnabled = strconv.FormatBool(c.Ipv4ForwardingEnabled)
-			}
-			if c.Ipv4ForwardingPktCnt != 0 {
-				ipv4ForwardingPktCnt = strconv.Itoa(c.Ipv4ForwardingPktCnt)
-			}
-			if c.IptablesRuleCnt != 0 {
-				iptablesRuleCnt = strconv.Itoa(c.IptablesRuleCnt)
-			}
-			if c.Ipv6GlobalScope != false {
-				ipv6GlobalScope = strconv.FormatBool(c.Ipv6GlobalScope)
-			}
-			if c.Ipv6ActiveConnCnt != 0 {
-				ipv6ActiveConnCnt = strconv.Itoa(c.Ipv6ActiveConnCnt)
-			}
-			if c.IP6TablesRuleCnt != 0 {
-				iP6TablesRuleCnt = strconv.Itoa(c.IP6TablesRuleCnt)
-			}
-			if c.RoutingTableConflict != false {
-				routingTableConflict = strconv.FormatBool(c.RoutingTableConflict)
-			}
-			if c.IPv6Enabled != false {
-				iPv6Enabled = strconv.FormatBool(c.IPv6Enabled)
-			}
-			if c.UnwantedNics != false {
-				unwantedNics = strconv.FormatBool(c.UnwantedNics)
-			}
-			if c.GroupPolicy != false {
-				groupPolicy = strconv.FormatBool(c.GroupPolicy)
-			}
-			if strings.ToLower(c.RequiredPackagesInstalled) == "false" {
-				requiredPackagesInstalled = "false"
-			}
-			if len(c.RequiredPackagesMissing) != 0 {
-				requiredPackagesMissing = strings.Join(c.RequiredPackagesMissing, ";")
+
+			// Process missing packages separately
+			if c.RequiredPackagesMissing != nil {
+				requiredPackagesMissing = strings.Join(*c.RequiredPackagesMissing, ";")
 			}
 		}
 
