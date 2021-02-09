@@ -29,7 +29,8 @@ import (
 	"github.com/brian1917/workloader/cmd/labelrename"
 	"github.com/brian1917/workloader/cmd/mislabel"
 	"github.com/brian1917/workloader/cmd/mode"
-	"github.com/brian1917/workloader/cmd/nic"
+	"github.com/brian1917/workloader/cmd/nicexport"
+	"github.com/brian1917/workloader/cmd/nicmanage"
 	"github.com/brian1917/workloader/cmd/pcemgmt"
 	"github.com/brian1917/workloader/cmd/ruleexport"
 	"github.com/brian1917/workloader/cmd/servicefinder"
@@ -126,6 +127,7 @@ func init() {
 	RootCmd.AddCommand(unpair.UnpairCmd)
 	RootCmd.AddCommand(delete.DeleteCmd)
 	RootCmd.AddCommand(umwlcleanup.UMWLCleanUpCmd)
+	RootCmd.AddCommand(nicmanage.NICManageCmd)
 
 	// Label management
 	RootCmd.AddCommand(deleteunusedlabels.LabelsDeleteUnusedCmd)
@@ -136,7 +138,7 @@ func init() {
 	RootCmd.AddCommand(dupecheck.DupeCheckCmd)
 	RootCmd.AddCommand(flowsummary.FlowSummaryCmd)
 	RootCmd.AddCommand(explorer.ExplorerCmd)
-	RootCmd.AddCommand(nic.NICCmd)
+	RootCmd.AddCommand(nicexport.NICExportCmd)
 	RootCmd.AddCommand(servicefinder.ServiceFinderCmd)
 
 	// Edge Commands
