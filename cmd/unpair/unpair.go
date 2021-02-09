@@ -17,7 +17,7 @@ import (
 
 // Set global variables for flags
 var hrefFile, role, app, env, loc, restore, outputFileName string
-var debug, updatePCE, noPrompt, setLabelExcl, includeOnline bool
+var debug, updatePCE, noPrompt, setLabelExcl, includeOnline, single bool
 var hoursSinceLastHB int
 var pce illumioapi.PCE
 var err error
@@ -33,6 +33,7 @@ func init() {
 	UnpairCmd.Flags().BoolVarP(&setLabelExcl, "exclude-labels", "x", false, "Use provided label filters as excludes.")
 	UnpairCmd.Flags().IntVar(&hoursSinceLastHB, "hours", 0, "Hours since last heartbeat. No value (i.e., 0) will ignore heartbeats.")
 	UnpairCmd.Flags().BoolVar(&includeOnline, "include-online", false, "Include workloads that are online. By default only offline workloads that meet criteria will be unpaired.")
+	UnpairCmd.Flags().BoolVar(&single, "single", false, "One API call per unpair versus one API call per 1000 workloads. This will be dramatically slower, but provide more details in syslog messages.")
 	UnpairCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 
 	UnpairCmd.Flags().SortFlags = false
@@ -210,7 +211,7 @@ func unpair() {
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if updatePCE && !noPrompt {
 		var prompt string
-		fmt.Printf("[PROMPT] - workloader identified %d workloads requiring unpairing in %s (%s). See %s for details. Do you want to run the unpair? (yes/no)? ", len(targetWklds), viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".fqdn").(string), outputFileName)
+		fmt.Printf("%s [PROMPT] - workloader identified %d workloads requiring unpairing in %s (%s). See %s for details. Do you want to run the unpair? (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), len(targetWklds), viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".fqdn").(string), outputFileName)
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo(fmt.Sprintf("prompt denied to unpair %d workloads.", len(targetWklds)), true)
@@ -219,13 +220,34 @@ func unpair() {
 		}
 	}
 
-	// We will only get here if we have need to run the unpair
-	apiResps, err := pce.WorkloadsUnpair(targetWklds, restore)
-	for _, a := range apiResps {
-		utils.LogAPIResp("unpair workloads", a)
+	// If single
+	if single {
+		// Create a slice of slices
+		singleTargetWklds := [][]illumioapi.Workload{}
+		for _, w := range targetWklds {
+			singleTargetWklds = append(singleTargetWklds, []illumioapi.Workload{w})
+		}
+
+		// Iterate through those for unpairing
+		for i, w := range singleTargetWklds {
+			apiResps, err := pce.WorkloadsUnpair(w, restore)
+			utils.LogAPIResp("unpair workloads", apiResps[0])
+			if err != nil {
+				utils.LogError(err.Error())
+			}
+			// Update progress
+			utils.LogInfo(fmt.Sprintf("unpaired %d of %d - %s - status code %d", i+1, len(singleTargetWklds), w[0].Href, apiResps[0].StatusCode), true)
+		}
+	} else {
+		// We will only get here if we have need to run the unpair
+		apiResps, err := pce.WorkloadsUnpair(targetWklds, restore)
+		for _, a := range apiResps {
+			utils.LogAPIResp("unpair workloads", a)
+		}
+		if err != nil {
+			utils.LogError(err.Error())
+		}
 	}
-	if err != nil {
-		utils.LogError(err.Error())
-	}
+
 	utils.LogEndCommand("unpair")
 }
