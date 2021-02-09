@@ -410,7 +410,7 @@ func ExportRules(pce illumioapi.PCE, useActive bool, app, env, loc string, edge,
 			}
 
 			// Extrascope/Intrascope
-			ruleType := "intraScope"
+			ruleType := "intra_scope"
 			if r.UnscopedConsumers {
 				ruleType = "extra_scope"
 			}
