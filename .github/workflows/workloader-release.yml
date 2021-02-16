@@ -21,10 +21,8 @@ jobs:
 
       - name: Get dependencies
         run: |
-          go mod download 
+          go get -v -t -d ./...
           GOOS=windows go get -v -t -d ./...
-        env:
-          GO111MODULE: on
 
       - name: Get workloader version
         id: get_version
