@@ -21,12 +21,7 @@ jobs:
         uses: actions/checkout@v1
 
       - name: Get dependencies
-        run: |
-          # go mod init
-          # go mod tidy
-          go mod download
-          # go get -v -t -d ./...
-          # GOOS=windows go get -v -t -d ./...
+        run: go mod download
 
       - name: Get workloader version
         id: get_version
