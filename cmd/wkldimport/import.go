@@ -26,7 +26,6 @@ type FromCSVInput struct {
 var matchCol, roleCol, appCol, envCol, locCol, intCol, hostnameCol, nameCol, descCol, hrefCol, createdLabels int
 var removeValue, csvFile string
 var umwl, keepAllPCEInterfaces, fqdnToHostname, debug, updatePCE, noPrompt bool
-var pce illumioapi.PCE
 var err error
 var newLabels []illumioapi.Label
 
@@ -98,7 +97,7 @@ Recommended to run without --update-pce first to log of what will change. If --u
 
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetTargetPCE(true)
+		pce, err := utils.GetTargetPCE(true)
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for csv command - %s", err)
 		}
@@ -139,7 +138,7 @@ Recommended to run without --update-pce first to log of what will change. If --u
 	},
 }
 
-func checkLabel(label illumioapi.Label, csvLine int) illumioapi.Label {
+func checkLabel(pce illumioapi.PCE, label illumioapi.Label, csvLine int) illumioapi.Label {
 
 	// Check if it exists or not
 	if _, ok := pce.LabelMapKV[label.Key+label.Value]; ok {
@@ -300,7 +299,7 @@ CSVEntries:
 						continue
 					}
 					// Get the label HREF
-					l := checkLabel(illumioapi.Label{Key: keys[i], Value: line[columns[i]]}, csvLine)
+					l := checkLabel(f.PCE, illumioapi.Label{Key: keys[i], Value: line[columns[i]]}, csvLine)
 
 					// Add that label to the new labels slice
 					labels = append(labels, &illumioapi.Label{Href: l.Href})
@@ -416,7 +415,7 @@ CSVEntries:
 				// Log change required
 				utils.LogInfo(fmt.Sprintf("CSV Line - %d - %s requiring %s update from %s to %s.", csvLine, line[f.MatchIndex], keys[i], labels[i].Value, line[columns[i]]), false)
 				// Get the label HREF
-				l := checkLabel(illumioapi.Label{Key: keys[i], Value: line[columns[i]]}, csvLine)
+				l := checkLabel(f.PCE, illumioapi.Label{Key: keys[i], Value: line[columns[i]]}, csvLine)
 				// Add that label to the new labels slice
 				newWkldLabels = append(newWkldLabels, &illumioapi.Label{Href: l.Href})
 			} else {
