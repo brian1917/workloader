@@ -5,7 +5,7 @@ on:
       - master
     paths:
       - version
-      - "**/workloader.release.yml"
+      - "**/workloader-release.yml"
 jobs:
   build:
     name: Build
