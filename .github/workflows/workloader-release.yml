@@ -24,7 +24,7 @@ jobs:
           go get -v -t -d ./...
           GOOS=windows go get -v -t -d ./...
         env:
-          ENV GO111MODULE: on
+          GO111MODULE: on
 
       - name: Get workloader version
         id: get_version
