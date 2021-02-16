@@ -21,8 +21,7 @@ jobs:
 
       - name: Get dependencies
         run: |
-          go mod init 
-          go get -v -t -d ./...
+          go mod download 
           GOOS=windows go get -v -t -d ./...
         env:
           GO111MODULE: on
