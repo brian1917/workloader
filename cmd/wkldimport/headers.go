@@ -8,7 +8,7 @@ import (
 	"github.com/brian1917/workloader/utils"
 )
 
-func (f *FromCSVInput) processHeaders(headers []string) {
+func (i *Input) processHeaders(headers []string) {
 
 	// Convert the first row into a map
 	headerMap := make(map[string]int)
@@ -23,67 +23,67 @@ func (f *FromCSVInput) processHeaders(headers []string) {
 	for header, col := range headerMap {
 		switch fieldMap[header] {
 		case "hostname":
-			if f.HostnameIndex == 99999 {
-				f.HostnameIndex = col
+			if i.HostnameIndex == 99999 {
+				i.HostnameIndex = col
 			}
 		case "name":
-			if f.NameIndex == 99999 {
-				f.NameIndex = col
+			if i.NameIndex == 99999 {
+				i.NameIndex = col
 			}
 		case "role":
-			if f.RoleIndex == 99999 {
-				f.RoleIndex = col
+			if i.RoleIndex == 99999 {
+				i.RoleIndex = col
 			}
 		case "app":
-			if f.AppIndex == 99999 {
-				f.AppIndex = col
+			if i.AppIndex == 99999 {
+				i.AppIndex = col
 			}
 		case "env":
-			if f.EnvIndex == 99999 {
-				f.EnvIndex = col
+			if i.EnvIndex == 99999 {
+				i.EnvIndex = col
 			}
 		case "loc":
-			if f.LocIndex == 99999 {
-				f.LocIndex = col
+			if i.LocIndex == 99999 {
+				i.LocIndex = col
 			}
 		case "interfaces":
-			if f.IntIndex == 99999 {
-				f.IntIndex = col
+			if i.IntIndex == 99999 {
+				i.IntIndex = col
 			}
 		case "description":
-			if f.DescIndex == 99999 {
-				f.DescIndex = col
+			if i.DescIndex == 99999 {
+				i.DescIndex = col
 			}
 		case "href":
-			if f.HrefIndex == 99999 {
-				f.HrefIndex = col
+			if i.HrefIndex == 99999 {
+				i.HrefIndex = col
 			}
 		}
 	}
 
 	// Find the match column
-	if f.MatchIndex != 99999 {
-		utils.LogInfo(fmt.Sprintf("match column set to %d by user", f.MatchIndex), false)
+	if i.MatchIndex != 99999 {
+		utils.LogInfo(fmt.Sprintf("match column set to %d by user", i.MatchIndex), false)
 		return
 	}
-	if f.Umwl {
-		f.MatchIndex = f.HostnameIndex
-		utils.LogInfo(fmt.Sprintf("match column set to hostname column (%d) because umwl is enabled", f.MatchIndex), false)
+	if i.Umwl {
+		i.MatchIndex = i.HostnameIndex
+		utils.LogInfo(fmt.Sprintf("match column set to hostname column (%d) because umwl is enabled", i.MatchIndex), false)
 		return
 	}
-	if f.HrefIndex != 99999 {
-		f.MatchIndex = f.HrefIndex
-		utils.LogInfo(fmt.Sprintf("match column set to href column (%d) because umwl is disabled and href provided", f.MatchIndex), false)
+	if i.HrefIndex != 99999 {
+		i.MatchIndex = i.HrefIndex
+		utils.LogInfo(fmt.Sprintf("match column set to href column (%d) because umwl is disabled and href provided", i.MatchIndex), false)
 		return
 	}
-	if f.HostnameIndex != 99999 {
-		f.MatchIndex = f.HostnameIndex
-		utils.LogInfo(fmt.Sprintf("match column set to hostname column (%d) because href column is not provided", f.MatchIndex), false)
+	if i.HostnameIndex != 99999 {
+		i.MatchIndex = i.HostnameIndex
+		utils.LogInfo(fmt.Sprintf("match column set to hostname column (%d) because href column is not provided", i.MatchIndex), false)
 		return
 	}
-	if f.NameIndex != 99999 {
-		f.MatchIndex = f.NameIndex
-		utils.LogInfo(fmt.Sprintf("match column set to name column (%d) because href and hostname column is not provided", f.MatchIndex), false)
+	if i.NameIndex != 99999 {
+		i.MatchIndex = i.NameIndex
+		utils.LogInfo(fmt.Sprintf("match column set to name column (%d) because href and hostname column is not provided", i.MatchIndex), false)
 		return
 	}
 
@@ -163,42 +163,42 @@ func fieldMapping() map[string]string {
 	return fieldMapping
 }
 
-func (f *FromCSVInput) decreaseColBy1() {
-	if f.MatchIndex != 0 {
-		f.MatchIndex--
+func (i *Input) decreaseColBy1() {
+	if i.MatchIndex != 0 {
+		i.MatchIndex--
 	}
-	if f.HostnameIndex != 0 {
-		f.HostnameIndex--
+	if i.HostnameIndex != 0 {
+		i.HostnameIndex--
 	}
-	if f.HrefIndex != 0 {
-		f.HrefIndex--
+	if i.HrefIndex != 0 {
+		i.HrefIndex--
 	}
-	if f.NameIndex != 0 {
-		f.NameIndex--
+	if i.NameIndex != 0 {
+		i.NameIndex--
 	}
-	if f.RoleIndex != 0 {
-		f.RoleIndex--
+	if i.RoleIndex != 0 {
+		i.RoleIndex--
 	}
-	if f.AppIndex != 0 {
-		f.AppIndex--
+	if i.AppIndex != 0 {
+		i.AppIndex--
 	}
-	if f.EnvIndex != 0 {
-		f.EnvIndex--
+	if i.EnvIndex != 0 {
+		i.EnvIndex--
 	}
-	if f.LocIndex != 0 {
-		f.LocIndex--
+	if i.LocIndex != 0 {
+		i.LocIndex--
 	}
-	if f.IntIndex != 0 {
-		f.IntIndex--
+	if i.IntIndex != 0 {
+		i.IntIndex--
 	}
-	if f.DescIndex != 0 {
-		f.DescIndex--
+	if i.DescIndex != 0 {
+		i.DescIndex--
 	}
 }
 
-func (f *FromCSVInput) log() {
+func (i *Input) log() {
 
-	v := reflect.ValueOf(*f)
+	v := reflect.ValueOf(*i)
 
 	logEntry := []string{}
 	for i := 0; i < v.NumField(); i++ {
