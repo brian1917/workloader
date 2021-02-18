@@ -81,13 +81,19 @@ Create and assign labels to existing workloads and/or create unmanaged workloads
 The input file requires headers and matches fields to header values. The following headers can be used:
 - hostname
 - name
+- href
 - role
 - app
 - env
 - loc
 - interfaces
+- public_ip
 - description
-- href
+- os_id
+- os_detail
+- datacenter
+- external_data_set
+- external_data_reference
 
 Besides either href or hostname for matching, no field is required.
 For example, to only update the location field you can provide just two columns: href and loc (or hostname and loc). All other workload properties will be preserved.
@@ -96,7 +102,7 @@ Similarily, if to only update labels, you do not need to include an interface, n
 If you need to override the header to to field matching you can specify the column number with any flag.
 For example --name 2 will force workloader to use the second column in the CSV as the name field, regardless of what the header value is.
 
-Other columns are alloewd but will be ignored.
+Other columns are allowed but will be ignored.
 
 Interfaces should be in the format of "192.168.200.20", "192.168.200.20/24", "eth0:192.168.200.20", or "eth0:192.168.200.20/24".
 If no interface name is provided with a colon (e.g., "eth0:"), then "umwl:" is used. Multiple interfaces should be separated by a semicolon.
