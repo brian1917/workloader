@@ -56,8 +56,8 @@ func exportWorkloads() {
 	utils.LogStartCommand("wkld-export")
 
 	// Start the data slice with headers
-	csvData := [][]string{[]string{"hostname", "name", "role", "app", "env", "loc", "interfaces", "ip_with_default_gw", "netmask_of_ip_with_def_gw", "default_gw", "default_gw_network", "href", "description", "policy_state", "online", "agent_status", "security_policy_sync_state", "security_policy_applied_at", "security_policy_received_at", "security_policy_refresh_at", "last_heartbea_on", "hours_since_last_heartbeat", "os_id", "os_details", "agent_version", "agent_id", "active_pce_fqdn", "cloud_service_provider", "cloud_data_center", "cloud_data_center_zone", "cloud_instance_id"}}
-	stdOutData := [][]string{[]string{"hostname", "role", "app", "env", "loc", "mode"}}
+	csvData := [][]string{{"hostname", "name", "role", "app", "env", "loc", "interfaces", "public_ip", "ip_with_default_gw", "netmask_of_ip_with_def_gw", "default_gw", "default_gw_network", "href", "description", "policy_state", "online", "agent_status", "security_policy_sync_state", "security_policy_applied_at", "security_policy_received_at", "security_policy_refresh_at", "last_heartbea_on", "hours_since_last_heartbeat", "os_id", "os_detail", "agent_version", "agent_id", "active_pce_fqdn", "service_provider", "data_center", "data_center_zone", "cloud_instance_id", "external_data_set", "external_data_reference"}}
+	stdOutData := [][]string{{"hostname", "role", "app", "env", "loc", "mode"}}
 
 	// GetAllWorkloads
 	qp := make(map[string]string)
@@ -80,21 +80,8 @@ func exportWorkloads() {
 			continue
 		}
 
-		// Set up variables
-		interfaces := []string{}
-		venID := ""
-		venVersion := ""
-		policySyncStatus := ""
-		policyAppliedAt := ""
-		poicyReceivedAt := ""
-		policyRefreshAt := ""
-		lastHeartBeat := ""
-		hoursSinceLastHB := ""
-		pairedPCE := ""
-		agentStatus := ""
-		instanceID := ""
-
 		// Get interfaces
+		interfaces := []string{}
 		for _, i := range w.Interfaces {
 			ipAddress := fmt.Sprintf("%s:%s", i.Name, i.Address)
 			if i.CidrBlock != nil && *i.CidrBlock != 0 {
@@ -103,37 +90,37 @@ func exportWorkloads() {
 			interfaces = append(interfaces, ipAddress)
 		}
 
-		// Set VEN version, policy sync status, lastHeartBeat, and hours since last heartbeat
-		if w.Agent == nil || w.Agent.Href == "" {
-			policySyncStatus = "unmanaged"
-			policyAppliedAt = "unmanaged"
-			poicyReceivedAt = "unmanaged"
-			policyRefreshAt = "unmanaged"
-			venVersion = "unmanaged"
-			lastHeartBeat = "unmanaged"
-			hoursSinceLastHB = "unmanaged"
-			venID = "unmanaged"
-			pairedPCE = "unmanaged"
-			agentStatus = "unmanaged"
-			instanceID = "unmanaged"
-		} else {
-			venID = w.Agent.GetID()
-			venVersion = w.Agent.Status.AgentVersion
+		// Assume the VEN-dependent fields are unmanaged
+		policySyncStatus := "unmanaged"
+		policyAppliedAt := "unmanaged"
+		poicyReceivedAt := "unmanaged"
+		policyRefreshAt := "unmanaged"
+		venVersion := "unmanaged"
+		lastHeartBeat := "unmanaged"
+		hoursSinceLastHB := "unmanaged"
+		venID := "unmanaged"
+		pairedPCE := "unmanaged"
+		agentStatus := "unmanaged"
+		instanceID := "unmanaged"
+		// If it is managed, get that information
+		if w.Agent != nil && w.Agent.Href != "" {
 			policySyncStatus = w.Agent.Status.SecurityPolicySyncState
 			policyAppliedAt = w.Agent.Status.SecurityPolicyAppliedAt
 			poicyReceivedAt = w.Agent.Status.SecurityPolicyReceivedAt
 			policyRefreshAt = w.Agent.Status.SecurityPolicyRefreshAt
+			venVersion = w.Agent.Status.AgentVersion
 			lastHeartBeat = w.Agent.Status.LastHeartbeatOn
 			hoursSinceLastHB = fmt.Sprintf("%f", w.HoursSinceLastHeartBeat())
-			instanceID = w.Agent.Status.InstanceID
-			if instanceID == "" {
-				instanceID = "NA"
-			}
+			venID = w.Agent.GetID()
 			pairedPCE = w.Agent.ActivePceFqdn
 			if pairedPCE == "" {
 				pairedPCE = pce.FQDN
 			}
 			agentStatus = w.Agent.Status.Status
+			instanceID = w.Agent.Status.InstanceID
+			if instanceID == "" {
+				instanceID = "NA"
+			}
 		}
 
 		// Set online status
@@ -145,7 +132,7 @@ func exportWorkloads() {
 		}
 
 		// Append to data slice
-		csvData = append(csvData, []string{w.Hostname, w.Name, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, strings.Join(interfaces, ";"), w.GetIPWithDefaultGW(), w.GetNetMaskWithDefaultGW(), w.GetDefaultGW(), w.GetNetworkWithDefaultGateway(), w.Href, w.Description, w.GetMode(), online, agentStatus, policySyncStatus, policyAppliedAt, poicyReceivedAt, policyRefreshAt, lastHeartBeat, hoursSinceLastHB, w.OsID, w.OsDetail, venVersion, venID, pairedPCE, w.ServiceProvider, w.DataCenter, w.DataCenterZone, instanceID})
+		csvData = append(csvData, []string{w.Hostname, w.Name, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, strings.Join(interfaces, ";"), w.PublicIP, w.GetIPWithDefaultGW(), w.GetNetMaskWithDefaultGW(), w.GetDefaultGW(), w.GetNetworkWithDefaultGateway(), w.Href, w.Description, w.GetMode(), online, agentStatus, policySyncStatus, policyAppliedAt, poicyReceivedAt, policyRefreshAt, lastHeartBeat, hoursSinceLastHB, w.OsID, w.OsDetail, venVersion, venID, pairedPCE, w.ServiceProvider, w.DataCenter, w.DataCenterZone, instanceID, w.ExternalDataSet, w.ExternalDataReference})
 		stdOutData = append(stdOutData, []string{w.Hostname, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, w.GetMode()})
 	}
 

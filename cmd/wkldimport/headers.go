@@ -8,6 +8,8 @@ import (
 	"github.com/brian1917/workloader/utils"
 )
 
+var fields []int
+
 func (i *Input) processHeaders(headers []string) {
 
 	// Convert the first row into a map
@@ -58,7 +60,32 @@ func (i *Input) processHeaders(headers []string) {
 			if i.HrefIndex == 99999 {
 				i.HrefIndex = col
 			}
+		case "external_data_set":
+			if i.ExtDataSetIndex == 99999 {
+				i.ExtDataSetIndex = col
+			}
+		case "external_data_reference":
+			if i.ExtDataRefIndex == 99999 {
+				i.ExtDataRefIndex = col
+			}
+		case "public_ip":
+			if i.PublicIPIndex == 99999 {
+				i.PublicIPIndex = col
+			}
+		case "os_id":
+			if i.OSIDIndex == 99999 {
+				i.OSIDIndex = col
+			}
+		case "os_detail":
+			if i.OSDetailIndex == 99999 {
+				i.OSDetailIndex = col
+			}
+		case "datacenter":
+			if i.DatacenterIndex == 99999 {
+				i.DatacenterIndex = col
+			}
 		}
+
 	}
 
 	// Find the match column
@@ -160,6 +187,24 @@ func fieldMapping() map[string]string {
 	// Href
 	fieldMapping["href"] = "href"
 
+	// External Data Set
+	fieldMapping["external_data_set"] = "external_data_set"
+
+	// External Data Reference
+	fieldMapping["external_data_reference"] = "external_data_reference"
+
+	// Public IP
+	fieldMapping["public_ip"] = "public_ip"
+
+	// OS ID
+	fieldMapping["os_id"] = "os_id"
+
+	// OS Detail
+	fieldMapping["os_detail"] = "os_detail"
+
+	// Datacenter
+	fieldMapping["datacenter"] = "datacenter"
+
 	return fieldMapping
 }
 
@@ -193,6 +238,24 @@ func (i *Input) decreaseColBy1() {
 	}
 	if i.DescIndex != 0 {
 		i.DescIndex--
+	}
+	if i.ExtDataSetIndex != 0 {
+		i.ExtDataSetIndex--
+	}
+	if i.ExtDataRefIndex != 0 {
+		i.ExtDataRefIndex--
+	}
+	if i.PublicIPIndex != 0 {
+		i.PublicIPIndex--
+	}
+	if i.OSIDIndex != 0 {
+		i.OSIDIndex--
+	}
+	if i.OSDetailIndex != 0 {
+		i.OSDetailIndex--
+	}
+	if i.DatacenterIndex != 0 {
+		i.DatacenterIndex--
 	}
 }
 

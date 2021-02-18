@@ -134,7 +134,7 @@ CSVEntries:
 			continue
 		}
 
-		// Check if the workload exists. If exist, we check if UMWL is set and take action.
+		// Check if the workload exists. If it does not exist, check if UMWL is set and take action.
 		if _, ok := wkldMap[line[input.MatchIndex]]; !ok {
 			var netInterfaces []*illumioapi.Interface
 			if input.Umwl {
@@ -192,14 +192,47 @@ CSVEntries:
 				// Proces the name
 				var name string
 				if input.NameIndex != 99998 {
-					name := line[input.NameIndex]
+					name = line[input.NameIndex]
 					if name == "" {
 						name = line[input.MatchIndex]
 					}
 				}
 
+				// Process the Public IP
+				var publicIP string
+				if input.PublicIPIndex != 99998 {
+					if !publicIPIsValid(line[input.PublicIPIndex]) {
+						utils.LogError(fmt.Sprintf("CSV line %d - invalid Public IP address format.", csvLine))
+					}
+					publicIP = line[input.PublicIPIndex]
+				}
+
+				// Process string variables requiring no logic check.
+				var desc, extDataRef, extDataSet, osID, osDetail, dataCenter string
+				varPtrs := []*string{&desc, &extDataRef, &extDataSet, &osID, &osDetail, &dataCenter}
+				inpuIndices := []int{input.DescIndex, input.ExtDataRefIndex, input.ExtDataSetIndex, input.OSIDIndex, input.OSDetailIndex, input.DatacenterIndex}
+
+				for i, varPtr := range varPtrs {
+					if inpuIndices[i] == 99998 {
+						continue
+					}
+					*varPtr = line[inpuIndices[i]]
+				}
+
 				// Create the unmanaged workload object and add to slice
-				w := illumioapi.Workload{Hostname: line[input.MatchIndex], Name: name, Interfaces: netInterfaces, Labels: labels}
+				w := illumioapi.Workload{
+					Hostname:              line[input.MatchIndex],
+					Name:                  name,
+					Interfaces:            netInterfaces,
+					Labels:                labels,
+					Description:           desc,
+					ExternalDataReference: extDataRef,
+					ExternalDataSet:       extDataSet,
+					OsID:                  osID,
+					OsDetail:              osDetail,
+					PublicIP:              publicIP,
+					DataCenter:            dataCenter,
+				}
 				newUMWLs = append(newUMWLs, w)
 
 				// Log the entry
@@ -407,12 +440,70 @@ CSVEntries:
 			wkld.Name = line[input.NameIndex]
 		}
 
+		// Update the Public Ip
+		if input.PublicIPIndex != 99998 {
+			if line[input.PublicIPIndex] != wkld.PublicIP {
+				// Validate it first
+				if !publicIPIsValid(line[input.PublicIPIndex]) {
+					utils.LogError(fmt.Sprintf("CSV line %d - invalid Public IP address format.", csvLine))
+				}
+				change = true
+				utils.LogInfo(fmt.Sprintf("CSV line %d - Public IP to be changed from %s to %s", csvLine, wkld.PublicIP, line[input.PublicIPIndex]), false)
+				wkld.PublicIP = line[input.PublicIPIndex]
+			}
+		}
+
 		// Update the description column if provided
 		if input.DescIndex != 99998 {
 			if line[input.DescIndex] != wkld.Description {
 				change = true
 				utils.LogInfo(fmt.Sprintf("CSV line %d - Desciption to be changed from %s to %s", csvLine, wkld.Description, line[input.DescIndex]), false)
 				wkld.Description = line[input.DescIndex]
+			}
+		}
+
+		// Update the External DataSet
+		if input.ExtDataSetIndex != 99998 {
+			if line[input.ExtDataSetIndex] != wkld.ExternalDataSet {
+				change = true
+				utils.LogInfo(fmt.Sprintf("CSV line %d - External Data Set to be changed from %s to %s", csvLine, wkld.ExternalDataSet, line[input.ExtDataSetIndex]), false)
+				wkld.ExternalDataSet = line[input.ExtDataSetIndex]
+			}
+		}
+
+		// Update the External DataRef
+		if input.ExtDataRefIndex != 99998 {
+			if line[input.ExtDataRefIndex] != wkld.ExternalDataReference {
+				change = true
+				utils.LogInfo(fmt.Sprintf("CSV line %d - External Data Ref to be changed from %s to %s", csvLine, wkld.ExternalDataReference, line[input.ExtDataRefIndex]), false)
+				wkld.ExternalDataReference = line[input.ExtDataRefIndex]
+			}
+		}
+
+		// Update OS ID
+		if input.OSIDIndex != 99998 {
+			if line[input.OSIDIndex] != wkld.OsID {
+				change = true
+				utils.LogInfo(fmt.Sprintf("CSV line %d - OS ID to be changed from %s to %s", csvLine, wkld.OsID, line[input.OSIDIndex]), false)
+				wkld.OsID = line[input.OSIDIndex]
+			}
+		}
+
+		// Update OS Detail
+		if input.OSDetailIndex != 99998 {
+			if line[input.OSDetailIndex] != wkld.OsDetail {
+				change = true
+				utils.LogInfo(fmt.Sprintf("CSV line %d - OS Detail to be changed from %s to %s", csvLine, wkld.OsDetail, line[input.OSDetailIndex]), false)
+				wkld.OsDetail = line[input.OSDetailIndex]
+			}
+		}
+
+		// Update Data center
+		if input.DatacenterIndex != 99998 {
+			if line[input.DatacenterIndex] != wkld.DataCenter {
+				change = true
+				utils.LogInfo(fmt.Sprintf("CSV line %d - Data Center to be changed from %s to %s", csvLine, wkld.DataCenter, line[input.DatacenterIndex]), false)
+				wkld.DataCenter = line[input.DatacenterIndex]
 			}
 		}
 
