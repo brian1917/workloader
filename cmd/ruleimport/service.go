@@ -33,12 +33,13 @@ func serviceComparison(csvServices []string, rule illumioapi.Rule, pceServiceMap
 				proto = 17
 			}
 			csvServiceEntries[fmt.Sprintf("%s-%d-%d", protocol, port, toPort)] = illumioapi.IngressServices{Protocol: proto, Port: port, ToPort: toPort}
-		}
 
-		// Check if it's a service
-		if service, exists := pceServiceMap[c]; exists {
+			// Check if it's a service
+		} else if service, exists := pceServiceMap[c]; exists {
 			// Add to our slice
 			csvServiceEntries[pceServiceMap[service.Href].Name] = illumioapi.IngressServices{Href: service.Href}
+		} else {
+			utils.LogError(fmt.Sprintf("CSV line %d - %s does not exist as a service", csvLine, c))
 		}
 	}
 
@@ -73,7 +74,7 @@ func serviceComparison(csvServices []string, rule illumioapi.Rule, pceServiceMap
 	// Check to see if what's in the PCE rule is in the CSV
 	for s := range ruleServiceEntries {
 		if _, check := csvServiceEntries[s]; !check && rule.Href != "" {
-			utils.LogInfo(fmt.Sprintf("CSV line %d - %s is a service in the PCE  rule but is not in the CSV rule. It will be removed.", csvLine, s), false)
+			utils.LogInfo(fmt.Sprintf("CSV line %d - %s is a service in the PCE rule but is not in the CSV rule. It will be removed.", csvLine, s), false)
 			change = true
 		}
 	}

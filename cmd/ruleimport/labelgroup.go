@@ -34,7 +34,7 @@ func lgComparison(csvLGNames []string, rule illumioapi.Rule, pceLGMap map[string
 			if lg, lgCheck := pceLGMap[lgName]; lgCheck {
 				csvLGsNameMap[lg.Name] = lg
 			} else {
-				utils.LogError(fmt.Sprintf("CSV line %d - %s %s does not exist as an Label Group", csvLine, connectionSide, lgName))
+				utils.LogError(fmt.Sprintf("CSV line %d - %s %s does not exist as an label group", csvLine, connectionSide, lgName))
 			}
 		}
 	}
@@ -46,7 +46,7 @@ func lgComparison(csvLGNames []string, rule illumioapi.Rule, pceLGMap map[string
 		// Check for Label Groups in CSV that are not in the PCE
 		for _, csvLG := range csvLGsNameMap {
 			if _, check := ruleLGsNameMap[csvLG.Name]; !check {
-				utils.LogInfo(fmt.Sprintf("CSV line %d - %s is a %s Label Group in the CSV but is not in the rule. It will be added.", csvLine, csvLG.Name, connectionSide), false)
+				utils.LogInfo(fmt.Sprintf("CSV line %d - %s is a %s label group in the CSV but is not in the rule. It will be added.", csvLine, csvLG.Name, connectionSide), false)
 				change = true
 			}
 		}
@@ -54,7 +54,7 @@ func lgComparison(csvLGNames []string, rule illumioapi.Rule, pceLGMap map[string
 		// Check for Label Groups in the PCE that are not in the CSV
 		for _, existingRuleLG := range ruleLGsNameMap {
 			if _, check := csvLGsNameMap[existingRuleLG.Name]; !check {
-				utils.LogInfo(fmt.Sprintf("CSV line %d - %s is a %s Label Group in the rule but is not in the CSV. It will be removed.", csvLine, existingRuleLG.Name, connectionSide), false)
+				utils.LogInfo(fmt.Sprintf("CSV line %d - %s is a %s label group in the rule but is not in the CSV. It will be removed.", csvLine, existingRuleLG.Name, connectionSide), false)
 				change = true
 			}
 		}

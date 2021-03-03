@@ -34,7 +34,7 @@ func wkldComparison(csvWkldNames []string, rule illumioapi.Rule, pceWkldMap map[
 			if wkld, wkldCheck := pceWkldMap[wkldName]; wkldCheck {
 				csvWkldsNameMap[wkld.Name] = wkld
 			} else {
-				utils.LogError(fmt.Sprintf("CSV line %d - %s %s does not exist as an IP List", csvLine, connectionSide, wkldName))
+				utils.LogError(fmt.Sprintf("CSV line %d - %s %s does not exist as a workload", csvLine, connectionSide, wkldName))
 			}
 		}
 	}
@@ -46,7 +46,7 @@ func wkldComparison(csvWkldNames []string, rule illumioapi.Rule, pceWkldMap map[
 		// Check for Workloads in CSV that are not in the PCE
 		for _, csvWkld := range csvWkldsNameMap {
 			if _, check := ruleWkldsNameMap[csvWkld.Name]; !check {
-				utils.LogInfo(fmt.Sprintf("CSV line %d - %s is a %s IP List in the CSV but is not in the rule. It will be added.", csvLine, csvWkld.Name, connectionSide), false)
+				utils.LogInfo(fmt.Sprintf("CSV line %d - %s is a %s workload in the CSV but is not in the rule. It will be added.", csvLine, csvWkld.Name, connectionSide), false)
 				change = true
 			}
 		}
@@ -54,7 +54,7 @@ func wkldComparison(csvWkldNames []string, rule illumioapi.Rule, pceWkldMap map[
 		// Check for Workloads in the PCE that are not in the CSV
 		for _, existingRuleWkld := range ruleWkldsNameMap {
 			if _, check := csvWkldsNameMap[existingRuleWkld.Name]; !check {
-				utils.LogInfo(fmt.Sprintf("CSV line %d - %s is a %s IP List in the rule but is not in the CSV. It will be removed.", csvLine, existingRuleWkld.Name, connectionSide), false)
+				utils.LogInfo(fmt.Sprintf("CSV line %d - %s is a %s workload in the rule but is not in the CSV. It will be removed.", csvLine, existingRuleWkld.Name, connectionSide), false)
 				change = true
 			}
 		}
