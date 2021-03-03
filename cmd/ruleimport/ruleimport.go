@@ -1,5 +1,9 @@
 package ruleimport
 
+// Pending items
+// Add virtual services
+// Add virtual servers
+
 import (
 	"fmt"
 	"os"
@@ -8,6 +12,7 @@ import (
 
 	"github.com/brian1917/illumioapi"
 
+	"github.com/brian1917/workloader/cmd/ruleexport"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -15,12 +20,11 @@ import (
 
 // Input is the data structure for the ImportRulesFromCSV command
 type Input struct {
-	PCE                                                                                                                                                                                                        illumioapi.PCE
-	ImportFile                                                                                                                                                                                                 string
-	ConsRoleIndex, ConsAppIndex, ConsEnvIndex, ConsLocIndex, ConsUserGroupIndex, ProvRoleIndex, ProvAppIndex, ProvEnvIndex, ProvLocIndex, ConsIPLIndex, ConsLabelGroupIndex, ProvLabelGroupIndex, ProvIPLIndex *int
-	ConsWkldIndex, ProvWkldIndex, RulesetNameIndex, GlobalConsumerIndex, ServicesIndex, RuleEnabledIndex, MachineAuthIndex, SecureConnectIndex, RuleHrefIndex                                                  *int
-	ProvsVSOnlyIndex, ProvsVSandWkldIndex, ConsVSOnlyIndex, ConsVSandWkldsIndex                                                                                                                                *int
-	DoNotProvision, UpdatePCE, NoPrompt                                                                                                                                                                        bool
+	PCE                            illumioapi.PCE
+	ImportFile                     string
+	ProvisionComment               string
+	Headers                        map[string]int
+	Provision, UpdatePCE, NoPrompt bool
 }
 
 // Decluare a global iput and debug variable
@@ -28,7 +32,8 @@ var input Input
 var debug bool
 
 func init() {
-	RuleImportCmd.Flags().BoolVar(&input.DoNotProvision, "x", false, "Do not provision changes.")
+	RuleImportCmd.Flags().BoolVar(&input.Provision, "provision", false, "Provision rule changes.")
+	RuleImportCmd.Flags().StringVar(&input.ProvisionComment, "provision-comment", "", "Comment for when provisioning changes.")
 }
 
 // RuleImportCmd runs the upload command
@@ -38,45 +43,46 @@ var RuleImportCmd = &cobra.Command{
 	Long: `
 Create and update rules in the PCE from a CSV file.
 
-The input format accepts the following header values:
-- ruleset_name (required. name of the target ruleset.)
-- global_consumers (required. true/false. true is extra-scope and false is intra-scope.)
-- consumer_role (label value. multiple separated by ";")
-- consumer_app (label value. multiple separated by ";")
-- consumer_env (label value. multiple separated by ";")
-- consumer_loc (label value. multiple separated by ";")
-- consumer_iplists (names of IP lists. multiple separated by ";")
-- consumer_label_groups (names of label groups. multiple separated by ";")
-- consumer_user_group (names of user groups. multiple separated by ";")
-- consumer_workloads (names of workloads. multiple separated by ";")
-- consumers_virtual_services_only (required. true/false)
-- consumers_virtual_services_and_workloads (required. true/false)
-- provider_role (label value. multiple separated by ";")
-- provider_app (label value. multiple separated by ";")
-- provider_env (label value. multiple separated by ";")
-- provider_loc (label value. multiple separated by ";")
-- provider_iplists (names of IP lists. multiple separated by ";")
-- provider_workloads (names of workloads. multiple separated by ";")
-- providers_virtual_services_only (required. true/false)
-- providers_virtual_services_and_workloads (required. true/false)
-- services (required. service name, port/proto, or port range/proto. multiple separated by ";")
-- rule_enabled (required. true/false)
-- machine_auth_enabled (true/false)
-- secure_connect_enabled (true/false)
-- rule_href (if blank, a rule is created. if provided, the rule is updated.)
-
-The only required header value is ruleset_name. All others are optional.
+An easy way to get the input format is to run the workloader rule-export command.
 
 If a rule_href is provided, the existing rule will be updated. If it's not provided it will be created.
 
-An easy way to get the input format is to run the workloader ruleset-export command.
+The order of the CSV columns do not matter. The input format accepts the following header values:
+- ruleset_name (required. name of the target ruleset.)
+- rule_enabled (required. true/false)
+- unscoped_consumers (required. true/false. true is extra-scope and false is intra-scope.)
+- consumer_all_workloads (true/false)
+- consumer_roles (label value. multiple separated by ";")
+- consumer_apps (label value. multiple separated by ";")
+- consumer_envs (label value. multiple separated by ";")
+- consumer_locs (label value. multiple separated by ";")
+- consumer_iplists (names of IP lists. multiple separated by ";")
+- consumer_label_groups (names of label groups. multiple separated by ";")
+- consumer_user_groups (names of user groups. multiple separated by ";")
+- consumer_workloads (names of workloads. multiple separated by ";")
+- consumer_virtual_services
+- consumer_resolve_labels_as (required. valid options are "workloads", "virtual_services", or "workloads;virtual_services")
+- provider_all_workloads (true/false)
+- provider_roles (label value. multiple separated by ";")
+- provider_apps (label value. multiple separated by ";")
+- provider_envs (label value. multiple separated by ";")
+- provider_locs (label value. multiple separated by ";")
+- provider_iplists (names of IP lists. multiple separated by ";")
+- provider_workloads (names of workloads. multiple separated by ";")
+- provider_virtual_services
+- provider_resolve_labels_as (required. valid options are "workloads", "virtual_services", or "workloads;virtual_services")
+- services (required. service name, port/proto, or port range/proto. multiple separated by ";")
+- machine_auth_enabled (true/false)
+- secure_connect_enabled (true/false)
+- stateless (true/false)
+- rule_href (if blank, a rule is created. if provided, the rule is updated.)
 
 Recommended to run without --update-pce first to log of what will change. If --update-pce is used, import will create labels without prompt, but it will not create/update workloads without user confirmation, unless --no-prompt is used.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 
 		var err error
-		input.PCE, err = utils.GetTargetPCE(true)
+		input.PCE, err = utils.GetTargetPCE(false)
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for csv command - %s", err)
 		}
@@ -103,6 +109,50 @@ func ImportRulesFromCSV(input Input) {
 	// Log start of the command
 	utils.LogStartCommand("rule-import")
 
+	// Parse the CSV file
+	csvInput, err := utils.ParseCSV(input.ImportFile)
+	if err != nil {
+		utils.LogError(err.Error())
+	}
+
+	// Process headers and check if any entry in the CSV has workloads, virtual servers, or virtual services.
+	var needWklds, needVirtualServices, needVirtualServers, needLabelGroups, needUserGroups bool
+	csvRuleSetChecker := make(map[string]bool)
+
+	for i, l := range csvInput {
+		// Skip the header row
+		if i == 0 {
+			// Process the headers
+			input.processHeaders(l)
+			continue
+		}
+		// Add to the checker map
+		csvRuleSetChecker[l[input.Headers[ruleexport.HeaderRulesetName]]] = true
+		if index, ok := input.Headers[ruleexport.HeaderProviderWorkloads]; ok && l[index] != "" {
+			needWklds = true
+		}
+		if index, ok := input.Headers[ruleexport.HeaderConsumerWorkloads]; ok && l[index] != "" {
+			needWklds = true
+		}
+		if index, ok := input.Headers[ruleexport.HeaderProviderVirtualServices]; ok && l[index] != "" {
+			needVirtualServices = true
+		}
+		if index, ok := input.Headers[ruleexport.HeaderConsumerVirtualServices]; ok && l[index] != "" {
+			needVirtualServices = true
+		}
+		if index, ok := input.Headers[ruleexport.HeaderProviderVirtualServers]; ok && l[index] != "" {
+			needVirtualServers = true
+		}
+		if index, ok := input.Headers[ruleexport.HeaderConsumerLabelGroup]; ok && l[index] != "" {
+			needLabelGroups = true
+		}
+		if index, ok := input.Headers[ruleexport.HeaderProviderLabelGroups]; ok && l[index] != "" {
+			needLabelGroups = true
+		}
+		if index, ok := input.Headers[ruleexport.HeaderConsumerUserGroups]; ok && l[index] != "" {
+			needUserGroups = true
+		}
+	}
 	// Get all the rulesets and make a map
 	utils.LogInfo("Getting all rulesets...", true)
 	allRS, a, err := input.PCE.GetAllRuleSets("draft")
@@ -120,9 +170,46 @@ func ImportRulesFromCSV(input Input) {
 	for _, rs := range allRS {
 		for _, r := range rs.Rules {
 			rHrefMap[r.Href] = *r
+			// If the ruleset is in our CSV, check if it has label groups, workloads, virtual services, or virtual servers.
+			if csvRuleSetChecker[rs.Name] {
+				// Iterate through consumers to see if any consumers have virtual services or workloads
+				for _, c := range r.Consumers {
+					if c.VirtualService != nil {
+						needVirtualServices = true
+					}
+					if c.Workload != nil {
+						needWklds = true
+					}
+					if c.LabelGroup != nil {
+						needLabelGroups = true
+					}
+					if r.ConsumingSecurityPrincipals != nil && len(r.ConsumingSecurityPrincipals) > 0 {
+						needUserGroups = true
+					}
+				}
+				// Iterate through providers to see if any providers have virtual servers, virtual services, or workloads
+				for _, p := range r.Providers {
+					if p.VirtualServer != nil {
+						needVirtualServers = true
+					}
+					if p.VirtualService != nil {
+						needVirtualServices = true
+					}
+					if p.Workload != nil {
+						needWklds = true
+					}
+					if p.LabelGroup != nil {
+						needLabelGroups = true
+					}
+				}
+			}
 		}
 
 	}
+
+	// Get all labels
+	utils.LogInfo("Getting all labels...", true)
+	input.PCE.GetLabelMaps()
 
 	// Get all IPLists by name
 	utils.LogInfo("Getting all IP lists...", true)
@@ -138,23 +225,64 @@ func ImportRulesFromCSV(input Input) {
 	}
 
 	// Get all label groups by name
-	utils.LogInfo("Getting all label groups...", true)
-	allLGs, a, err := input.PCE.GetAllLabelGroups("draft")
-	utils.LogAPIResp("GetAllLabelGroups", a)
 	lgMap := make(map[string]illumioapi.LabelGroup)
-	for _, lg := range allLGs {
-		lgMap[lg.Name] = lg
-		lgMap[lg.Href] = lg
+	if needLabelGroups {
+		utils.LogInfo("Getting all label groups...", true)
+		allLGs, a, err := input.PCE.GetAllLabelGroups("draft")
+		utils.LogAPIResp("GetAllLabelGroups", a)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		for _, lg := range allLGs {
+			lgMap[lg.Name] = lg
+			lgMap[lg.Href] = lg
+		}
 	}
 
 	// Get all workloads by name
-	utils.LogInfo("Getting all workloads...", true)
-	allWklds, a, err := input.PCE.GetAllWorkloadsQP(nil)
-	utils.LogAPIResp("GetAllWorkloadsQP", a)
 	wkldMap := make(map[string]illumioapi.Workload)
-	for _, wkld := range allWklds {
-		wkldMap[wkld.Name] = wkld
-		wkldMap[wkld.Href] = wkld
+	if needWklds {
+		utils.LogInfo("Getting all workloads...", true)
+		allWklds, a, err := input.PCE.GetAllWorkloadsQP(nil)
+		utils.LogAPIResp("GetAllWorkloadsQP", a)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		for _, wkld := range allWklds {
+			wkldMap[wkld.Hostname] = wkld
+			wkldMap[wkld.Href] = wkld
+			wkldMap[wkld.Name] = wkld
+		}
+	}
+
+	// Get all virtual servicse by name
+	virtualServiceMap := make(map[string]illumioapi.VirtualService)
+	if needVirtualServices {
+		utils.LogInfo("Getting all virtual services...", true)
+		allVirtualServices, a, err := input.PCE.GetAllVirtualServices(nil, "draft")
+		utils.LogAPIResp("GetAllVirtualServices", a)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		for _, vs := range allVirtualServices {
+			virtualServiceMap[vs.Name] = vs
+			virtualServiceMap[vs.Href] = vs
+		}
+	}
+
+	// Get all virtual servers by name
+	virtualServerMap := make(map[string]illumioapi.VirtualServer)
+	if needVirtualServers {
+		utils.LogInfo("Getting all virtual servers...", true)
+		allVirtualServers, a, err := input.PCE.GetAllVirtualServers("draft")
+		utils.LogAPIResp("GetAllVirtualServers", a)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		for _, vs := range allVirtualServers {
+			virtualServerMap[vs.Name] = vs
+			virtualServerMap[vs.Href] = vs
+		}
 	}
 
 	// Get all services by name
@@ -171,12 +299,18 @@ func ImportRulesFromCSV(input Input) {
 	}
 
 	// Get the user groups
-	utils.LogInfo("Getting all usergroups...", true)
-	userGroups, a, err := input.PCE.GetAllADUserGroups()
 	userGroupMapName := make(map[string]illumioapi.ConsumingSecurityPrincipals)
-	for _, ug := range userGroups {
-		userGroupMapName[ug.Name] = ug
-		userGroupMapName[ug.Href] = ug
+	if needUserGroups {
+		utils.LogInfo("Getting all usergroups...", true)
+		userGroups, a, err := input.PCE.GetAllADUserGroups()
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		utils.LogAPIResp("GetAllADUserGroups", a)
+		for _, ug := range userGroups {
+			userGroupMapName[ug.Name] = ug
+			userGroupMapName[ug.Href] = ug
+		}
 	}
 
 	// Create a toAdd data struct
@@ -188,46 +322,37 @@ func ImportRulesFromCSV(input Input) {
 	newRules := []toAdd{}
 	updatedRules := []toAdd{}
 
-	// Parse the CSV file
-	csvInput, err := utils.ParseCSV(input.ImportFile)
-	if err != nil {
-		utils.LogError(err.Error())
-	}
-
 	// Iterate through the CSV Data
+CSVEntries:
 	for i, l := range csvInput {
 
 		// Skip the header row
 		if i == 0 {
 			// Process the headers
-			input.processHeaders(l)
-			// Log the input
-			input.log()
-			continue
+			continue CSVEntries
 		}
 		// Reset the update
 		update := false
 
+		// Set the rowRuleHref
+
 		/******************** Ruleset and Rule existence ********************/
 
 		// A ruleset name is required. Make sure it's provided in the CSV and exists in the PCE
-		if input.RulesetNameIndex == nil {
-			utils.LogWarning(fmt.Sprintf("CSV line %d - no ruleset provided. Skipping.", i+1), true)
-			continue
-		}
 		var rs illumioapi.RuleSet
 		var rsCheck bool
-		if rs, rsCheck = rsNameMap[l[*input.RulesetNameIndex]]; !rsCheck {
-			fmt.Println(l[*input.RulesetNameIndex])
-			utils.LogWarning(fmt.Sprintf("CSV line %d - the provided ruleset name does not exist. Skipping.", i+1), true)
+		if rs, rsCheck = rsNameMap[l[input.Headers[ruleexport.HeaderRulesetName]]]; !rsCheck {
+			utils.LogWarning(fmt.Sprintf("CSV line %d - %s ruleset_name does not exist. Skipping.", i+1, l[input.Headers[ruleexport.HeaderRulesetName]]), true)
 			continue
 		}
 
-		// If a rule href is provided, it's updated.If not, it's created.
+		// If a rule href is provided, it's updated. If not, it's created.
 		// Verify if a rule is provided that it exsits.
-		if input.RuleHrefIndex != nil && l[*input.RuleHrefIndex] != "" {
-			if _, rCheck := rHrefMap[l[*input.RuleHrefIndex]]; !rCheck {
-				utils.LogWarning(fmt.Sprintf("CSV line %d - the provided rule href does not exist. Skipping.", i+1), true)
+		rowRuleHref := ""
+		if c, ok := input.Headers[ruleexport.HeaderRuleHref]; ok && l[c] != "" {
+			rowRuleHref = l[c]
+			if _, rCheck := rHrefMap[l[input.Headers[ruleexport.HeaderRuleHref]]]; !rCheck {
+				utils.LogWarning(fmt.Sprintf("CSV line %d - %s rule_href does not exist. Skipping.", i+1, l[input.Headers[ruleexport.HeaderRuleHref]]), true)
 				continue
 			}
 		}
@@ -235,13 +360,36 @@ func ImportRulesFromCSV(input Input) {
 		// ******************** Consumers ********************
 		consumers := []*illumioapi.Consumers{}
 
+		// All workloads
+		if c, ok := input.Headers[ruleexport.HeaderConsumerAllWorkloads]; ok {
+			csvAllWorkloads, err := strconv.ParseBool(l[c])
+			if err != nil {
+				utils.LogError(fmt.Sprintf("CSV line %d - %s is not valid boolean for consumer_all_workloads", i+1, l[c]))
+			}
+			if rule, ok := rHrefMap[rowRuleHref]; ok {
+				pceAllWklds := false
+				for _, cons := range rule.Consumers {
+					if cons.Actors == "ams" {
+						pceAllWklds = true
+					}
+				}
+				if pceAllWklds != csvAllWorkloads {
+					utils.LogInfo(fmt.Sprintf("CSV line %d - consumer_all_workloads needs to be updated from %t to %t", i+1, pceAllWklds, csvAllWorkloads), false)
+					update = true
+				}
+			}
+			if csvAllWorkloads {
+				consumers = append(consumers, &illumioapi.Consumers{Actors: "ams"})
+			}
+		}
+
 		// IP Lists
-		if input.ConsIPLIndex != nil {
-			consCSVipls := strings.Split(strings.ReplaceAll(l[*input.ConsIPLIndex], "; ", ";"), ";")
-			if l[*input.ConsIPLIndex] == "" {
+		if c, ok := input.Headers[ruleexport.HeaderConsumerIplists]; ok {
+			consCSVipls := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
+			if l[c] == "" {
 				consCSVipls = nil
 			}
-			iplChange, ipls := iplComparison(consCSVipls, rHrefMap[l[*input.RuleHrefIndex]], iplMap, i+1, false)
+			iplChange, ipls := iplComparison(consCSVipls, rHrefMap[rowRuleHref], iplMap, i+1, false)
 			if iplChange {
 				update = true
 			}
@@ -251,12 +399,12 @@ func ImportRulesFromCSV(input Input) {
 		}
 
 		// Workloads
-		if input.ConsWkldIndex != nil {
-			consCSVwklds := strings.Split(strings.ReplaceAll(l[*input.ConsWkldIndex], "; ", ";"), ";")
-			if l[*input.ConsWkldIndex] == "" {
+		if c, ok := input.Headers[ruleexport.HeaderConsumerWorkloads]; ok {
+			consCSVwklds := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
+			if l[c] == "" {
 				consCSVwklds = nil
 			}
-			wkldChange, wklds := wkldComparison(consCSVwklds, rHrefMap[l[*input.RuleHrefIndex]], wkldMap, i+1, false)
+			wkldChange, wklds := wkldComparison(consCSVwklds, rHrefMap[rowRuleHref], wkldMap, i+1, false)
 			if wkldChange {
 				update = true
 			}
@@ -265,13 +413,28 @@ func ImportRulesFromCSV(input Input) {
 			}
 		}
 
+		// Virtual Services
+		if c, ok := input.Headers[ruleexport.HeaderConsumerVirtualServices]; ok {
+			consCSVVSs := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
+			if l[c] == "" {
+				consCSVVSs = nil
+			}
+			vsChange, virtualServices := virtualServiceCompare(consCSVVSs, rHrefMap[rowRuleHref], virtualServiceMap, i+1, false)
+			if vsChange {
+				update = true
+			}
+			for _, vs := range virtualServices {
+				consumers = append(consumers, &illumioapi.Consumers{VirtualService: vs})
+			}
+		}
+
 		// Label Groups
-		if input.ConsLabelGroupIndex != nil {
-			consCSVlgs := strings.Split(strings.ReplaceAll(l[*input.ConsLabelGroupIndex], "; ", ";"), ";")
-			if l[*input.ConsLabelGroupIndex] == "" {
+		if c, ok := input.Headers[ruleexport.HeaderConsumerLabelGroup]; ok {
+			consCSVlgs := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
+			if l[c] == "" {
 				consCSVlgs = nil
 			}
-			lgChange, lgs := lgComparison(consCSVlgs, rHrefMap[l[*input.RuleHrefIndex]], lgMap, i+1, false)
+			lgChange, lgs := lgComparison(consCSVlgs, rHrefMap[rowRuleHref], lgMap, i+1, false)
 			if lgChange {
 				update = true
 			}
@@ -281,23 +444,17 @@ func ImportRulesFromCSV(input Input) {
 		}
 
 		// Labels - iterate through the role, app, env and loc.
-		labelIndeces := []*int{input.ConsRoleIndex, input.ConsAppIndex, input.ConsEnvIndex, input.ConsLocIndex}
+		labelIndeces := []string{ruleexport.HeaderConsumerRole, ruleexport.HeaderConsumerApp, ruleexport.HeaderConsumerEnv, ruleexport.HeaderConsumerLoc}
 		labelKeys := []string{"role", "app", "env", "loc"}
 		for e, li := range labelIndeces {
-			if li != nil {
-				csvLabels := strings.Split(strings.ReplaceAll(l[*li], "; ", ";"), ";")
-				if l[*li] == "" {
+			if c, ok := input.Headers[li]; ok {
+				csvLabels := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
+				if l[c] == "" {
 					csvLabels = nil
-				}
-				// Labels - check for All Workloads
-				for _, l := range csvLabels {
-					if strings.ToLower(l) == "all workloads" {
-						consumers = append(consumers, &illumioapi.Consumers{Actors: "ams"})
-					}
 				}
 
 				// Labels - run comparison
-				labelUpdate, labels := labelComparison(labelKeys[e], csvLabels, input.PCE, rHrefMap[l[*input.RuleHrefIndex]], i+1, false)
+				labelUpdate, labels := labelComparison(labelKeys[e], csvLabels, input.PCE, rHrefMap[rowRuleHref], i+1, false)
 				if labelUpdate {
 					update = true
 				}
@@ -308,13 +465,13 @@ func ImportRulesFromCSV(input Input) {
 		}
 		// User Groups - parse and run comparison
 		var consumingSecPrincipals []*illumioapi.ConsumingSecurityPrincipals
-		if input.ConsUserGroupIndex != nil {
-			csvUserGroups := strings.Split(strings.ReplaceAll(l[*input.ConsUserGroupIndex], "; ", ";"), ";")
-			if l[*input.ConsUserGroupIndex] == "" {
+		if c, ok := input.Headers[ruleexport.HeaderConsumerUserGroups]; ok {
+			csvUserGroups := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
+			if l[c] == "" {
 				csvUserGroups = nil
 			}
 			var ugUpdate bool
-			ugUpdate, consumingSecPrincipals = userGroupComaprison(csvUserGroups, rHrefMap[l[*input.RuleHrefIndex]], userGroupMapName, i+1)
+			ugUpdate, consumingSecPrincipals = userGroupComaprison(csvUserGroups, rHrefMap[rowRuleHref], userGroupMapName, i+1)
 			if ugUpdate {
 				update = true
 			}
@@ -324,24 +481,40 @@ func ImportRulesFromCSV(input Input) {
 
 		providers := []*illumioapi.Providers{}
 
+		// All workloads
+		if c, ok := input.Headers[ruleexport.HeaderProviderAllWorkloads]; ok {
+			csvAllWorkloads, err := strconv.ParseBool(l[c])
+			if err != nil {
+				utils.LogError(fmt.Sprintf("CSV line %d - %s is not valid boolean for provider_all_workloads", i+1, l[c]))
+			}
+			if rule, ok := rHrefMap[rowRuleHref]; ok {
+				pceAllWklds := false
+				for _, prov := range rule.Providers {
+					if prov.Actors == "ams" {
+						pceAllWklds = true
+					}
+				}
+				if pceAllWklds != csvAllWorkloads {
+					utils.LogInfo(fmt.Sprintf("CSV line %d - provider_all_workloads needs to be updated from %t to %t", i+1, pceAllWklds, csvAllWorkloads), false)
+					update = true
+				}
+			}
+			if csvAllWorkloads {
+				providers = append(providers, &illumioapi.Providers{Actors: "ams"})
+			}
+		}
+
 		// Labels - parse the CSV entry to split by semicolon and remove spaces
-		provLabelIndeces := []*int{input.ProvRoleIndex, input.ProvAppIndex, input.ProvEnvIndex, input.ProvLocIndex}
+		provLabelIndeces := []string{ruleexport.HeaderProviderRole, ruleexport.HeaderProviderApp, ruleexport.HeaderProviderEnv, ruleexport.HeaderProviderLoc}
 		for e, li := range provLabelIndeces {
-			if li != nil {
-				csvLabels := strings.Split(strings.ReplaceAll(l[*li], "; ", ";"), ";")
-				if l[*li] == "" {
+			if c, ok := input.Headers[li]; ok {
+				csvLabels := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
+				if l[c] == "" {
 					csvLabels = nil
 				}
 
-				// Labels - check for All Workloads
-				for _, l := range csvLabels {
-					if strings.ToLower(l) == "all workloads" {
-						providers = append(providers, &illumioapi.Providers{Actors: "ams"})
-					}
-				}
-
 				// Labels - run comparison
-				labelUpdate, labels := labelComparison(labelKeys[e], csvLabels, input.PCE, rHrefMap[l[*input.RuleHrefIndex]], i+1, true)
+				labelUpdate, labels := labelComparison(labelKeys[e], csvLabels, input.PCE, rHrefMap[rowRuleHref], i+1, true)
 				if labelUpdate {
 					update = true
 				}
@@ -352,12 +525,12 @@ func ImportRulesFromCSV(input Input) {
 		}
 
 		// IP Lists
-		if input.ProvIPLIndex != nil {
-			provCSVipls := strings.Split(strings.ReplaceAll(l[*input.ProvIPLIndex], "; ", ";"), ";")
-			if l[*input.ProvIPLIndex] == "" {
+		if c, ok := input.Headers[ruleexport.HeaderProviderIplists]; ok {
+			provCSVipls := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
+			if l[c] == "" {
 				provCSVipls = nil
 			}
-			iplChange, ipls := iplComparison(provCSVipls, rHrefMap[l[*input.RuleHrefIndex]], iplMap, i+1, true)
+			iplChange, ipls := iplComparison(provCSVipls, rHrefMap[rowRuleHref], iplMap, i+1, true)
 			if iplChange {
 				update = true
 			}
@@ -367,12 +540,12 @@ func ImportRulesFromCSV(input Input) {
 		}
 
 		// Workloads
-		if input.ProvWkldIndex != nil {
-			provsCSVwklds := strings.Split(strings.ReplaceAll(l[*input.ProvWkldIndex], "; ", ";"), ";")
-			if l[*input.ProvWkldIndex] == "" {
+		if c, ok := input.Headers[ruleexport.HeaderProviderWorkloads]; ok {
+			provsCSVwklds := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
+			if l[c] == "" {
 				provsCSVwklds = nil
 			}
-			wkldChange, wklds := wkldComparison(provsCSVwklds, rHrefMap[l[*input.RuleHrefIndex]], wkldMap, i+1, false)
+			wkldChange, wklds := wkldComparison(provsCSVwklds, rHrefMap[rowRuleHref], wkldMap, i+1, true)
 			if wkldChange {
 				update = true
 			}
@@ -381,13 +554,28 @@ func ImportRulesFromCSV(input Input) {
 			}
 		}
 
+		// Virtual Services
+		if c, ok := input.Headers[ruleexport.HeaderProviderVirtualServices]; ok {
+			provCSVVSs := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
+			if l[c] == "" {
+				provCSVVSs = nil
+			}
+			vsChange, virtualServices := virtualServiceCompare(provCSVVSs, rHrefMap[rowRuleHref], virtualServiceMap, i+1, true)
+			if vsChange {
+				update = true
+			}
+			for _, vs := range virtualServices {
+				providers = append(providers, &illumioapi.Providers{VirtualService: vs})
+			}
+		}
+
 		// Label Groups
-		if input.ProvLabelGroupIndex != nil {
-			provCSVlgs := strings.Split(strings.ReplaceAll(l[*input.ProvLabelGroupIndex], "; ", ";"), ";")
-			if l[*input.ProvLabelGroupIndex] == "" {
+		if c, ok := input.Headers[ruleexport.HeaderProviderLabelGroups]; ok {
+			provCSVlgs := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
+			if l[c] == "" {
 				provCSVlgs = nil
 			}
-			lgChange, lgs := lgComparison(provCSVlgs, rHrefMap[l[*input.RuleHrefIndex]], lgMap, i+1, true)
+			lgChange, lgs := lgComparison(provCSVlgs, rHrefMap[rowRuleHref], lgMap, i+1, true)
 			if lgChange {
 				update = true
 			}
@@ -397,163 +585,130 @@ func ImportRulesFromCSV(input Input) {
 		}
 
 		// ******************** Services ********************
-		csvServices := strings.Split(strings.ReplaceAll(l[*input.ServicesIndex], "; ", ";"), ";")
-		if l[*input.ServicesIndex] == "" {
-			csvServices = nil
-		}
-		svcChange, ingressSvc := serviceComparison(csvServices, rHrefMap[l[*input.RuleHrefIndex]], svcNameMap, i+1)
-		if svcChange {
-			update = true
-		}
-		if ingressSvc == nil {
-			ingressSvc = append(ingressSvc, &illumioapi.IngressServices{})
+		var ingressSvc []*illumioapi.IngressServices
+		var svcChange bool
+		if c, ok := input.Headers[ruleexport.HeaderServices]; ok {
+			csvServices := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
+			if l[c] == "" {
+				csvServices = nil
+			}
+			svcChange, ingressSvc = serviceComparison(csvServices, rHrefMap[rowRuleHref], svcNameMap, i+1)
+			if svcChange {
+				update = true
+			}
+			if ingressSvc == nil {
+				ingressSvc = append(ingressSvc, &illumioapi.IngressServices{})
+			}
 		}
 
 		// ******************** Enabled ********************
-		enabled, err := strconv.ParseBool(l[*input.RuleEnabledIndex])
-		if err != nil {
-			utils.LogError(fmt.Sprintf("CSV line %d - %s is not valid boolean for rule_enabled", i+1, l[*input.RuleEnabledIndex]))
-		}
-		if l[*input.RuleHrefIndex] != "" {
-			if *rHrefMap[l[*input.RuleHrefIndex]].Enabled != enabled {
-				update = true
-				utils.LogInfo(fmt.Sprintf("CSV line %d - enabled status needs to be updated.", i), false)
+		var enabled bool
+		if c, ok := input.Headers[ruleexport.HeaderRuleEnabled]; ok {
+			enabled, err = strconv.ParseBool(l[c])
+			if err != nil {
+				utils.LogError(fmt.Sprintf("CSV line %d - %s is not valid boolean for rule_enabled", i+1, l[c]))
 			}
+			if rowRuleHref != "" && *rHrefMap[rowRuleHref].Enabled != enabled {
+				update = true
+				utils.LogInfo(fmt.Sprintf("CSV line %d - rule_enabled needs to be updated from %t to %t.", i+1, !enabled, enabled), false)
+			}
+
 		}
 
 		// ******************** Machine Auth ********************/
 		var machineAuth bool
-		if input.MachineAuthIndex != nil {
-			machineAuth, err = strconv.ParseBool(l[*input.MachineAuthIndex])
+		if c, ok := input.Headers[ruleexport.HeaderMachineAuthEnabled]; ok {
+			machineAuth, err = strconv.ParseBool(l[c])
 			if err != nil {
-				utils.LogError(fmt.Sprintf("CSV line %d - %s is not valid boolean for machine_auth_enabled", i+1, l[*input.MachineAuthIndex]))
+				utils.LogError(fmt.Sprintf("CSV line %d - %s is not valid boolean for machine_auth_enabled", i+1, l[c]))
 			}
-			if l[*input.RuleHrefIndex] != "" {
-				if *rHrefMap[l[*input.RuleHrefIndex]].MachineAuth != machineAuth {
+			if rowRuleHref != "" {
+				if *rHrefMap[rowRuleHref].MachineAuth != machineAuth {
 					update = true
-					utils.LogInfo(fmt.Sprintf("CSV line %d - machine auth status needs to be updated.", i), false)
+					utils.LogInfo(fmt.Sprintf("CSV line %d - machine_auth_enabled needs to be updated from %t to %t.", i+1, !machineAuth, machineAuth), false)
 				}
 			}
 		}
 
-		// ******************** Machine Auth ********************/
+		// ******************** Secure Connect ********************/
 		var secConnect bool
-		if input.SecureConnectIndex != nil {
-			secConnect, err = strconv.ParseBool(l[*input.SecureConnectIndex])
+		if c, ok := input.Headers[ruleexport.HeaderSecureConnectEnabled]; ok {
+			secConnect, err = strconv.ParseBool(l[c])
 			if err != nil {
-				utils.LogError(fmt.Sprintf("CSV line %d - %s is not valid boolean for secure_connect_enabled", i+1, l[*input.SecureConnectIndex]))
+				utils.LogError(fmt.Sprintf("CSV line %d - %s is not valid boolean for secure_connect_enabled", i+1, l[c]))
 			}
-			if l[*input.RuleHrefIndex] != "" {
-				if *rHrefMap[l[*input.RuleHrefIndex]].SecConnect != secConnect {
+			if rowRuleHref != "" {
+				if *rHrefMap[rowRuleHref].SecConnect != secConnect {
 					update = true
-					utils.LogInfo(fmt.Sprintf("CSV line %d - secure connect status needs to be updated.", i), false)
+					utils.LogInfo(fmt.Sprintf("CSV line %d - secure_connect_enabled needs to be updated from %t to %t.", i+1, !secConnect, secConnect), false)
 				}
 			}
 		}
 
 		// ******************** Global Consumers ********************/
-		var globalConsumers bool
-		if input.GlobalConsumerIndex != nil {
-			globalConsumers, err = strconv.ParseBool(l[*input.GlobalConsumerIndex])
+		var unscopedConsumers bool
+		if c, ok := input.Headers[ruleexport.HeaderUnscopedConsumers]; ok {
+			unscopedConsumers, err = strconv.ParseBool(l[c])
 			if err != nil {
-				utils.LogError(fmt.Sprintf("CSV line %d - %s is not valid boolean for global_consumers", i+1, l[*input.SecureConnectIndex]))
+				utils.LogError(fmt.Sprintf("CSV line %d - %s is not valid boolean for unscoped_consumers", i+1, l[c]))
 			}
-			if l[*input.RuleHrefIndex] != "" {
-				if *rHrefMap[l[*input.RuleHrefIndex]].UnscopedConsumers != globalConsumers {
+			if rowRuleHref != "" {
+				if *rHrefMap[rowRuleHref].UnscopedConsumers != unscopedConsumers {
 					update = true
-					utils.LogInfo(fmt.Sprintf("CSV line %d - unscoped_consumers needs to be updated from %t to %t.", i, !globalConsumers, globalConsumers), false)
+					utils.LogInfo(fmt.Sprintf("CSV line %d - unscoped_consumers needs to be updated from %t to %t.", i+1, !unscopedConsumers, unscopedConsumers), false)
 				}
 			}
 		}
 
 		// ******************** VS / Workload only ********************/
 
-		// Consumers
-		consResolve := []string{}
-		if input.ConsVSOnlyIndex != nil && l[*input.ConsVSOnlyIndex] != "" {
-			consVSOnly, err := strconv.ParseBool(l[*input.ConsVSOnlyIndex])
-			if err != nil {
-				utils.LogError(fmt.Sprintf("CSV line %d - %s is not valid boolean for consumer virtual services only", i+1, l[*input.ConsVSOnlyIndex]))
-			}
-			consVSandWkld, err := strconv.ParseBool(l[*input.ConsVSandWkldsIndex])
-			if err != nil {
-				utils.LogError(fmt.Sprintf("CSV line %d - %s is not valid boolean for consumer and workloads", i+1, l[*input.ConsVSandWkldsIndex]))
-			}
-			// If the rule href is provided it's an update
-			if l[*input.RuleHrefIndex] != "" {
-				// Populate map
-				consPCE := make(map[string]bool)
-				for _, t := range rHrefMap[l[*input.RuleHrefIndex]].ResolveLabelsAs.Consumers {
-					consPCE[t] = true
+		headers := []string{ruleexport.HeaderConsumerResolveLabelsAs, ruleexport.HeaderProviderResolveLabelsAs}
+		pceRuleResolveAs := [][]string{}
+		if rule, ok := rHrefMap[rowRuleHref]; ok {
+			pceRuleResolveAs = [][]string{rule.ResolveLabelsAs.Consumers, rule.ResolveLabelsAs.Providers}
+		}
+		var consResolveAs, provResolveAs []string
+		targets := []*[]string{&consResolveAs, &provResolveAs}
+		for z, h := range headers {
+			csvResolveAs := strings.ToLower(strings.Replace(l[input.Headers[h]], " ", "", -1))
+			csvResolveAsSlc := strings.Split(csvResolveAs, ";")
+			// Make sure the provided values are valid
+			for _, r := range csvResolveAsSlc {
+				if r != "workloads" && r != "virtual_services" {
+					utils.LogWarning(fmt.Sprintf("CSV line %d - %s is an invalid %s. Value must be workloads, virtual_services, or workloads;virtual_services", i+1, r, h), true)
+					continue CSVEntries
 				}
-				if consVSOnly != consPCE["virtual_services"] {
+			}
+			// Log if we need to make changes
+			if rowRuleHref != "" {
+				// If one length is 2 and other is not, we need to update
+				if len(pceRuleResolveAs[z]) == 2 && len(csvResolveAsSlc) != 2 {
+					utils.LogInfo(fmt.Sprintf("CSV line %d - %s needs to be updated from %s to %s", i+1, h, strings.Join(pceRuleResolveAs[z], ";"), csvResolveAs), false)
 					update = true
-					utils.LogInfo(fmt.Sprintf("CSV line %d - consumer_virtual_services_only needs to be update from %t to %t.", i, consPCE["virtual_services"], consVSOnly), false)
+				} else {
+					// Here, both lengths are one so we can just compare values
+					if pceRuleResolveAs[z][0] != csvResolveAs {
+						utils.LogInfo(fmt.Sprintf("CSV line %d - %s needs to be updated from %s to %s", i+1, h, pceRuleResolveAs[z][0], csvResolveAs), false)
+						update = true
+					}
 				}
-				if (consVSandWkld != consPCE["virtual_services"]) && (consVSandWkld != consPCE["workloads"]) {
-					update = true
-					utils.LogInfo(fmt.Sprintf("CSV line %d - consumer_workloads_and_virtual_services needs to be update from %t to %t.", i, !consVSandWkld, consVSandWkld), false)
-				}
 			}
-
-			if consVSOnly {
-				consResolve = append(consResolve, "virtual_services")
-			} else if consVSandWkld {
-				consResolve = append(consResolve, "virtual_services")
-				consResolve = append(consResolve, "workloads")
-			} else {
-				consResolve = append(consResolve, "workloads")
-			}
-		}
-
-		// Providers
-		provsResolve := []string{}
-		provsVSOnly, err := strconv.ParseBool(l[*input.ProvsVSOnlyIndex])
-		if err != nil {
-			utils.LogError(fmt.Sprintf("CSV line %d - %s is not valid boolean for provsumer virtual services only", i+1, l[*input.ProvsVSOnlyIndex]))
-		}
-		provsVSandWkld, err := strconv.ParseBool(l[*input.ProvsVSandWkldIndex])
-		if err != nil {
-			utils.LogError(fmt.Sprintf("CSV line %d - %s is not valid boolean for provsumer and workloads", i+1, l[*input.ProvsVSandWkldIndex]))
-		}
-		// If the rule href is provided it's an update
-		if l[*input.RuleHrefIndex] != "" {
-			// Populate map
-			provsPCE := make(map[string]bool)
-			for _, t := range rHrefMap[l[*input.RuleHrefIndex]].ResolveLabelsAs.Providers {
-				provsPCE[t] = true
-			}
-			if provsVSOnly != provsPCE["virtual_services"] {
-				update = true
-				utils.LogInfo(fmt.Sprintf("CSV line %d - provsumer_virtual_services_only needs to be update from %t to %t.", i, provsPCE["virtual_services"], provsVSOnly), false)
-			}
-			if (provsVSandWkld != provsPCE["virtual_services"]) && (provsVSandWkld != provsPCE["workloads"]) {
-				update = true
-				utils.LogInfo(fmt.Sprintf("CSV line %d - provsumer_workloads_and_virtual_services needs to be update from %t to %t.", i, !provsVSandWkld, provsVSandWkld), false)
-			}
-		}
-
-		if provsVSOnly {
-			provsResolve = append(provsResolve, "virtual_services")
-		} else if provsVSandWkld {
-			provsResolve = append(provsResolve, "virtual_services")
-			provsResolve = append(provsResolve, "workloads")
-		} else {
-			provsResolve = append(provsResolve, "workloads")
+			// Populate target
+			*targets[z] = csvResolveAsSlc
 		}
 
 		// Create the rule
-		csvRule := illumioapi.Rule{UnscopedConsumers: &globalConsumers, Consumers: consumers, ConsumingSecurityPrincipals: consumingSecPrincipals, Providers: providers, IngressServices: &ingressSvc, Enabled: &enabled, MachineAuth: &machineAuth, ResolveLabelsAs: &illumioapi.ResolveLabelsAs{Consumers: consResolve, Providers: provsResolve}}
+		csvRule := illumioapi.Rule{UnscopedConsumers: &unscopedConsumers, Consumers: consumers, ConsumingSecurityPrincipals: consumingSecPrincipals, Providers: providers, IngressServices: &ingressSvc, Enabled: &enabled, MachineAuth: &machineAuth, SecConnect: &secConnect, ResolveLabelsAs: &illumioapi.ResolveLabelsAs{Consumers: consResolveAs, Providers: provResolveAs}}
 
 		// Add to our array
 		// Option 1 - No rule HREF provided, so it's a new rule
-		if l[*input.RuleHrefIndex] == "" {
+		if rowRuleHref == "" {
 			newRules = append(newRules, toAdd{ruleSetHref: rs.Href, rule: csvRule, csvLine: i + 1})
-			utils.LogInfo(fmt.Sprintf("CSV line %d - create new rule for %s ruleset", i+1, l[*input.RulesetNameIndex]), true)
+			utils.LogInfo(fmt.Sprintf("CSV line %d - create new rule for %s ruleset", i+1, l[input.Headers[ruleexport.HeaderRulesetName]]), true)
 		} else {
 			// Option 2 - No rule href and update set, add to updated rules
 			if update {
-				csvRule.Href = l[*input.RuleHrefIndex]
+				csvRule.Href = rowRuleHref
 				updatedRules = append(updatedRules, toAdd{ruleSetHref: rs.Href, rule: csvRule, csvLine: i + 1})
 			}
 		}
@@ -617,8 +772,8 @@ func ImportRulesFromCSV(input Input) {
 	for a := range provisionHrefs {
 		p = append(p, a)
 	}
-	if !input.DoNotProvision {
-		a, err := input.PCE.ProvisionHref(p, "workloader edge-rule-import")
+	if input.Provision {
+		a, err := input.PCE.ProvisionHref(p, input.ProvisionComment)
 		utils.LogAPIResp("ProvisionHref", a)
 		if err != nil {
 			utils.LogError(err.Error())

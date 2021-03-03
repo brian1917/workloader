@@ -13,8 +13,6 @@ import (
 	"github.com/brian1917/workloader/cmd/deleteunusedlabels"
 	"github.com/brian1917/workloader/cmd/dupecheck"
 	"github.com/brian1917/workloader/cmd/edgerulecopy"
-	"github.com/brian1917/workloader/cmd/edgeruleexport"
-	"github.com/brian1917/workloader/cmd/edgeruleimport"
 	"github.com/brian1917/workloader/cmd/explorer"
 	"github.com/brian1917/workloader/cmd/extract"
 	"github.com/brian1917/workloader/cmd/flowimport"
@@ -33,6 +31,9 @@ import (
 	"github.com/brian1917/workloader/cmd/nicmanage"
 	"github.com/brian1917/workloader/cmd/pcemgmt"
 	"github.com/brian1917/workloader/cmd/ruleexport"
+	"github.com/brian1917/workloader/cmd/ruleimport"
+	"github.com/brian1917/workloader/cmd/rulesetexport"
+	"github.com/brian1917/workloader/cmd/rulesetimport"
 	"github.com/brian1917/workloader/cmd/servicefinder"
 	"github.com/brian1917/workloader/cmd/snowsync"
 	"github.com/brian1917/workloader/cmd/subnet"
@@ -109,7 +110,10 @@ func init() {
 	RootCmd.AddCommand(labelgroupexport.LabelGroupExportCmd)
 	RootCmd.AddCommand(labelgroupimport.LabelGroupImportCmd)
 	RootCmd.AddCommand(svcexport.SvcExportCmd)
+	RootCmd.AddCommand(rulesetexport.RuleSetExportCmd)
+	RootCmd.AddCommand(rulesetimport.RuleSetImportCmd)
 	RootCmd.AddCommand(ruleexport.RuleExportCmd)
+	RootCmd.AddCommand(ruleimport.RuleImportCmd)
 	RootCmd.AddCommand(flowimport.FlowImportCmd)
 	RootCmd.AddCommand(templateimport.TemplateImportCmd)
 
@@ -144,8 +148,6 @@ func init() {
 	// Edge Commands
 	RootCmd.AddCommand(wkldtoipl.WorkloadToIPLCmd)
 	RootCmd.AddCommand(edgerulecopy.EdgeRuleCopyCmd)
-	RootCmd.AddCommand(edgeruleexport.EdgeRuleExportCmd)
-	RootCmd.AddCommand(edgeruleimport.EdgeRuleImportCmd)
 
 	// Version Commands
 	RootCmd.AddCommand(versionCmd)

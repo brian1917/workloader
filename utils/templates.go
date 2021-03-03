@@ -8,7 +8,7 @@ func RootTemplate() string {
   PCE Management Commands:{{range .Commands}}{{if (or (eq .Name "pce-remove") (eq .Name "pce-add") (eq .Name "get-default") (eq .Name "set-default") (eq .Name "pce-list"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
-  Import/Export Commands:{{range .Commands}}{{if (or (eq .Name "wkld-import") (eq .Name "wkld-export") (eq .Name "ipl-export") (eq .Name "ipl-import") (eq .Name "label-export") (eq .Name "svc-export") (eq .Name "ruleset-export") (eq .Name "labelgroup-export") (eq .Name "labelgroup-import") (eq .Name "flow-import") (eq .Name "template-import"))}}
+  Import/Export Commands:{{range .Commands}}{{if (or (eq .Name "wkld-import") (eq .Name "wkld-export") (eq .Name "ipl-export") (eq .Name "ipl-import") (eq .Name "label-export") (eq .Name "svc-export") (eq .Name "rule-export") (eq .Name "rule-import") (eq .Name "ruleset-export") (eq .Name "ruleset-import") (eq .Name "labelgroup-export") (eq .Name "labelgroup-import") (eq .Name "flow-import") (eq .Name "template-import"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 	  
   Automated Labeling Commands:{{range .Commands}}{{if (or (eq .Name "traffic") (eq .Name "subnet") (eq .Name "hostparse") (eq .Name "snow-sync"))}}
@@ -23,7 +23,7 @@ func RootTemplate() string {
   Reporting Commands:{{range .Commands}}{{if (or (eq .Name "mislabel") (eq .Name "dupecheck") (eq .Name "flowsummary") (eq .Name "explorer") (eq .Name "nic-export") (eq .Name "service-finder"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
-  Edge Commands:{{range .Commands}}{{if (or (eq .Name "wkld-to-ipl") (eq .Name "edge-rule-copy") (eq .Name "edge-rule-export") (eq .Name "edge-rule-import"))}}
+  Edge Commands:{{range .Commands}}{{if (or (eq .Name "wkld-to-ipl") (eq .Name "edge-rule-copy"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
   Other Commands:{{range .Commands}}{{if (or (eq .Name "delete"))}}
