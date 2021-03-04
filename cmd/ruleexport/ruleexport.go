@@ -232,13 +232,6 @@ func ExportRules(pce illumioapi.PCE, useActive bool, app, env, loc string, edge,
 			scopesSlice = append(scopesSlice, scopeString)
 		}
 
-		// If there are no rules here, add the csv entry
-		if len(rs.Rules) == 0 {
-			csvData = append(csvData, []string{rs.Name, strconv.FormatBool(*rs.Enabled), rs.Description, strings.Join(scopesSlice, ";"), "no rules", "no rules", "no rules", "no rules", "no rules", "no rules", "no rules", "no rules", "no rules", "no rules", "no rules", "no rules", rs.Href, "no rules"})
-			edgeCSVData = append(edgeCSVData, []string{rs.Name, "no rules", "no rules", "no rules", "no rules", "no rules", "no rules", "no rules", rs.Href})
-
-		}
-
 		// Process each rule
 		for _, r := range rs.Rules {
 			csvEntryMap := make(map[string]string)
