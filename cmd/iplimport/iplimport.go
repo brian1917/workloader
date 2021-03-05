@@ -141,8 +141,17 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 
 		// Build our ranges for include
 		includeCSV := strings.Split(strings.ReplaceAll(line[incCol], " ", ""), ";")
+		if includeCSV[0] == "" {
+			includeCSV = nil
+		}
 		excludeCSV := strings.Split(strings.ReplaceAll(line[excCol], " ", ""), ";")
+		if excludeCSV[0] == "" {
+			excludeCSV = nil
+		}
 		fqdns := strings.Split(strings.ReplaceAll(line[fqdnsCol], " ", ""), ";")
+		if fqdns[0] == "" {
+			fqdns = nil
+		}
 
 		// Iterate the includes
 		for _, i := range includeCSV {
