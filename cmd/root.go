@@ -12,6 +12,7 @@ import (
 	"github.com/brian1917/workloader/cmd/delete"
 	"github.com/brian1917/workloader/cmd/deleteunusedlabels"
 	"github.com/brian1917/workloader/cmd/dupecheck"
+	"github.com/brian1917/workloader/cmd/edgeadmin"
 	"github.com/brian1917/workloader/cmd/edgerulecopy"
 	"github.com/brian1917/workloader/cmd/explorer"
 	"github.com/brian1917/workloader/cmd/extract"
@@ -155,6 +156,7 @@ func init() {
 
 	// Undocumented
 	RootCmd.AddCommand(extract.ExtractCmd)
+	RootCmd.AddCommand(edgeadmin.EdgeAdminCmd)
 
 	// Set the usage templates
 	for _, c := range RootCmd.Commands() {
