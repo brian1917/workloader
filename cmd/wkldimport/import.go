@@ -208,9 +208,9 @@ CSVEntries:
 				}
 
 				// Process string variables requiring no logic check.
-				var desc, extDataRef, extDataSet, osID, osDetail, dataCenter string
-				varPtrs := []*string{&desc, &extDataRef, &extDataSet, &osID, &osDetail, &dataCenter}
-				inpuIndices := []int{input.DescIndex, input.ExtDataRefIndex, input.ExtDataSetIndex, input.OSIDIndex, input.OSDetailIndex, input.DatacenterIndex}
+				var desc, extDataRef, extDataSet, osID, osDetail, dataCenter, machAuthID string
+				varPtrs := []*string{&desc, &extDataRef, &extDataSet, &osID, &osDetail, &dataCenter, &machAuthID}
+				inpuIndices := []int{input.DescIndex, input.ExtDataRefIndex, input.ExtDataSetIndex, input.OSIDIndex, input.OSDetailIndex, input.DatacenterIndex, input.MachineAuthIDIndex}
 
 				for i, varPtr := range varPtrs {
 					if inpuIndices[i] == 99998 {
@@ -232,6 +232,7 @@ CSVEntries:
 					OsDetail:              osDetail,
 					PublicIP:              publicIP,
 					DataCenter:            dataCenter,
+					DistinguishedName:     machAuthID,
 				}
 				newUMWLs = append(newUMWLs, w)
 
@@ -459,6 +460,15 @@ CSVEntries:
 				change = true
 				utils.LogInfo(fmt.Sprintf("CSV line %d - Desciption to be changed from %s to %s", csvLine, wkld.Description, line[input.DescIndex]), false)
 				wkld.Description = line[input.DescIndex]
+			}
+		}
+
+		// Update the Machine Auth ID if provided
+		if input.MachineAuthIDIndex != 99998 {
+			if line[input.MachineAuthIDIndex] != wkld.DistinguishedName {
+				change = true
+				utils.LogInfo(fmt.Sprintf("CSV line %d - machine_auth_id to be changed from %s to %s", csvLine, wkld.DistinguishedName, line[input.MachineAuthIDIndex]), false)
+				wkld.DistinguishedName = line[input.MachineAuthIDIndex]
 			}
 		}
 

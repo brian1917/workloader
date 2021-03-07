@@ -84,6 +84,10 @@ func (i *Input) processHeaders(headers []string) {
 			if i.DatacenterIndex == 99999 {
 				i.DatacenterIndex = col
 			}
+		case "machine_authentication_id":
+			if i.MachineAuthIDIndex == 99999 {
+				i.MachineAuthIDIndex = col
+			}
 		}
 
 	}
@@ -205,6 +209,9 @@ func fieldMapping() map[string]string {
 	// Datacenter
 	fieldMapping["datacenter"] = "datacenter"
 
+	// Machine Auth ID
+	fieldMapping["machine_authentication_id"] = "machine_authentication_id"
+
 	return fieldMapping
 }
 
@@ -256,6 +263,9 @@ func (i *Input) decreaseColBy1() {
 	}
 	if i.DatacenterIndex != 0 {
 		i.DatacenterIndex--
+	}
+	if i.MachineAuthIDIndex != 0 {
+		i.MachineAuthIDIndex--
 	}
 }
 

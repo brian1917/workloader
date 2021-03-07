@@ -14,7 +14,7 @@ import (
 type Input struct {
 	PCE                                                                                                                        illumioapi.PCE
 	ImportFile, RemoveValue                                                                                                    string
-	MatchIndex, HostnameIndex, NameIndex, RoleIndex, AppIndex, EnvIndex, LocIndex                                              int
+	MatchIndex, HostnameIndex, NameIndex, RoleIndex, AppIndex, EnvIndex, LocIndex, MachineAuthIDIndex                          int
 	IntIndex, DescIndex, HrefIndex, ExtDataSetIndex, ExtDataRefIndex, PublicIPIndex, OSIDIndex, OSDetailIndex, DatacenterIndex int
 	Umwl, KeepAllPCEInterfaces, FQDNtoHostname, UpdatePCE, NoPrompt                                                            bool
 }
@@ -60,6 +60,7 @@ func init() {
 	WkldImportCmd.Flags().MarkHidden("ext-data-ref")
 	WkldImportCmd.Flags().IntVar(&input.ExtDataSetIndex, "ext-data-set", 99999, "Column number with the external data set.")
 	WkldImportCmd.Flags().MarkHidden("ext-data-set")
+	WkldImportCmd.Flags().IntVar(&input.MachineAuthIDIndex, "machine-auth-id", 99999, "Column number with the machine_authentication_id.")
 
 	// Hidden flag for use when called from SNOW command
 	WkldImportCmd.Flags().BoolVarP(&input.FQDNtoHostname, "fqdn-to-hostname", "f", false, "Convert FQDN hostnames reported by Illumio VEN to short hostnames by removing everything after first period (e.g., test.domain.com becomes test).")
@@ -92,6 +93,7 @@ The input file requires headers and matches fields to header values. The followi
 - os_id
 - os_detail
 - datacenter
+- machine_authentication_id
 - external_data_set
 - external_data_reference
 
