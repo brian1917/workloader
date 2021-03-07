@@ -13,3 +13,4 @@ _playground/*
 *support-portal*
 deploy.sh
 .VSCodeCounter
+__debug_bin
