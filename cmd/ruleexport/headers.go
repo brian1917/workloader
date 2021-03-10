@@ -1,5 +1,6 @@
 package ruleexport
 
+// Constants for header values in ruleexport and ruleimport
 const (
 	HeaderRulesetName                   = "ruleset_name"
 	HeaderRuleSetScope                  = "ruleset_scope"
