@@ -25,7 +25,7 @@ var debug bool
 //Input is the input format for the rule-export command
 type Input struct {
 	PCE                                                                                            illumioapi.PCE
-	Debug, Edge, ExpandServices, TrafficCount                                                      bool
+	Debug, Edge, ExpandServices, TrafficCount, SkipWkldDetailCheck                                 bool
 	Role, App, Env, Loc, OutputFileName, ExplorerStart, ExplorerEnd, ExclServiceCSV, PolicyVersion string
 	ExplorerMax                                                                                    int
 }
@@ -45,6 +45,7 @@ func init() {
 	RuleExportCmd.Flags().StringVar(&input.ExplorerStart, "explorer-start", time.Date(time.Now().Year()-5, time.Now().Month(), time.Now().Day(), 0, 0, 0, 0, time.UTC).Format("2006-01-02"), "Start date in the format of yyyy-mm-dd.")
 	RuleExportCmd.Flags().StringVar(&input.ExplorerEnd, "explorer-end", time.Now().Add(time.Hour*24).Format("2006-01-02"), "End date in the format of yyyy-mm-dd.")
 	RuleExportCmd.Flags().StringVar(&input.ExclServiceCSV, "explorer-excl-svc-file", "", "File location of csv with port/protocols to exclude. Port number in column 1 and IANA numeric protocol in Col 2. Headers optional.")
+	RuleExportCmd.Flags().BoolVarP(&input.SkipWkldDetailCheck, "skip-wkld-detail-check", "s", false, "Do not check for enforced workloads with low detail or no logging, which can skew traffic results since allowed (low detail) or all (no detail) flows are not reported. This can save time by not checking each workload enforcement state.")
 	RuleExportCmd.Flags().StringVar(&input.OutputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 	RuleExportCmd.Flags().BoolVar(&input.Edge, "edge", false, "Edge rule format")
 	RuleExportCmd.Flags().MarkHidden("edge")
@@ -191,6 +192,11 @@ func ExportRules(input Input) {
 		}
 	}
 
+	// Check if we need workloads for checking detail
+	if input.TrafficCount && !input.SkipWkldDetailCheck {
+		needWklds = true
+	}
+
 	// Load the PCE with the relevant obects (save unnecessary expensive potentially large GETs)
 	utils.LogInfo(fmt.Sprintf("getting %s ...", strings.Join(neededObjcets, ", ")), true)
 	if err = input.PCE.Load(illumioapi.LoadInput{
@@ -204,6 +210,30 @@ func ExportRules(input Input) {
 		ProvisionStatus: input.PolicyVersion,
 	}); err != nil {
 		utils.LogError(err.Error())
+	}
+
+	if input.TrafficCount && !input.SkipWkldDetailCheck {
+		lowCount := 0
+		noCount := 0
+		for _, wkld := range input.PCE.WorkloadMapH {
+			if wkld.GetMode() == "enforced-low" {
+				lowCount++
+			}
+			if wkld.GetMode() == "enforced-no" {
+				noCount++
+			}
+		}
+		if lowCount+noCount > 0 {
+			var prompt string
+			fmt.Printf("\r\n%s [PROMPT] - there are workloads with low (%d) or no (%d) logging. Low-detail logging does not report allowed flows and no detail does not report any flows. The traffic-count comes from reported flows. If this command is being used to find stale rules (i.e., rules not being hit) low or no logging can cause false positives. Do you want to continue? (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), lowCount, noCount)
+			fmt.Scanln(&prompt)
+			if strings.ToLower(prompt) != "yes" {
+				utils.LogInfo("prompt denied to continue after workload logging warning.", true)
+				utils.LogEndCommand("rule-export")
+				return
+			}
+		}
+
 	}
 
 	// Start the data slice with headers
