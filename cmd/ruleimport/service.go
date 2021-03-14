@@ -32,12 +32,12 @@ func serviceComparison(csvServices []string, rule illumioapi.Rule, pceServiceMap
 			if protocol == "udp" {
 				proto = 17
 			}
-			csvServiceEntries[fmt.Sprintf("%s-%d-%d", protocol, port, toPort)] = illumioapi.IngressServices{Protocol: proto, Port: port, ToPort: toPort}
+			csvServiceEntries[fmt.Sprintf("%s-%d-%d", protocol, port, toPort)] = illumioapi.IngressServices{Protocol: &proto, Port: &port, ToPort: &toPort}
 
 			// Check if it's a service
 		} else if service, exists := pceServiceMap[c]; exists {
 			// Add to our slice
-			csvServiceEntries[pceServiceMap[service.Href].Name] = illumioapi.IngressServices{Href: service.Href}
+			csvServiceEntries[pceServiceMap[service.Href].Name] = illumioapi.IngressServices{Href: &service.Href}
 		} else {
 			utils.LogError(fmt.Sprintf("CSV line %d - %s does not exist as a service", csvLine, c))
 		}
@@ -47,14 +47,14 @@ func serviceComparison(csvServices []string, rule illumioapi.Rule, pceServiceMap
 	if rule.IngressServices != nil {
 		for _, ruleService := range *rule.IngressServices {
 			// Port range here
-			if ruleService.Href == "" {
+			if ruleService.Href == nil {
 				protocol := "tcp"
-				if ruleService.Protocol == 17 {
+				if *ruleService.Protocol == 17 {
 					protocol = "udp"
 				}
 				ruleServiceEntries[fmt.Sprintf("%s-%d-%d", protocol, ruleService.Port, ruleService.ToPort)] = *ruleService
 			} else {
-				ruleServiceEntries[pceServiceMap[ruleService.Href].Name] = *ruleService
+				ruleServiceEntries[pceServiceMap[*ruleService.Href].Name] = *ruleService
 			}
 		}
 	}

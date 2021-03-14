@@ -13,12 +13,12 @@ import (
 
 // Set global variables for flags
 var userInput, headerValue string
-var debug, updatePCE, noPrompt, noProv bool
+var debug, updatePCE, noPrompt, doProvision bool
 var pce illumioapi.PCE
 var err error
 
 func init() {
-	DeleteCmd.Flags().BoolVarP(&noPrompt, "no-prov", "x", false, "do not provision deletes for provisionable objects. By default, all deletions will be provisioned.")
+	DeleteCmd.Flags().BoolVar(&doProvision, "provision", false, "Provision provisionable objects after deleting them.")
 	DeleteCmd.Flags().StringVar(&headerValue, "header", "", "header to find the column with the hrefs to delete. If it's blank, the first column is used.")
 }
 
@@ -208,7 +208,7 @@ func delete() {
 	utils.LogInfo(fmt.Sprintf("%d items skipped.", skipped), true)
 
 	// Provision if needed
-	if len(provision) > 0 && !noProv {
+	if len(provision) > 0 && doProvision {
 		utils.LogInfo(fmt.Sprintf("provisioning deletion of %d provisionable objects.", len(provision)), true)
 		a, err := pce.ProvisionHref(provision, "deleted by workloader")
 		utils.LogAPIResp("ProvisionHref", a)
