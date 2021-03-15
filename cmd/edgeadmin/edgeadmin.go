@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brian1917/illumioapi"
-	"github.com/brian1917/workloader/cmd/iplimport"
 	"github.com/brian1917/workloader/cmd/wkldimport"
 
 	"github.com/brian1917/workloader/utils"
@@ -15,8 +13,9 @@ import (
 	"github.com/spf13/viper"
 )
 
-var debug, updatePCE, noPrompt, doNotProvision bool
+var debug, doNotProvision bool
 var csvFile, fromPCE, toPCE, outputFileName, edgeGroup, coreApp, coreEnv, coreLoc string
+var input wkldimport.Input
 
 func init() {
 	EdgeAdminCmd.Flags().StringVarP(&fromPCE, "from-pce", "f", "", "Name of the PCE with the existing Edge Group to copy over. Required")
@@ -49,26 +48,44 @@ No IP address information will be copied from Edge to Core so only MachineAuth r
 
 		// Get the debug value from viper
 		debug = viper.Get("debug").(bool)
-		updatePCE = viper.Get("update_pce").(bool)
-		noPrompt = viper.Get("no_prompt").(bool)
 
 		// Disable stdout
 		viper.Set("output_format", "csv")
 		if err := viper.WriteConfig(); err != nil {
 			utils.LogError(err.Error())
 		}
-
+		// Get the debug value from viper
+		input.UpdatePCE = viper.Get("update_pce").(bool)
+		input.NoPrompt = viper.Get("no_prompt").(bool)
+		input.Umwl = true
 		edgeadmin()
 	},
 }
 
 func edgeadmin() {
+	//Make sure to check the column names to correctly set.
+	input.HostnameIndex = 99999
+	input.AppIndex = 99999
+	input.DatacenterIndex = 99999
+	input.DescIndex = 99999
+	input.EnvIndex = 99999
+	input.LocIndex = 99999
+	input.ExtDataRefIndex = 99999
+	input.ExtDataSetIndex = 99999
+	input.HrefIndex = 99999
+	input.IntIndex = 99999
+	input.NameIndex = 99999
+	input.OSDetailIndex = 99999
+	input.OSIDIndex = 99999
+	input.PublicIPIndex = 99999
+	input.RoleIndex = 99999
+	input.MachineAuthIDIndex = 99999
 
 	// Log start of run
 	utils.LogStartCommand("edge-admin")
 
 	// Check if we have destination PCE if we need it
-	if updatePCE && toPCE == "" {
+	if input.UpdatePCE && toPCE == "" {
 		utils.LogError("need --to-pce (-t) flag set if using update-pce")
 	}
 
@@ -97,20 +114,20 @@ func edgeadmin() {
 		utils.LogError(err.Error())
 	}
 
-	var dPce illumioapi.PCE
 	if toPCE != "" {
 
 		// Get the source pce
-		dPce, err = utils.GetPCEbyName(toPCE, true)
+		input.PCE, err = utils.GetPCEbyName(toPCE, true)
 		if err != nil {
-			utils.LogError(err.Error())
+			utils.LogError(fmt.Sprintf("error getting to pce - %s", err))
 		}
+
 		//Get all existing workloads already on dest PCE to check if there updates needed.
 		var labelfilter []string
 		var destvalues = []string{slabel.Value, coreApp, coreEnv, coreLoc}
 		var destkeys = []string{"role", "app", "env", "loc"}
 		for i, l := range destvalues {
-			dlabel, a, err := dPce.GetLabelbyKeyValue(destkeys[i], l)
+			dlabel, a, err := input.PCE.GetLabelbyKeyValue(destkeys[i], l)
 			utils.LogAPIResp("GetLabelbyKeyValue", a)
 			if err != nil {
 				utils.LogError(err.Error())
@@ -124,7 +141,7 @@ func edgeadmin() {
 		queryP := map[string]string{"labels": tmpstr}
 		queryP["managed"] = "false"
 		// Get all workloads from the destination PCE
-		dwklds, a, err := dPce.GetAllWorkloadsQP(queryP)
+		dwklds, a, err := input.PCE.GetAllWorkloadsQP(queryP)
 		utils.LogAPIResp("GetAllWorkloads", a)
 		if err != nil {
 			utils.LogError(err.Error())
@@ -132,8 +149,7 @@ func edgeadmin() {
 		fmt.Print(dwklds)
 	}
 
-	var input wkldimport.Input
-	csvOut := [][]string{{"hostname", "name", "role", "app", "env", "loc", "interfaces", "public_ip", "href", "description", "data_center", "external_data_set", "external_data_reference", "distinguished_name"}}
+	csvOut := [][]string{{"hostname", "name", "role", "app", "env", "loc", "interfaces", "public_ip", "href", "description", "os_id", "os_detail", "datacenter", "external_data_set", "external_data_reference", "machine_authentication_id"}}
 	stdOut := [][]string{{"hostname", "role", "app", "env", "loc", "distinguished_name"}}
 
 	for _, w := range swklds {
@@ -155,8 +171,8 @@ func edgeadmin() {
 				interfaces = append(interfaces, ipAddress)
 			}
 
-			csvOut = append(csvOut, []string{w.Hostname, w.Name, w.GetRole(sPce.LabelMapH).Value, "app", "env", "loc", strings.Join(interfaces, ";"), w.PublicIP, w.Description, w.OsID, w.OsDetail, w.DataCenter, w.ExternalDataSet, w.Hostname + w.Href, w.DistinguishedName})
-			stdOut = append(stdOut, []string{w.Hostname, w.GetRole(sPce.LabelMapH).Value, "app", "env", "loc", w.GetMode()})
+			csvOut = append(csvOut, []string{w.Hostname, w.Name, w.GetRole(sPce.LabelMapH).Value, coreApp, coreEnv, coreLoc, "", w.PublicIP, w.Href, w.Description, w.OsID, w.OsDetail, w.DataCenter, w.ExternalDataSet, w.Hostname + w.Href, w.DistinguishedName})
+			stdOut = append(stdOut, []string{w.Hostname, w.GetRole(sPce.LabelMapH).Value, coreApp, coreEnv, coreLoc, w.GetMode()})
 		} else {
 			utils.LogInfo("no Workloads created.", true)
 		}
@@ -169,15 +185,15 @@ func edgeadmin() {
 	utils.WriteOutput(csvOut, csvOut, outputFileName)
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
-	if !updatePCE {
-		utils.LogInfo(fmt.Sprintln("See the output file for IP Lists that would be created. Run again using --to-pce and --update-pce flags to create the IP lists."), true)
+	if !input.UpdatePCE {
+		utils.LogInfo(fmt.Sprintln("See the output file for Workloads that would be created. Run again using --to-pce and --update-pce flags to create the IP lists."), true)
 		utils.LogEndCommand("edge-admin")
 		return
 	}
 
 	// If we get here, create the workloads on dest PCE using wkld-import
 	utils.LogInfo(fmt.Sprintf("calling workloader edge-admin to import %s to %s", outputFileName, toPCE), true)
-	iplimport.ImportIPLists(dPce, outputFileName, updatePCE, noPrompt, debug, !doNotProvision)
+	wkldimport.ImportWkldsFromCSV(input)
 
 	utils.LogEndCommand("edge-admin")
 }
