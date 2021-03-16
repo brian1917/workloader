@@ -100,7 +100,7 @@ func ExportRules(input Input) {
 		if values[i] == "" {
 			continue
 		}
-		if val, ok := input.PCE.LabelMapKV[k+values[i]]; !ok {
+		if val, ok := input.PCE.Labels[k+values[i]]; !ok {
 			utils.LogError(fmt.Sprintf("%s does not exist as a %s label", values[i], k))
 
 		} else {
@@ -111,7 +111,7 @@ func ExportRules(input Input) {
 	// Log the filter list
 	lf := []string{}
 	for f := range filter {
-		lf = append(lf, fmt.Sprintf("%s (%s)", input.PCE.LabelMapH[f].Value, input.PCE.LabelMapH[f].Key))
+		lf = append(lf, fmt.Sprintf("%s (%s)", input.PCE.Labels[f].Value, input.PCE.Labels[f].Key))
 	}
 	if len(lf) > 0 {
 		utils.LogInfo(fmt.Sprintf("filter list: %s", strings.Join(lf, ", ")), false)
@@ -215,7 +215,7 @@ func ExportRules(input Input) {
 	if input.TrafficCount && !input.SkipWkldDetailCheck {
 		lowCount := 0
 		noCount := 0
-		for _, wkld := range input.PCE.WorkloadMapH {
+		for _, wkld := range input.PCE.Workloads {
 			if wkld.GetMode() == "enforced-low" {
 				lowCount++
 			}
@@ -276,16 +276,16 @@ func ExportRules(input Input) {
 			scopeMap := make(map[string]string)
 			for _, scopeMember := range scope {
 				if scopeMember.Label != nil {
-					scopeMap[input.PCE.LabelMapH[scopeMember.Label.Href].Key] = input.PCE.LabelMapH[scopeMember.Label.Href].Value
+					scopeMap[input.PCE.Labels[scopeMember.Label.Href].Key] = input.PCE.Labels[scopeMember.Label.Href].Value
 					// Check if we hit a filter
 					if val, ok := scopeFilter[scopeMember.Label.Href]; ok {
 						scopeFilter[scopeMember.Label.Href] = val + 1
 						//scopeFilterCheck = true
-						utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is in the scope", input.PCE.LabelMapH[scopeMember.Label.Href].Value, input.PCE.LabelMapH[scopeMember.Label.Href].Key), false)
+						utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is in the scope", input.PCE.Labels[scopeMember.Label.Href].Value, input.PCE.Labels[scopeMember.Label.Href].Key), false)
 					}
 				}
 				if scopeMember.LabelGroup != nil {
-					scopeMap[input.PCE.LabelGroupMapH[scopeMember.LabelGroup.Href].Key] = fmt.Sprintf("%s (label_group)", input.PCE.LabelGroupMapH[scopeMember.LabelGroup.Href].Name)
+					scopeMap[input.PCE.LabelGroups[scopeMember.LabelGroup.Href].Key] = fmt.Sprintf("%s (label_group)", input.PCE.LabelGroups[scopeMember.LabelGroup.Href].Name)
 					// Expand the label group
 					labels := input.PCE.ExpandLabelGroup(scopeMember.LabelGroup.Href)
 					// Check if we hit a filter
@@ -293,7 +293,7 @@ func ExportRules(input Input) {
 						if val, ok := scopeFilter[l]; ok {
 							scopeFilter[l] = val + 1
 							// scopeFilterCheck = true
-							utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is in %s (label group) which is in the scope", input.PCE.LabelMapH[l].Value, input.PCE.LabelMapH[l].Key, input.PCE.LabelGroupMapH[scopeMember.LabelGroup.Href].Name), false)
+							utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is in %s (label group) which is in the scope", input.PCE.Labels[l].Value, input.PCE.Labels[l].Key, input.PCE.LabelGroups[scopeMember.LabelGroup.Href].Name), false)
 						}
 					}
 				}
@@ -302,8 +302,8 @@ func ExportRules(input Input) {
 			if scopeMap["role"] == "" {
 				scopeString = "ALL | "
 				if input.Role != "" {
-					if val, ok := scopeFilter[input.PCE.LabelMapKV["app"+input.App].Href]; ok {
-						scopeFilter[input.PCE.LabelMapKV["role"+input.Role].Href] = val + 1
+					if val, ok := scopeFilter[input.PCE.Labels["app"+input.App].Href]; ok {
+						scopeFilter[input.PCE.Labels["role"+input.Role].Href] = val + 1
 					}
 					utils.LogInfo("filter match - scope includes all roles.", false)
 				}
@@ -313,8 +313,8 @@ func ExportRules(input Input) {
 			if scopeMap["app"] == "" {
 				scopeString = "ALL | "
 				if input.App != "" {
-					if val, ok := scopeFilter[input.PCE.LabelMapKV["app"+input.App].Href]; ok {
-						scopeFilter[input.PCE.LabelMapKV["app"+input.App].Href] = val + 1
+					if val, ok := scopeFilter[input.PCE.Labels["app"+input.App].Href]; ok {
+						scopeFilter[input.PCE.Labels["app"+input.App].Href] = val + 1
 					}
 					utils.LogInfo("filter match - scope includes all applications.", false)
 				}
@@ -324,8 +324,8 @@ func ExportRules(input Input) {
 			if scopeMap["env"] == "" {
 				scopeString = scopeString + "ALL | "
 				if input.Env != "" {
-					if val, ok := scopeFilter[input.PCE.LabelMapKV["env"+input.Env].Href]; ok {
-						scopeFilter[input.PCE.LabelMapKV["env"+input.Env].Href] = val + 1
+					if val, ok := scopeFilter[input.PCE.Labels["env"+input.Env].Href]; ok {
+						scopeFilter[input.PCE.Labels["env"+input.Env].Href] = val + 1
 					}
 					utils.LogInfo("filter match - scope includes all environments.", false)
 				}
@@ -335,8 +335,8 @@ func ExportRules(input Input) {
 			if scopeMap["loc"] == "" {
 				scopeString = scopeString + "ALL"
 				if input.Loc != "" {
-					if val, ok := scopeFilter[input.PCE.LabelMapKV["loc"+input.Loc].Href]; ok {
-						scopeFilter[input.PCE.LabelMapKV["loc"+input.Loc].Href] = val + 1
+					if val, ok := scopeFilter[input.PCE.Labels["loc"+input.Loc].Href]; ok {
+						scopeFilter[input.PCE.Labels["loc"+input.Loc].Href] = val + 1
 					}
 					utils.LogInfo("filter match - scope includes all locations.", false)
 				}
@@ -384,9 +384,9 @@ func ExportRules(input Input) {
 				// IP List
 				if c.IPList != nil {
 					if val, ok := csvEntryMap[HeaderConsumerIplists]; ok {
-						csvEntryMap[HeaderConsumerIplists] = fmt.Sprintf("%s;%s", val, input.PCE.IPListMapH[c.IPList.Href].Name)
+						csvEntryMap[HeaderConsumerIplists] = fmt.Sprintf("%s;%s", val, input.PCE.IPLists[c.IPList.Href].Name)
 					} else {
-						csvEntryMap[HeaderConsumerIplists] = input.PCE.IPListMapH[c.IPList.Href].Name
+						csvEntryMap[HeaderConsumerIplists] = input.PCE.IPLists[c.IPList.Href].Name
 					}
 				}
 				// Labels
@@ -394,63 +394,63 @@ func ExportRules(input Input) {
 					keys := []string{"role", "app", "env", "loc"}
 					target := []string{HeaderConsumerRole, HeaderConsumerApp, HeaderConsumerEnv, HeaderConsumerLoc}
 					for i, k := range keys {
-						if input.PCE.LabelMapH[c.Label.Href].Key != k {
+						if input.PCE.Labels[c.Label.Href].Key != k {
 							continue
 						}
 						if val, ok := csvEntryMap[target[i]]; ok {
-							csvEntryMap[target[i]] = fmt.Sprintf("%s;%s", val, input.PCE.LabelMapH[c.Label.Href].Value)
+							csvEntryMap[target[i]] = fmt.Sprintf("%s;%s", val, input.PCE.Labels[c.Label.Href].Value)
 						} else {
-							csvEntryMap[target[i]] = input.PCE.LabelMapH[c.Label.Href].Value
+							csvEntryMap[target[i]] = input.PCE.Labels[c.Label.Href].Value
 						}
 					}
 					if val, ok := ruleFilter[c.Label.Href]; ok {
 						ruleFilter[c.Label.Href] = val + 1
 						//ruleFilterCheck = true
-						utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is a consumer label - rule %s", input.PCE.LabelMapH[c.Label.Href].Value, input.PCE.LabelMapH[c.Label.Href].Key, r.Href), false)
+						utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is a consumer label - rule %s", input.PCE.Labels[c.Label.Href].Value, input.PCE.Labels[c.Label.Href].Key, r.Href), false)
 					}
 				}
 				// Label Groups
 				if c.LabelGroup != nil {
 					if val, ok := csvEntryMap[HeaderConsumerLabelGroup]; ok {
-						csvEntryMap[HeaderConsumerLabelGroup] = fmt.Sprintf("%s;%s", val, input.PCE.LabelGroupMapH[c.LabelGroup.Href].Name)
+						csvEntryMap[HeaderConsumerLabelGroup] = fmt.Sprintf("%s;%s", val, input.PCE.LabelGroups[c.LabelGroup.Href].Name)
 					} else {
-						csvEntryMap[HeaderConsumerLabelGroup] = input.PCE.LabelGroupMapH[c.LabelGroup.Href].Name
+						csvEntryMap[HeaderConsumerLabelGroup] = input.PCE.LabelGroups[c.LabelGroup.Href].Name
 					}
 					// Expand the label group and check each
 					labels := input.PCE.ExpandLabelGroup(c.LabelGroup.Href)
 					for _, l := range labels {
 						if val, ok := ruleFilter[l]; ok {
 							ruleFilter[l] = val + 1
-							utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is in %s (label group) which is a consumer - rule %s", input.PCE.LabelMapH[l].Value, input.PCE.LabelMapH[l].Key, input.PCE.LabelGroupMapH[c.LabelGroup.Href].Name, r.Href), false)
+							utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is in %s (label group) which is a consumer - rule %s", input.PCE.Labels[l].Value, input.PCE.Labels[l].Key, input.PCE.LabelGroups[c.LabelGroup.Href].Name, r.Href), false)
 						}
 					}
 				}
 				// Virtual Services
 				if c.VirtualService != nil {
 					if val, ok := csvEntryMap[HeaderConsumerVirtualServices]; ok {
-						csvEntryMap[HeaderConsumerVirtualServices] = fmt.Sprintf("%s;%s", val, input.PCE.VirtualServiceMapH[c.VirtualService.Href].Name)
+						csvEntryMap[HeaderConsumerVirtualServices] = fmt.Sprintf("%s;%s", val, input.PCE.VirtualServices[c.VirtualService.Href].Name)
 					} else {
-						csvEntryMap[HeaderConsumerVirtualServices] = input.PCE.VirtualServiceMapH[c.VirtualService.Href].Name
+						csvEntryMap[HeaderConsumerVirtualServices] = input.PCE.VirtualServices[c.VirtualService.Href].Name
 					}
 					// Check the labels
-					for _, l := range input.PCE.VirtualServiceMapH[c.VirtualService.Href].Labels {
+					for _, l := range input.PCE.VirtualServices[c.VirtualService.Href].Labels {
 						if val, ok := ruleFilter[l.Href]; ok {
 							ruleFilter[l.Href] = val + 1
-							utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is a consumer label on %s virtual service - rule %s", input.PCE.LabelMapH[l.Href].Value, input.PCE.LabelMapH[l.Href].Key, input.PCE.VirtualServiceMapH[c.VirtualService.Href].Name, r.Href), false)
+							utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is a consumer label on %s virtual service - rule %s", input.PCE.Labels[l.Href].Value, input.PCE.Labels[l.Href].Key, input.PCE.VirtualServices[c.VirtualService.Href].Name, r.Href), false)
 						}
 					}
 				}
 				if c.Workload != nil {
 					if val, ok := csvEntryMap[HeaderConsumerWorkloads]; ok {
-						csvEntryMap[HeaderConsumerWorkloads] = fmt.Sprintf("%s;%s", val, input.PCE.WorkloadMapH[c.Workload.Href].Hostname)
+						csvEntryMap[HeaderConsumerWorkloads] = fmt.Sprintf("%s;%s", val, input.PCE.Workloads[c.Workload.Href].Hostname)
 					} else {
-						csvEntryMap[HeaderConsumerWorkloads] = input.PCE.WorkloadMapH[c.Workload.Href].Hostname
+						csvEntryMap[HeaderConsumerWorkloads] = input.PCE.Workloads[c.Workload.Href].Hostname
 					}
 					// Check the labels
-					for _, l := range input.PCE.WorkloadMapH[c.Workload.Href].Labels {
+					for _, l := range input.PCE.Workloads[c.Workload.Href].Labels {
 						if val, ok := ruleFilter[l.Href]; ok {
 							ruleFilter[l.Href] = val + 1
-							utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is a consumer label on %s workload - rule %s", input.PCE.LabelMapH[l.Href].Value, input.PCE.LabelMapH[l.Href].Key, input.PCE.WorkloadMapH[c.Workload.Href].Name, r.Href), false)
+							utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is a consumer label on %s workload - rule %s", input.PCE.Labels[l.Href].Value, input.PCE.Labels[l.Href].Key, input.PCE.Workloads[c.Workload.Href].Name, r.Href), false)
 						}
 					}
 				}
@@ -473,9 +473,9 @@ func ExportRules(input Input) {
 				// IP List
 				if p.IPList != nil {
 					if val, ok := csvEntryMap[HeaderProviderIplists]; ok {
-						csvEntryMap[HeaderProviderIplists] = fmt.Sprintf("%s;%s", val, input.PCE.IPListMapH[p.IPList.Href].Name)
+						csvEntryMap[HeaderProviderIplists] = fmt.Sprintf("%s;%s", val, input.PCE.IPLists[p.IPList.Href].Name)
 					} else {
-						csvEntryMap[HeaderProviderIplists] = input.PCE.IPListMapH[p.IPList.Href].Name
+						csvEntryMap[HeaderProviderIplists] = input.PCE.IPLists[p.IPList.Href].Name
 					}
 				}
 				// Labels
@@ -483,77 +483,77 @@ func ExportRules(input Input) {
 					keys := []string{"role", "app", "env", "loc"}
 					target := []string{HeaderProviderRole, HeaderProviderApp, HeaderProviderEnv, HeaderProviderLoc}
 					for i, k := range keys {
-						if input.PCE.LabelMapH[p.Label.Href].Key != k {
+						if input.PCE.Labels[p.Label.Href].Key != k {
 							continue
 						}
 						if val, ok := csvEntryMap[target[i]]; ok {
-							csvEntryMap[target[i]] = fmt.Sprintf("%s;%s", val, input.PCE.LabelMapH[p.Label.Href].Value)
+							csvEntryMap[target[i]] = fmt.Sprintf("%s;%s", val, input.PCE.Labels[p.Label.Href].Value)
 						} else {
-							csvEntryMap[target[i]] = input.PCE.LabelMapH[p.Label.Href].Value
+							csvEntryMap[target[i]] = input.PCE.Labels[p.Label.Href].Value
 						}
 					}
 					if val, ok := ruleFilter[p.Label.Href]; ok {
 						ruleFilter[p.Label.Href] = val + 1
 						//ruleFilterCheck = true
-						utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is a provider label - rule %s", input.PCE.LabelMapH[p.Label.Href].Value, input.PCE.LabelMapH[p.Label.Href].Key, r.Href), false)
+						utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is a provider label - rule %s", input.PCE.Labels[p.Label.Href].Value, input.PCE.Labels[p.Label.Href].Key, r.Href), false)
 					}
 				}
 				// Label Groups
 				if p.LabelGroup != nil {
 					if val, ok := csvEntryMap[HeaderProviderLabelGroups]; ok {
-						csvEntryMap[HeaderProviderLabelGroups] = fmt.Sprintf("%s;%s", val, input.PCE.LabelMapH[p.LabelGroup.Href].Value)
+						csvEntryMap[HeaderProviderLabelGroups] = fmt.Sprintf("%s;%s", val, input.PCE.Labels[p.LabelGroup.Href].Value)
 					} else {
-						csvEntryMap[HeaderProviderLabelGroups] = input.PCE.LabelMapH[p.LabelGroup.Href].Value
+						csvEntryMap[HeaderProviderLabelGroups] = input.PCE.Labels[p.LabelGroup.Href].Value
 					}
 					// Expand the label group and check each
 					labels := input.PCE.ExpandLabelGroup(p.LabelGroup.Href)
 					for _, l := range labels {
 						if val, ok := ruleFilter[l]; ok {
 							ruleFilter[l] = val + 1
-							utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is in %s (label group) which is a provider - rule %s", input.PCE.LabelMapH[l].Value, input.PCE.LabelMapH[l].Key, input.PCE.LabelGroupMapH[p.LabelGroup.Href].Name, r.Href), false)
+							utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is in %s (label group) which is a provider - rule %s", input.PCE.Labels[l].Value, input.PCE.Labels[l].Key, input.PCE.LabelGroups[p.LabelGroup.Href].Name, r.Href), false)
 						}
 					}
 				}
 				// Virtual Services
 				if p.VirtualService != nil {
 					if val, ok := csvEntryMap[HeaderProviderVirtualServices]; ok {
-						csvEntryMap[HeaderProviderVirtualServices] = fmt.Sprintf("%s;%s", val, input.PCE.VirtualServiceMapH[p.VirtualService.Href].Name)
+						csvEntryMap[HeaderProviderVirtualServices] = fmt.Sprintf("%s;%s", val, input.PCE.VirtualServices[p.VirtualService.Href].Name)
 					} else {
-						csvEntryMap[HeaderProviderVirtualServices] = input.PCE.VirtualServiceMapH[p.VirtualService.Href].Name
+						csvEntryMap[HeaderProviderVirtualServices] = input.PCE.VirtualServices[p.VirtualService.Href].Name
 					}
-					for _, l := range input.PCE.VirtualServiceMapH[p.VirtualService.Href].Labels {
+					for _, l := range input.PCE.VirtualServices[p.VirtualService.Href].Labels {
 						if val, ok := ruleFilter[l.Href]; ok {
 							ruleFilter[l.Href] = val + 1
-							utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is a provider label on %s virtual service - rule %s", input.PCE.LabelMapH[l.Href].Value, input.PCE.LabelMapH[l.Href].Key, input.PCE.VirtualServiceMapH[p.VirtualService.Href].Name, r.Href), false)
+							utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is a provider label on %s virtual service - rule %s", input.PCE.Labels[l.Href].Value, input.PCE.Labels[l.Href].Key, input.PCE.VirtualServices[p.VirtualService.Href].Name, r.Href), false)
 						}
 					}
 				}
 				// Workloads
 				if p.Workload != nil {
 					if val, ok := csvEntryMap[HeaderProviderWorkloads]; ok {
-						csvEntryMap[HeaderProviderWorkloads] = fmt.Sprintf("%s;%s", val, input.PCE.WorkloadMapH[p.Workload.Href].Hostname)
+						csvEntryMap[HeaderProviderWorkloads] = fmt.Sprintf("%s;%s", val, input.PCE.Workloads[p.Workload.Href].Hostname)
 					} else {
-						csvEntryMap[HeaderProviderWorkloads] = input.PCE.WorkloadMapH[p.Workload.Href].Hostname
+						csvEntryMap[HeaderProviderWorkloads] = input.PCE.Workloads[p.Workload.Href].Hostname
 					}
 					// Check the labels
-					for _, l := range input.PCE.WorkloadMapH[p.Workload.Href].Labels {
+					for _, l := range input.PCE.Workloads[p.Workload.Href].Labels {
 						if val, ok := ruleFilter[l.Href]; ok {
 							ruleFilter[l.Href] = val + 1
-							utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is a provider label on %s workload - rule %s", input.PCE.LabelMapH[l.Href].Value, input.PCE.LabelMapH[l.Href].Key, input.PCE.WorkloadMapH[p.Workload.Href].Name, r.Href), false)
+							utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is a provider label on %s workload - rule %s", input.PCE.Labels[l.Href].Value, input.PCE.Labels[l.Href].Key, input.PCE.Workloads[p.Workload.Href].Name, r.Href), false)
 						}
 					}
 				}
 				// Virtual Servers
 				if p.VirtualServer != nil {
 					if val, ok := csvEntryMap[HeaderProviderVirtualServers]; ok {
-						csvEntryMap[HeaderProviderVirtualServers] = fmt.Sprintf("%s;%s", val, input.PCE.VirtualServerMapH[p.VirtualServer.Href].Name)
+						csvEntryMap[HeaderProviderVirtualServers] = fmt.Sprintf("%s;%s", val, input.PCE.VirtualServers[p.VirtualServer.Href].Name)
 					} else {
-						csvEntryMap[HeaderProviderVirtualServers] = input.PCE.VirtualServerMapH[p.VirtualServer.Href].Name
+						csvEntryMap[HeaderProviderVirtualServers] = input.PCE.VirtualServers[p.VirtualServer.Href].Name
 					}
-					for _, l := range input.PCE.VirtualServerMapH[p.VirtualServer.Href].Labels {
+					for _, l := range input.PCE.VirtualServers[p.VirtualServer.Href].Labels {
 						if val, ok := ruleFilter[l.Href]; ok {
 							ruleFilter[l.Href] = val + 1
-							utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is a provider label on %s workload - rule %s", input.PCE.LabelMapH[l.Href].Value, input.PCE.LabelMapH[l.Href].Key, input.PCE.VirtualServerMapH[p.VirtualServer.Href].Name, r.Href), false)
+							utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is a provider label on %s workload - rule %s", input.PCE.Labels[l.Href].Value, input.PCE.Labels[l.Href].Key, input.PCE.VirtualServers[p.VirtualServer.Href].Name, r.Href), false)
 						}
 					}
 				}
@@ -562,25 +562,25 @@ func ExportRules(input Input) {
 			// Services
 			services := []string{}
 			for _, s := range *r.IngressServices {
-				if s.Href != nil && input.PCE.ServiceMapH[*s.Href].WindowsServices != nil {
-					a := input.PCE.ServiceMapH[*s.Href]
+				if s.Href != nil && input.PCE.Services[*s.Href].WindowsServices != nil {
+					a := input.PCE.Services[*s.Href]
 					b, _ := a.ParseService()
 					if !input.ExpandServices {
-						services = append(services, input.PCE.ServiceMapH[*s.Href].Name)
+						services = append(services, input.PCE.Services[*s.Href].Name)
 					} else {
-						services = append(services, fmt.Sprintf("%s (%s)", input.PCE.ServiceMapH[*s.Href].Name, strings.Join(b, ";")))
+						services = append(services, fmt.Sprintf("%s (%s)", input.PCE.Services[*s.Href].Name, strings.Join(b, ";")))
 					}
 				}
-				if s.Href != nil && input.PCE.ServiceMapH[*s.Href].ServicePorts != nil {
-					a := input.PCE.ServiceMapH[*s.Href]
+				if s.Href != nil && input.PCE.Services[*s.Href].ServicePorts != nil {
+					a := input.PCE.Services[*s.Href]
 					_, b := a.ParseService()
-					if input.PCE.ServiceMapH[*s.Href].Name == "All Services" {
+					if input.PCE.Services[*s.Href].Name == "All Services" {
 						services = append(services, "All Services")
 					} else {
 						if !input.ExpandServices {
-							services = append(services, input.PCE.ServiceMapH[*s.Href].Name)
+							services = append(services, input.PCE.Services[*s.Href].Name)
 						} else {
-							services = append(services, fmt.Sprintf("%s (%s)", input.PCE.ServiceMapH[*s.Href].Name, strings.Join(b, ";")))
+							services = append(services, fmt.Sprintf("%s (%s)", input.PCE.Services[*s.Href].Name, strings.Join(b, ";")))
 						}
 					}
 				}

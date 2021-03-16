@@ -23,13 +23,13 @@ func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule) []str
 	for _, consumer := range r.Consumers {
 		// Add labels to slice
 		if consumer.Label != nil {
-			consumerLabels = append(consumerLabels, input.PCE.LabelMapH[consumer.Label.Href])
+			consumerLabels = append(consumerLabels, input.PCE.Labels[consumer.Label.Href])
 		}
 		// If it's a label group, expand it and add to the slice
 		if consumer.LabelGroup != nil {
 			labelHrefs := input.PCE.ExpandLabelGroup(consumer.LabelGroup.Href)
 			for _, labelHref := range labelHrefs {
-				consumerLabels = append(consumerLabels, input.PCE.LabelMapH[labelHref])
+				consumerLabels = append(consumerLabels, input.PCE.Labels[labelHref])
 			}
 		}
 		// Add IP lists directly to the traffic query
@@ -45,13 +45,13 @@ func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule) []str
 	for _, provider := range r.Providers {
 		// Add labels to slice
 		if provider.Label != nil {
-			providerLabels = append(providerLabels, input.PCE.LabelMapH[provider.Label.Href])
+			providerLabels = append(providerLabels, input.PCE.Labels[provider.Label.Href])
 		}
 		// If it's a label group, expand it and add to the slice
 		if provider.LabelGroup != nil {
 			labelHrefs := input.PCE.ExpandLabelGroup(provider.LabelGroup.Href)
 			for _, labelHref := range labelHrefs {
-				providerLabels = append(providerLabels, input.PCE.LabelMapH[labelHref])
+				providerLabels = append(providerLabels, input.PCE.Labels[labelHref])
 			}
 		}
 		// Add IP lists directly to the traffic query
@@ -64,17 +64,17 @@ func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule) []str
 	for _, scope := range rs.Scopes {
 		for _, scopeEntity := range scope {
 			if scopeEntity.Label != nil {
-				providerLabels = append(providerLabels, input.PCE.LabelMapH[scopeEntity.Label.Href])
+				providerLabels = append(providerLabels, input.PCE.Labels[scopeEntity.Label.Href])
 				if !*r.UnscopedConsumers {
-					consumerLabels = append(consumerLabels, input.PCE.LabelMapH[scopeEntity.Label.Href])
+					consumerLabels = append(consumerLabels, input.PCE.Labels[scopeEntity.Label.Href])
 				}
 			}
 			if scopeEntity.LabelGroup != nil {
 				labelHrefs := input.PCE.ExpandLabelGroup(scopeEntity.LabelGroup.Href)
 				for _, labelHref := range labelHrefs {
-					providerLabels = append(providerLabels, input.PCE.LabelMapH[labelHref])
+					providerLabels = append(providerLabels, input.PCE.Labels[labelHref])
 					if !*r.UnscopedConsumers {
-						consumerLabels = append(consumerLabels, input.PCE.LabelMapH[labelHref])
+						consumerLabels = append(consumerLabels, input.PCE.Labels[labelHref])
 					}
 				}
 			}
@@ -112,7 +112,7 @@ func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule) []str
 	for _, ingressService := range *r.IngressServices {
 		// Process the policy services
 		if ingressService.Href != nil && *ingressService.Href != "" {
-			svc := input.PCE.ServiceMapH[*ingressService.Href]
+			svc := input.PCE.Services[*ingressService.Href]
 			includes, _ := svc.ToExplorer()
 			if len(includes) == 0 {
 				trafficReq.ExplorerServices.Include = make([]illumioapi.Include, 0)

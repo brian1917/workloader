@@ -72,7 +72,7 @@ func compatibilityReport() {
 			continue
 		}
 		// Confirm the label exists
-		if label, ok := pce.LabelMapKV[keys[i]+labelValue]; !ok {
+		if label, ok := pce.Labels[keys[i]+labelValue]; !ok {
 			utils.LogError(fmt.Sprintf("%s does not exist as a %s label", labelValue, keys[i]))
 		} else {
 			queryLabels = append(queryLabels, label.Href)
@@ -181,7 +181,7 @@ func compatibilityReport() {
 
 		// Put into slice if it's NOT green and issuesOnly is true
 		if (cr.QualifyStatus != "green" && issuesOnly) || !issuesOnly {
-			csvData = append(csvData, []string{w.Hostname, w.Href, cr.QualifyStatus, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, w.OsID, w.OsDetail, requiredPackagesInstalled, requiredPackagesMissing, ipsecServiceEnabled, ipv4ForwardingEnabled, ipv4ForwardingPktCnt, iptablesRuleCnt, ipv6GlobalScope, ipv6ActiveConnCnt, iP6TablesRuleCnt, routingTableConflict, iPv6Enabled, unwantedNics, groupPolicy, a.RespBody})
+			csvData = append(csvData, []string{w.Hostname, w.Href, cr.QualifyStatus, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, w.OsID, w.OsDetail, requiredPackagesInstalled, requiredPackagesMissing, ipsecServiceEnabled, ipv4ForwardingEnabled, ipv4ForwardingPktCnt, iptablesRuleCnt, ipv6GlobalScope, ipv6ActiveConnCnt, iP6TablesRuleCnt, routingTableConflict, iPv6Enabled, unwantedNics, groupPolicy, a.RespBody})
 			stdOutData = append(stdOutData, []string{w.Hostname, w.Href, cr.QualifyStatus})
 		}
 

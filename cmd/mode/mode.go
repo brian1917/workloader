@@ -166,7 +166,7 @@ func modeUpdate() {
 			if w.GetMode() != t.targetMode {
 				// Log the change is needed
 				utils.LogInfo(fmt.Sprintf("required Change - %s - current state: %s - desired state: %s", w.Hostname, w.GetMode(), t.targetMode), false)
-				data = append(data, []string{w.Hostname, w.Href, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, w.GetMode(), t.targetMode})
+				data = append(data, []string{w.Hostname, w.Href, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, w.GetMode(), t.targetMode})
 				// Copy workload with the right target mode and append to slice
 				if err := w.SetMode(t.targetMode); err != nil {
 					utils.LogError(fmt.Sprintf("error setting mode - %s", err))

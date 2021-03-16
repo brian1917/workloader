@@ -16,14 +16,14 @@ func labelComparison(key string, csvLabels []string, pce illumioapi.PCE, rule il
 	if provider {
 		connectionSide = "provider"
 		for _, provider := range rule.Providers {
-			if provider.Label != nil && pce.LabelMapH[provider.Label.Href].Key == key {
-				ruleLabelValueMap[pce.LabelMapH[provider.Label.Href].Value] = pce.LabelMapH[provider.Label.Href]
+			if provider.Label != nil && pce.Labels[provider.Label.Href].Key == key {
+				ruleLabelValueMap[pce.Labels[provider.Label.Href].Value] = pce.Labels[provider.Label.Href]
 			}
 		}
 	} else {
 		for _, consumer := range rule.Consumers {
-			if consumer.Label != nil && pce.LabelMapH[consumer.Label.Href].Key == key {
-				ruleLabelValueMap[pce.LabelMapH[consumer.Label.Href].Value] = pce.LabelMapH[consumer.Label.Href]
+			if consumer.Label != nil && pce.Labels[consumer.Label.Href].Key == key {
+				ruleLabelValueMap[pce.Labels[consumer.Label.Href].Value] = pce.Labels[consumer.Label.Href]
 			}
 		}
 	}
@@ -34,7 +34,7 @@ func labelComparison(key string, csvLabels []string, pce illumioapi.PCE, rule il
 		if strings.ToLower(value) == "all workloads" {
 			continue
 		}
-		if label, labelCheck := pce.LabelMapKV[key+value]; labelCheck {
+		if label, labelCheck := pce.Labels[key+value]; labelCheck {
 			csvLabelValueMap[label.Value] = label
 		} else {
 			utils.LogError(fmt.Sprintf("CSV line %d - %s %s does not exist as a %s label", csvLine, connectionSide, value, key))

@@ -218,7 +218,7 @@ func importRuleSetsFromCSV() {
 					continue
 				}
 				// If it's not all <key>s, check if the value exists. If it doesn't log error.
-				if val, ok := pce.LabelMapKV[keys[n]+entry]; !ok {
+				if val, ok := pce.Labels[keys[n]+entry]; !ok {
 					utils.LogError(fmt.Sprintf("CSV line %d - the %s label %s does not exist", i+1, keys[n], entry))
 					// If the value does exist, we add it to the scope
 				} else {

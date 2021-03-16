@@ -71,9 +71,9 @@ func exportLabels() {
 	}
 
 	// Populuate the LabelGroupMap
-	pce.LabelGroupMapH = make(map[string]illumioapi.LabelGroup)
+	pce.LabelGroups = make(map[string]illumioapi.LabelGroup)
 	for _, lg := range lgs {
-		pce.LabelGroupMapH[lg.Href] = lg
+		pce.LabelGroups[lg.Href] = lg
 	}
 
 	// Get labelMaps
@@ -97,7 +97,7 @@ func exportLabels() {
 		fullLabelHrefs := pce.ExpandLabelGroup(lg.Href)
 		fullLabels := []string{}
 		for _, f := range fullLabelHrefs {
-			fullLabels = append(fullLabels, pce.LabelMapH[f].Value)
+			fullLabels = append(fullLabels, pce.Labels[f].Value)
 		}
 
 		// Append to data slice
