@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/brian1917/workloader/cmd/delete"
 	"github.com/brian1917/workloader/cmd/wkldimport"
 
 	"github.com/brian1917/workloader/utils"
@@ -175,8 +176,8 @@ func edgeadmin() {
 			if _, ok := toPCEonlywklds[w.Hostname+w.Agent.Href]; ok {
 				toPCEonlywklds[w.Hostname+w.Agent.Href] = ""
 			}
-
-			csvOut = append(csvOut, []string{w.Hostname, w.Name, w.GetRole(sPce.Labels).Value, coreApp, coreEnv, coreLoc, "", w.PublicIP, w.Href, w.Description, w.OsID, w.OsDetail, w.DataCenter, w.Hostname + w.Agent.Href, w.DistinguishedName})
+			label := w.GetRole(sPce.Labels).Value
+			csvOut = append(csvOut, []string{w.Hostname, w.Name, label, coreApp, coreEnv, coreLoc, "", w.PublicIP, w.Href, w.Description, w.OsID, w.OsDetail, w.DataCenter, w.Hostname + w.Agent.Href, w.DistinguishedName})
 			stdOut = append(stdOut, []string{w.Hostname, w.GetRole(sPce.Labels).Value, coreApp, coreEnv, coreLoc, w.GetMode()})
 		} else {
 			utils.LogInfo("no Workloads created.", true)
