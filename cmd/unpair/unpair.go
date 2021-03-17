@@ -149,16 +149,16 @@ func unpair() {
 			continue
 		}
 		roleCheck, appCheck, envCheck, locCheck := true, true, true, true
-		if app != "" && w.GetApp(pce.LabelMapH).Value != app {
+		if app != "" && w.GetApp(pce.Labels).Value != app {
 			appCheck = false
 		}
-		if role != "" && w.GetRole(pce.LabelMapH).Value != role {
+		if role != "" && w.GetRole(pce.Labels).Value != role {
 			roleCheck = false
 		}
-		if env != "" && w.GetEnv(pce.LabelMapH).Value != env {
+		if env != "" && w.GetEnv(pce.Labels).Value != env {
 			envCheck = false
 		}
-		if loc != "" && w.GetLoc(pce.LabelMapH).Value != loc {
+		if loc != "" && w.GetLoc(pce.Labels).Value != loc {
 			locCheck = false
 		}
 		if roleCheck && appCheck && locCheck && envCheck && !setLabelExcl {
@@ -192,7 +192,7 @@ func unpair() {
 			hoursSinceLastHB = fmt.Sprintf("%f", now.Sub(timeParsed).Hours())
 		}
 		// Append to our data array
-		data = append(data, []string{t.Hostname, t.Href, t.GetRole(pce.LabelMapH).Value, t.GetApp(pce.LabelMapH).Value, t.GetEnv(pce.LabelMapH).Value, t.GetLoc(pce.LabelMapH).Value, t.Agent.Status.SecurityPolicySyncState, t.Agent.Status.LastHeartbeatOn, hoursSinceLastHB})
+		data = append(data, []string{t.Hostname, t.Href, t.GetRole(pce.Labels).Value, t.GetApp(pce.Labels).Value, t.GetEnv(pce.Labels).Value, t.GetLoc(pce.Labels).Value, t.Agent.Status.SecurityPolicySyncState, t.Agent.Status.LastHeartbeatOn, hoursSinceLastHB})
 	}
 
 	// Write CSV data

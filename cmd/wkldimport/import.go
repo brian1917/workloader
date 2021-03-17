@@ -25,8 +25,8 @@ var newLabels []illumioapi.Label
 func checkLabel(pce illumioapi.PCE, updatePCE bool, label illumioapi.Label, csvLine int) illumioapi.Label {
 
 	// Check if it exists or not
-	if _, ok := pce.LabelMapKV[label.Key+label.Value]; ok {
-		return pce.LabelMapKV[label.Key+label.Value]
+	if _, ok := pce.Labels[label.Key+label.Value]; ok {
+		return pce.Labels[label.Key+label.Value]
 	}
 
 	// Create the label if it doesn't exist
@@ -39,8 +39,8 @@ func checkLabel(pce illumioapi.PCE, updatePCE bool, label illumioapi.Label, csvL
 		utils.LogInfo(fmt.Sprintf("CSV line - %d - created label - %s (%s) - %s", csvLine, l.Value, l.Key, l.Href), true)
 
 		// Append the label back to the map
-		pce.LabelMapKV[l.Key+l.Value] = l
-		pce.LabelMapH[l.Href] = l
+		pce.Labels[l.Key+l.Value] = l
+		pce.Labels[l.Href] = l
 
 		// Increment counter
 		createdLabels++
@@ -51,8 +51,8 @@ func checkLabel(pce illumioapi.PCE, updatePCE bool, label illumioapi.Label, csvL
 	// If updatePCE is not set, create a placeholder href for provided label, and add it back to the maps
 	utils.LogInfo(fmt.Sprintf("Potential New Label - Key: %s, Value: %s", label.Key, label.Value), false)
 	label.Href = fmt.Sprintf("place-holder-href-%s-%s", label.Key, label.Value)
-	pce.LabelMapKV[label.Key+label.Value] = label
-	pce.LabelMapH[label.Href] = label
+	pce.Labels[label.Key+label.Value] = label
+	pce.Labels[label.Href] = label
 	newLabels = append(newLabels, illumioapi.Label{Key: label.Key, Value: label.Value})
 
 	return label
@@ -245,7 +245,7 @@ CSVEntries:
 						x = append(x, i.Name+":"+i.Address)
 					}
 				}
-				utils.LogInfo(fmt.Sprintf("CSV line %d - %s to be created - %s (role), %s (app), %s (env), %s(loc) - interfaces: %s", csvLine, w.Hostname, w.GetRole(input.PCE.LabelMapH).Value, w.GetApp(input.PCE.LabelMapH).Value, w.GetEnv(input.PCE.LabelMapH).Value, w.GetLoc(input.PCE.LabelMapH).Value, strings.Join(x, ";")), false)
+				utils.LogInfo(fmt.Sprintf("CSV line %d - %s to be created - %s (role), %s (app), %s (env), %s(loc) - interfaces: %s", csvLine, w.Hostname, w.GetRole(input.PCE.Labels).Value, w.GetApp(input.PCE.Labels).Value, w.GetEnv(input.PCE.Labels).Value, w.GetLoc(input.PCE.Labels).Value, strings.Join(x, ";")), false)
 				continue
 			} else {
 				// If umwl flag is not set, log the entry
@@ -273,36 +273,36 @@ CSVEntries:
 		if input.AppIndex != 99998 {
 			columns = append(columns, input.AppIndex)
 			keys = append(keys, "app")
-			labels = append(labels, wkld.GetApp(input.PCE.LabelMapH))
-		} else if wkld.GetApp(input.PCE.LabelMapH).Value != "" {
-			current := wkld.GetApp(input.PCE.LabelMapH)
+			labels = append(labels, wkld.GetApp(input.PCE.Labels))
+		} else if wkld.GetApp(input.PCE.Labels).Value != "" {
+			current := wkld.GetApp(input.PCE.Labels)
 			newWkldLabels = append(newWkldLabels, &current)
 		}
 		// Role
 		if input.RoleIndex != 99998 {
 			columns = append(columns, input.RoleIndex)
 			keys = append(keys, "role")
-			labels = append(labels, wkld.GetRole(input.PCE.LabelMapH))
-		} else if wkld.GetRole(input.PCE.LabelMapH).Value != "" {
-			current := wkld.GetRole(input.PCE.LabelMapH)
+			labels = append(labels, wkld.GetRole(input.PCE.Labels))
+		} else if wkld.GetRole(input.PCE.Labels).Value != "" {
+			current := wkld.GetRole(input.PCE.Labels)
 			newWkldLabels = append(newWkldLabels, &current)
 		}
 		// Env
 		if input.EnvIndex != 99998 {
 			columns = append(columns, input.EnvIndex)
 			keys = append(keys, "env")
-			labels = append(labels, wkld.GetEnv(input.PCE.LabelMapH))
-		} else if wkld.GetEnv(input.PCE.LabelMapH).Value != "" {
-			current := wkld.GetEnv(input.PCE.LabelMapH)
+			labels = append(labels, wkld.GetEnv(input.PCE.Labels))
+		} else if wkld.GetEnv(input.PCE.Labels).Value != "" {
+			current := wkld.GetEnv(input.PCE.Labels)
 			newWkldLabels = append(newWkldLabels, &current)
 		}
 		// Loc
 		if input.LocIndex != 99998 {
 			columns = append(columns, input.LocIndex)
 			keys = append(keys, "loc")
-			labels = append(labels, wkld.GetLoc(input.PCE.LabelMapH))
-		} else if wkld.GetLoc(input.PCE.LabelMapH).Value != "" {
-			current := wkld.GetLoc(input.PCE.LabelMapH)
+			labels = append(labels, wkld.GetLoc(input.PCE.Labels))
+		} else if wkld.GetLoc(input.PCE.Labels).Value != "" {
+			current := wkld.GetLoc(input.PCE.Labels)
 			newWkldLabels = append(newWkldLabels, &current)
 		}
 

@@ -83,16 +83,16 @@ func exportRuleSets() {
 			for _, scopeEntity := range scope {
 				if scopeEntity.Label != nil {
 					// Check the key and add it to the right slice
-					if pce.LabelMapH[scopeEntity.Label.Href].Key == "app" {
-						appScopes = append(appScopes, pce.LabelMapH[scopeEntity.Label.Href].Value)
+					if pce.Labels[scopeEntity.Label.Href].Key == "app" {
+						appScopes = append(appScopes, pce.Labels[scopeEntity.Label.Href].Value)
 						appCheck = true
 					}
-					if pce.LabelMapH[scopeEntity.Label.Href].Key == "env" {
-						envScopes = append(envScopes, pce.LabelMapH[scopeEntity.Label.Href].Value)
+					if pce.Labels[scopeEntity.Label.Href].Key == "env" {
+						envScopes = append(envScopes, pce.Labels[scopeEntity.Label.Href].Value)
 						envCheck = true
 					}
-					if pce.LabelMapH[scopeEntity.Label.Href].Key == "loc" {
-						locScopes = append(locScopes, pce.LabelMapH[scopeEntity.Label.Href].Value)
+					if pce.Labels[scopeEntity.Label.Href].Key == "loc" {
+						locScopes = append(locScopes, pce.Labels[scopeEntity.Label.Href].Value)
 						locCheck = true
 					}
 				}

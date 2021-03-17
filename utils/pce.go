@@ -29,7 +29,7 @@ func GetDefaultPCE(GetLabelMaps bool) (illumioapi.PCE, error) {
 	if viper.IsSet(defaultPCE + ".fqdn") {
 		pce = illumioapi.PCE{FQDN: viper.Get(defaultPCE + ".fqdn").(string), Port: viper.Get(defaultPCE + ".port").(int), Org: viper.Get(defaultPCE + ".org").(int), User: viper.Get(defaultPCE + ".user").(string), Key: viper.Get(defaultPCE + ".key").(string), DisableTLSChecking: viper.Get(defaultPCE + ".disableTLSChecking").(bool)}
 		if GetLabelMaps {
-			pce.GetLabelMaps()
+			pce.Load(illumioapi.LoadInput{Labels: true})
 		}
 		return pce, nil
 	}
@@ -43,7 +43,7 @@ func GetPCEbyName(name string, GetLabelMaps bool) (illumioapi.PCE, error) {
 	if viper.IsSet(name + ".fqdn") {
 		pce = illumioapi.PCE{FQDN: viper.Get(name + ".fqdn").(string), Port: viper.Get(name + ".port").(int), Org: viper.Get(name + ".org").(int), User: viper.Get(name + ".user").(string), Key: viper.Get(name + ".key").(string), DisableTLSChecking: viper.Get(name + ".disableTLSChecking").(bool)}
 		if GetLabelMaps {
-			pce.GetLabelMaps()
+			pce.Load(illumioapi.LoadInput{Labels: true})
 		}
 		return pce, nil
 	}

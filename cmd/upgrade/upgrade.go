@@ -86,16 +86,16 @@ func wkldUpgrade() {
 			if w.GetMode() == "unmanaged" {
 				continue
 			}
-			if app != "" && w.GetApp(pce.LabelMapH).Value != app {
+			if app != "" && w.GetApp(pce.Labels).Value != app {
 				continue
 			}
-			if role != "" && w.GetRole(pce.LabelMapH).Value != role {
+			if role != "" && w.GetRole(pce.Labels).Value != role {
 				continue
 			}
-			if env != "" && w.GetEnv(pce.LabelMapH).Value != env {
+			if env != "" && w.GetEnv(pce.Labels).Value != env {
 				continue
 			}
-			if loc != "" && w.GetLoc(pce.LabelMapH).Value != loc {
+			if loc != "" && w.GetLoc(pce.Labels).Value != loc {
 				continue
 			}
 			if w.Agent.Status.AgentVersion == targetVersion {
@@ -148,7 +148,7 @@ func wkldUpgrade() {
 	// Build the data slice for writing
 	data := [][]string{[]string{"hostname", "href", "role", "app", "env", "loc", "current_ven_version", "targeted_ven_version"}}
 	for _, t := range targetWklds {
-		data = append(data, []string{t.Hostname, t.Href, t.GetRole(pce.LabelMapH).Value, t.GetApp(pce.LabelMapH).Value, t.GetEnv(pce.LabelMapH).Value, t.GetLoc(pce.LabelMapH).Value, t.Agent.Status.AgentVersion, targetVersion})
+		data = append(data, []string{t.Hostname, t.Href, t.GetRole(pce.Labels).Value, t.GetApp(pce.Labels).Value, t.GetEnv(pce.Labels).Value, t.GetLoc(pce.Labels).Value, t.Agent.Status.AgentVersion, targetVersion})
 	}
 
 	// Write CSV data

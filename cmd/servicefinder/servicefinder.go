@@ -125,7 +125,7 @@ func serviceFinder() {
 		if len(portMap) > 0 {
 			for _, o := range wkld.Services.OpenServicePorts {
 				if _, ok := portMap[o.Port]; ok {
-					data = append(data, []string{w.Href, w.Hostname, strconv.Itoa(o.Port), o.ProcessName, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, w.GetIPWithDefaultGW()})
+					data = append(data, []string{w.Href, w.Hostname, strconv.Itoa(o.Port), o.ProcessName, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, w.GetIPWithDefaultGW()})
 				}
 			}
 		}
@@ -135,7 +135,7 @@ func serviceFinder() {
 			for _, wkldProcess := range wkld.Services.OpenServicePorts {
 				for _, providedProcess := range processSlice {
 					if strings.Contains(wkldProcess.ProcessName, providedProcess) {
-						data = append(data, []string{w.Href, w.Hostname, strconv.Itoa(wkldProcess.Port), wkldProcess.ProcessName, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, w.GetIPWithDefaultGW()})
+						data = append(data, []string{w.Href, w.Hostname, strconv.Itoa(wkldProcess.Port), wkldProcess.ProcessName, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, w.GetIPWithDefaultGW()})
 					}
 				}
 			}

@@ -149,7 +149,7 @@ func wkldtoipl() {
 	workloads:
 		for _, w := range wklds {
 			// Check each label to see if matches
-			labels := []string{w.GetRole(sPce.LabelMapH).Value, w.GetApp(sPce.LabelMapH).Value, w.GetEnv(sPce.LabelMapH).Value, w.GetLoc(sPce.LabelMapH).Value}
+			labels := []string{w.GetRole(sPce.Labels).Value, w.GetApp(sPce.Labels).Value, w.GetEnv(sPce.Labels).Value, w.GetLoc(sPce.Labels).Value}
 			for i, l := range labels {
 				if d[i+1] != "" && mapList[i][l] != 1 {
 					continue workloads
