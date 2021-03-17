@@ -15,21 +15,19 @@ import (
 )
 
 var debug, doNotProvision, keepTempFile, delStaleUMWL bool
-var csvFile, fromPCE, toPCE, outputFileName, edgeGroup, coreApp, coreEnv, coreLoc string
+var csvFile, fromPCE, toPCE, outputFileName, edgeGroup, coreApp, coreEnv, coreLoc, refHeader string
 var input wkldimport.Input
 
 func init() {
-	EdgeAdminCmd.Flags().StringVarP(&fromPCE, "from-pce", "f", "", "Name of the PCE with the existing Edge Group to copy over. Required")
+	EdgeAdminCmd.Flags().StringVarP(&fromPCE, "from-pce", "f", "", "Name of the PCE with the existing Edge Group to copy to destination PCE. Required")
 	EdgeAdminCmd.MarkFlagRequired("from-pce")
-	EdgeAdminCmd.Flags().StringVarP(&toPCE, "to-pce", "t", "", "Name of the PCE to receive Edge Admin Group endpoint info. Only required if using --update-pce flag")
-	EdgeAdminCmd.Flags().StringVarP(&edgeGroup, "edge-group", "g", "", "Name of the Edge group to be copied to Core PCE. Required")
+	EdgeAdminCmd.Flags().StringVarP(&toPCE, "to-pce", "t", "", "Name of the PCE to import Edge Admin Group endpoints as UMWL. Only required if using --update-pce flag")
+	EdgeAdminCmd.Flags().StringVarP(&edgeGroup, "edge-group", "g", "", "Name of the Edge group to be copied to destination PCE. Required")
 	EdgeAdminCmd.MarkFlagRequired("edge-group")
-	EdgeAdminCmd.Flags().StringVarP(&coreApp, "core-app", "a", "", "Name of the Edge group to be copied to Core PCE. Required")
-	EdgeAdminCmd.MarkFlagRequired("core-app")
-	EdgeAdminCmd.Flags().StringVarP(&coreEnv, "core-env", "e", "", "Name of the Edge group to be copied to Core PCE. Required")
-	EdgeAdminCmd.MarkFlagRequired("core-env")
-	EdgeAdminCmd.Flags().StringVarP(&coreLoc, "core-loc", "l", "", "Name of the Edge group to be copied to Core PCE. Required")
-	EdgeAdminCmd.MarkFlagRequired("core-loc")
+	EdgeAdminCmd.Flags().StringVarP(&coreApp, "core-app", "a", "", "Set App Label to be added to group when imported into PCE.")
+	EdgeAdminCmd.Flags().StringVarP(&coreEnv, "core-env", "e", "", "Set Env Label to be added to group when imported into PCE.")
+	EdgeAdminCmd.Flags().StringVarP(&coreLoc, "core-loc", "l", "", "Set Loc Label to be added to group when imported into PCE.")
+	EdgeAdminCmd.Flags().StringVarP(&refHeader, "ref-head", "r", "workloader-", "String used to match UMWL added by tool.  Default \"workloader-\".  Can be a string 20 charcters or less.")
 	EdgeAdminCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 	EdgeAdminCmd.Flags().BoolVarP(&keepTempFile, "keep-temp-file", "k", false, "Do not delete the temp CSV file created to update/create workloads on destination PCE.")
 	EdgeAdminCmd.Flags().BoolVarP(&delStaleUMWL, "del-stale-umwl", "d", false, "Remove unmanaged workloads previously created by workloader on destination PCE that dont have a match on source PCE.  Default will be to not delete.")
@@ -39,10 +37,10 @@ func init() {
 // EdgeAdminCmd runs the upload command
 var EdgeAdminCmd = &cobra.Command{
 	Use:   "edge-admin ",
-	Short: "Copy Edge Admin group to Core PCE for authenticated Admin Access to Core Workloads.",
+	Short: "Copy Edge group endpoint info including DN information into specified PCE as UMWL for certificate authenticated Admin Access to Core Workloads.",
 	Long: `
-Copy every endpoint DN infrmation within specified Edge group from Edge PCE to Core PCE. Every endpoint must have a valid ipsec certificate to be copied over.  
-The Edge group once copied can be used in policy using MachineAuth option to protect access requiring certificate validated ipsec connections.  
+Copy Edge group endpoint information including DN to Core PCE. Every endpoint must have a valid and PCE discovered ipsec certificate to be copied over.  
+The Edge group once copied to PCE can be used in policy using MachineAuth option.  Using MachineAuth in policy limits connections to only those endpoints that have valid, known certificates.  
 No IP address information will be copied from Edge to Core so only MachineAuth rules will work.
 `,
 
@@ -98,13 +96,8 @@ func edgeadmin() {
 		utils.LogError(err.Error())
 	}
 
-	//get Edge Admin group Href for use when getting endpoints....
-	slabel, a, err := sPce.GetLabelbyKeyValue("role", edgeGroup)
-	utils.LogAPIResp("GetLabelbyKeyValue", a)
-	if err != nil {
-		utils.LogError(err.Error())
-	}
 	//Make sure label is found...have user reenter if so
+	slabel := sPce.Labels["role"+edgeGroup]
 	if slabel.Value == "" {
 		utils.LogError(fmt.Sprintf("error finding Edge group - %s.  Please reenter with exact Edge group name", edgeGroup))
 	}
@@ -130,24 +123,9 @@ func edgeadmin() {
 			utils.LogError(fmt.Sprintf("error getting to pce - %s", err))
 		}
 
-		//Get all existing workloads already on dest PCE to check if there updates needed.
-		var labelfilter []string
-		var destvalues = []string{slabel.Value, coreApp, coreEnv, coreLoc}
-		var destkeys = []string{"role", "app", "env", "loc"}
-		for i, l := range destvalues {
-			dlabel, a, err := input.PCE.GetLabelbyKeyValue(destkeys[i], l)
-			utils.LogAPIResp("GetLabelbyKeyValue", a)
-			if err != nil {
-				utils.LogError(err.Error())
-			}
-			if dlabel.Href != "" {
-				labelfilter = append(labelfilter, dlabel.Href)
-			}
-		}
 		//create filter to get all workloads that are unmanaged and already labe the group and set labels,
-		tmpstr := "[[\"" + strings.Join(labelfilter, "\",\"") + "\"]]"
-		queryP := map[string]string{"labels": tmpstr}
-		queryP["managed"] = "false"
+		//queryP := map[string]string{"labels": "[[\"" + strings.Join(labelfilter, "\",\"") + "\"]]"}
+		queryP := map[string]string{"managed": "false"}
 		// Get all workloads from the destination PCE
 		tmpdwklds, a, err := input.PCE.GetAllWorkloadsQP(queryP)
 		utils.LogAPIResp("GetAllWorkloads", a)
@@ -156,35 +134,44 @@ func edgeadmin() {
 		}
 
 		for _, dw := range tmpdwklds {
-			toPCEonlywklds[dw.ExternalDataReference] = dw.Href
+			tmp := strings.Index(dw.ExternalDataReference, refHeader)
+			if tmp == 0 {
+				toPCEonlywklds[dw.ExternalDataReference] = dw.Href
+			}
 		}
 		//Build a map so we can match find extra workloads left over.
 	}
 
-	csvOut := [][]string{{"hostname", "name", "role", "app", "env", "loc", "interfaces", "public_ip", "href", "description", "os_id", "os_detail", "datacenter", "external_data_reference", "machine_authentication_id"}}
-	stdOut := [][]string{{"hostname", "role", "app", "env", "loc", "distinguished_name"}}
+	csvOut := [][]string{{"hostname", "name", "role", "app", "env", "loc", "interfaces", "public_ip", "href", "description", "os_id", "os_detail", "datacenter", "external_data_set", "external_data_reference", "machine_authentication_id"}}
 
 	for _, w := range swklds {
 
 		// Output the CSV
 		if len(swklds) > 0 {
-			// Skip deleted workloads
+
+			// Skip deleted workloads or endpoints without DNs
 			if *w.Deleted {
 				continue
 			}
-			//remove workloads that are on both fromPCE and toPCE leaving only stale toPCE UMWL.
-			if _, ok := toPCEonlywklds[w.Hostname+w.Agent.Href]; ok {
-				toPCEonlywklds[w.Hostname+w.Agent.Href] = ""
+			if w.DistinguishedName == "" {
+				continue
 			}
-			label := w.GetRole(sPce.Labels).Value
-			csvOut = append(csvOut, []string{w.Hostname, w.Name, label, coreApp, coreEnv, coreLoc, "", w.PublicIP, w.Href, w.Description, w.OsID, w.OsDetail, w.DataCenter, w.Hostname + w.Agent.Href, w.DistinguishedName})
-			stdOut = append(stdOut, []string{w.Hostname, w.GetRole(sPce.Labels).Value, coreApp, coreEnv, coreLoc, w.GetMode()})
+
+			//label := w.GetRole(sPce.Labels).Value
+			//remove workloads that are on both fromPCE and toPCE leaving only stale toPCE UMWL.
+			tmpedgeGroup, tmpcoreApp, tmpcoreEnv, tmpcoreLoc := edgeGroup, coreApp, coreEnv, coreLoc
+			if _, ok := toPCEonlywklds[refHeader+w.Hostname+w.Agent.Href]; ok {
+				toPCEonlywklds[refHeader+w.Hostname+w.Agent.Href] = ""
+				tmpedgeGroup, tmpcoreApp, tmpcoreEnv, tmpcoreLoc = "", "", "", ""
+			}
+
+			csvOut = append(csvOut, []string{w.Hostname, w.Name, tmpedgeGroup, tmpcoreApp, tmpcoreEnv, tmpcoreLoc, "", w.PublicIP, w.Href, w.Description, w.OsID, w.OsDetail, w.DataCenter, w.ExternalDataSet, refHeader + w.Hostname + w.Agent.Href, w.DistinguishedName})
 		} else {
 			utils.LogInfo("no Workloads created.", true)
 		}
 	}
 
-	//Flatten and remove matched workloads on destination PCE
+	//Flatten and remove matched workloads on destination PCE to create delete list of WKLDS
 	var listumwldel []string
 	for _, href := range toPCEonlywklds {
 		if href != "" {
@@ -212,7 +199,7 @@ func edgeadmin() {
 	}
 
 	// If we get here, create the workloads on dest PCE using wkld-import
-	utils.LogInfo(fmt.Sprintf("calling workloader edge-admin to import %s to %s", outputFileName, toPCE), true)
+	utils.LogInfo(fmt.Sprintf("wkld-import called by edge-admin to import %s to %s", outputFileName, toPCE), true)
 	wkldimport.ImportWkldsFromCSV(input)
 	if !keepTempFile {
 		if err := os.Remove(outputFileName); err != nil {
@@ -223,23 +210,21 @@ func edgeadmin() {
 	}
 
 	//Check to see if you should remove old UMWL on dest PCE...end if not otherwise continue
-	if !delStaleUMWL {
-		utils.LogEndCommand("edge-admin")
-		return
-	}
-
-	var delInput delete.Input
-	delInput.PCE = input.PCE
-
-	//Remove all HREFs that have not been matched on only if SYNC option is select
-	for _, href := range listumwldel {
-		a, _ := input.PCE.DeleteHref(href)
-		utils.LogAPIResp("DeleteHref", a)
-		if a.StatusCode != 204 {
-			utils.LogWarning(fmt.Sprintf("%s - not deleted - status code %d", href, a.StatusCode), true)
-		} else if a.StatusCode == 204 {
-			utils.LogInfo(fmt.Sprintf("%s - deleted - status code %d", href, a.StatusCode), true)
+	if len(listumwldel) > 0 {
+		if !delStaleUMWL {
+			utils.LogEndCommand("edge-admin")
+			return
 		}
+
+		var delInput delete.Input
+		delInput.PCE = input.PCE
+		delInput.UpdatePCE = input.UpdatePCE
+		delInput.NoPrompt = input.NoPrompt
+		delInput.Hrefs = listumwldel
+
+		utils.LogInfo(fmt.Sprintf("delete cmd called by edge-admin."), true)
+		//Remove all HREFs that have not been matched on only if SYNC option is select
+		delete.Delete(delInput)
 	}
 	utils.LogEndCommand("edge-admin")
 }
