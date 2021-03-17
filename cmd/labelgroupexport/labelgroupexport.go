@@ -76,9 +76,6 @@ func exportLabels() {
 		pce.LabelGroups[lg.Href] = lg
 	}
 
-	// Get labelMaps
-	pce.GetLabelMaps()
-
 	for _, lg := range lgs {
 		// Find members
 		labels := []string{}
