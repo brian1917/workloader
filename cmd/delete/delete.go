@@ -130,6 +130,8 @@ func delete() {
 			key = "rule_sets"
 		} else if strings.Contains(entry, "/users/") {
 			key = "users"
+		} else if strings.Contains(entry, "/workloads/") {
+			key = "unmanaged workloads"
 		} else {
 			x := strings.Split(entry, "/")
 			x = x[:len(x)-1]
