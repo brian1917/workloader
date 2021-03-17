@@ -149,6 +149,7 @@ func init() {
 	// Edge Commands
 	RootCmd.AddCommand(wkldtoipl.WorkloadToIPLCmd)
 	RootCmd.AddCommand(edgerulecopy.EdgeRuleCopyCmd)
+	RootCmd.AddCommand(edgeadmin.EdgeAdminCmd)
 
 	// Version Commands
 	RootCmd.AddCommand(versionCmd)
@@ -156,7 +157,6 @@ func init() {
 
 	// Undocumented
 	RootCmd.AddCommand(extract.ExtractCmd)
-	RootCmd.AddCommand(edgeadmin.EdgeAdminCmd)
 
 	// Set the usage templates
 	for _, c := range RootCmd.Commands() {

@@ -19,25 +19,25 @@ var csvFile, fromPCE, toPCE, outputFileName, edgeGroup, coreApp, coreEnv, coreLo
 var input wkldimport.Input
 
 func init() {
-	EdgeAdminCmd.Flags().StringVarP(&fromPCE, "from-pce", "f", "", "Name of the PCE with the existing Edge Group to copy to destination PCE. Required")
+	EdgeAdminCmd.Flags().StringVarP(&fromPCE, "from-pce", "f", "", "Name of the PCE with the existing Edge Group used to copy to destination PCE. Required")
 	EdgeAdminCmd.MarkFlagRequired("from-pce")
-	EdgeAdminCmd.Flags().StringVarP(&toPCE, "to-pce", "t", "", "Name of the PCE to import Edge Admin Group endpoints as UMWL. Only required if using --update-pce flag")
+	EdgeAdminCmd.Flags().StringVarP(&toPCE, "to-pce", "t", "", "Name of the PCE to import into Edge Admin group endpoints as UMWL. Only required if using --update-pce flag")
 	EdgeAdminCmd.Flags().StringVarP(&edgeGroup, "edge-group", "g", "", "Name of the Edge group to be copied to destination PCE. Required")
 	EdgeAdminCmd.MarkFlagRequired("edge-group")
 	EdgeAdminCmd.Flags().StringVarP(&coreApp, "core-app", "a", "", "Set App Label to be added to group when imported into PCE.")
 	EdgeAdminCmd.Flags().StringVarP(&coreEnv, "core-env", "e", "", "Set Env Label to be added to group when imported into PCE.")
 	EdgeAdminCmd.Flags().StringVarP(&coreLoc, "core-loc", "l", "", "Set Loc Label to be added to group when imported into PCE.")
-	EdgeAdminCmd.Flags().StringVarP(&refHeader, "ref-head", "r", "workloader-", "String used to match UMWL added by tool.  Default \"workloader-\".  Can be a string 20 charcters or less.")
+	EdgeAdminCmd.Flags().StringVarP(&refHeader, "ref-head", "r", "workloader-", "Manually set string used as match criteria for UMWL added by tool.  Default \"workloader-\".")
 	EdgeAdminCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 	EdgeAdminCmd.Flags().BoolVarP(&keepTempFile, "keep-temp-file", "k", false, "Do not delete the temp CSV file created to update/create workloads on destination PCE.")
-	EdgeAdminCmd.Flags().BoolVarP(&delStaleUMWL, "del-stale-umwl", "d", false, "Remove unmanaged workloads previously created by workloader on destination PCE that dont have a match on source PCE.  Default will be to not delete.")
+	EdgeAdminCmd.Flags().BoolVarP(&delStaleUMWL, "del-stale-umwl", "d", false, "Remove stale unmanaged endpoints from PCE that do not have a corresponding endpoint on Edge. Default - do not delete.")
 
 }
 
 // EdgeAdminCmd runs the upload command
 var EdgeAdminCmd = &cobra.Command{
 	Use:   "edge-admin ",
-	Short: "Copy Edge group endpoint info including DN information into specified PCE as UMWL for certificate authenticated Admin Access to Core Workloads.",
+	Short: "Copy endpoints in Edge Admin group into specified PCE as UMWL.  Certificate DN information copied for use in MachineAuth policy.",
 	Long: `
 Copy Edge group endpoint information including DN to Core PCE. Every endpoint must have a valid and PCE discovered ipsec certificate to be copied over.  
 The Edge group once copied to PCE can be used in policy using MachineAuth option.  Using MachineAuth in policy limits connections to only those endpoints that have valid, known certificates.  
