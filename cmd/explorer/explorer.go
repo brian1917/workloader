@@ -98,15 +98,8 @@ func explorerExport() {
 	}
 	tq.MaxFLows = maxResults
 
-	// Get LabelMap for getting workload labels
-	_, err = pce.GetLabelMaps()
-	if err != nil {
-		utils.LogError(err.Error())
-	}
-
-	// Get WorkloadMap by hostname
-	whm, _, err = pce.GetWkldHostMap()
-	if err != nil {
+	// Get Labels and workloads
+	if err := pce.Load(illumioapi.LoadInput{Labels: true, Workloads: true}); err != nil {
 		utils.LogError(err.Error())
 	}
 
