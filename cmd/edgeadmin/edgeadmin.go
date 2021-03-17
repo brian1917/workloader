@@ -2,7 +2,7 @@ package edgeadmin
 
 import (
 	"fmt"
-	"strconv"
+	"os"
 	"strings"
 	"time"
 
@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var debug, doNotProvision bool
+var debug, doNotProvision, keepTempFile, delStaleUMWL bool
 var csvFile, fromPCE, toPCE, outputFileName, edgeGroup, coreApp, coreEnv, coreLoc string
 var input wkldimport.Input
 
@@ -21,16 +21,17 @@ func init() {
 	EdgeAdminCmd.Flags().StringVarP(&fromPCE, "from-pce", "f", "", "Name of the PCE with the existing Edge Group to copy over. Required")
 	EdgeAdminCmd.MarkFlagRequired("from-pce")
 	EdgeAdminCmd.Flags().StringVarP(&toPCE, "to-pce", "t", "", "Name of the PCE to receive Edge Admin Group endpoint info. Only required if using --update-pce flag")
-	EdgeAdminCmd.Flags().StringVarP(&edgeGroup, "edge-group", "g", "", "Name of the Edge group to be copied to Core PCE")
+	EdgeAdminCmd.Flags().StringVarP(&edgeGroup, "edge-group", "g", "", "Name of the Edge group to be copied to Core PCE. Required")
 	EdgeAdminCmd.MarkFlagRequired("edge-group")
-	EdgeAdminCmd.Flags().StringVarP(&coreApp, "core-app", "a", "", "Name of the Edge group to be copied to Core PCE")
+	EdgeAdminCmd.Flags().StringVarP(&coreApp, "core-app", "a", "", "Name of the Edge group to be copied to Core PCE. Required")
 	EdgeAdminCmd.MarkFlagRequired("core-app")
-	EdgeAdminCmd.Flags().StringVarP(&coreEnv, "core-env", "e", "", "Name of the Edge group to be copied to Core PCE")
+	EdgeAdminCmd.Flags().StringVarP(&coreEnv, "core-env", "e", "", "Name of the Edge group to be copied to Core PCE. Required")
 	EdgeAdminCmd.MarkFlagRequired("core-env")
-	EdgeAdminCmd.Flags().StringVarP(&coreLoc, "core-loc", "l", "", "Name of the Edge group to be copied to Core PCE")
+	EdgeAdminCmd.Flags().StringVarP(&coreLoc, "core-loc", "l", "", "Name of the Edge group to be copied to Core PCE. Required")
 	EdgeAdminCmd.MarkFlagRequired("core-loc")
-	EdgeAdminCmd.Flags().BoolVarP(&doNotProvision, "do-not-prov", "x", false, "Do not provision created/updated IP Lists. Will provision by default.")
 	EdgeAdminCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+	EdgeAdminCmd.Flags().BoolVarP(&keepTempFile, "keep-temp-file", "k", false, "Do not delete the temp CSV file created to update/create workloads on destination PCE.")
+	EdgeAdminCmd.Flags().BoolVarP(&delStaleUMWL, "del-stale-umwl", "d", false, "Remove unmanaged workloads previously created by workloader on destination PCE that dont have a match on source PCE.  Default will be to not delete.")
 
 }
 
@@ -63,7 +64,8 @@ No IP address information will be copied from Edge to Core so only MachineAuth r
 }
 
 func edgeadmin() {
-	//Make sure to check the column names to correctly set.
+
+	//Used to make sure the column names are correctly set.
 	input.HostnameIndex = 99999
 	input.AppIndex = 99999
 	input.DatacenterIndex = 99999
@@ -95,25 +97,30 @@ func edgeadmin() {
 		utils.LogError(err.Error())
 	}
 
-	//get Edge group Href for workload filter
+	//get Edge Admin group Href for use when getting endpoints....
 	slabel, a, err := sPce.GetLabelbyKeyValue("role", edgeGroup)
 	utils.LogAPIResp("GetLabelbyKeyValue", a)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
-	//Make sure label is not empty...have user reenter if so
+	//Make sure label is found...have user reenter if so
 	if slabel.Value == "" {
 		utils.LogError(fmt.Sprintf("error finding Edge group - %s.  Please reenter with exact Edge group name", edgeGroup))
 	}
 
+	//get all UMWL with the correct Admin Group label.
 	queryP := map[string]string{"labels": fmt.Sprintf("[[\"%s\"]]", slabel.Href)}
-	// Get all workloads from the source PCE
+	queryP["managed"] = "true"
 	swklds, a, err := sPce.GetAllWorkloadsQP(queryP)
 	utils.LogAPIResp("GetAllWorkloads", a)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
 
+	//Create a map of all UMWL on destination PCE so you can find stale UMWL
+	toPCEonlywklds := make(map[string]string)
+
+	//Check to see if you need to push UMWL or clean up on destination PCE
 	if toPCE != "" {
 
 		// Get the source pce
@@ -141,15 +148,19 @@ func edgeadmin() {
 		queryP := map[string]string{"labels": tmpstr}
 		queryP["managed"] = "false"
 		// Get all workloads from the destination PCE
-		dwklds, a, err := input.PCE.GetAllWorkloadsQP(queryP)
+		tmpdwklds, a, err := input.PCE.GetAllWorkloadsQP(queryP)
 		utils.LogAPIResp("GetAllWorkloads", a)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-		fmt.Print(dwklds)
+
+		for _, dw := range tmpdwklds {
+			toPCEonlywklds[dw.ExternalDataReference] = dw.Href
+		}
+		//Build a map so we can match find extra workloads left over.
 	}
 
-	csvOut := [][]string{{"hostname", "name", "role", "app", "env", "loc", "interfaces", "public_ip", "href", "description", "os_id", "os_detail", "datacenter", "external_data_set", "external_data_reference", "machine_authentication_id"}}
+	csvOut := [][]string{{"hostname", "name", "role", "app", "env", "loc", "interfaces", "public_ip", "href", "description", "os_id", "os_detail", "datacenter", "external_data_reference", "machine_authentication_id"}}
 	stdOut := [][]string{{"hostname", "role", "app", "env", "loc", "distinguished_name"}}
 
 	for _, w := range swklds {
@@ -160,21 +171,23 @@ func edgeadmin() {
 			if *w.Deleted {
 				continue
 			}
-
-			// Get interfaces
-			interfaces := []string{}
-			for _, i := range w.Interfaces {
-				ipAddress := fmt.Sprintf("%s:%s", i.Name, i.Address)
-				if i.CidrBlock != nil && *i.CidrBlock != 0 {
-					ipAddress = fmt.Sprintf("%s:%s/%s", i.Name, i.Address, strconv.Itoa(*i.CidrBlock))
-				}
-				interfaces = append(interfaces, ipAddress)
+			//remove workloads that are on both fromPCE and toPCE leaving only stale toPCE UMWL.
+			if _, ok := toPCEonlywklds[w.Hostname+w.Agent.Href]; ok {
+				toPCEonlywklds[w.Hostname+w.Agent.Href] = ""
 			}
 
-			csvOut = append(csvOut, []string{w.Hostname, w.Name, w.GetRole(sPce.LabelMapH).Value, coreApp, coreEnv, coreLoc, "", w.PublicIP, w.Href, w.Description, w.OsID, w.OsDetail, w.DataCenter, w.ExternalDataSet, w.Hostname + w.Href, w.DistinguishedName})
-			stdOut = append(stdOut, []string{w.Hostname, w.GetRole(sPce.LabelMapH).Value, coreApp, coreEnv, coreLoc, w.GetMode()})
+			csvOut = append(csvOut, []string{w.Hostname, w.Name, w.GetRole(sPce.Labels).Value, coreApp, coreEnv, coreLoc, "", w.PublicIP, w.Href, w.Description, w.OsID, w.OsDetail, w.DataCenter, w.Hostname + w.Agent.Href, w.DistinguishedName})
+			stdOut = append(stdOut, []string{w.Hostname, w.GetRole(sPce.Labels).Value, coreApp, coreEnv, coreLoc, w.GetMode()})
 		} else {
 			utils.LogInfo("no Workloads created.", true)
+		}
+	}
+
+	//Flatten and remove matched workloads on destination PCE
+	var listumwldel []string
+	for _, href := range toPCEonlywklds {
+		if href != "" {
+			listumwldel = append(listumwldel, href)
 		}
 	}
 
@@ -186,7 +199,13 @@ func edgeadmin() {
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !input.UpdatePCE {
-		utils.LogInfo(fmt.Sprintln("See the output file for Workloads that would be created. Run again using --to-pce and --update-pce flags to create the IP lists."), true)
+		utils.LogInfo(fmt.Sprintln("\"--update-pce\" not specified.  See the output file for Workloads that would be created/updated. Run again using --update-pce flags to create the UMWLs."), true)
+		utils.LogEndCommand("edge-admin")
+		return
+	}
+
+	if toPCE == "" {
+		utils.LogInfo(fmt.Sprintln("\"--to-pce\" not specified.  See the output file for Workloads that would be created/updated. Run again using --to-pce flags to create the IP lists."), true)
 		utils.LogEndCommand("edge-admin")
 		return
 	}
@@ -194,6 +213,32 @@ func edgeadmin() {
 	// If we get here, create the workloads on dest PCE using wkld-import
 	utils.LogInfo(fmt.Sprintf("calling workloader edge-admin to import %s to %s", outputFileName, toPCE), true)
 	wkldimport.ImportWkldsFromCSV(input)
+	if !keepTempFile {
+		if err := os.Remove(outputFileName); err != nil {
+			utils.LogWarning(fmt.Sprintf("Could not delete %s", outputFileName), true)
+		} else {
+			utils.LogInfo(fmt.Sprintf("Deleted %s", outputFileName), false)
+		}
+	}
 
+	//Check to see if you should remove old UMWL on dest PCE...end if not otherwise continue
+	if !delStaleUMWL {
+		utils.LogEndCommand("edge-admin")
+		return
+	}
+
+	var delInput delete.Input
+	delInput.PCE = input.PCE
+
+	//Remove all HREFs that have not been matched on only if SYNC option is select
+	for _, href := range listumwldel {
+		a, _ := input.PCE.DeleteHref(href)
+		utils.LogAPIResp("DeleteHref", a)
+		if a.StatusCode != 204 {
+			utils.LogWarning(fmt.Sprintf("%s - not deleted - status code %d", href, a.StatusCode), true)
+		} else if a.StatusCode == 204 {
+			utils.LogInfo(fmt.Sprintf("%s - deleted - status code %d", href, a.StatusCode), true)
+		}
+	}
 	utils.LogEndCommand("edge-admin")
 }
