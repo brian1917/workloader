@@ -119,6 +119,9 @@ func ImportRulesFromCSV(input Input) {
 	var needWklds, needVirtualServices, needVirtualServers, needLabelGroups, needUserGroups bool
 	csvRuleSetChecker := make(map[string]bool)
 
+	// Create neededObjects for logging
+	neededObjects := map[string]bool{"labels": true, "ip_lists": true, "services": true}
+
 	for i, l := range csvInput {
 		// Skip the header row
 		if i == 0 {
@@ -129,27 +132,35 @@ func ImportRulesFromCSV(input Input) {
 		// Add to the checker map
 		csvRuleSetChecker[l[input.Headers[ruleexport.HeaderRulesetName]]] = true
 		if index, ok := input.Headers[ruleexport.HeaderProviderWorkloads]; ok && l[index] != "" {
+			neededObjects["workloads"] = true
 			needWklds = true
 		}
 		if index, ok := input.Headers[ruleexport.HeaderConsumerWorkloads]; ok && l[index] != "" {
+			neededObjects["workloads"] = true
 			needWklds = true
 		}
 		if index, ok := input.Headers[ruleexport.HeaderProviderVirtualServices]; ok && l[index] != "" {
+			neededObjects["virtual_services"] = true
 			needVirtualServices = true
 		}
 		if index, ok := input.Headers[ruleexport.HeaderConsumerVirtualServices]; ok && l[index] != "" {
+			neededObjects["virtual_services"] = true
 			needVirtualServices = true
 		}
 		if index, ok := input.Headers[ruleexport.HeaderProviderVirtualServers]; ok && l[index] != "" {
+			neededObjects["virtual_servers"] = true
 			needVirtualServers = true
 		}
 		if index, ok := input.Headers[ruleexport.HeaderConsumerLabelGroup]; ok && l[index] != "" {
+			neededObjects["label_groups"] = true
 			needLabelGroups = true
 		}
 		if index, ok := input.Headers[ruleexport.HeaderProviderLabelGroups]; ok && l[index] != "" {
+			neededObjects["label_groups"] = true
 			needLabelGroups = true
 		}
 		if index, ok := input.Headers[ruleexport.HeaderConsumerUserGroups]; ok && l[index] != "" {
+			neededObjects["consuming_security_principals"] = true
 			needUserGroups = true
 		}
 	}
@@ -175,30 +186,38 @@ func ImportRulesFromCSV(input Input) {
 				// Iterate through consumers to see if any consumers have virtual services or workloads
 				for _, c := range r.Consumers {
 					if c.VirtualService != nil {
+						neededObjects["virtual_services"] = true
 						needVirtualServices = true
 					}
 					if c.Workload != nil {
+						neededObjects["workloads"] = true
 						needWklds = true
 					}
 					if c.LabelGroup != nil {
+						neededObjects["label_groups"] = true
 						needLabelGroups = true
 					}
 					if r.ConsumingSecurityPrincipals != nil && len(r.ConsumingSecurityPrincipals) > 0 {
+						neededObjects["consuming_security_principals"] = true
 						needUserGroups = true
 					}
 				}
 				// Iterate through providers to see if any providers have virtual servers, virtual services, or workloads
 				for _, p := range r.Providers {
 					if p.VirtualServer != nil {
+						neededObjects["virtual_servers"] = true
 						needVirtualServers = true
 					}
 					if p.VirtualService != nil {
+						neededObjects["virtual_services"] = true
 						needVirtualServices = true
 					}
 					if p.Workload != nil {
+						neededObjects["workloads"] = true
 						needWklds = true
 					}
 					if p.LabelGroup != nil {
+						neededObjects["label_groups"] = true
 						needLabelGroups = true
 					}
 				}
@@ -207,110 +226,24 @@ func ImportRulesFromCSV(input Input) {
 
 	}
 
-	// Get all labels
-	utils.LogInfo("Getting all labels...", true)
-	input.PCE.GetLabelMaps()
-
-	// Get all IPLists by name
-	utils.LogInfo("Getting all IP lists...", true)
-	allIPLs, a, err := input.PCE.GetAllDraftIPLists()
-	utils.LogAPIResp("GetAllDraftIPLists", a)
-	if err != nil {
+	// Get the objects we need
+	neededObjectsSlice := []string{}
+	for n := range neededObjects {
+		neededObjectsSlice = append(neededObjectsSlice, n)
+	}
+	utils.LogInfo(fmt.Sprintf("getting %s ...", strings.Join(neededObjectsSlice, ", ")), true)
+	if err := input.PCE.Load(illumioapi.LoadInput{
+		ProvisionStatus:             "draft",
+		Labels:                      true,
+		IPLists:                     true,
+		Services:                    true,
+		Workloads:                   needWklds,
+		LabelGroups:                 needLabelGroups,
+		VirtualServers:              needVirtualServers,
+		VirtualServices:             needVirtualServices,
+		ConsumingSecurityPrincipals: needUserGroups,
+	}); err != nil {
 		utils.LogError(err.Error())
-	}
-	iplMap := make(map[string]illumioapi.IPList)
-	for _, ipl := range allIPLs {
-		iplMap[ipl.Name] = ipl
-		iplMap[ipl.Href] = ipl
-	}
-
-	// Get all label groups by name
-	lgMap := make(map[string]illumioapi.LabelGroup)
-	if needLabelGroups {
-		utils.LogInfo("Getting all label groups...", true)
-		allLGs, a, err := input.PCE.GetAllLabelGroups("draft")
-		utils.LogAPIResp("GetAllLabelGroups", a)
-		if err != nil {
-			utils.LogError(err.Error())
-		}
-		for _, lg := range allLGs {
-			lgMap[lg.Name] = lg
-			lgMap[lg.Href] = lg
-		}
-	}
-
-	// Get all workloads by name
-	wkldMap := make(map[string]illumioapi.Workload)
-	if needWklds {
-		utils.LogInfo("Getting all workloads...", true)
-		allWklds, a, err := input.PCE.GetAllWorkloadsQP(nil)
-		utils.LogAPIResp("GetAllWorkloadsQP", a)
-		if err != nil {
-			utils.LogError(err.Error())
-		}
-		for _, wkld := range allWklds {
-			wkldMap[wkld.Hostname] = wkld
-			wkldMap[wkld.Href] = wkld
-			wkldMap[wkld.Name] = wkld
-		}
-	}
-
-	// Get all virtual servicse by name
-	virtualServiceMap := make(map[string]illumioapi.VirtualService)
-	if needVirtualServices {
-		utils.LogInfo("Getting all virtual services...", true)
-		allVirtualServices, a, err := input.PCE.GetAllVirtualServices(nil, "draft")
-		utils.LogAPIResp("GetAllVirtualServices", a)
-		if err != nil {
-			utils.LogError(err.Error())
-		}
-		for _, vs := range allVirtualServices {
-			virtualServiceMap[vs.Name] = vs
-			virtualServiceMap[vs.Href] = vs
-		}
-	}
-
-	// Get all virtual servers by name
-	virtualServerMap := make(map[string]illumioapi.VirtualServer)
-	if needVirtualServers {
-		utils.LogInfo("Getting all virtual servers...", true)
-		allVirtualServers, a, err := input.PCE.GetAllVirtualServers("draft")
-		utils.LogAPIResp("GetAllVirtualServers", a)
-		if err != nil {
-			utils.LogError(err.Error())
-		}
-		for _, vs := range allVirtualServers {
-			virtualServerMap[vs.Name] = vs
-			virtualServerMap[vs.Href] = vs
-		}
-	}
-
-	// Get all services by name
-	utils.LogInfo("Getting all services...", true)
-	allSvcs, a, err := input.PCE.GetAllServices("draft")
-	utils.LogAPIResp("GetAllServices", a)
-	if err != nil {
-		utils.LogError(err.Error())
-	}
-	svcNameMap := make(map[string]illumioapi.Service)
-	for _, svc := range allSvcs {
-		svcNameMap[svc.Name] = svc
-		svcNameMap[svc.Href] = svc
-	}
-
-	// Get the user groups
-	userGroupMapName := make(map[string]illumioapi.ConsumingSecurityPrincipals)
-	if needUserGroups {
-		utils.LogInfo("Getting all usergroups...", true)
-		userGroups, a, err := input.PCE.GetAllADUserGroups()
-		if err != nil {
-			utils.LogError(err.Error())
-		}
-		utils.LogAPIResp("GetAllADUserGroups", a)
-		for _, ug := range userGroups {
-			userGroupMapName[ug.Name] = ug
-			userGroupMapName[ug.Href] = ug
-		}
 	}
 
 	// Create a toAdd data struct
@@ -389,7 +322,7 @@ CSVEntries:
 			if l[c] == "" {
 				consCSVipls = nil
 			}
-			iplChange, ipls := iplComparison(consCSVipls, rHrefMap[rowRuleHref], iplMap, i+1, false)
+			iplChange, ipls := iplComparison(consCSVipls, rHrefMap[rowRuleHref], input.PCE.IPLists, i+1, false)
 			if iplChange {
 				update = true
 			}
@@ -404,7 +337,7 @@ CSVEntries:
 			if l[c] == "" {
 				consCSVwklds = nil
 			}
-			wkldChange, wklds := wkldComparison(consCSVwklds, rHrefMap[rowRuleHref], wkldMap, i+1, false)
+			wkldChange, wklds := wkldComparison(consCSVwklds, rHrefMap[rowRuleHref], input.PCE.Workloads, i+1, false)
 			if wkldChange {
 				update = true
 			}
@@ -419,7 +352,7 @@ CSVEntries:
 			if l[c] == "" {
 				consCSVVSs = nil
 			}
-			vsChange, virtualServices := virtualServiceCompare(consCSVVSs, rHrefMap[rowRuleHref], virtualServiceMap, i+1, false)
+			vsChange, virtualServices := virtualServiceCompare(consCSVVSs, rHrefMap[rowRuleHref], input.PCE.VirtualServices, i+1, false)
 			if vsChange {
 				update = true
 			}
@@ -434,7 +367,7 @@ CSVEntries:
 			if l[c] == "" {
 				consCSVlgs = nil
 			}
-			lgChange, lgs := lgComparison(consCSVlgs, rHrefMap[rowRuleHref], lgMap, i+1, false)
+			lgChange, lgs := lgComparison(consCSVlgs, rHrefMap[rowRuleHref], input.PCE.LabelGroups, i+1, false)
 			if lgChange {
 				update = true
 			}
@@ -471,7 +404,7 @@ CSVEntries:
 				csvUserGroups = nil
 			}
 			var ugUpdate bool
-			ugUpdate, consumingSecPrincipals = userGroupComaprison(csvUserGroups, rHrefMap[rowRuleHref], userGroupMapName, i+1)
+			ugUpdate, consumingSecPrincipals = userGroupComaprison(csvUserGroups, rHrefMap[rowRuleHref], input.PCE.ConsumingSecurityPrincipals, i+1)
 			if ugUpdate {
 				update = true
 			}
@@ -530,7 +463,7 @@ CSVEntries:
 			if l[c] == "" {
 				provCSVipls = nil
 			}
-			iplChange, ipls := iplComparison(provCSVipls, rHrefMap[rowRuleHref], iplMap, i+1, true)
+			iplChange, ipls := iplComparison(provCSVipls, rHrefMap[rowRuleHref], input.PCE.IPLists, i+1, true)
 			if iplChange {
 				update = true
 			}
@@ -545,7 +478,7 @@ CSVEntries:
 			if l[c] == "" {
 				provsCSVwklds = nil
 			}
-			wkldChange, wklds := wkldComparison(provsCSVwklds, rHrefMap[rowRuleHref], wkldMap, i+1, true)
+			wkldChange, wklds := wkldComparison(provsCSVwklds, rHrefMap[rowRuleHref], input.PCE.Workloads, i+1, true)
 			if wkldChange {
 				update = true
 			}
@@ -560,7 +493,7 @@ CSVEntries:
 			if l[c] == "" {
 				provCSVVSs = nil
 			}
-			vsChange, virtualServices := virtualServiceCompare(provCSVVSs, rHrefMap[rowRuleHref], virtualServiceMap, i+1, true)
+			vsChange, virtualServices := virtualServiceCompare(provCSVVSs, rHrefMap[rowRuleHref], input.PCE.VirtualServices, i+1, true)
 			if vsChange {
 				update = true
 			}
@@ -575,7 +508,7 @@ CSVEntries:
 			if l[c] == "" {
 				provCSVlgs = nil
 			}
-			lgChange, lgs := lgComparison(provCSVlgs, rHrefMap[rowRuleHref], lgMap, i+1, true)
+			lgChange, lgs := lgComparison(provCSVlgs, rHrefMap[rowRuleHref], input.PCE.LabelGroups, i+1, true)
 			if lgChange {
 				update = true
 			}
@@ -592,7 +525,7 @@ CSVEntries:
 			if l[c] == "" {
 				csvServices = nil
 			}
-			svcChange, ingressSvc = serviceComparison(csvServices, rHrefMap[rowRuleHref], svcNameMap, i+1)
+			svcChange, ingressSvc = serviceComparison(csvServices, rHrefMap[rowRuleHref], input.PCE.Services, i+1)
 			if svcChange {
 				update = true
 			}
