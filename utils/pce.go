@@ -21,7 +21,7 @@ func GetDefaultPCE(GetLabelMaps bool) (illumioapi.PCE, error) {
 
 	// Get the default PCE name
 	if viper.Get("default_pce_name") == nil {
-		LogError("There is not default pce. Either run workloader pce-add to add your first pce or workloader set-default to set an existing PCE as default.")
+		LogError("there is not default pce. either run workloader pce-add to add your first pce or workloader set-default to set an existing PCE as default.")
 	}
 	defaultPCE := viper.Get("default_pce_name").(string)
 
@@ -29,12 +29,14 @@ func GetDefaultPCE(GetLabelMaps bool) (illumioapi.PCE, error) {
 	if viper.IsSet(defaultPCE + ".fqdn") {
 		pce = illumioapi.PCE{FQDN: viper.Get(defaultPCE + ".fqdn").(string), Port: viper.Get(defaultPCE + ".port").(int), Org: viper.Get(defaultPCE + ".org").(int), User: viper.Get(defaultPCE + ".user").(string), Key: viper.Get(defaultPCE + ".key").(string), DisableTLSChecking: viper.Get(defaultPCE + ".disableTLSChecking").(bool)}
 		if GetLabelMaps {
-			pce.Load(illumioapi.LoadInput{Labels: true})
+			if err := pce.Load(illumioapi.LoadInput{Labels: true}); err != nil {
+				LogError(err.Error())
+			}
 		}
 		return pce, nil
 	}
 
-	return illumioapi.PCE{}, fmt.Errorf("Could not retrieve PCE information - run workloader login command")
+	return illumioapi.PCE{}, fmt.Errorf("could not retrieve PCE information - run workloader login command")
 }
 
 // GetPCEbyName gets a PCE by it's provided name
@@ -43,7 +45,9 @@ func GetPCEbyName(name string, GetLabelMaps bool) (illumioapi.PCE, error) {
 	if viper.IsSet(name + ".fqdn") {
 		pce = illumioapi.PCE{FQDN: viper.Get(name + ".fqdn").(string), Port: viper.Get(name + ".port").(int), Org: viper.Get(name + ".org").(int), User: viper.Get(name + ".user").(string), Key: viper.Get(name + ".key").(string), DisableTLSChecking: viper.Get(name + ".disableTLSChecking").(bool)}
 		if GetLabelMaps {
-			pce.Load(illumioapi.LoadInput{Labels: true})
+			if err := pce.Load(illumioapi.LoadInput{Labels: true}); err != nil {
+				LogError(err.Error())
+			}
 		}
 		return pce, nil
 	}
