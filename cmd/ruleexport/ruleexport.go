@@ -128,16 +128,14 @@ func ExportRules(input Input) {
 	}
 
 	// Run through rulesets to see what we need
-	var needWklds, needLabelGroups, needVirtualServices, needVirtualServers bool
+	var needWklds, needLabelGroups, needVirtualServices, needVirtualServers, needUserGroups bool
 	// Needed objects is for logging. Only add to this slice first time (when value is false and switches to true)
-	neededObjcets := []string{"labels", "iplists", "services"}
+	neededObjects := map[string]bool{"labels": true, "ip_lists": true, "services": true}
 	for _, rs := range allRuleSets {
 		for _, scopes := range rs.Scopes {
 			for _, scopeEntity := range scopes {
 				if scopeEntity.LabelGroup != nil {
-					if !needLabelGroups {
-						neededObjcets = append(neededObjcets, "label groups")
-					}
+					neededObjects["label_group"] = true
 					needLabelGroups = true
 				}
 			}
@@ -145,69 +143,65 @@ func ExportRules(input Input) {
 		for _, r := range rs.Rules {
 			for _, c := range r.Consumers {
 				if c.Workload != nil {
-					if !needWklds {
-						neededObjcets = append(neededObjcets, "workloads")
-					}
+					neededObjects["workloads"] = true
 					needWklds = true
 				}
 				if c.VirtualService != nil {
-					if !needVirtualServices {
-						neededObjcets = append(neededObjcets, "virtual services")
-					}
+					neededObjects["virtual_services"] = true
 					needVirtualServices = true
 				}
 				if c.LabelGroup != nil {
-					if !needLabelGroups {
-						neededObjcets = append(neededObjcets, "label groups")
-					}
+					neededObjects["label_groups"] = true
 					needLabelGroups = true
 				}
 			}
 			for _, p := range r.Providers {
 				if p.Workload != nil {
-					if !needWklds {
-						neededObjcets = append(neededObjcets, "workloads")
-					}
+					neededObjects["workloads"] = true
 					needWklds = true
 				}
 				if p.VirtualService != nil {
-					if !needVirtualServices {
-						neededObjcets = append(neededObjcets, "virtual services")
-					}
+					neededObjects["virtual_services"] = true
 					needVirtualServices = true
 				}
 				if p.VirtualServer != nil {
-					if !needVirtualServers {
-						neededObjcets = append(neededObjcets, "virtual servers")
-					}
+					neededObjects["virtual_servers"] = true
 					needVirtualServers = true
 				}
 				if p.LabelGroup != nil {
-					if !needLabelGroups {
-						neededObjcets = append(neededObjcets, "labelgroups")
-					}
+					neededObjects["label_groups"] = true
 					needLabelGroups = true
 				}
+			}
+			if r.ConsumingSecurityPrincipals != nil && len(r.ConsumingSecurityPrincipals) > 0 {
+				neededObjects["consuming_security_principals"] = true
+				needUserGroups = true
 			}
 		}
 	}
 
 	// Check if we need workloads for checking detail
 	if input.TrafficCount && !input.SkipWkldDetailCheck {
+		neededObjects["workloads"] = true
 		needWklds = true
 	}
 
 	// Load the PCE with the relevant obects (save unnecessary expensive potentially large GETs)
-	utils.LogInfo(fmt.Sprintf("getting %s ...", strings.Join(neededObjcets, ", ")), true)
+	neededObjectsSlice := []string{}
+	for n := range neededObjects {
+		neededObjectsSlice = append(neededObjectsSlice, n)
+	}
+	utils.LogInfo(fmt.Sprintf("getting %s ...", strings.Join(neededObjectsSlice, ", ")), true)
 	if err = input.PCE.Load(illumioapi.LoadInput{
-		Labels:          true,
-		IPLists:         true,
-		Services:        true,
-		LabelGroups:     needLabelGroups,
-		Workloads:       needWklds,
-		VirtualServices: needVirtualServices,
-		VirtualServers:  needVirtualServers,
-		ProvisionStatus: input.PolicyVersion,
+		Labels:                      true,
+		IPLists:                     true,
+		Services:                    true,
+		ConsumingSecurityPrincipals: needUserGroups,
+		LabelGroups:                 needLabelGroups,
+		Workloads:                   needWklds,
+		VirtualServices:             needVirtualServices,
+		VirtualServers:              needVirtualServers,
+		ProvisionStatus:             input.PolicyVersion,
 	}); err != nil {
 		utils.LogError(err.Error())
 	}
@@ -459,7 +453,7 @@ func ExportRules(input Input) {
 			// Consuming Security Principals
 			consumingSecPrincipals := []string{}
 			for _, csp := range r.ConsumingSecurityPrincipals {
-				consumingSecPrincipals = append(consumingSecPrincipals, csp.Name)
+				consumingSecPrincipals = append(consumingSecPrincipals, input.PCE.ConsumingSecurityPrincipals[csp.Href].Name)
 			}
 			csvEntryMap[HeaderConsumerUserGroups] = strings.Join(consumingSecPrincipals, ";")
 
