@@ -100,13 +100,6 @@ func labelGroupImport() {
 		pceLGKeyNameMap[lg.Key+lg.Name] = lg
 	}
 
-	// Get the PCE Label Maps
-	a, err = pce.GetLabelMaps()
-	utils.LogAPIResp("GetLabelMaps", a)
-	if err != nil {
-		utils.LogError(err.Error())
-	}
-
 	// Create the csvParse
 	c := csvParser{}
 
