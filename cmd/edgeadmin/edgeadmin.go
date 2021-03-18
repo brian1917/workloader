@@ -152,16 +152,14 @@ func edgeadmin() {
 			continue
 		}
 
-		// Remove workloads that are on both fromPCE and toPCE leaving only stale toPCE UMWL.
-
 		// Set role, app, env, and location to assigned values
 		role, app, env, loc := coreRole, coreApp, coreEnv, coreLoc
 
 		// Check if the endpoint has been created already in the toPCE.
 		if _, ok := toPCEonlywklds[edgeGroup+"%"+w.Hostname+w.Agent.Href]; ok {
-			// Override the  labels
+			// Override the  labels with blank values so nothing changes
 			role, app, env, loc = "", "", "", ""
-			// Remove value from the map
+			// Remove value from the map so it's not deleted later.
 			delete(toPCEonlywklds, edgeGroup+"%"+w.Hostname+w.Agent.Href)
 		}
 
