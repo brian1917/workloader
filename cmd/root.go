@@ -12,6 +12,7 @@ import (
 	"github.com/brian1917/workloader/cmd/delete"
 	"github.com/brian1917/workloader/cmd/deleteunusedlabels"
 	"github.com/brian1917/workloader/cmd/dupecheck"
+	"github.com/brian1917/workloader/cmd/edgeadmin"
 	"github.com/brian1917/workloader/cmd/edgerulecopy"
 	"github.com/brian1917/workloader/cmd/explorer"
 	"github.com/brian1917/workloader/cmd/extract"
@@ -148,6 +149,7 @@ func init() {
 	// Edge Commands
 	RootCmd.AddCommand(wkldtoipl.WorkloadToIPLCmd)
 	RootCmd.AddCommand(edgerulecopy.EdgeRuleCopyCmd)
+	RootCmd.AddCommand(edgeadmin.EdgeAdminCmd)
 
 	// Version Commands
 	RootCmd.AddCommand(versionCmd)

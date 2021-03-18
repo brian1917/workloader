@@ -1,4 +1,4 @@
-package delete
+package deletehrefs
 
 import (
 	"fmt"
@@ -13,7 +13,6 @@ import (
 
 // Set global variables for flags
 var headerValue string
-var debug bool
 var err error
 
 // Input is the input type for the Delete method
@@ -54,11 +53,10 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 		input.getHrefs(args[0])
 
 		// Get persistent flags from Viper
-		debug = viper.Get("debug").(bool)
 		input.UpdatePCE = viper.Get("update_pce").(bool)
 		input.NoPrompt = viper.Get("no_prompt").(bool)
 
-		Delete(input)
+		DeleteHrefs(input)
 	},
 }
 
@@ -107,7 +105,7 @@ func (i *Input) getHrefs(userInput string) {
 }
 
 // Delete runs the delete command
-func Delete(input Input) {
+func DeleteHrefs(input Input) {
 
 	// Log Start of the command
 	utils.LogStartCommand("delete")
