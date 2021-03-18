@@ -13,5 +13,3 @@ _playground/*
 *support-portal*
 deploy.sh
 .VSCodeCounter
-go.mod
-go.sum
