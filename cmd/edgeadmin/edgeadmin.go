@@ -15,7 +15,7 @@ import (
 )
 
 var debug, doNotProvision, keepTempFile, delStaleUMWL bool
-var csvFile, fromPCE, toPCE, outputFileName, edgeGroup, coreApp, coreEnv, coreLoc, refHeader string
+var csvFile, fromPCE, toPCE, outputFileName, edgeGroup, coreRole, coreApp, coreEnv, coreLoc, refHeader string
 var input wkldimport.Input
 
 func init() {
@@ -24,10 +24,10 @@ func init() {
 	EdgeAdminCmd.Flags().StringVarP(&toPCE, "to-pce", "t", "", "Name of the PCE to import into Edge Admin group endpoints as UMWL. Only required if using --update-pce flag")
 	EdgeAdminCmd.Flags().StringVarP(&edgeGroup, "edge-group", "g", "", "Name of the Edge group to be copied to destination PCE. Required")
 	EdgeAdminCmd.MarkFlagRequired("edge-group")
-	EdgeAdminCmd.Flags().StringVarP(&coreApp, "core-app", "a", "", "Set App Label to be added to group when imported into PCE.")
-	EdgeAdminCmd.Flags().StringVarP(&coreEnv, "core-env", "e", "", "Set Env Label to be added to group when imported into PCE.")
-	EdgeAdminCmd.Flags().StringVarP(&coreLoc, "core-loc", "l", "", "Set Loc Label to be added to group when imported into PCE.")
-	EdgeAdminCmd.Flags().StringVarP(&refHeader, "ref-head", "r", "workloader-", "Manually set string used as match criteria for UMWL added by tool.  Default \"workloader-\".")
+	EdgeAdminCmd.Flags().StringVarP(&coreRole, "core-role", "r", "", "Overide Edge Group Label with this Label when imported into PCE.")
+	EdgeAdminCmd.Flags().StringVarP(&coreApp, "core-app", "a", "", "Set App Label to be added to UMWL when imported into PCE.")
+	EdgeAdminCmd.Flags().StringVarP(&coreEnv, "core-env", "e", "", "Set Env Label to be added to UMWL when imported into PCE.")
+	EdgeAdminCmd.Flags().StringVarP(&coreLoc, "core-loc", "l", "", "Set Loc Label to be added to UMWL when imported into PCE.")
 	EdgeAdminCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 	EdgeAdminCmd.Flags().BoolVarP(&keepTempFile, "keep-temp-file", "k", false, "Do not delete the temp CSV file created to update/create workloads on destination PCE.")
 	EdgeAdminCmd.Flags().BoolVarP(&delStaleUMWL, "del-stale-umwl", "d", false, "Remove stale unmanaged endpoints from PCE that do not have a corresponding endpoint on Edge. Default - do not delete.")
@@ -102,6 +102,14 @@ func edgeadmin() {
 		utils.LogError(fmt.Sprintf("error finding Edge group - %s.  Please reenter with exact Edge group name", edgeGroup))
 	}
 
+	var role string
+	//Check to see if you will be overriding edge-group with core-role option.
+	if coreRole != "" {
+		role = coreRole
+	} else {
+		role = edgeGroup
+	}
+
 	//get all UMWL with the correct Admin Group label.
 	queryP := map[string]string{"labels": fmt.Sprintf("[[\"%s\"]]", slabel.Href)}
 	queryP["managed"] = "true"
@@ -123,10 +131,9 @@ func edgeadmin() {
 			utils.LogError(fmt.Sprintf("error getting to pce - %s", err))
 		}
 
-		//create filter to get all workloads that are unmanaged and already labe the group and set labels,
 		//queryP := map[string]string{"labels": "[[\"" + strings.Join(labelfilter, "\",\"") + "\"]]"}
 		queryP := map[string]string{"managed": "false"}
-		// Get all workloads from the destination PCE
+		// Get all UMWL workloads from the destination PCE
 		tmpdwklds, a, err := input.PCE.GetAllWorkloadsQP(queryP)
 		utils.LogAPIResp("GetAllWorkloads", a)
 		if err != nil {
@@ -134,7 +141,7 @@ func edgeadmin() {
 		}
 
 		for _, dw := range tmpdwklds {
-			tmp := strings.Index(dw.ExternalDataReference, refHeader)
+			tmp := strings.Index(dw.ExternalDataReference, edgeGroup)
 			if tmp == 0 {
 				toPCEonlywklds[dw.ExternalDataReference] = dw.Href
 			}
@@ -159,13 +166,13 @@ func edgeadmin() {
 
 			//label := w.GetRole(sPce.Labels).Value
 			//remove workloads that are on both fromPCE and toPCE leaving only stale toPCE UMWL.
-			tmpedgeGroup, tmpcoreApp, tmpcoreEnv, tmpcoreLoc := edgeGroup, coreApp, coreEnv, coreLoc
-			if _, ok := toPCEonlywklds[refHeader+w.Hostname+w.Agent.Href]; ok {
-				toPCEonlywklds[refHeader+w.Hostname+w.Agent.Href] = ""
+			tmpedgeGroup, tmpcoreApp, tmpcoreEnv, tmpcoreLoc := role, coreApp, coreEnv, coreLoc
+			if _, ok := toPCEonlywklds[edgeGroup+"%"+w.Hostname+w.Agent.Href]; ok {
+				toPCEonlywklds[edgeGroup+"%"+w.Hostname+w.Agent.Href] = ""
 				tmpedgeGroup, tmpcoreApp, tmpcoreEnv, tmpcoreLoc = "", "", "", ""
 			}
 
-			csvOut = append(csvOut, []string{w.Hostname, w.Name, tmpedgeGroup, tmpcoreApp, tmpcoreEnv, tmpcoreLoc, "", w.PublicIP, w.Href, w.Description, w.OsID, w.OsDetail, w.DataCenter, w.ExternalDataSet, refHeader + w.Hostname + w.Agent.Href, w.DistinguishedName})
+			csvOut = append(csvOut, []string{w.Hostname, w.Name, tmpedgeGroup, tmpcoreApp, tmpcoreEnv, tmpcoreLoc, "", w.PublicIP, w.Href, w.Description, w.OsID, w.OsDetail, w.DataCenter, w.ExternalDataSet, edgeGroup + "%" + w.Hostname + w.Agent.Href, w.DistinguishedName})
 		} else {
 			utils.LogInfo("no Workloads created.", true)
 		}
