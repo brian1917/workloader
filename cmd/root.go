@@ -9,7 +9,7 @@ import (
 
 	"github.com/brian1917/workloader/cmd/checkversion"
 	"github.com/brian1917/workloader/cmd/compatibility"
-	"github.com/brian1917/workloader/cmd/delete"
+	"github.com/brian1917/workloader/cmd/deletehrefs"
 	"github.com/brian1917/workloader/cmd/deleteunusedlabels"
 	"github.com/brian1917/workloader/cmd/dupecheck"
 	"github.com/brian1917/workloader/cmd/edgeadmin"
@@ -130,7 +130,7 @@ func init() {
 	RootCmd.AddCommand(upgrade.UpgradeCmd)
 	RootCmd.AddCommand(getpairingkey.GetPairingKey)
 	RootCmd.AddCommand(unpair.UnpairCmd)
-	RootCmd.AddCommand(delete.DeleteCmd)
+	RootCmd.AddCommand(deletehrefs.DeleteCmd)
 	RootCmd.AddCommand(umwlcleanup.UMWLCleanUpCmd)
 	RootCmd.AddCommand(nicmanage.NICManageCmd)
 
