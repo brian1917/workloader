@@ -15,10 +15,9 @@ import (
 
 // Global variables
 var snowTable, snowUser, snowPwd, snowMatchField, snowRole, snowApp, snowEnv, snowLoc, snowIP string
-var umwl, keepTempFile, keepAllPCEInterfaces, fqdnToHostname, debug, updatePCE, noPrompt bool
+var umwl, keepTempFile, keepAllPCEInterfaces, fqdnToHostname, updatePCE, noPrompt bool
 var pce illumioapi.PCE
 var err error
-var newLabels []illumioapi.Label
 
 func init() {
 
@@ -64,7 +63,6 @@ Recommended to run without --update-pce first to log of what will change. If --u
 		}
 
 		// Get the debug value from viper
-		debug = viper.Get("debug").(bool)
 		updatePCE = viper.Get("update_pce").(bool)
 		noPrompt = viper.Get("no_prompt").(bool)
 
@@ -94,19 +92,15 @@ func snowsync() {
 		snURL = snURL + "," + url.QueryEscape(snowIP)
 	}
 	fmt.Println(snURL)
-	snowCSVFile := snhttp(snURL)
+	snowCSVFile, err := snhttp(snURL)
+	if err != nil {
+		utils.LogError(err.Error())
+	}
 
 	// Call the workloader import command
 	f := wkldimport.Input{
 		ImportFile:           snowCSVFile,
 		PCE:                  pce,
-		MatchIndex:           1,
-		RoleIndex:            2,
-		AppIndex:             3,
-		EnvIndex:             4,
-		LocIndex:             5,
-		IntIndex:             6,
-		NameIndex:            7,
 		Umwl:                 umwl,
 		KeepAllPCEInterfaces: keepAllPCEInterfaces,
 		FQDNtoHostname:       fqdnToHostname,

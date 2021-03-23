@@ -11,10 +11,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/brian1917/workloader/cmd/wkldexport"
+
 	"github.com/brian1917/workloader/utils"
 )
 
-func snhttp(url string) string {
+func snhttp(url string) (string, error) {
 
 	// Create HTTP Client
 	tr := &http.Transport{
@@ -45,8 +47,11 @@ func snhttp(url string) string {
 	bodyString := string(bodyBytes)
 	reader := csv.NewReader(strings.NewReader(bodyString))
 	data, err := reader.ReadAll()
+	if err != nil {
+		return "", err
+	}
 
-	finalData := [][]string{{"match", "role", "app", "env", "loc", "interfaces", "name"}}
+	finalData := [][]string{{wkldexport.HeaderHostname, wkldexport.HeaderRole, wkldexport.HeaderApp, wkldexport.HeaderEnv, wkldexport.HeaderLoc, wkldexport.HeaderInterfaces}}
 	for i, d := range data {
 		if i == 0 {
 			continue
@@ -96,9 +101,6 @@ func snhttp(url string) string {
 			x = append(x, d[5-adjustment])
 		}
 
-		// Blank name field
-		x = append(x, "")
-
 		// Append to the final data
 		finalData = append(finalData, x)
 	}
@@ -116,5 +118,5 @@ func snhttp(url string) string {
 	}
 	utils.LogInfo(fmt.Sprintf("Created temp SNOW file - %s.", snowDataFileName), false)
 
-	return snowDataFileName
+	return snowDataFileName, nil
 }

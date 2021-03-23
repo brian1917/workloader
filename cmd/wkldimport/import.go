@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/brian1917/workloader/cmd/wkldexport"
+
 	"github.com/brian1917/illumioapi"
 
 	"github.com/brian1917/workloader/utils"
@@ -73,24 +75,17 @@ func ImportWkldsFromCSV(input Input) {
 	// Process the headers
 	input.processHeaders(data[0])
 
-	// Adjust the columns by one
-	input.decreaseColBy1()
-
 	// Log our intput
 	input.log()
 
-	// Get the workload map by href
-	utils.LogInfo("Starting GET all workloads.", true)
-	wkldMap, a, err := input.PCE.GetWkldHrefMap()
-	utils.LogAPIResp("GetWkldHrefMap", a)
-	if err != nil {
-		utils.LogError(fmt.Sprintf("getting workload href map - %s", err))
+	// Check if we have the workload map populate
+	if input.PCE.Workloads == nil {
+		utils.LogError("input PCE cannot have nil workload map. Load workloads.")
 	}
-	utils.LogInfo(fmt.Sprintf("GET all workloads complete - %d workloads", len(wkldMap)), true)
 
 	// Get the hostnames
 	wkldHostNameMap := make(map[string]illumioapi.Workload)
-	for _, w := range wkldMap {
+	for _, w := range input.PCE.Workloads {
 		hostname := w.Hostname
 		if input.FQDNtoHostname {
 			hostname = strings.Split(w.Hostname, ".")[0]
@@ -101,7 +96,7 @@ func ImportWkldsFromCSV(input Input) {
 
 	// Combine the maps
 	for _, w := range wkldHostNameMap {
-		wkldMap[w.Hostname] = w
+		input.PCE.Workloads[w.Hostname] = w
 	}
 
 	// Create slices to hold the workloads we will update and create
@@ -124,25 +119,25 @@ CSVEntries:
 		}
 
 		// Check if we are matching on href or hostname
-		if csvLine == 2 && strings.Contains(line[input.MatchIndex], "/workloads/") && input.Umwl {
+		if csvLine == 2 && strings.Contains(line[*input.MatchIndex], "/workloads/") && input.Umwl {
 			utils.LogError("cannot match on hrefs and create unmanaged workloads")
 		}
 
 		// Check to make sure we have an entry in the match column
-		if line[input.MatchIndex] == "" {
+		if line[*input.MatchIndex] == "" {
 			utils.LogWarning(fmt.Sprintf("CSV line %d - the match column cannot be blank - hostname or href required.", csvLine), true)
 			continue
 		}
 
 		// Check if the workload exists. If it does not exist, check if UMWL is set and take action.
-		if _, ok := wkldMap[line[input.MatchIndex]]; !ok {
+		if _, ok := input.PCE.Workloads[line[*input.MatchIndex]]; !ok {
 			var netInterfaces []*illumioapi.Interface
 			if input.Umwl {
 				// Process if interface is in import and if interface entry has values
-				if input.IntIndex != 99998 && len(line[input.IntIndex]) > 0 {
+				if index, ok := input.Headers[wkldexport.HeaderInterfaces]; ok && len(line[index]) > 0 {
 					// Create the network interfaces
 
-					nics := strings.Split(strings.Replace(line[input.IntIndex], " ", "", -1), ";")
+					nics := strings.Split(strings.Replace(line[index], " ", "", -1), ";")
 					for _, n := range nics {
 						ipInterface, err := userInputConvert(n)
 						if err != nil {
@@ -151,7 +146,7 @@ CSVEntries:
 						netInterfaces = append(netInterfaces, &ipInterface)
 					}
 				} else {
-					utils.LogWarning(fmt.Sprintf("CSV line %d - no interface provided for unmanaged workload %s.", csvLine, line[input.MatchIndex]), true)
+					utils.LogWarning(fmt.Sprintf("CSV line %d - no interface provided for unmanaged workload %s.", csvLine, line[*input.MatchIndex]), true)
 				}
 
 				// Create the labels slice
@@ -160,20 +155,20 @@ CSVEntries:
 				// Create the columns and keys slices
 				columns := []int{}
 				keys := []string{}
-				if input.AppIndex != 99998 {
-					columns = append(columns, input.AppIndex)
+				if _, ok := input.Headers[wkldexport.HeaderApp]; ok {
+					columns = append(columns, input.Headers[wkldexport.HeaderApp])
 					keys = append(keys, "app")
 				}
-				if input.RoleIndex != 99998 {
-					columns = append(columns, input.RoleIndex)
+				if _, ok := input.Headers[wkldexport.HeaderRole]; ok {
+					columns = append(columns, input.Headers[wkldexport.HeaderRole])
 					keys = append(keys, "role")
 				}
-				if input.EnvIndex != 99998 {
-					columns = append(columns, input.EnvIndex)
+				if _, ok := input.Headers[wkldexport.HeaderEnv]; ok {
+					columns = append(columns, input.Headers[wkldexport.HeaderRole])
 					keys = append(keys, "env")
 				}
-				if input.LocIndex != 99998 {
-					columns = append(columns, input.LocIndex)
+				if _, ok := input.Headers[wkldexport.HeaderLoc]; ok {
+					columns = append(columns, input.Headers[wkldexport.HeaderRole])
 					keys = append(keys, "loc")
 				}
 
@@ -191,37 +186,37 @@ CSVEntries:
 
 				// Proces the name
 				var name string
-				if input.NameIndex != 99998 {
-					name = line[input.NameIndex]
+				if index, ok := input.Headers[wkldexport.HeaderName]; ok {
+					name = line[index]
 					if name == "" {
-						name = line[input.MatchIndex]
+						name = line[index]
 					}
 				}
 
 				// Process the Public IP
 				var publicIP string
-				if input.PublicIPIndex != 99998 {
-					if !publicIPIsValid(line[input.PublicIPIndex]) {
+				if index, ok := input.Headers[wkldexport.HeaderPublicIP]; ok {
+					if !publicIPIsValid(line[index]) {
 						utils.LogError(fmt.Sprintf("CSV line %d - invalid Public IP address format.", csvLine))
 					}
-					publicIP = line[input.PublicIPIndex]
+					publicIP = line[index]
 				}
 
 				// Process string variables requiring no logic check.
 				var desc, extDataRef, extDataSet, osID, osDetail, dataCenter, machAuthID string
 				varPtrs := []*string{&desc, &extDataRef, &extDataSet, &osID, &osDetail, &dataCenter, &machAuthID}
-				inpuIndices := []int{input.DescIndex, input.ExtDataRefIndex, input.ExtDataSetIndex, input.OSIDIndex, input.OSDetailIndex, input.DatacenterIndex, input.MachineAuthIDIndex}
+				headers := []string{wkldexport.HeaderDescription, wkldexport.HeaderExternalDataReference, wkldexport.HeaderExternalDataSet, wkldexport.HeaderOsID, wkldexport.HeaderOsDetail, wkldexport.HeaderDataCenter, wkldexport.HeaderMachineAuthenticationID}
 
 				for i, varPtr := range varPtrs {
-					if inpuIndices[i] == 99998 {
+					if _, ok := input.Headers[headers[i]]; !ok {
 						continue
 					}
-					*varPtr = line[inpuIndices[i]]
+					*varPtr = line[input.Headers[headers[i]]]
 				}
 
 				// Create the unmanaged workload object and add to slice
 				w := illumioapi.Workload{
-					Hostname:              line[input.MatchIndex],
+					Hostname:              line[*input.MatchIndex],
 					Name:                  name,
 					Interfaces:            netInterfaces,
 					Labels:                labels,
@@ -249,7 +244,7 @@ CSVEntries:
 				continue
 			} else {
 				// If umwl flag is not set, log the entry
-				utils.LogInfo(fmt.Sprintf("CSV line %d - %s is not a workload. Include umwl flag to create it. Nothing done.", csvLine, line[input.MatchIndex]), false)
+				utils.LogInfo(fmt.Sprintf("CSV line %d - %s is not a workload. Include umwl flag to create it. Nothing done.", csvLine, line[*input.MatchIndex]), false)
 				continue
 			}
 		}
@@ -268,10 +263,10 @@ CSVEntries:
 		columns := []int{}
 		keys := []string{}
 		labels := []illumioapi.Label{}
-		wkld := wkldMap[line[input.MatchIndex]] // Need this since can't perform pointer method on map element
+		wkld := input.PCE.Workloads[line[*input.MatchIndex]] // Need this since can't perform pointer method on map element
 		// Application
-		if input.AppIndex != 99998 {
-			columns = append(columns, input.AppIndex)
+		if index, ok := input.Headers[wkldexport.HeaderApp]; ok {
+			columns = append(columns, index)
 			keys = append(keys, "app")
 			labels = append(labels, wkld.GetApp(input.PCE.Labels))
 		} else if wkld.GetApp(input.PCE.Labels).Value != "" {
@@ -279,8 +274,8 @@ CSVEntries:
 			newWkldLabels = append(newWkldLabels, &current)
 		}
 		// Role
-		if input.RoleIndex != 99998 {
-			columns = append(columns, input.RoleIndex)
+		if index, ok := input.Headers[wkldexport.HeaderRole]; ok {
+			columns = append(columns, index)
 			keys = append(keys, "role")
 			labels = append(labels, wkld.GetRole(input.PCE.Labels))
 		} else if wkld.GetRole(input.PCE.Labels).Value != "" {
@@ -288,8 +283,8 @@ CSVEntries:
 			newWkldLabels = append(newWkldLabels, &current)
 		}
 		// Env
-		if input.EnvIndex != 99998 {
-			columns = append(columns, input.EnvIndex)
+		if index, ok := input.Headers[wkldexport.HeaderEnv]; ok {
+			columns = append(columns, index)
 			keys = append(keys, "env")
 			labels = append(labels, wkld.GetEnv(input.PCE.Labels))
 		} else if wkld.GetEnv(input.PCE.Labels).Value != "" {
@@ -297,8 +292,8 @@ CSVEntries:
 			newWkldLabels = append(newWkldLabels, &current)
 		}
 		// Loc
-		if input.LocIndex != 99998 {
-			columns = append(columns, input.LocIndex)
+		if index, ok := input.Headers[wkldexport.HeaderLoc]; ok {
+			columns = append(columns, index)
 			keys = append(keys, "loc")
 			labels = append(labels, wkld.GetLoc(input.PCE.Labels))
 		} else if wkld.GetLoc(input.PCE.Labels).Value != "" {
@@ -322,7 +317,7 @@ CSVEntries:
 			if line[columns[i]] == input.RemoveValue {
 				change = true
 				// Log change required
-				utils.LogInfo(fmt.Sprintf("%s requiring removal of %s label.", line[input.MatchIndex], keys[i]), false)
+				utils.LogInfo(fmt.Sprintf("%s requiring removal of %s label.", line[*input.MatchIndex], keys[i]), false)
 				continue
 			}
 
@@ -331,7 +326,7 @@ CSVEntries:
 				// Change the change flag
 				change = true
 				// Log change required
-				utils.LogInfo(fmt.Sprintf("CSV Line - %d - %s requiring %s update from %s to %s.", csvLine, line[input.MatchIndex], keys[i], labels[i].Value, line[columns[i]]), false)
+				utils.LogInfo(fmt.Sprintf("CSV Line - %d - %s requiring %s update from %s to %s.", csvLine, line[*input.MatchIndex], keys[i], labels[i].Value, line[columns[i]]), false)
 				// Get the label HREF
 				l := checkLabel(input.PCE, input.UpdatePCE, illumioapi.Label{Key: keys[i], Value: line[columns[i]]}, csvLine)
 				// Add that label to the new labels slice
@@ -345,10 +340,10 @@ CSVEntries:
 		// We need to check if interfaces have changed
 		if wkld.GetMode() == "unmanaged" {
 			// If IP field is there and  IP address is provided, check it out
-			if input.IntIndex != 99998 && len(line[input.IntIndex]) > 0 {
+			if index, ok := input.Headers[wkldexport.HeaderInterfaces]; ok && len(line[index]) > 0 {
 				// Build out the netInterfaces slice provided by the user
 				netInterfaces := []*illumioapi.Interface{}
-				nics := strings.Split(strings.Replace(line[input.IntIndex], " ", "", -1), ";")
+				nics := strings.Split(strings.Replace(line[index], " ", "", -1), ";")
 				for _, n := range nics {
 					ipInterface, err := userInputConvert(n)
 					if err != nil {
@@ -425,95 +420,45 @@ CSVEntries:
 				}
 			}
 			// Update the hostname if field provided and matching on Href
-			if input.HostnameIndex != 99998 && strings.Contains(line[input.MatchIndex], "/workloads/") {
-				if wkld.Hostname != line[input.HostnameIndex] {
+			if index, ok := input.Headers[wkldexport.HeaderHostname]; ok && strings.Contains(line[index], "/workloads/") {
+				if wkld.Hostname != line[index] {
 					change = true
-					utils.LogInfo(fmt.Sprintf("CSV line %d - Hostname to be changed from %s to %s", csvLine, wkld.Hostname, line[input.HostnameIndex]), false)
-					wkld.Hostname = line[input.HostnameIndex]
+					utils.LogInfo(fmt.Sprintf("CSV line %d - Hostname to be changed from %s to %s", csvLine, wkld.Hostname, line[index]), false)
+					wkld.Hostname = line[index]
 				}
 			}
 		}
 
 		// Change the name if the name field is provided  it doesn't match unless the name in the CSV is blank and PCE is reporting the name as the hostname
-		if input.NameIndex != 99998 && wkld.Name != line[input.NameIndex] && line[input.NameIndex] != "" {
+		if index, ok := input.Headers[wkldexport.HeaderName]; ok && wkld.Name != line[index] && line[index] != "" {
 			change = true
-			utils.LogInfo(fmt.Sprintf("CSV line %d - Name to be changed from %s to %s", csvLine, wkld.Name, line[input.NameIndex]), false)
-			wkld.Name = line[input.NameIndex]
+			utils.LogInfo(fmt.Sprintf("CSV line %d - Name to be changed from %s to %s", csvLine, wkld.Name, line[index]), false)
+			wkld.Name = line[index]
 		}
 
 		// Update the Public Ip
-		if input.PublicIPIndex != 99998 {
-			if line[input.PublicIPIndex] != wkld.PublicIP {
+		if index, ok := input.Headers[wkldexport.HeaderPublicIP]; ok {
+			if line[index] != wkld.PublicIP {
 				// Validate it first
-				if !publicIPIsValid(line[input.PublicIPIndex]) {
+				if !publicIPIsValid(line[index]) {
 					utils.LogError(fmt.Sprintf("CSV line %d - invalid Public IP address format.", csvLine))
 				}
 				change = true
-				utils.LogInfo(fmt.Sprintf("CSV line %d - Public IP to be changed from %s to %s", csvLine, wkld.PublicIP, line[input.PublicIPIndex]), false)
-				wkld.PublicIP = line[input.PublicIPIndex]
+				utils.LogInfo(fmt.Sprintf("CSV line %d - Public IP to be changed from %s to %s", csvLine, wkld.PublicIP, line[index]), false)
+				wkld.PublicIP = line[index]
 			}
 		}
 
-		// Update the description column if provided
-		if input.DescIndex != 99998 {
-			if line[input.DescIndex] != wkld.Description {
-				change = true
-				utils.LogInfo(fmt.Sprintf("CSV line %d - Desciption to be changed from %s to %s", csvLine, wkld.Description, line[input.DescIndex]), false)
-				wkld.Description = line[input.DescIndex]
-			}
-		}
-
-		// Update the Machine Auth ID if provided
-		if input.MachineAuthIDIndex != 99998 {
-			if line[input.MachineAuthIDIndex] != wkld.DistinguishedName {
-				change = true
-				utils.LogInfo(fmt.Sprintf("CSV line %d - machine_auth_id to be changed from %s to %s", csvLine, wkld.DistinguishedName, line[input.MachineAuthIDIndex]), false)
-				wkld.DistinguishedName = line[input.MachineAuthIDIndex]
-			}
-		}
-
-		// Update the External DataSet
-		if input.ExtDataSetIndex != 99998 {
-			if line[input.ExtDataSetIndex] != wkld.ExternalDataSet {
-				change = true
-				utils.LogInfo(fmt.Sprintf("CSV line %d - External Data Set to be changed from %s to %s", csvLine, wkld.ExternalDataSet, line[input.ExtDataSetIndex]), false)
-				wkld.ExternalDataSet = line[input.ExtDataSetIndex]
-			}
-		}
-
-		// Update the External DataRef
-		if input.ExtDataRefIndex != 99998 {
-			if line[input.ExtDataRefIndex] != wkld.ExternalDataReference {
-				change = true
-				utils.LogInfo(fmt.Sprintf("CSV line %d - External Data Ref to be changed from %s to %s", csvLine, wkld.ExternalDataReference, line[input.ExtDataRefIndex]), false)
-				wkld.ExternalDataReference = line[input.ExtDataRefIndex]
-			}
-		}
-
-		// Update OS ID
-		if input.OSIDIndex != 99998 {
-			if line[input.OSIDIndex] != wkld.OsID {
-				change = true
-				utils.LogInfo(fmt.Sprintf("CSV line %d - OS ID to be changed from %s to %s", csvLine, wkld.OsID, line[input.OSIDIndex]), false)
-				wkld.OsID = line[input.OSIDIndex]
-			}
-		}
-
-		// Update OS Detail
-		if input.OSDetailIndex != 99998 {
-			if line[input.OSDetailIndex] != wkld.OsDetail {
-				change = true
-				utils.LogInfo(fmt.Sprintf("CSV line %d - OS Detail to be changed from %s to %s", csvLine, wkld.OsDetail, line[input.OSDetailIndex]), false)
-				wkld.OsDetail = line[input.OSDetailIndex]
-			}
-		}
-
-		// Update Data center
-		if input.DatacenterIndex != 99998 {
-			if line[input.DatacenterIndex] != wkld.DataCenter {
-				change = true
-				utils.LogInfo(fmt.Sprintf("CSV line %d - Data Center to be changed from %s to %s", csvLine, wkld.DataCenter, line[input.DatacenterIndex]), false)
-				wkld.DataCenter = line[input.DatacenterIndex]
+		// Update strings that don't need any manipulation
+		headerValues := []string{wkldexport.HeaderDescription, wkldexport.HeaderMachineAuthenticationID, wkldexport.HeaderExternalDataSet, wkldexport.HeaderExternalDataReference, wkldexport.HeaderOsID, wkldexport.HeaderOsDetail, wkldexport.HeaderDataCenter}
+		targetUpdates := []*string{&wkld.Description, &wkld.DistinguishedName, &wkld.ExternalDataSet, &wkld.ExternalDataReference, &wkld.OsID, &wkld.OsDetail, &wkld.DataCenter}
+		for i, header := range headerValues {
+			if index, ok := input.Headers[header]; ok {
+				if line[index] != *targetUpdates[i] {
+					change = true
+					utils.LogInfo(fmt.Sprintf("CSV line %d - %s to be changed from %s to %s", csvLine, header, *targetUpdates[i], line[index]), false)
+					*targetUpdates[i] = line[index]
+				}
 			}
 		}
 
