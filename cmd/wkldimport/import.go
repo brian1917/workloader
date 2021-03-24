@@ -66,6 +66,9 @@ func ImportWkldsFromCSV(input Input) {
 	// Log start of the command
 	utils.LogStartCommand("wkld-import")
 
+	// Populate the labelKeys
+	labelKeys := []string{"role", "app", "env", "loc"}
+
 	// Parse the CSV File
 	data, err := utils.ParseCSV(input.ImportFile)
 	if err != nil {
@@ -83,22 +86,6 @@ func ImportWkldsFromCSV(input Input) {
 		utils.LogError("input PCE cannot have nil workload map. Load workloads.")
 	}
 
-	// Get the hostnames
-	wkldHostNameMap := make(map[string]illumioapi.Workload)
-	for _, w := range input.PCE.Workloads {
-		hostname := w.Hostname
-		if input.FQDNtoHostname {
-			hostname = strings.Split(w.Hostname, ".")[0]
-			w.Hostname = hostname
-		}
-		wkldHostNameMap[hostname] = w
-	}
-
-	// Combine the maps
-	for _, w := range wkldHostNameMap {
-		input.PCE.Workloads[w.Hostname] = w
-	}
-
 	// Create slices to hold the workloads we will update and create
 	updatedWklds := []illumioapi.Workload{}
 	newUMWLs := []illumioapi.Workload{}
@@ -113,7 +100,7 @@ CSVEntries:
 		// Increment the counter
 		csvLine := i + 1
 
-		// Check if we are processing description and skip the first row
+		// Skip the first row
 		if csvLine == 1 {
 			continue
 		}
@@ -125,219 +112,140 @@ CSVEntries:
 
 		// Check to make sure we have an entry in the match column
 		if line[*input.MatchIndex] == "" {
-			utils.LogWarning(fmt.Sprintf("CSV line %d - the match column cannot be blank - hostname or href required.", csvLine), true)
+			utils.LogWarning(fmt.Sprintf("CSV line %d - the match column cannot be blank.", csvLine), true)
 			continue
 		}
 
-		// Check if the workload exists. If it does not exist, check if UMWL is set and take action.
-		if _, ok := input.PCE.Workloads[line[*input.MatchIndex]]; !ok {
-			var netInterfaces []*illumioapi.Interface
-			if input.Umwl {
-				// Process if interface is in import and if interface entry has values
-				if index, ok := input.Headers[wkldexport.HeaderInterfaces]; ok && len(line[index]) > 0 {
-					// Create the network interfaces
+		// If the workload does not exist and umwl is set to true, create the unmanaged workload
+		if _, ok := input.PCE.Workloads[line[*input.MatchIndex]]; !ok && input.Umwl {
 
-					nics := strings.Split(strings.Replace(line[index], " ", "", -1), ";")
-					for _, n := range nics {
-						ipInterface, err := userInputConvert(n)
-						if err != nil {
-							utils.LogError(err.Error())
-						}
-						netInterfaces = append(netInterfaces, &ipInterface)
+			// Create the workload
+			newWkld := illumioapi.Workload{Hostname: line[*input.MatchIndex]}
+
+			// Process if interface is in import and if interface entry has values
+			if index, ok := input.Headers[wkldexport.HeaderInterfaces]; ok && len(line[index]) > 0 {
+				// Create the network interfaces
+				nics := strings.Split(strings.Replace(line[index], " ", "", -1), ";")
+				for _, n := range nics {
+					ipInterface, err := userInputConvert(n)
+					if err != nil {
+						utils.LogError(err.Error())
 					}
-				} else {
-					utils.LogWarning(fmt.Sprintf("CSV line %d - no interface provided for unmanaged workload %s.", csvLine, line[*input.MatchIndex]), true)
+					newWkld.Interfaces = append(newWkld.Interfaces, &ipInterface)
 				}
+			} else {
+				utils.LogWarning(fmt.Sprintf("CSV line %d - no interface provided for unmanaged workload %s.", csvLine, line[*input.MatchIndex]), true)
+			}
 
-				// Create the labels slice
-				labels := []*illumioapi.Label{}
-
-				// Create the columns and keys slices
-				columns := []int{}
-				keys := []string{}
-				if _, ok := input.Headers[wkldexport.HeaderApp]; ok {
-					columns = append(columns, input.Headers[wkldexport.HeaderApp])
-					keys = append(keys, "app")
-				}
-				if _, ok := input.Headers[wkldexport.HeaderRole]; ok {
-					columns = append(columns, input.Headers[wkldexport.HeaderRole])
-					keys = append(keys, "role")
-				}
-				if _, ok := input.Headers[wkldexport.HeaderEnv]; ok {
-					columns = append(columns, input.Headers[wkldexport.HeaderRole])
-					keys = append(keys, "env")
-				}
-				if _, ok := input.Headers[wkldexport.HeaderLoc]; ok {
-					columns = append(columns, input.Headers[wkldexport.HeaderRole])
-					keys = append(keys, "loc")
-				}
-
-				// Iterate through our labels
-				for i := 0; i <= len(columns)-1; i++ {
-					if line[columns[i]] == "" {
+			// Process the labels
+			for i, header := range []string{wkldexport.HeaderRole, wkldexport.HeaderApp, wkldexport.HeaderEnv, wkldexport.HeaderLoc} {
+				if index, ok := input.Headers[header]; ok {
+					// If the value is blank, do nothing
+					if line[index] == "" {
 						continue
 					}
 					// Get the label HREF
-					l := checkLabel(input.PCE, input.UpdatePCE, illumioapi.Label{Key: keys[i], Value: line[columns[i]]}, csvLine)
-
+					l := checkLabel(input.PCE, input.UpdatePCE, illumioapi.Label{Key: labelKeys[i], Value: line[index]}, csvLine)
 					// Add that label to the new labels slice
-					labels = append(labels, &illumioapi.Label{Href: l.Href})
+					newWkld.Labels = append(newWkld.Labels, &illumioapi.Label{Href: l.Href})
 				}
-
-				// Proces the name
-				var name string
-				if index, ok := input.Headers[wkldexport.HeaderName]; ok {
-					name = line[index]
-					if name == "" {
-						name = line[index]
-					}
-				}
-
-				// Process the Public IP
-				var publicIP string
-				if index, ok := input.Headers[wkldexport.HeaderPublicIP]; ok {
-					if !publicIPIsValid(line[index]) {
-						utils.LogError(fmt.Sprintf("CSV line %d - invalid Public IP address format.", csvLine))
-					}
-					publicIP = line[index]
-				}
-
-				// Process string variables requiring no logic check.
-				var desc, extDataRef, extDataSet, osID, osDetail, dataCenter, machAuthID string
-				varPtrs := []*string{&desc, &extDataRef, &extDataSet, &osID, &osDetail, &dataCenter, &machAuthID}
-				headers := []string{wkldexport.HeaderDescription, wkldexport.HeaderExternalDataReference, wkldexport.HeaderExternalDataSet, wkldexport.HeaderOsID, wkldexport.HeaderOsDetail, wkldexport.HeaderDataCenter, wkldexport.HeaderMachineAuthenticationID}
-
-				for i, varPtr := range varPtrs {
-					if _, ok := input.Headers[headers[i]]; !ok {
-						continue
-					}
-					*varPtr = line[input.Headers[headers[i]]]
-				}
-
-				// Create the unmanaged workload object and add to slice
-				w := illumioapi.Workload{
-					Hostname:              line[*input.MatchIndex],
-					Name:                  name,
-					Interfaces:            netInterfaces,
-					Labels:                labels,
-					Description:           desc,
-					ExternalDataReference: extDataRef,
-					ExternalDataSet:       extDataSet,
-					OsID:                  osID,
-					OsDetail:              osDetail,
-					PublicIP:              publicIP,
-					DataCenter:            dataCenter,
-					DistinguishedName:     machAuthID,
-				}
-				newUMWLs = append(newUMWLs, w)
-
-				// Log the entry
-				x := []string{}
-				for _, i := range netInterfaces {
-					if i.CidrBlock != nil {
-						x = append(x, i.Name+":"+i.Address+"/"+strconv.Itoa(*i.CidrBlock))
-					} else {
-						x = append(x, i.Name+":"+i.Address)
-					}
-				}
-				utils.LogInfo(fmt.Sprintf("CSV line %d - %s to be created - %s (role), %s (app), %s (env), %s(loc) - interfaces: %s", csvLine, w.Hostname, w.GetRole(input.PCE.Labels).Value, w.GetApp(input.PCE.Labels).Value, w.GetEnv(input.PCE.Labels).Value, w.GetLoc(input.PCE.Labels).Value, strings.Join(x, ";")), false)
-				continue
-			} else {
-				// If umwl flag is not set, log the entry
-				utils.LogInfo(fmt.Sprintf("CSV line %d - %s is not a workload. Include umwl flag to create it. Nothing done.", csvLine, line[*input.MatchIndex]), false)
-				continue
 			}
+
+			// Proces the name
+			if index, ok := input.Headers[wkldexport.HeaderName]; ok {
+				newWkld.Name = line[index]
+				if index, ok := input.Headers[wkldexport.HeaderHostname]; ok && newWkld.Name == "" {
+					newWkld.Name = line[index]
+				}
+			}
+
+			// Process the Public IP
+			if index, ok := input.Headers[wkldexport.HeaderPublicIP]; ok {
+				if !publicIPIsValid(line[index]) {
+					utils.LogError(fmt.Sprintf("CSV line %d - invalid Public IP address format.", csvLine))
+				}
+				newWkld.PublicIP = line[index]
+			}
+
+			// Process string variables requiring no logic check.
+			varPtrs := []*string{&newWkld.Description, &newWkld.ExternalDataReference, &newWkld.ExternalDataSet, &newWkld.OsID, &newWkld.OsDetail, &newWkld.DataCenter, &newWkld.DistinguishedName}
+			headers := []string{wkldexport.HeaderDescription, wkldexport.HeaderExternalDataReference, wkldexport.HeaderExternalDataSet, wkldexport.HeaderOsID, wkldexport.HeaderOsDetail, wkldexport.HeaderDataCenter, wkldexport.HeaderMachineAuthenticationID}
+			for i, varPtr := range varPtrs {
+				if _, ok := input.Headers[headers[i]]; !ok {
+					continue
+				}
+				*varPtr = line[input.Headers[headers[i]]]
+			}
+
+			// Append the new workload to the newUMWLs slice
+			newUMWLs = append(newUMWLs, newWkld)
+
+			// Log the entry
+			x := []string{}
+			for _, i := range newWkld.Interfaces {
+				if i.CidrBlock != nil {
+					x = append(x, i.Name+":"+i.Address+"/"+strconv.Itoa(*i.CidrBlock))
+				} else {
+					x = append(x, i.Name+":"+i.Address)
+				}
+			}
+			utils.LogInfo(fmt.Sprintf("CSV line %d - %s to be created - %s (role), %s (app), %s (env), %s(loc) - interfaces: %s", csvLine, newWkld.Hostname, newWkld.GetRole(input.PCE.Labels).Value, newWkld.GetApp(input.PCE.Labels).Value, newWkld.GetEnv(input.PCE.Labels).Value, newWkld.GetLoc(input.PCE.Labels).Value, strings.Join(x, ";")), false)
+			continue
+		} else if !ok && !input.Umwl {
+			// If the workload does not exist and umwl flag is not set, log the entry
+			utils.LogInfo(fmt.Sprintf("CSV line %d - %s is not a workload. Include umwl flag to create it. Nothing done.", csvLine, line[*input.MatchIndex]), false)
+			continue
 		}
 
 		// *******************************************
 		// *** Get here if the workload does exist ***
 		// *******************************************
 
-		// Create a slice told hold new labels if we need to change them
-		newWkldLabels := []*illumioapi.Label{}
-
 		// Initialize the change variable
 		change := false
 
-		// Create the columns, keys, and labels slices
-		columns := []int{}
-		keys := []string{}
-		labels := []illumioapi.Label{}
+		// Check labels
 		wkld := input.PCE.Workloads[line[*input.MatchIndex]] // Need this since can't perform pointer method on map element
-		// Application
-		if index, ok := input.Headers[wkldexport.HeaderApp]; ok {
-			columns = append(columns, index)
-			keys = append(keys, "app")
-			labels = append(labels, wkld.GetApp(input.PCE.Labels))
-		} else if wkld.GetApp(input.PCE.Labels).Value != "" {
-			current := wkld.GetApp(input.PCE.Labels)
-			newWkldLabels = append(newWkldLabels, &current)
-		}
-		// Role
-		if index, ok := input.Headers[wkldexport.HeaderRole]; ok {
-			columns = append(columns, index)
-			keys = append(keys, "role")
-			labels = append(labels, wkld.GetRole(input.PCE.Labels))
-		} else if wkld.GetRole(input.PCE.Labels).Value != "" {
-			current := wkld.GetRole(input.PCE.Labels)
-			newWkldLabels = append(newWkldLabels, &current)
-		}
-		// Env
-		if index, ok := input.Headers[wkldexport.HeaderEnv]; ok {
-			columns = append(columns, index)
-			keys = append(keys, "env")
-			labels = append(labels, wkld.GetEnv(input.PCE.Labels))
-		} else if wkld.GetEnv(input.PCE.Labels).Value != "" {
-			current := wkld.GetEnv(input.PCE.Labels)
-			newWkldLabels = append(newWkldLabels, &current)
-		}
-		// Loc
-		if index, ok := input.Headers[wkldexport.HeaderLoc]; ok {
-			columns = append(columns, index)
-			keys = append(keys, "loc")
-			labels = append(labels, wkld.GetLoc(input.PCE.Labels))
-		} else if wkld.GetLoc(input.PCE.Labels).Value != "" {
-			current := wkld.GetLoc(input.PCE.Labels)
-			newWkldLabels = append(newWkldLabels, &current)
-		}
+		wkldCurrentLabels := []illumioapi.Label{wkld.GetRole(input.PCE.Labels), wkld.GetApp(input.PCE.Labels), wkld.GetEnv(input.PCE.Labels), wkld.GetLoc(input.PCE.Labels)}
 
-		// Cycle through each of the four keys
-		for i := 0; i <= len(columns)-1; i++ {
+		// Clear the existing labels
+		wkld.Labels = nil
 
-			// If the value is blank, skip it
-			if line[columns[i]] == "" {
-				// Put the old labels back if there is one.
-				if labels[i].Href != "" {
-					newWkldLabels = append(newWkldLabels, &labels[i])
+		for i, header := range []string{wkldexport.HeaderRole, wkldexport.HeaderApp, wkldexport.HeaderEnv, wkldexport.HeaderLoc} {
+			if index, ok := input.Headers[header]; ok {
+				// If the value is blank and the current label exists, put it back
+				if line[index] == "" && wkldCurrentLabels[i].Href != "" {
+					wkld.Labels = append(wkld.Labels, &illumioapi.Label{Href: wkldCurrentLabels[i].Href})
+					continue
 				}
-				continue
-			}
 
-			// If the value is the delete value, we turn on the change flag and go to next key
-			if line[columns[i]] == input.RemoveValue {
-				change = true
-				// Log change required
-				utils.LogInfo(fmt.Sprintf("%s requiring removal of %s label.", line[*input.MatchIndex], keys[i]), false)
-				continue
-			}
+				// If the value is the delete value, mark for a change but do not add any labels to the slice.
+				if line[index] == input.RemoveValue {
+					change = true
+					// Log change required
+					utils.LogInfo(fmt.Sprintf("%s requiring removal of %s label.", line[*input.MatchIndex], labelKeys[i]), false)
+					continue
+				}
 
-			// If the workload's value does not equal what's in the CSV
-			if labels[i].Value != line[columns[i]] {
-				// Change the change flag
-				change = true
-				// Log change required
-				utils.LogInfo(fmt.Sprintf("CSV Line - %d - %s requiring %s update from %s to %s.", csvLine, line[*input.MatchIndex], keys[i], labels[i].Value, line[columns[i]]), false)
-				// Get the label HREF
-				l := checkLabel(input.PCE, input.UpdatePCE, illumioapi.Label{Key: keys[i], Value: line[columns[i]]}, csvLine)
-				// Add that label to the new labels slice
-				newWkldLabels = append(newWkldLabels, &illumioapi.Label{Href: l.Href})
-			} else {
-				// Keep the existing label if it matches
-				newWkldLabels = append(newWkldLabels, &illumioapi.Label{Href: labels[i].Href})
+				// If the CSV does not equal the current value, update it.
+				if line[index] != wkldCurrentLabels[i].Value {
+					// Change the change flag
+					change = true
+					// Log change required
+					utils.LogInfo(fmt.Sprintf("CSV Line - %d - %s requiring %s label update from %s to %s.", csvLine, line[*input.MatchIndex], labelKeys[i], wkldCurrentLabels[i].Value, line[index]), false)
+					// Add that label to the new labels slice
+					wkld.Labels = append(wkld.Labels, &illumioapi.Label{Href: checkLabel(input.PCE, input.UpdatePCE, illumioapi.Label{Key: labelKeys[i], Value: line[index]}, csvLine).Href})
+					continue
+				}
+
+				// If the labels match keep existing
+				if line[index] == wkldCurrentLabels[i].Value && line[index] != "" {
+					wkld.Labels = append(wkld.Labels, &illumioapi.Label{Href: wkldCurrentLabels[i].Href})
+				}
 			}
 		}
 
-		// We need to check if interfaces have changed
+		// Check interfaces
 		if wkld.GetMode() == "unmanaged" {
 			// If IP field is there and  IP address is provided, check it out
 			if index, ok := input.Headers[wkldexport.HeaderInterfaces]; ok && len(line[index]) > 0 {
@@ -455,6 +363,7 @@ CSVEntries:
 		for i, header := range headerValues {
 			if index, ok := input.Headers[header]; ok {
 				if line[index] != *targetUpdates[i] {
+					*targetUpdates[i] = line[index]
 					change = true
 					utils.LogInfo(fmt.Sprintf("CSV line %d - %s to be changed from %s to %s", csvLine, header, *targetUpdates[i], line[index]), false)
 					*targetUpdates[i] = line[index]
@@ -464,7 +373,6 @@ CSVEntries:
 
 		// If change was flagged, get the workload, update the labels, append to updated slice.
 		if change {
-			wkld.Labels = newWkldLabels
 			updatedWklds = append(updatedWklds, wkld)
 		} else {
 			unchangedWLs++
