@@ -117,7 +117,7 @@ func dupeCheck() {
 
 		// If we have reasons, append
 		if len(reason) > 0 {
-			data = append(data, []string{umwl.Href, umwl.Hostname, umwl.Name, strings.Join(interfaceList, ";"), umwl.GetRole(pce.LabelMapH).Value, umwl.GetApp(pce.LabelMapH).Value, umwl.GetEnv(pce.LabelMapH).Value, umwl.GetLoc(pce.LabelMapH).Value, strings.Join(reason, ";")})
+			data = append(data, []string{umwl.Href, umwl.Hostname, umwl.Name, strings.Join(interfaceList, ";"), umwl.GetRole(pce.Labels).Value, umwl.GetApp(pce.Labels).Value, umwl.GetEnv(pce.Labels).Value, umwl.GetLoc(pce.Labels).Value, strings.Join(reason, ";")})
 		}
 
 	}

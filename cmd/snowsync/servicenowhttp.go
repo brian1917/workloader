@@ -46,7 +46,7 @@ func snhttp(url string) string {
 	reader := csv.NewReader(strings.NewReader(bodyString))
 	data, err := reader.ReadAll()
 
-	finalData := [][]string{[]string{"match", "role", "app", "env", "loc", "interfaces", "name"}}
+	finalData := [][]string{{"match", "role", "app", "env", "loc", "interfaces", "name"}}
 	for i, d := range data {
 		if i == 0 {
 			continue

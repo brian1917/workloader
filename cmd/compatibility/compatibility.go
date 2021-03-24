@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/brian1917/illumioapi"
@@ -14,12 +15,16 @@ import (
 
 var debug, modeChangeInput, issuesOnly bool
 var pce illumioapi.PCE
-var outputFileName string
+var outputFileName, role, app, env, loc string
 var err error
 
 func init() {
 	CompatibilityCmd.Flags().BoolVarP(&modeChangeInput, "mode-input", "m", false, "generate the input file to change all idle workloads to build using workloader mode command")
 	CompatibilityCmd.Flags().BoolVarP(&issuesOnly, "issues-only", "i", false, "only export compatibility checks with an issue")
+	CompatibilityCmd.Flags().StringVarP(&role, "role", "r", "", "role label value")
+	CompatibilityCmd.Flags().StringVarP(&app, "app", "a", "", "app label value")
+	CompatibilityCmd.Flags().StringVarP(&env, "env", "e", "", "env label value")
+	CompatibilityCmd.Flags().StringVarP(&loc, "loc", "l", "", "loc label value")
 	CompatibilityCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 }
 
@@ -30,10 +35,12 @@ var CompatibilityCmd = &cobra.Command{
 	Long: `
 Generate a compatibility report for all Idle workloads.
 
+Multiple labels are processed with an "AND" operator. For example, -a ERP -e PROD will return compatibility reports for all IDLE workloads that are labeled as ERP application and PROD envrionment.
+
 The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetTargetPCE(false)
+		pce, err = utils.GetTargetPCE(true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -52,16 +59,37 @@ func compatibilityReport() {
 
 	// Start the data slice with the headers. We will append data to this.
 	var csvData, stdOutData, modeChangeInputData [][]string
-	csvData = append(csvData, []string{"hostname", "href", "status", "raw_data"})
+	csvData = append(csvData, []string{"hostname", "href", "status", "role", "app", "env", "loc", "os_id", "os_details", "required_packages_installed", "required_packages_missing", "ipsec_service_enabled", "ipv4_forwarding_enabled", "ipv4_forwarding_pkt_cnt", "iptables_rule_cnt", "ipv6_global_scope", "ipv6_active_conn_cnt", "ip6tables_rule_cnt", "routing_table_conflict,omitempty", "IPv6_enabled", "Unwanted_nics", "GroupPolicy", "raw_data"})
 	stdOutData = append(stdOutData, []string{"hostname", "href", "status"})
 	modeChangeInputData = append(modeChangeInputData, []string{"href", "mode"})
 
-	// Get all idle  workloads
-	qp := map[string]string{"mode": "idle"}
-	wklds, a, err := pce.GetAllWorkloadsQP(qp)
-	if debug {
-		utils.LogAPIResp("GetAllWorkloadsH", a)
+	providedValues := []string{role, app, env, loc}
+	keys := []string{"role", "app", "env", "loc"}
+	queryLabels := []string{}
+	for i, labelValue := range providedValues {
+		// Do nothing if the labelValue is blank
+		if labelValue == "" {
+			continue
+		}
+		// Confirm the label exists
+		if label, ok := pce.Labels[keys[i]+labelValue]; !ok {
+			utils.LogError(fmt.Sprintf("%s does not exist as a %s label", labelValue, keys[i]))
+		} else {
+			queryLabels = append(queryLabels, label.Href)
+		}
+
 	}
+
+	// Get all idle  workloads - start query with just idle
+	qp := map[string]string{"mode": "idle"}
+
+	// If we have query labels add to the map
+	if len(queryLabels) > 0 {
+		fmt.Println(fmt.Sprintf("[[\"%s\"]]", strings.Join(queryLabels, "\",\"")))
+		qp["labels"] = fmt.Sprintf("[[\"%s\"]]", strings.Join(queryLabels, "\",\""))
+	}
+	wklds, a, err := pce.GetAllWorkloadsQP(qp)
+	utils.LogAPIResp("GetAllWorkloadsQP", a)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -79,16 +107,81 @@ func compatibilityReport() {
 
 		// Get the compatibility report and append
 		cr, a, err := pce.GetCompatibilityReport(w)
-		if debug {
-			utils.LogAPIResp("GetCompatibilityReport", a)
-		}
+		utils.LogAPIResp("GetCompatibilityReport", a)
 		if err != nil {
 			utils.LogError(fmt.Sprintf("getting compatibility report for %s (%s) - %s", w.Hostname, w.Href, err))
 		}
 
+		// Set the initial values for Linux, AIX, and Solaris and override for Windows
+		requiredPackagesInstalled := "green"
+		requiredPackagesMissing := ""
+		ipsecServiceEnabled := "green"
+		iPv6Enabled := "na"
+		unwantedNics := "na"
+		groupPolicy := "na"
+		ipv4ForwardingEnabled := "green"
+		ipv4ForwardingPktCnt := "green"
+		iptablesRuleCnt := "green"
+		ipv6GlobalScope := "green"
+		ipv6ActiveConnCnt := "green"
+		iP6TablesRuleCnt := "green"
+		routingTableConflict := "green"
+		if strings.Contains(w.OsID, "win") {
+			iPv6Enabled = "green"
+			unwantedNics = "green"
+			groupPolicy = "green"
+			ipv4ForwardingEnabled = "na"
+			ipv4ForwardingPktCnt = "na"
+			iptablesRuleCnt = "na"
+			ipv6GlobalScope = "na"
+			ipv6ActiveConnCnt = "na"
+			iP6TablesRuleCnt = "na"
+			routingTableConflict = "na"
+		}
+
+		for _, c := range cr.Results.QualifyTests {
+			variables := []*string{
+				&requiredPackagesInstalled,
+				&ipsecServiceEnabled,
+				&iPv6Enabled,
+				&unwantedNics,
+				&groupPolicy,
+				&ipv4ForwardingEnabled,
+				&ipv4ForwardingPktCnt,
+				&iptablesRuleCnt,
+				&ipv6GlobalScope,
+				&ipv6ActiveConnCnt,
+				&iP6TablesRuleCnt,
+				&routingTableConflict}
+			checks := []*string{
+				c.RequiredPackagesInstalled,
+				c.IpsecServiceEnabled,
+				c.IPv6Enabled,
+				c.UnwantedNics,
+				c.GroupPolicy,
+				c.Ipv4ForwardingEnabled,
+				c.Ipv4ForwardingPktCnt,
+				c.IptablesRuleCnt,
+				c.Ipv6GlobalScope,
+				c.Ipv6ActiveConnCnt,
+				c.IP6TablesRuleCnt,
+				c.RoutingTableConflict}
+
+			for i, variable := range variables {
+				if checks[i] != nil {
+					*variable = *c.Status
+				}
+			}
+
+			// Process missing packages separately
+			if c.RequiredPackagesMissing != nil {
+				requiredPackagesMissing = strings.Join(*c.RequiredPackagesMissing, ";")
+			}
+		}
+
 		// Put into slice if it's NOT green and issuesOnly is true
 		if (cr.QualifyStatus != "green" && issuesOnly) || !issuesOnly {
-			csvData = append(csvData, []string{w.Hostname, w.Href, cr.QualifyStatus, a.RespBody})
+			csvData = append(csvData, []string{w.Hostname, w.Href, cr.QualifyStatus, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, w.OsID, w.OsDetail, requiredPackagesInstalled, requiredPackagesMissing, ipsecServiceEnabled, ipv4ForwardingEnabled, ipv4ForwardingPktCnt, iptablesRuleCnt, ipv6GlobalScope, ipv6ActiveConnCnt, iP6TablesRuleCnt, routingTableConflict, iPv6Enabled, unwantedNics, groupPolicy, a.RespBody})
 			stdOutData = append(stdOutData, []string{w.Hostname, w.Href, cr.QualifyStatus})
 		}
 
@@ -104,19 +197,16 @@ func compatibilityReport() {
 		fmt.Printf("\r[INFO] - Exported %d of %d idle workloads (%d%%).%s", i+1, len(wklds), (i+1)*100/len(wklds), end)
 	}
 
-	// Print a line at the end of our counter
-
 	// If the CSV data has more than just the headers, create output file and write it.
 	if len(csvData) > 1 {
 		if outputFileName == "" {
 			outputFileName = fmt.Sprintf("workloader-compatibility-%s.csv", time.Now().Format("20060102_150405"))
 		}
-
 		utils.WriteOutput(csvData, stdOutData, outputFileName)
 		utils.LogInfo(fmt.Sprintf("%d compatibility reports exported.", len(csvData)-1), true)
 	} else {
 		// Log command execution for 0 results
-		utils.LogInfo("no workloads in idle mode.", true)
+		utils.LogInfo("no workloads in idle mode for provided query.", true)
 	}
 
 	// Write the mode change CSV

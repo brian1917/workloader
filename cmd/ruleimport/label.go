@@ -1,4 +1,4 @@
-package edgeruleimport
+package ruleimport
 
 import (
 	"fmt"
@@ -16,14 +16,14 @@ func labelComparison(key string, csvLabels []string, pce illumioapi.PCE, rule il
 	if provider {
 		connectionSide = "provider"
 		for _, provider := range rule.Providers {
-			if provider.Label != nil {
-				ruleLabelValueMap[pce.LabelMapH[provider.Label.Href].Value] = pce.LabelMapH[provider.Label.Href]
+			if provider.Label != nil && pce.Labels[provider.Label.Href].Key == key {
+				ruleLabelValueMap[pce.Labels[provider.Label.Href].Value] = pce.Labels[provider.Label.Href]
 			}
 		}
 	} else {
 		for _, consumer := range rule.Consumers {
-			if consumer.Label != nil {
-				ruleLabelValueMap[pce.LabelMapH[consumer.Label.Href].Value] = pce.LabelMapH[consumer.Label.Href]
+			if consumer.Label != nil && pce.Labels[consumer.Label.Href].Key == key {
+				ruleLabelValueMap[pce.Labels[consumer.Label.Href].Value] = pce.Labels[consumer.Label.Href]
 			}
 		}
 	}
@@ -34,7 +34,7 @@ func labelComparison(key string, csvLabels []string, pce illumioapi.PCE, rule il
 		if strings.ToLower(value) == "all workloads" {
 			continue
 		}
-		if label, labelCheck := pce.LabelMapKV[key+value]; labelCheck {
+		if label, labelCheck := pce.Labels[key+value]; labelCheck {
 			csvLabelValueMap[label.Value] = label
 		} else {
 			utils.LogError(fmt.Sprintf("CSV line %d - %s %s does not exist as a %s label", csvLine, connectionSide, value, key))
@@ -53,7 +53,7 @@ func labelComparison(key string, csvLabels []string, pce illumioapi.PCE, rule il
 			}
 		}
 
-		// Check for IP Lists in the PCE that are not in the CSV
+		// Check for labels in the PCE that are not in the CSV
 		for _, existingRuleLabel := range ruleLabelValueMap {
 			if _, check := csvLabelValueMap[existingRuleLabel.Value]; !check {
 				utils.LogInfo(fmt.Sprintf("CSV line %d - %s is a %s %s label in the rule but is not in the CSV. It will be removed.", csvLine, existingRuleLabel.Value, connectionSide, key), false)

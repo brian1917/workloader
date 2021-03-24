@@ -264,7 +264,7 @@ func workloadIdentifier() {
 						}
 					}
 					// Populate existing label information
-					r.existingLabels(allIPWLs, pce.LabelMapH)
+					r.existingLabels(allIPWLs, pce.Labels)
 
 					// Append results to a new array if RFC 1918 and that's all we want OR we don't care about RFC 1918.
 					if rfc1918(r.ipAddress) && privOnly || !privOnly {

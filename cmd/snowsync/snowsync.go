@@ -97,7 +97,7 @@ func snowsync() {
 	snowCSVFile := snhttp(snURL)
 
 	// Call the workloader import command
-	f := wkldimport.FromCSVInput{
+	f := wkldimport.Input{
 		ImportFile:           snowCSVFile,
 		PCE:                  pce,
 		MatchIndex:           1,
@@ -113,7 +113,7 @@ func snowsync() {
 		UpdatePCE:            updatePCE,
 		NoPrompt:             noPrompt,
 	}
-	wkldimport.FromCSV(f)
+	wkldimport.ImportWkldsFromCSV(f)
 
 	// Delete the temp file
 	if !keepTempFile {

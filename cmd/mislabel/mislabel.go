@@ -199,11 +199,11 @@ func misLabel() {
 		}
 
 		// Get the App Groups
-		srcAppGroup := ta.Src.Workload.GetAppGroupL(pce.LabelMapH)
-		dstAppGroup := ta.Dst.Workload.GetAppGroupL(pce.LabelMapH)
+		srcAppGroup := ta.Src.Workload.GetAppGroupL(pce.Labels)
+		dstAppGroup := ta.Dst.Workload.GetAppGroupL(pce.Labels)
 		if ignoreLoc {
-			srcAppGroup = ta.Src.Workload.GetAppGroup(pce.LabelMapH)
-			dstAppGroup = ta.Dst.Workload.GetAppGroup(pce.LabelMapH)
+			srcAppGroup = ta.Src.Workload.GetAppGroup(pce.Labels)
+			dstAppGroup = ta.Dst.Workload.GetAppGroup(pce.Labels)
 		}
 
 		// If the app groups are the same, mark the source and destination as true and stop processing
@@ -236,9 +236,9 @@ func misLabel() {
 	// Build a map of app groups and their count
 	appGroupCount := make(map[string]int)
 	for _, w := range wklds {
-		appGrp := w.GetAppGroupL(pce.LabelMapH)
+		appGrp := w.GetAppGroupL(pce.Labels)
 		if ignoreLoc {
-			appGrp = w.GetAppGroup(pce.LabelMapH)
+			appGrp = w.GetAppGroup(pce.Labels)
 		}
 		appGroupCount[appGrp] = appGroupCount[appGrp] + 1
 	}
@@ -250,12 +250,12 @@ func misLabel() {
 	// We need to iterate two separate times because we need the complete list processed to get our count above
 	orphanWklds := []illumioapi.Workload{}
 	for _, w := range wklds {
-		appGrp := w.GetAppGroupL(pce.LabelMapH)
+		appGrp := w.GetAppGroupL(pce.Labels)
 		if ignoreLoc {
-			appGrp = w.GetAppGroup(pce.LabelMapH)
+			appGrp = w.GetAppGroup(pce.Labels)
 		}
 		// if the workload is not in non-orphans, not in exclude list,
-		if !nonOrphpans[w.Href] && !exclWklds[w.Hostname] && !exclApps[w.GetApp(pce.LabelMapH).Value] && appGroupCount[appGrp] > 1 && (managedWkldsInAppGroup[appGrp] > 0 || inclUnmanagedAppGroups) && wkldTrafficMap[w.Href] > 0 {
+		if !nonOrphpans[w.Href] && !exclWklds[w.Hostname] && !exclApps[w.GetApp(pce.Labels).Value] && appGroupCount[appGrp] > 1 && (managedWkldsInAppGroup[appGrp] > 0 || inclUnmanagedAppGroups) && wkldTrafficMap[w.Href] > 0 {
 			orphanWklds = append(orphanWklds, w)
 		}
 	}
@@ -263,7 +263,7 @@ func misLabel() {
 	// Create CSV output - start data slice with headers
 	data := [][]string{[]string{"hostname", "role", "app", "env", "loc"}}
 	for _, w := range orphanWklds {
-		data = append(data, []string{w.Hostname, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value})
+		data = append(data, []string{w.Hostname, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value})
 	}
 
 	if len(data) > 1 {
@@ -287,9 +287,9 @@ func appGroupManagedCounter(allWklds []illumioapi.Workload) map[string]int {
 	// Iterate through each workload
 	for _, w := range allWklds {
 		// Get app group
-		appGroup := w.GetAppGroupL(pce.LabelMapH)
+		appGroup := w.GetAppGroupL(pce.Labels)
 		if ignoreLoc {
-			appGroup = w.GetAppGroup(pce.LabelMapH)
+			appGroup = w.GetAppGroup(pce.Labels)
 		}
 
 		// If this is an unmanaged workload, do nothing more

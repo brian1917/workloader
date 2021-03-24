@@ -100,13 +100,6 @@ func labelGroupImport() {
 		pceLGKeyNameMap[lg.Key+lg.Name] = lg
 	}
 
-	// Get the PCE Label Maps
-	a, err = pce.GetLabelMaps()
-	utils.LogAPIResp("GetLabelMaps", a)
-	if err != nil {
-		utils.LogError(err.Error())
-	}
-
 	// Create the csvParse
 	c := csvParser{}
 
@@ -158,7 +151,7 @@ CSVEntries:
 				labels = []string{}
 			}
 			for _, l := range labels {
-				if pceLabel, check := pce.LabelMapKV[line[c.KeyIndex]+l]; !check {
+				if pceLabel, check := pce.Labels[line[c.KeyIndex]+l]; !check {
 					utils.LogWarning(fmt.Sprintf("CSV Line %d - the label %s (%s) does not exist. Skipping entry.", i+1, l, line[c.KeyIndex]), true)
 					continue CSVEntries
 				} else {
@@ -225,7 +218,7 @@ CSVEntries:
 			csvLabels := make(map[string]bool)
 			if c.MemberLabelsIndex != 99999 {
 				for _, l := range pceLabelGroup.Labels {
-					pceLabels[pce.LabelMapH[l.Href].Value] = true
+					pceLabels[pce.Labels[l.Href].Value] = true
 				}
 				labels := []string{}
 				if line[c.MemberLabelsIndex] != "" {
@@ -238,7 +231,7 @@ CSVEntries:
 				for l := range csvLabels {
 					if !pceLabels[l] {
 						// Check if the label exists
-						if _, check := pce.LabelMapKV[line[c.KeyIndex]+l]; !check {
+						if _, check := pce.Labels[line[c.KeyIndex]+l]; !check {
 							utils.LogWarning(fmt.Sprintf("CSV Line %d - %s - %s(%s) does not exist in the PCE as a label. Skipping entry.", i+1, line[c.NameIndex], l, line[c.KeyIndex]), true)
 							continue CSVEntries
 						}
@@ -259,7 +252,7 @@ CSVEntries:
 			if labelUpdate {
 				update = true
 				for l := range csvLabels {
-					newLabels = append(newLabels, &illumioapi.Label{Href: pce.LabelMapKV[line[c.KeyIndex]+l].Href})
+					newLabels = append(newLabels, &illumioapi.Label{Href: pce.Labels[line[c.KeyIndex]+l].Href})
 				}
 				pceLabelGroup.Labels = newLabels
 			} else {

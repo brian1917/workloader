@@ -65,3 +65,23 @@ func userInputConvert(ip string) (illumioapi.Interface, error) {
 	}
 	return illumioapi.Interface{Address: ipAddress.String(), CidrBlock: nil, Name: ifaceName}, nil
 }
+
+// publicIPIsValid validates the ip string is either a valid CIDR or IP address
+func publicIPIsValid(ip string) bool {
+
+	if strings.Contains(ip, "/") {
+		_, _, err := net.ParseCIDR(ip)
+		if err != nil {
+			return false
+		}
+		return true
+	}
+
+	i := net.ParseIP(ip)
+	if i == nil {
+		return false
+	}
+
+	return true
+
+}

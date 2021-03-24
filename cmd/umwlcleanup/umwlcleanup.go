@@ -115,7 +115,7 @@ workloads:
 				managedIPs = append(managedIPs, fmt.Sprintf("%s:%s", i.Name, i.Address))
 			}
 			//
-			data = append(data, []string{managedWkld.Hostname, umwl.Hostname, umwl.Name, strings.Join(managedIPs, ";"), strings.Join(umwlIPs, ";"), managedWkld.GetRole(pce.LabelMapH).Value, umwl.GetRole(pce.LabelMapH).Value, managedWkld.GetApp(pce.LabelMapH).Value, umwl.GetApp(pce.LabelMapH).Value, managedWkld.GetEnv(pce.LabelMapH).Value, umwl.GetEnv(pce.LabelMapH).Value, managedWkld.GetLoc(pce.LabelMapH).Value, umwl.GetLoc(pce.LabelMapH).Value, umwl.Href, managedWkld.Href, managedWkld.Href, umwl.GetRole(pce.LabelMapH).Value, umwl.GetApp(pce.LabelMapH).Value, umwl.GetEnv(pce.LabelMapH).Value, umwl.GetLoc(pce.LabelMapH).Value})
+			data = append(data, []string{managedWkld.Hostname, umwl.Hostname, umwl.Name, strings.Join(managedIPs, ";"), strings.Join(umwlIPs, ";"), managedWkld.GetRole(pce.Labels).Value, umwl.GetRole(pce.Labels).Value, managedWkld.GetApp(pce.Labels).Value, umwl.GetApp(pce.Labels).Value, managedWkld.GetEnv(pce.Labels).Value, umwl.GetEnv(pce.Labels).Value, managedWkld.GetLoc(pce.Labels).Value, umwl.GetLoc(pce.Labels).Value, umwl.Href, managedWkld.Href, managedWkld.Href, umwl.GetRole(pce.Labels).Value, umwl.GetApp(pce.Labels).Value, umwl.GetEnv(pce.Labels).Value, umwl.GetLoc(pce.Labels).Value})
 		}
 	}
 

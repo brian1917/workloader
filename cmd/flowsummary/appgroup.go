@@ -192,9 +192,9 @@ func flowSummary() {
 			}
 			srcAppGroup = t.Src.IP
 		} else {
-			srcAppGroup = t.Src.Workload.GetAppGroup(pce.LabelMapH)
+			srcAppGroup = t.Src.Workload.GetAppGroup(pce.Labels)
 			if appGroupLoc {
-				srcAppGroup = t.Src.Workload.GetAppGroupL(pce.LabelMapH)
+				srcAppGroup = t.Src.Workload.GetAppGroupL(pce.Labels)
 			}
 		}
 
@@ -205,9 +205,9 @@ func flowSummary() {
 			}
 			dstAppGroup = t.Dst.IP
 		} else {
-			dstAppGroup = t.Dst.Workload.GetAppGroup(pce.LabelMapH)
+			dstAppGroup = t.Dst.Workload.GetAppGroup(pce.Labels)
 			if appGroupLoc {
-				dstAppGroup = t.Dst.Workload.GetAppGroupL(pce.LabelMapH)
+				dstAppGroup = t.Dst.Workload.GetAppGroupL(pce.Labels)
 			}
 		}
 

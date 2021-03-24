@@ -9,13 +9,16 @@ import (
 
 	"github.com/brian1917/workloader/cmd/checkversion"
 	"github.com/brian1917/workloader/cmd/compatibility"
+<<<<<<< HEAD
 	"github.com/brian1917/workloader/cmd/dagsync"
 	"github.com/brian1917/workloader/cmd/delete"
+=======
+	"github.com/brian1917/workloader/cmd/deletehrefs"
+>>>>>>> 100304e3964d700d0ef8b44e02e66087c0b43712
 	"github.com/brian1917/workloader/cmd/deleteunusedlabels"
 	"github.com/brian1917/workloader/cmd/dupecheck"
+	"github.com/brian1917/workloader/cmd/edgeadmin"
 	"github.com/brian1917/workloader/cmd/edgerulecopy"
-	"github.com/brian1917/workloader/cmd/edgeruleexport"
-	"github.com/brian1917/workloader/cmd/edgeruleimport"
 	"github.com/brian1917/workloader/cmd/explorer"
 	"github.com/brian1917/workloader/cmd/extract"
 	"github.com/brian1917/workloader/cmd/flowimport"
@@ -30,9 +33,13 @@ import (
 	"github.com/brian1917/workloader/cmd/labelrename"
 	"github.com/brian1917/workloader/cmd/mislabel"
 	"github.com/brian1917/workloader/cmd/mode"
-	"github.com/brian1917/workloader/cmd/nic"
+	"github.com/brian1917/workloader/cmd/nicexport"
+	"github.com/brian1917/workloader/cmd/nicmanage"
 	"github.com/brian1917/workloader/cmd/pcemgmt"
 	"github.com/brian1917/workloader/cmd/ruleexport"
+	"github.com/brian1917/workloader/cmd/ruleimport"
+	"github.com/brian1917/workloader/cmd/rulesetexport"
+	"github.com/brian1917/workloader/cmd/rulesetimport"
 	"github.com/brian1917/workloader/cmd/servicefinder"
 	"github.com/brian1917/workloader/cmd/snowsync"
 	"github.com/brian1917/workloader/cmd/subnet"
@@ -109,7 +116,10 @@ func init() {
 	RootCmd.AddCommand(labelgroupexport.LabelGroupExportCmd)
 	RootCmd.AddCommand(labelgroupimport.LabelGroupImportCmd)
 	RootCmd.AddCommand(svcexport.SvcExportCmd)
+	RootCmd.AddCommand(rulesetexport.RuleSetExportCmd)
+	RootCmd.AddCommand(rulesetimport.RuleSetImportCmd)
 	RootCmd.AddCommand(ruleexport.RuleExportCmd)
+	RootCmd.AddCommand(ruleimport.RuleImportCmd)
 	RootCmd.AddCommand(flowimport.FlowImportCmd)
 	RootCmd.AddCommand(templateimport.TemplateImportCmd)
 
@@ -125,8 +135,9 @@ func init() {
 	RootCmd.AddCommand(upgrade.UpgradeCmd)
 	RootCmd.AddCommand(getpairingkey.GetPairingKey)
 	RootCmd.AddCommand(unpair.UnpairCmd)
-	RootCmd.AddCommand(delete.DeleteCmd)
+	RootCmd.AddCommand(deletehrefs.DeleteCmd)
 	RootCmd.AddCommand(umwlcleanup.UMWLCleanUpCmd)
+	RootCmd.AddCommand(nicmanage.NICManageCmd)
 
 	// Label management
 	RootCmd.AddCommand(deleteunusedlabels.LabelsDeleteUnusedCmd)
@@ -137,14 +148,13 @@ func init() {
 	RootCmd.AddCommand(dupecheck.DupeCheckCmd)
 	RootCmd.AddCommand(flowsummary.FlowSummaryCmd)
 	RootCmd.AddCommand(explorer.ExplorerCmd)
-	RootCmd.AddCommand(nic.NICCmd)
+	RootCmd.AddCommand(nicexport.NICExportCmd)
 	RootCmd.AddCommand(servicefinder.ServiceFinderCmd)
 
 	// Edge Commands
 	RootCmd.AddCommand(wkldtoipl.WorkloadToIPLCmd)
 	RootCmd.AddCommand(edgerulecopy.EdgeRuleCopyCmd)
-	RootCmd.AddCommand(edgeruleexport.EdgeRuleExportCmd)
-	RootCmd.AddCommand(edgeruleimport.EdgeRuleImportCmd)
+	RootCmd.AddCommand(edgeadmin.EdgeAdminCmd)
 
 	// Version Commands
 	RootCmd.AddCommand(versionCmd)

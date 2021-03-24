@@ -14,7 +14,7 @@ import (
 )
 
 // Global variables
-var ports, outputFileName string
+var ports, processes, outputFileName string
 var idleOnly, orOperator, debug, updatePCE, noPrompt bool
 var pce illumioapi.PCE
 var err error
@@ -23,6 +23,7 @@ func init() {
 
 	ServiceFinderCmd.Flags().BoolVarP(&idleOnly, "idle-only", "i", false, "Only look at idle workloads.")
 	ServiceFinderCmd.Flags().StringVarP(&ports, "ports", "p", "", "Comma-separated list of ports.")
+	ServiceFinderCmd.Flags().StringVarP(&processes, "process-key-words", "k", "", "Comma-separated list of processes. Matching is partial (e.g., a \"python\" will find \"/usr/bin/python2.7\").")
 	ServiceFinderCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 
 	ServiceFinderCmd.Flags().SortFlags = false
@@ -65,17 +66,26 @@ func serviceFinder() {
 
 	// Remove spaces in our lists
 	portList := strings.ReplaceAll(ports, ", ", ",")
+	processList := strings.ReplaceAll(processes, ", ", ",")
 
 	// Create slices
-	portStrSlice := strings.Split(portList, ",")
+	var portStrSlice, processSlice []string
+	if portList != "" {
+		portStrSlice = strings.Split(portList, ",")
+	}
+	if processList != "" {
+		processSlice = strings.Split(processList, ",")
+	}
 
 	portListInt := []int{}
-	for _, p := range portStrSlice {
-		pInt, err := strconv.Atoi(p)
-		if err != nil {
-			utils.LogError(err.Error())
+	if len(portStrSlice) > 0 {
+		for _, p := range portStrSlice {
+			pInt, err := strconv.Atoi(p)
+			if err != nil {
+				utils.LogError(err.Error())
+			}
+			portListInt = append(portListInt, pInt)
 		}
-		portListInt = append(portListInt, pInt)
 	}
 
 	// Create Maps for lookup
@@ -85,22 +95,15 @@ func serviceFinder() {
 	}
 
 	// Get all workloads
-	allWklds, a, err := pce.GetAllWorkloads()
-	utils.LogAPIResp("GetAllWorkloads", a)
-	if err != nil {
-		utils.LogError(err.Error())
+	qp := map[string]string{"mode": "idle"}
+	if !idleOnly {
+		qp = nil
 	}
 
-	// Check if we should only get idle workloads
-	var wklds []illumioapi.Workload
-	if idleOnly {
-		for _, w := range allWklds {
-			if w.GetMode() == "idle" {
-				wklds = append(wklds, w)
-			}
-		}
-	} else {
-		wklds = allWklds
+	wklds, a, err := pce.GetAllWorkloadsQP(qp)
+	utils.LogAPIResp("GetAllWorkloadsQP", a)
+	if err != nil {
+		utils.LogError(err.Error())
 	}
 
 	// Log our target list
@@ -119,9 +122,22 @@ func serviceFinder() {
 		}
 
 		// Iterate through each open port
-		for _, o := range wkld.Services.OpenServicePorts {
-			if _, ok := portMap[o.Port]; ok {
-				data = append(data, []string{w.Href, w.Hostname, strconv.Itoa(o.Port), o.ProcessName, w.GetRole(pce.LabelMapH).Value, w.GetApp(pce.LabelMapH).Value, w.GetEnv(pce.LabelMapH).Value, w.GetLoc(pce.LabelMapH).Value, w.GetIPWithDefaultGW()})
+		if len(portMap) > 0 {
+			for _, o := range wkld.Services.OpenServicePorts {
+				if _, ok := portMap[o.Port]; ok {
+					data = append(data, []string{w.Href, w.Hostname, strconv.Itoa(o.Port), o.ProcessName, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, w.GetIPWithDefaultGW()})
+				}
+			}
+		}
+
+		// Iterate through each running process
+		if len(processSlice) > 0 {
+			for _, wkldProcess := range wkld.Services.OpenServicePorts {
+				for _, providedProcess := range processSlice {
+					if strings.Contains(wkldProcess.ProcessName, providedProcess) {
+						data = append(data, []string{w.Href, w.Hostname, strconv.Itoa(wkldProcess.Port), wkldProcess.ProcessName, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, w.GetIPWithDefaultGW()})
+					}
+				}
 			}
 		}
 

@@ -1,4 +1,4 @@
-package delete
+package deletehrefs
 
 import (
 	"fmt"
@@ -12,13 +12,22 @@ import (
 )
 
 // Set global variables for flags
-var userInput, headerValue string
-var debug, updatePCE, noPrompt, noProv bool
-var pce illumioapi.PCE
+var headerValue string
 var err error
 
+// Input is the input type for the Delete method
+type Input struct {
+	Hrefs     []string
+	NoPrompt  bool
+	Provision bool
+	UpdatePCE bool
+	PCE       illumioapi.PCE
+}
+
+var input Input
+
 func init() {
-	DeleteCmd.Flags().BoolVarP(&noPrompt, "no-prov", "x", false, "do not provision deletes for provisionable objects. By default, all deletions will be provisioned.")
+	DeleteCmd.Flags().BoolVar(&input.Provision, "provision", false, "Provision provisionable objects after deleting them.")
 	DeleteCmd.Flags().StringVar(&headerValue, "header", "", "header to find the column with the hrefs to delete. If it's blank, the first column is used.")
 }
 
@@ -31,7 +40,7 @@ Delete any object with an HREF (e.g., unmanaged workloads, labels, services, IPL
 
 The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		pce, err = utils.GetTargetPCE(true)
+		input.PCE, err = utils.GetTargetPCE(true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -41,31 +50,25 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 			fmt.Println("Command requires 1 argument for the csv file. See usage help.")
 			os.Exit(0)
 		}
-		userInput = args[0]
+		input.getHrefs(args[0])
 
 		// Get persistent flags from Viper
-		debug = viper.Get("debug").(bool)
-		updatePCE = viper.Get("update_pce").(bool)
-		noPrompt = viper.Get("no_prompt").(bool)
+		input.UpdatePCE = viper.Get("update_pce").(bool)
+		input.NoPrompt = viper.Get("no_prompt").(bool)
 
-		delete()
+		DeleteHrefs(input)
 	},
 }
 
-func delete() {
-
-	// Log Start of the command
-	utils.LogStartCommand("delete")
-
-	// Create our hrefSlice
-	hrefs := []string{}
+// getHrefs takes the user input string and populates the input Hrefs
+func (i *Input) getHrefs(userInput string) {
 
 	// Get the HREFs from user input or the file
 	if strings.Contains(userInput, "/orgs/") {
 		if _, err := os.Stat(userInput); !os.IsNotExist(err) {
 			utils.LogError("the provided input could be an href (contains \"/orgs/\") and is also a file. Rename the file for clarity.")
 		}
-		hrefs = strings.Split(strings.ReplaceAll(userInput, "; ", ";"), ";")
+		input.Hrefs = strings.Split(strings.ReplaceAll(userInput, "; ", ";"), ";")
 	} else {
 		// Parse the CSV data
 		csvData, err := utils.ParseCSV(userInput)
@@ -93,12 +96,19 @@ func delete() {
 				utils.LogInfo(fmt.Sprintf("CSV Line - %d - first row is header - skipping", i+1), true)
 				continue
 			}
-			hrefs = append(hrefs, line[col])
+			input.Hrefs = append(input.Hrefs, line[col])
 
 			// Log column
 			utils.LogInfo(fmt.Sprintf("hrefs are in col %d", col+1), false)
 		}
 	}
+}
+
+// Delete runs the delete command
+func DeleteHrefs(input Input) {
+
+	// Log Start of the command
+	utils.LogStartCommand("delete")
 
 	var deleted, skipped int
 
@@ -109,7 +119,7 @@ func delete() {
 	deleteCounts := make(map[string]int)
 
 	// Iterate throguh the delete Hrefs
-	for _, entry := range hrefs {
+	for _, entry := range input.Hrefs {
 
 		key := ""
 		if strings.Contains(entry, "/labels/") {
@@ -130,6 +140,8 @@ func delete() {
 			key = "rule_sets"
 		} else if strings.Contains(entry, "/users/") {
 			key = "users"
+		} else if strings.Contains(entry, "/workloads/") {
+			key = "unmanaged workloads"
 		} else {
 			x := strings.Split(entry, "/")
 			x = x[:len(x)-1]
@@ -141,21 +153,21 @@ func delete() {
 	}
 
 	// Print out
-	utils.LogInfo(fmt.Sprintf("%d records identified to be deleted:", len(hrefs)), true)
+	utils.LogInfo(fmt.Sprintf("%d records identified to be deleted:", len(input.Hrefs)), true)
 	for key, value := range deleteCounts {
 		utils.LogInfo(fmt.Sprintf("%s:%d", key, value), true)
 	}
 
 	// Log findings
-	if !updatePCE {
+	if !input.UpdatePCE {
 		utils.LogInfo("Run command again with --update-pce to do the delete.", true)
 		return
 	}
 
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
-	if updatePCE && !noPrompt {
+	if input.UpdatePCE && !input.NoPrompt {
 		var prompt string
-		fmt.Printf("\r\n[PROMPT] - workloader identified %d objects to attempt to delete in %s (%s). Do you want to run the delete (yes/no)? ", len(hrefs), viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".fqdn").(string))
+		fmt.Printf("\r\n[PROMPT] - workloader identified %d objects to attempt to delete in %s (%s). Do you want to run the delete (yes/no)? ", len(input.Hrefs), viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".fqdn").(string))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo("prompt denied.", true)
@@ -165,10 +177,10 @@ func delete() {
 	}
 
 	// If we get here - we do the delete
-	for _, href := range hrefs {
+	for _, href := range input.Hrefs {
 
 		// For each other entry, delete the href
-		a, _ := pce.DeleteHref(href)
+		a, _ := input.PCE.DeleteHref(href)
 		utils.LogAPIResp("DeleteHref", a)
 		if a.StatusCode != 204 {
 			utils.LogWarning(fmt.Sprintf("%s - not deleted - status code %d", href, a.StatusCode), true)
@@ -208,9 +220,9 @@ func delete() {
 	utils.LogInfo(fmt.Sprintf("%d items skipped.", skipped), true)
 
 	// Provision if needed
-	if len(provision) > 0 && !noProv {
+	if len(provision) > 0 && input.Provision {
 		utils.LogInfo(fmt.Sprintf("provisioning deletion of %d provisionable objects.", len(provision)), true)
-		a, err := pce.ProvisionHref(provision, "deleted by workloader")
+		a, err := input.PCE.ProvisionHref(provision, "deleted by workloader")
 		utils.LogAPIResp("ProvisionHref", a)
 		if err != nil {
 			utils.LogError(err.Error())

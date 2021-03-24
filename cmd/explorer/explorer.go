@@ -98,15 +98,8 @@ func explorerExport() {
 	}
 	tq.MaxFLows = maxResults
 
-	// Get LabelMap for getting workload labels
-	_, err = pce.GetLabelMaps()
-	if err != nil {
-		utils.LogError(err.Error())
-	}
-
-	// Get WorkloadMap by hostname
-	whm, _, err = pce.GetWkldHostMap()
-	if err != nil {
+	// Get Labels and workloads
+	if err := pce.Load(illumioapi.LoadInput{Labels: true, Workloads: true}); err != nil {
 		utils.LogError(err.Error())
 	}
 
@@ -286,8 +279,8 @@ func explorerExport() {
 		// Build the file name and log string by iterating over all the labels
 		var logEntries, fileNameEntries []string
 		for _, label := range labels {
-			logEntries = append(logEntries, fmt.Sprintf("%s(%s)", pce.LabelMapH[label].Value, pce.LabelMapH[label].Key))
-			fileNameEntries = append(fileNameEntries, pce.LabelMapH[label].Value)
+			logEntries = append(logEntries, fmt.Sprintf("%s(%s)", pce.Labels[label].Value, pce.Labels[label].Key))
+			fileNameEntries = append(fileNameEntries, pce.Labels[label].Value)
 		}
 
 		// Log the query
@@ -447,22 +440,22 @@ func createExplorerCSV(filename string, traffic []illumioapi.TrafficAnalysis) {
 		src := []string{t.Src.IP, "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA"}
 		if t.Src.Workload != nil {
 			// Get the app group
-			sag := t.Src.Workload.GetAppGroup(pce.LabelMapH)
+			sag := t.Src.Workload.GetAppGroup(pce.Labels)
 			if appGroupLoc {
-				sag = t.Src.Workload.GetAppGroupL(pce.LabelMapH)
+				sag = t.Src.Workload.GetAppGroupL(pce.Labels)
 			}
-			src = []string{t.Src.IP, wkldInterfaceName(t.Src.Workload.Hostname, t.Src.IP, whm), wkldNetMask(t.Src.Workload.Hostname, t.Src.IP, whm), wkldGW(t.Src.Workload.Hostname, whm), t.Src.Workload.Hostname, t.Src.Workload.GetRole(pce.LabelMapH).Value, t.Src.Workload.GetApp(pce.LabelMapH).Value, t.Src.Workload.GetEnv(pce.LabelMapH).Value, t.Src.Workload.GetLoc(pce.LabelMapH).Value, sag}
+			src = []string{t.Src.IP, wkldInterfaceName(t.Src.Workload.Hostname, t.Src.IP, whm), wkldNetMask(t.Src.Workload.Hostname, t.Src.IP, whm), wkldGW(t.Src.Workload.Hostname, whm), t.Src.Workload.Hostname, t.Src.Workload.GetRole(pce.Labels).Value, t.Src.Workload.GetApp(pce.Labels).Value, t.Src.Workload.GetEnv(pce.Labels).Value, t.Src.Workload.GetLoc(pce.Labels).Value, sag}
 		}
 
 		// Destination
 		dst := []string{t.Dst.IP, "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA"}
 		if t.Dst.Workload != nil {
 			// Get the app group
-			dag := t.Dst.Workload.GetAppGroup(pce.LabelMapH)
+			dag := t.Dst.Workload.GetAppGroup(pce.Labels)
 			if appGroupLoc {
-				dag = t.Src.Workload.GetAppGroupL(pce.LabelMapH)
+				dag = t.Src.Workload.GetAppGroupL(pce.Labels)
 			}
-			dst = []string{t.Dst.IP, wkldInterfaceName(t.Dst.Workload.Hostname, t.Dst.IP, whm), wkldNetMask(t.Dst.Workload.Hostname, t.Dst.IP, whm), wkldGW(t.Dst.Workload.Hostname, whm), t.Dst.Workload.Hostname, t.Dst.Workload.GetRole(pce.LabelMapH).Value, t.Dst.Workload.GetApp(pce.LabelMapH).Value, t.Dst.Workload.GetEnv(pce.LabelMapH).Value, t.Dst.Workload.GetLoc(pce.LabelMapH).Value, dag}
+			dst = []string{t.Dst.IP, wkldInterfaceName(t.Dst.Workload.Hostname, t.Dst.IP, whm), wkldNetMask(t.Dst.Workload.Hostname, t.Dst.IP, whm), wkldGW(t.Dst.Workload.Hostname, whm), t.Dst.Workload.Hostname, t.Dst.Workload.GetRole(pce.Labels).Value, t.Dst.Workload.GetApp(pce.Labels).Value, t.Dst.Workload.GetEnv(pce.Labels).Value, t.Dst.Workload.GetLoc(pce.Labels).Value, dag}
 		}
 
 		// Set the transmission type variable

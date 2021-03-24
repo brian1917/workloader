@@ -1,4 +1,4 @@
-package edgeruleimport
+package ruleimport
 
 import (
 	"fmt"

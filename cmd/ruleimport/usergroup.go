@@ -1,4 +1,4 @@
-package edgeruleimport
+package ruleimport
 
 import (
 	"fmt"
@@ -21,7 +21,7 @@ func userGroupComaprison(csvUserGroupNames []string, rule illumioapi.Rule, userG
 		if ug, ugCheck := userGroupMapName[ugName]; ugCheck {
 			csvUserGroupsNameMap[ug.Name] = ug
 		} else {
-			utils.LogError(fmt.Sprintf("CSV line %d - %s does not exist as a usergroup", csvLine, ugName))
+			utils.LogError(fmt.Sprintf("CSV line %d - %s does not exist as a user group", csvLine, ugName))
 		}
 	}
 
