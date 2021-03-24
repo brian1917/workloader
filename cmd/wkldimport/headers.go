@@ -134,11 +134,18 @@ func (i *Input) log() {
 	v := reflect.ValueOf(*i)
 
 	logEntry := []string{}
-	for i := 0; i < v.NumField(); i++ {
-		if v.Type().Field(i).Name == "PCE" || v.Type().Field(i).Name == "KeepAllPCEInterfaces" || v.Type().Field(i).Name == "FQDNtoHostname" {
+	for a := 0; a < v.NumField(); a++ {
+		if v.Type().Field(a).Name == "PCE" || v.Type().Field(a).Name == "KeepAllPCEInterfaces" || v.Type().Field(a).Name == "FQDNtoHostname" {
 			continue
 		}
-		logEntry = append(logEntry, fmt.Sprintf("%s: %v", v.Type().Field(i).Name, v.Field(i).Interface()))
+		if v.Type().Field(a).Name == "MatchIndex" {
+			logEntry = append(logEntry, fmt.Sprintf("%s: %v", v.Type().Field(a).Name, *i.MatchIndex))
+			continue
+		}
+		logEntry = append(logEntry, fmt.Sprintf("%s: %v", v.Type().Field(a).Name, v.Field(a).Interface()))
 	}
+
+	// Append the MatchIndex
+
 	utils.LogInfo(strings.Join(logEntry, "; "), false)
 }
