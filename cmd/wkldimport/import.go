@@ -144,10 +144,8 @@ CSVEntries:
 					if line[index] == "" {
 						continue
 					}
-					// Get the label HREF
-					l := checkLabel(input.PCE, input.UpdatePCE, illumioapi.Label{Key: labelKeys[i], Value: line[index]}, csvLine)
 					// Add that label to the new labels slice
-					newWkld.Labels = append(newWkld.Labels, &illumioapi.Label{Href: l.Href})
+					*newWkld.Labels = append(*newWkld.Labels, &illumioapi.Label{Href: checkLabel(input.PCE, input.UpdatePCE, illumioapi.Label{Key: labelKeys[i], Value: line[index]}, csvLine).Href})
 				}
 			}
 
@@ -215,7 +213,7 @@ CSVEntries:
 			if index, ok := input.Headers[header]; ok {
 				// If the value is blank and the current label exists, put it back
 				if line[index] == "" && wkldCurrentLabels[i].Href != "" {
-					wkld.Labels = append(wkld.Labels, &illumioapi.Label{Href: wkldCurrentLabels[i].Href})
+					*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: wkldCurrentLabels[i].Href})
 					continue
 				}
 
@@ -234,13 +232,13 @@ CSVEntries:
 					// Log change required
 					utils.LogInfo(fmt.Sprintf("CSV Line - %d - %s requiring %s label update from %s to %s.", csvLine, line[*input.MatchIndex], labelKeys[i], wkldCurrentLabels[i].Value, line[index]), false)
 					// Add that label to the new labels slice
-					wkld.Labels = append(wkld.Labels, &illumioapi.Label{Href: checkLabel(input.PCE, input.UpdatePCE, illumioapi.Label{Key: labelKeys[i], Value: line[index]}, csvLine).Href})
+					*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: checkLabel(input.PCE, input.UpdatePCE, illumioapi.Label{Key: labelKeys[i], Value: line[index]}, csvLine).Href})
 					continue
 				}
 
 				// If the labels match keep existing
 				if line[index] == wkldCurrentLabels[i].Value && line[index] != "" {
-					wkld.Labels = append(wkld.Labels, &illumioapi.Label{Href: wkldCurrentLabels[i].Href})
+					*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: wkldCurrentLabels[i].Href})
 				}
 			}
 		}

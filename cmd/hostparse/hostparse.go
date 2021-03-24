@@ -93,14 +93,12 @@ type regexstruct struct {
 	labelcg map[string]string
 }
 
-type lbl struct {
-	href  string
-	value string
-}
-
 //ReadCSV - Open CSV for hostfile and parser file
 func ReadCSV(file string) [][]string {
 	csvfile, err := os.Open(file)
+	if err != nil {
+		utils.LogError(err.Error())
+	}
 	defer csvfile.Close()
 
 	if err != nil {
@@ -130,8 +128,7 @@ func (r *regex) RelabelFromHostname(failedPCE bool, wkld illumioapi.Workload, lb
 	// Copy the workload struct to save to new updated workload struct if needed.
 	tmpwkld := wkld
 
-	var searchname string
-	searchname = wkld.Hostname
+	searchname := wkld.Hostname
 
 	if searchname == "" {
 		utils.LogInfo(fmt.Sprintf("**** No Hostname string configured on the workload. Name : %s, HRef : %s", wkld.Name, wkld.Href), false)
@@ -159,7 +156,7 @@ func (r *regex) RelabelFromHostname(failedPCE bool, wkld illumioapi.Workload, lb
 			utils.LogInfo(fmt.Sprintf("%s - Regex: %s - Match: %t", searchname, tmp.regex, match), false)
 			// Save the labels that are existing
 			orgLabels := make(map[string]*illumioapi.Label)
-			for _, l := range wkld.Labels {
+			for _, l := range *wkld.Labels {
 				orgLabels[l.Key] = l
 			}
 
@@ -209,12 +206,12 @@ func (r *regex) RelabelFromHostname(failedPCE bool, wkld illumioapi.Workload, lb
 				}
 				tmplabels = append(tmplabels, &tmplabel)
 				//Add Label array to the workload.
-				tmpwkld.Labels = tmplabels
+				*tmpwkld.Labels = tmplabels
 			}
 
 			//Get the original labels and new labels to show the changes.
-			orgRole, orgApp, orgEnv, orgLoc := labelvalues(wkld.Labels)
-			role, app, env, loc := labelvalues(tmpwkld.Labels)
+			orgRole, orgApp, orgEnv, orgLoc := labelvalues(*wkld.Labels)
+			role, app, env, loc := labelvalues(*tmpwkld.Labels)
 
 			if debug {
 				utils.LogInfo(fmt.Sprintf("%s - Replacement Regex: %+v - Labels: %s - %s - %s - %s", searchname, tmp.labelcg, role, app, env, loc), false)
@@ -229,7 +226,7 @@ func (r *regex) RelabelFromHostname(failedPCE bool, wkld illumioapi.Workload, lb
 	}
 	utils.LogInfo(fmt.Sprintf("**** NO REGEX MATCH FOUND **** - %s -", searchname), false)
 	//return there was no match for that hostname
-	orgRole, orgApp, orgEnv, orgLoc := labelvalues(wkld.Labels)
+	orgRole, orgApp, orgEnv, orgLoc := labelvalues(*wkld.Labels)
 	role, app, env, loc := "", "", "", ""
 	fmt.Fprintf(outputfile, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\r\n", tmpwkld.Hostname, role, app, env, loc, tmpwkld.Href, orgRole, orgApp, orgEnv, orgLoc, "", "")
 	return match, tmpwkld
@@ -265,11 +262,11 @@ func (r *regex) load(data [][]string) {
 func updateLabels(w *illumioapi.Workload, lblhref map[string]illumioapi.Label) {
 
 	var tmplbls []*illumioapi.Label
-	for _, lbl := range w.Labels {
+	for _, lbl := range *w.Labels {
 		tmplbl := lblhref[lbl.Href]
 		tmplbls = append(tmplbls, &tmplbl)
 	}
-	w.Labels = tmplbls
+	*w.Labels = tmplbls
 }
 
 //labelvalues - Return all the Label values from the labels of a workload
@@ -289,25 +286,6 @@ func labelvalues(labels []*illumioapi.Label) (string, string, string, string) {
 		}
 	}
 	return role, app, env, loc
-}
-
-//labelhref - Return all the Label hrefs from the labels of a workload
-func labelhref(labels []*illumioapi.Label) (string, string, string, string) {
-
-	lochref, envhref, apphref, rolehref := "", "", "", ""
-	for _, l := range labels {
-		switch l.Key {
-		case "loc":
-			lochref = l.Href
-		case "env":
-			envhref = l.Href
-		case "app":
-			apphref = l.Href
-		case "role":
-			rolehref = l.Href
-		}
-	}
-	return rolehref, apphref, envhref, lochref
 }
 
 // changeCase - upperorlower function check to see if user set capitalization to ignore/no change(0 default), upper (1) or lower (2)
@@ -381,7 +359,7 @@ func hostnameParser() {
 		debug = true
 		updatePCE = false
 		failedPCE = true
-		utils.LogInfo(fmt.Sprintf("Error accessing PCE API - Skipping further PCE API calls"), false)
+		utils.LogInfo("error accessing PCE API - Skipping further PCE API calls", false)
 		if debug {
 			utils.LogDebug(fmt.Sprintf("Get All Labels Error: %s", err))
 		}
@@ -462,8 +440,8 @@ func hostnameParser() {
 		if w.LabelsMatch(roleFlag, appFlag, envFlag, locFlag, lblshref) || allWklds {
 
 			match, labeledwrkld := data.RelabelFromHostname(failedPCE, w, lblskv, nolabels, outputFile)
-			orgRole, orgApp, orgEnv, orgLoc := labelvalues(w.Labels)
-			role, app, env, loc := labelvalues(labeledwrkld.Labels)
+			orgRole, orgApp, orgEnv, orgLoc := labelvalues(*w.Labels)
+			role, app, env, loc := labelvalues(*labeledwrkld.Labels)
 
 			if match {
 				if labeledwrkld.Href != "" && !(role == orgRole && app == orgApp && env == orgEnv && loc == orgLoc) {
@@ -521,7 +499,7 @@ func hostnameParser() {
 		if response == "yes" && !failedPCE {
 
 			if debug {
-				utils.LogDebug(fmt.Sprintf("*********************************LABEL CREATION***************************************"))
+				utils.LogDebug("*********************************LABEL CREATION***************************************")
 			}
 			for _, lbl := range tmplbls {
 				newLabel, apiResp, err := pce.CreateLabel(lbl)
@@ -539,10 +517,10 @@ func hostnameParser() {
 				lblskv[lbl.Key+"."+lbl.Value] = newLabel.Href
 			}
 			if debug {
-				utils.LogDebug(fmt.Sprintf("*********************************WORKLOAD BULK UPDATE***************************************"))
+				utils.LogDebug("*********************************WORKLOAD BULK UPDATE***************************************")
 			}
 			for _, w := range alllabeledwrkld {
-				for _, l := range w.Labels {
+				for _, l := range *w.Labels {
 					if l.Href == "" {
 						l.Href = lblskv[l.Key+"."+l.Value]
 					}
@@ -570,7 +548,7 @@ func hostnameParser() {
 		}
 	} else {
 		//Make sure to put NO MATCHES into output file
-		utils.LogInfo(fmt.Sprintf("No Workloads will me updated  -  Check the output file"), false)
+		utils.LogInfo("No Workloads will me updated  -  Check the output file", false)
 
 		if !noPrompt && !failedPCE {
 			fmt.Println("***** There were no hostnames that needed updating or matched an entry in the 'parsefile'****")

@@ -15,12 +15,10 @@ import (
 
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // Declare local global variables
 var err error
-var debug bool
 
 //Input is the input format for the rule-export command
 type Input struct {
@@ -74,9 +72,6 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-
-		// Get the viper values
-		debug = viper.Get("debug").(bool)
 
 		ExportRules(input)
 	},
@@ -441,7 +436,7 @@ func ExportRules(input Input) {
 						csvEntryMap[HeaderConsumerWorkloads] = input.PCE.Workloads[c.Workload.Href].Hostname
 					}
 					// Check the labels
-					for _, l := range input.PCE.Workloads[c.Workload.Href].Labels {
+					for _, l := range *input.PCE.Workloads[c.Workload.Href].Labels {
 						if val, ok := ruleFilter[l.Href]; ok {
 							ruleFilter[l.Href] = val + 1
 							utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is a consumer label on %s workload - rule %s", input.PCE.Labels[l.Href].Value, input.PCE.Labels[l.Href].Key, input.PCE.Workloads[c.Workload.Href].Name, r.Href), false)
@@ -530,7 +525,7 @@ func ExportRules(input Input) {
 						csvEntryMap[HeaderProviderWorkloads] = input.PCE.Workloads[p.Workload.Href].Hostname
 					}
 					// Check the labels
-					for _, l := range input.PCE.Workloads[p.Workload.Href].Labels {
+					for _, l := range *input.PCE.Workloads[p.Workload.Href].Labels {
 						if val, ok := ruleFilter[l.Href]; ok {
 							ruleFilter[l.Href] = val + 1
 							utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is a provider label on %s workload - rule %s", input.PCE.Labels[l.Href].Value, input.PCE.Labels[l.Href].Key, input.PCE.Workloads[p.Workload.Href].Name, r.Href), false)
