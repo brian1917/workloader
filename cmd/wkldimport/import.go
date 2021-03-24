@@ -208,25 +208,26 @@ CSVEntries:
 
 		// Clear the existing labels
 		wkld.Labels = nil
+		wkld.Labels = &[]*illumioapi.Label{}
 
 		for i, header := range []string{wkldexport.HeaderRole, wkldexport.HeaderApp, wkldexport.HeaderEnv, wkldexport.HeaderLoc} {
 			if index, ok := input.Headers[header]; ok {
-				// If the value is blank and the current label exists, put it back
+				// If the value is blank and the current label exists, keep the current label.
 				if line[index] == "" && wkldCurrentLabels[i].Href != "" {
 					*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: wkldCurrentLabels[i].Href})
 					continue
 				}
 
-				// If the value is the delete value, mark for a change but do not add any labels to the slice.
-				if line[index] == input.RemoveValue {
+				// If the value is the delete value, the delete value is not blank, and the current label is not already blank, log a change without putting any label in.
+				if line[index] == input.RemoveValue && line[index] != "" && wkldCurrentLabels[i].Href != "" {
 					change = true
 					// Log change required
 					utils.LogInfo(fmt.Sprintf("%s requiring removal of %s label.", line[*input.MatchIndex], labelKeys[i]), false)
 					continue
 				}
 
-				// If the CSV does not equal the current value, update it.
-				if line[index] != wkldCurrentLabels[i].Value {
+				// If the value does not equal the current value and it does not equal the remove value, add the new label.
+				if line[index] != wkldCurrentLabels[i].Value && line[index] != input.RemoveValue {
 					// Change the change flag
 					change = true
 					// Log change required
@@ -236,7 +237,7 @@ CSVEntries:
 					continue
 				}
 
-				// If the labels match keep existing
+				// If the labels match keep existing and don't mark a change
 				if line[index] == wkldCurrentLabels[i].Value && line[index] != "" {
 					*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: wkldCurrentLabels[i].Href})
 				}
