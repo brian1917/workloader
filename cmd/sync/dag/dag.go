@@ -33,71 +33,65 @@ type DagRequest struct {
 	XMLName xml.Name `xml:"uid-message"`
 	Type    string   `xml:"type"`
 	Version string   `xml:"version,omitempty"`
-	Payload Payload
+	Payload Payload  `xml:"payload"`
 }
 
 // Payload contains the information for the API Request
 type Payload struct {
-	XMLName    xml.Name   `xml:"payload"`
 	Register   Register   `xml:"register,omitempty"`
 	Unregister Unregister `xml:"unregister,omitempty"`
 }
 
 // Register contains the information for the API Request
 type Register struct {
-	XMLName xml.Name `xml:"register,omitempty"`
-	Entry   []Entry
+	Entry []Entry `xml:"entry,omitempty"`
 }
 
 // Unregister contains the information for the API Request
 type Unregister struct {
-	XMLName xml.Name `xml:"unregister,omitempty"`
-	Entry   []Entry
+	Entry []Entry `xml:"entry,omitempty"`
 }
 
 // DagResponse - Declare Response Struct for PAN API call
 type DagResponse struct {
 	XMLName xml.Name `xml:"response"`
 	Status  string   `xml:"status,attr"`
-	Result  Result   `xml:"result"`
+	Result  Result   `xml:"result,omitempty"`
+	MSG     string   `xml:"msg,omitempty"`
 }
 
 // Result - Declare Result container of PAN API call
 type Result struct {
-	XMLName xml.Name `xml:"result"`
-	Entry   []Entry  `xml:"entry,omitempty"`
-	Count   int      `xml:"count,omitempty"`
-	Error   string   `xml:"error,omitempty"`
-	Enabled string   `xml:"enabled,omitempty"`
-	Group   Group    `xml:"group,omitempty"`
+	Entry   []Entry `xml:"entry,omitempty"`
+	Count   int     `xml:"count,omitempty"`
+	Error   string  `xml:"error,omitempty"`
+	Enabled string  `xml:"enabled,omitempty"`
+	Group   Group   `xml:"group,omitempty"`
 }
 
 // Entry - Declare Entry container of PAN API call
 type Entry struct {
-	XMLName    xml.Name `xml:"entry"`
-	IP         string   `xml:"ip,attr,"`
-	FromAgent  string   `xml:"from_agent,attr,omitempty"`
-	Persistent string   `xml:"persistent,attr,omitempty"`
-	Tag        Tag      `xml:"tag,omitempty"`
+	IP         string `xml:"ip,attr"`
+	FromAgent  string `xml:"from_agent,attr,omitempty"`
+	Persistent string `xml:"persistent,attr,omitempty"`
+	Tag        Tag    `xml:"tag,omitempty"`
 }
 
 // Global - Declare Entry container of PAN API call
 type Group struct {
-	XMLName   xml.Name
 	LocalInfo LocalInfo `xml:"local-info,omitempty"`
 }
 
 type LocalInfo struct {
-	XMLName xml.Name
-	State   string `xml:"state,omitempty"`
+	State string `xml:"state,omitempty"`
 }
 
 // Tag - Declare Entry container of PAN API call
 type Tag struct {
-	XMLName xml.Name `xml:"tag"`
 	Members []string `xml:"member,omitempty"`
 }
 
+//PAN structure used to
 type PAN struct {
 	Key    string
 	URL    string
@@ -107,7 +101,7 @@ type PAN struct {
 // Declare local global variables
 var pce illumioapi.PCE
 var err error
-var debug, addIPv6, change, insecure, flush bool
+var debug, addIPv6, update, insecure, flush, removeOld bool
 var outFormat, panURL, panKey, panVsys string
 
 func init() {
@@ -119,8 +113,10 @@ func init() {
 	DAGSyncCmd.MarkFlagRequired("vsys")
 	DAGSyncCmd.Flags().BoolVarP(&addIPv6, "ipv6", "6", false, "Include IPv6 addresses in the syncing of PCE IP and labels/tags with PAN DAGs")
 	DAGSyncCmd.Flags().BoolVarP(&insecure, "insecure", "i", false, "Ignore SSL certificate validation when communicating with PAN.")
-	DAGSyncCmd.Flags().BoolVarP(&change, "change", "c", false, "By default do not Sync Illumio PCE IP address and labels/tags to PAN DAGs but provide output and log what would have synced.")
+	DAGSyncCmd.Flags().BoolVarP(&update, "update-pan", "", false, "By default do not Sync Illumio PCE IP address and labels/tags to PAN DAGs but provide output and log what would have synced.")
 	DAGSyncCmd.Flags().BoolVarP(&flush, "flush", "f", false, "Remove all Registered IPs from PAN")
+	DAGSyncCmd.Flags().MarkHidden("flush")
+	DAGSyncCmd.Flags().BoolVarP(&removeOld, "remove-old", "r", false, "Remove all Registered IPs that don't have IP on the PCE")
 }
 
 // DAGSyncCmd runs the DAG register/unregister PAN API Sync
@@ -141,7 +137,6 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 		}
 
 		// Get the viper values
-		debug = viper.Get("debug").(bool)
 		outFormat = viper.Get("output_format").(string)
 
 		dagSync()
@@ -273,10 +268,18 @@ func workloadIPMap() map[string][]string {
 
 	for _, w := range wklds {
 		var labels []string
+
+		//Make sure there is a Tag to add.
+		if len(w.Labels) == 0 {
+			continue
+		}
+
+		//Cycle through labels getting the Value from the Href
 		for _, l := range w.Labels {
 			labels = append(labels, pce.Labels[l.Href].Value)
 		}
 
+		// Check ip address to make sure valid and not link local.
 		for _, ip := range w.Interfaces {
 			if ipCheck(ip.Address) != "" {
 				pceIpMap[ip.Address] = labels
@@ -354,12 +357,13 @@ func (pan *PAN) RegisterAPI(register bool, ipLabelList map[string][]string) {
 		}
 		request = DagRequest{Type: "update", Version: "2.0", Payload: Payload{Unregister: Unregister{Entry: entries}}}
 	}
-	if change {
-		xmlData, _ := xml.MarshalIndent(request, "", "")
 
+	//If update set send api to PAN
+	if update {
+		xmlData, _ := xml.MarshalIndent(request, "", "")
 		dagResp := pan.callHTTP("user-id", string(xmlData))
 		if dagResp.Status != "success" {
-			utils.LogInfo(fmt.Sprintf("Register/Unregister API call received error %s Status", dagResp.Status), true)
+			utils.LogInfo(fmt.Sprintf("Register/Unregister API call received error - %s", dagResp.MSG), true)
 		}
 	}
 }
@@ -423,12 +427,8 @@ func isEqual(a1 []string, a2 []string) (bool, []string, []string) {
 func dagSync() {
 
 	//Enter Start Log for PAN DAG Sync
-	utils.LogStartCommand(fmt.Sprintf("PAN DAG Sync - change=%t, insecure=%t, ipv6=%t, flush=%t", change, insecure, addIPv6, flush))
+	utils.LogStartCommand(fmt.Sprintf("PAN DAG Sync - change=%t, insecure=%t, ipv6=%t, flush=%t, rmeoveOld=%t", update, insecure, addIPv6, flush, removeOld))
 
-	// if panKey == "" || panURL == "" {
-	// 	fmt.Println("Please make sure PANORAMA_KEY and PANORAMA_KEY environment variables are set")
-	// 	utils.LogError(fmt.Sprintf(""))
-	// }
 	//Create PAN struct with empty map of registered IPs
 	pan := PAN{Key: panKey, URL: panURL, RegIPs: make(map[string]string)}
 
@@ -443,13 +443,13 @@ func dagSync() {
 	//Get all Workloads from PCE.
 	workloadsMap := workloadIPMap()
 
-	if !change {
+	if !update {
 		utils.LogInfo(fmt.Sprintf("Changes will not be made - must enter \"--change\" or \"-c\" to make changes to PAN!!!"), true)
 	}
 
 	//clear RegisterIP database and quit.
-	if flush && change {
-		if len(workloadsMap) != 0 {
+	if flush && update {
+		if len(panEntries) != 0 {
 			utils.LogInfo("Flushing Register-IP data ", true)
 			pan.RegisterAPI(false, panEntries)
 			utils.LogEndCommand("dag-sync")
@@ -462,7 +462,7 @@ func dagSync() {
 	}
 
 	//If there are no entries from PAN just all all the workloads.
-	if len(panEntries) == 0 && len(workloadsMap) != 0 && change {
+	if len(panEntries) == 0 && len(workloadsMap) != 0 && update {
 		pan.RegisterAPI(true, workloadsMap)
 		utils.LogInfo(fmt.Sprintf("All PCE IPs and Labels added. PAN had no Registered-IPs"), true)
 		utils.LogEndCommand("dag-sync")
@@ -471,23 +471,34 @@ func dagSync() {
 
 	regEntries := make(map[string][]string)
 	unregEntries := make(map[string][]string)
+	//Cycle through Workload list as long as there are labels/tags continue
 	for ip, labels := range workloadsMap {
+		if len(labels) == 0 {
+			continue
+		}
+		//If there isnt an entry for that IP on the PAN add the workload and labels/tags
 		if _, ok := panEntries[ip]; !ok {
 			regEntries[ip] = labels
-		} else if ok, removeLabels, addLabels := isEqual(panEntries[ip], labels); !ok {
-			regEntries[ip] = addLabels
-			unregEntries[ip] = removeLabels
-			//	utils.LogInfo(fmt.Sprintf("Removing from ip %s the following labels %s", ip, labels), false)
+			continue
+		}
+		//Check if both label sets are equal.  If not return the labels to add or remove or both
+		if ok, removeLabels, addLabels := isEqual(panEntries[ip], labels); !ok {
+			//skip adding these entries if list of labels is empty
+			if len(addLabels) != 0 {
+				regEntries[ip] = addLabels
+			}
+			if len(removeLabels) != 0 {
+				unregEntries[ip] = removeLabels
+			}
 		}
 	}
 
-	//Check to see there are Registered IPs that are not workloads
-	// for ip := range panEntries {
-	// 	if len(workloadsMap[ip]) == 0 {
-	// 		unregEntries[ip] = []string{""}
-	// 	}
+	for ip := range panEntries {
+		if _, ok := workloadsMap[ip]; !ok && removeOld {
+			unregEntries[ip] = []string{}
+		}
+	}
 
-	// }
 	if len(regEntries) == 0 && len(unregEntries) == 0 {
 		utils.LogInfo(fmt.Sprintf("Nothing to do. No Add/Update/Removals needed on PAN."), true)
 		utils.LogEndCommand("dag-sync")
