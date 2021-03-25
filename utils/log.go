@@ -80,15 +80,19 @@ func LogAPIResp(callType string, apiResp illumioapi.APIResponse) {
 	if viper.Get("verbose").(bool) || apiResp.StatusCode > 299 {
 		LogDebug(fmt.Sprintf("%s Response Body: %s", callType, apiResp.RespBody))
 	}
+
+	for _, w := range apiResp.Warnings {
+		LogWarning(w, true)
+	}
 }
 
 // LogStartCommand is used at the beginning of each command
 func LogStartCommand(commandName string) {
+	Logger.Println("-----------------------------------------------------------------------------")
 	LogInfo(fmt.Sprintf("workloader version %s - started %s", GetVersion(), commandName), false)
 }
 
 // LogEndCommand is used at the end of each command
 func LogEndCommand(commandName string) {
 	LogInfo(fmt.Sprintf("%s completed", commandName), true)
-	Logger.Println("-----------------------------------------------------------------------------")
 }
