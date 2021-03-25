@@ -9,12 +9,7 @@ import (
 
 	"github.com/brian1917/workloader/cmd/checkversion"
 	"github.com/brian1917/workloader/cmd/compatibility"
-<<<<<<< HEAD
-	"github.com/brian1917/workloader/cmd/dagsync"
-	"github.com/brian1917/workloader/cmd/delete"
-=======
 	"github.com/brian1917/workloader/cmd/deletehrefs"
->>>>>>> 100304e3964d700d0ef8b44e02e66087c0b43712
 	"github.com/brian1917/workloader/cmd/deleteunusedlabels"
 	"github.com/brian1917/workloader/cmd/dupecheck"
 	"github.com/brian1917/workloader/cmd/edgeadmin"
@@ -44,6 +39,7 @@ import (
 	"github.com/brian1917/workloader/cmd/snowsync"
 	"github.com/brian1917/workloader/cmd/subnet"
 	"github.com/brian1917/workloader/cmd/svcexport"
+	"github.com/brian1917/workloader/cmd/sync/dag"
 	"github.com/brian1917/workloader/cmd/templateimport"
 	"github.com/brian1917/workloader/cmd/traffic"
 	"github.com/brian1917/workloader/cmd/umwlcleanup"
@@ -162,7 +158,7 @@ func init() {
 
 	// Undocumented
 	RootCmd.AddCommand(extract.ExtractCmd)
-	RootCmd.AddCommand(dagsync.DAGSyncCmd)
+	RootCmd.AddCommand(dag.DAGSyncCmd)
 
 	// Set the usage templates
 	for _, c := range RootCmd.Commands() {
