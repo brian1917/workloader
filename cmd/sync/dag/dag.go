@@ -270,12 +270,12 @@ func workloadIPMap() map[string][]string {
 		var labels []string
 
 		//Make sure there is a Tag to add.
-		if len(w.Labels) == 0 {
+		if len(*w.Labels) == 0 {
 			continue
 		}
 
 		//Cycle through labels getting the Value from the Href
-		for _, l := range w.Labels {
+		for _, l := range *w.Labels {
 			labels = append(labels, pce.Labels[l.Href].Value)
 		}
 
