@@ -52,5 +52,5 @@ func GetPCEbyName(name string, GetLabelMaps bool) (illumioapi.PCE, error) {
 		return pce, nil
 	}
 
-	return illumioapi.PCE{}, fmt.Errorf("Could not retrieve %s PCE information", name)
+	return illumioapi.PCE{}, fmt.Errorf("could not retrieve %s PCE information", name)
 }
