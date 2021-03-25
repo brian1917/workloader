@@ -66,9 +66,6 @@ func ImportWkldsFromCSV(input Input) {
 	// Log start of the command
 	utils.LogStartCommand("wkld-import")
 
-	// Populate the labelKeys
-	labelKeys := []string{"role", "app", "env", "loc"}
-
 	// Parse the CSV File
 	data, err := utils.ParseCSV(input.ImportFile)
 	if err != nil {
@@ -78,7 +75,7 @@ func ImportWkldsFromCSV(input Input) {
 	// Process the headers
 	input.processHeaders(data[0])
 
-	// Log our intput
+	// Log intput
 	input.log()
 
 	// Check if we have the workload map populate
@@ -92,6 +89,9 @@ func ImportWkldsFromCSV(input Input) {
 
 	// Start the counters
 	unchangedWLs := 0
+
+	// Populate the labelKeys
+	labelKeys := []string{"role", "app", "env", "loc"}
 
 	// Iterate through CSV entries
 CSVEntries:
@@ -145,6 +145,9 @@ CSVEntries:
 						continue
 					}
 					// Add that label to the new labels slice
+					if newWkld.Labels == nil {
+						newWkld.Labels = &[]*illumioapi.Label{}
+					}
 					*newWkld.Labels = append(*newWkld.Labels, &illumioapi.Label{Href: checkLabel(input.PCE, input.UpdatePCE, illumioapi.Label{Key: labelKeys[i], Value: line[index]}, csvLine).Href})
 				}
 			}
@@ -210,6 +213,7 @@ CSVEntries:
 		wkld.Labels = nil
 		wkld.Labels = &[]*illumioapi.Label{}
 
+		// Process the new label headers
 		for i, header := range []string{wkldexport.HeaderRole, wkldexport.HeaderApp, wkldexport.HeaderEnv, wkldexport.HeaderLoc} {
 			if index, ok := input.Headers[header]; ok {
 				// If the value is blank and the current label exists, keep the current label.
@@ -241,6 +245,9 @@ CSVEntries:
 				if line[index] == wkldCurrentLabels[i].Value && line[index] != "" {
 					*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: wkldCurrentLabels[i].Href})
 				}
+				// If the column is not present and the workload has a current label, reapply it
+			} else if wkldCurrentLabels[i].Href != "" {
+				*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: wkldCurrentLabels[i].Href})
 			}
 		}
 
@@ -256,7 +263,6 @@ CSVEntries:
 					if err != nil {
 						utils.LogWarning(fmt.Sprintf("CSV Line %d - %s - skipping workload entry.", csvLine, err.Error()), true)
 						continue CSVEntries
-
 					}
 					netInterfaces = append(netInterfaces, &ipInterface)
 				}
@@ -362,9 +368,9 @@ CSVEntries:
 		for i, header := range headerValues {
 			if index, ok := input.Headers[header]; ok {
 				if line[index] != *targetUpdates[i] {
-					*targetUpdates[i] = line[index]
-					change = true
 					utils.LogInfo(fmt.Sprintf("CSV line %d - %s to be changed from %s to %s", csvLine, header, *targetUpdates[i], line[index]), false)
+					change = true
+					*targetUpdates[i] = line[index]
 					*targetUpdates[i] = line[index]
 				}
 			}
