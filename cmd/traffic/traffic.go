@@ -71,7 +71,6 @@ type result struct {
 	loc         string
 	role        string
 	reason      string
-	wlhostname  string
 	eApp        string
 	eEnv        string
 	eLoc        string
@@ -82,7 +81,7 @@ type result struct {
 
 // Workload Labels
 func (m *result) existingLabels(workloads map[string]illumioapi.Workload, labels map[string]illumioapi.Label) {
-	for _, l := range workloads[m.ipAddress].Labels {
+	for _, l := range *workloads[m.ipAddress].Labels {
 		switch {
 		case labels[l.Href].Key == "app":
 			{

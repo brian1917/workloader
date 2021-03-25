@@ -8,29 +8,6 @@ import (
 	"github.com/brian1917/illumioapi"
 )
 
-// validateIP takes a string and will return a valid CIDR notation IP address if the provided string is valid.
-// if a single IP address is provided, it will return a /32. (e.g., 192.168.200.24 will return 192.168.200.24/32)
-func validateIP(ip string) (string, error) {
-	// If the input includes a CIDR, make sure it's valid by parsing and then return it
-	if strings.Contains(ip, "/") {
-		ipAddress, ipNet, err := net.ParseCIDR(ip)
-		if err != nil {
-			return "", err
-		}
-		cidr, _ := ipNet.Mask.Size()
-		return fmt.Sprintf("%s/%d", ipAddress.String(), cidr), nil
-	}
-
-	// We only get here if it does not include CIDR notation.
-	// Validate IP address by parsing it with /32
-	ipAddress, ipNet, err := net.ParseCIDR(ip + "/32")
-	if err != nil {
-		return "", err
-	}
-	cidr, _ := ipNet.Mask.Size()
-	return fmt.Sprintf("%s/%d", ipAddress.String(), cidr), nil
-}
-
 // userInputConvert takes an ip address in the format of eth0:192.168.20.21 and returns an illumio interface struct
 func userInputConvert(ip string) (illumioapi.Interface, error) {
 	var ifaceName, ifaceAddress string
@@ -69,19 +46,16 @@ func userInputConvert(ip string) (illumioapi.Interface, error) {
 // publicIPIsValid validates the ip string is either a valid CIDR or IP address
 func publicIPIsValid(ip string) bool {
 
-	if strings.Contains(ip, "/") {
-		_, _, err := net.ParseCIDR(ip)
-		if err != nil {
-			return false
-		}
+	if ip == "" {
 		return true
 	}
 
-	i := net.ParseIP(ip)
-	if i == nil {
-		return false
+	if strings.Contains(ip, "/") {
+		_, _, err := net.ParseCIDR(ip)
+		return err == nil
 	}
 
-	return true
+	i := net.ParseIP(ip)
+	return i != nil
 
 }

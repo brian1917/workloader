@@ -61,24 +61,6 @@ No IP address information will be copied from Edge to Core so only MachineAuth r
 
 func edgeadmin() {
 
-	//Used to make sure the column names are correctly set.
-	input.HostnameIndex = 99999
-	input.AppIndex = 99999
-	input.DatacenterIndex = 99999
-	input.DescIndex = 99999
-	input.EnvIndex = 99999
-	input.LocIndex = 99999
-	input.ExtDataRefIndex = 99999
-	input.ExtDataSetIndex = 99999
-	input.HrefIndex = 99999
-	input.IntIndex = 99999
-	input.NameIndex = 99999
-	input.OSDetailIndex = 99999
-	input.OSIDIndex = 99999
-	input.PublicIPIndex = 99999
-	input.RoleIndex = 99999
-	input.MachineAuthIDIndex = 99999
-
 	// Log start of run
 	utils.LogStartCommand("edge-admin")
 
