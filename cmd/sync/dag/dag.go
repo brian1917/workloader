@@ -59,7 +59,23 @@ type DagResponse struct {
 	XMLName xml.Name `xml:"response"`
 	Status  string   `xml:"status,attr"`
 	Result  Result   `xml:"result,omitempty"`
-	MSG     Line     `xml:"msg,omitempty"`
+	MSG     MSG      `xml:"msg,omitempty"`
+}
+
+// MSG - Declare Result container of PAN API call
+type MSG struct {
+	Line Line `xml:"line,omitempty"`
+}
+
+// Line - Declare Entry container of PAN API call
+type Line struct {
+	UIDResponse UIDResponse `xml:"uid-response,omitempty"`
+}
+
+// Line - Declare Entry container of PAN API call
+type UIDResponse struct {
+	Version string  `xml:"version,omitempty"`
+	Payload Payload `xml:"payload,omitempty"`
 }
 
 // Result - Declare Result container of PAN API call
@@ -74,6 +90,7 @@ type Result struct {
 // Entry - Declare Entry container of PAN API call
 type Entry struct {
 	IP         string `xml:"ip,attr"`
+	Message    string `xml:"message,attr,omitempty"`
 	FromAgent  string `xml:"from_agent,attr,omitempty"`
 	Persistent string `xml:"persistent,attr,omitempty"`
 	Tag        Tag    `xml:"tag,omitempty"`
@@ -93,22 +110,18 @@ type Tag struct {
 	Members []string `xml:"member,omitempty"`
 }
 
-// Tag - Declare Entry container of PAN API call
-type Line struct {
-	Response DagRequest `xml:"uid-response,omitempty"`
-}
-
 //PAN structure used to
 type PAN struct {
-	Key           string
-	URL           string
-	RegIPs        map[string][]string
-	UpdatedRegIPs map[string]UpdateRegIPS
-	RemovedRegIPs map[string][]string
+	Key    string
+	URL    string
+	RegIPs map[string]IPTags
+	// 	RegIPs        map[string][]string
+	// 	UpdatedRegIPs map[string]UpdateRegIPS
+	// 	RemovedRegIPs map[string][]string
 }
 
 //List of New or Updates RegisteredIPs
-type UpdateRegIPS struct {
+type IPTags struct {
 	Labels []string
 	Found  bool
 }
@@ -240,6 +253,7 @@ func (pan *PAN) callHTTP(cmdType string, cmd string) DagResponse {
 		utils.LogError(fmt.Sprintf("PanHTTP Call failed - %s", err))
 	}
 
+	//fmt.Println(urlInfo, resp.RespBody)
 	//Unmarshal the HTTP call and place in DagResponse.
 	if err := xml.Unmarshal([]byte(resp.RespBody), &dagResp); err != nil {
 		utils.LogError(fmt.Sprintf("Unmarshall HTTPSetUp response - %s - Body - %s", err, resp.ReqBody))
@@ -276,8 +290,8 @@ func ipCheck(ip string) string {
 }
 
 //workloadIPMap - Build a map of all workloads IPs and their corresponding labels.
-func workloadIPMap() map[string][]string {
-	var pceIpMap = make(map[string][]string)
+func workloadIPMap() map[string]IPTags {
+	var pceIpMap = make(map[string]IPTags)
 
 	wklds, a, err := pce.GetAllWorkloads()
 	utils.LogAPIResp("GetAllWorkloads", a)
@@ -303,7 +317,7 @@ func workloadIPMap() map[string][]string {
 		// Check ip address to make sure valid and not link local.
 		for _, ip := range w.Interfaces {
 			if ipCheck(ip.Address) != "" {
-				pceIpMap[ip.Address] = labels
+				pceIpMap[ip.Address] = IPTags{Labels: labels, Found: false}
 			}
 		}
 	}
@@ -315,7 +329,7 @@ func (pan *PAN) LoadRegisteredIPs() {
 
 	var dagResp DagResponse
 
-	var tmpDagEntries = make(map[string][]string)
+	//var tmpDagEntries = make(map[string][]string)
 
 	//Send Set VSYS API request.  panHttp check for success within the response message.  Fails if not successful.
 	setVsysCMD := fmt.Sprintf("<set><system><setting><target-vsys>%s</target-vsys></setting></system></set>", panVsys)
@@ -344,8 +358,10 @@ func (pan *PAN) LoadRegisteredIPs() {
 			//If we want to Ignore illumio Tags
 			if illumioTag != "" {
 				if ok, newEntry := pan.FindandRemoveEntry(e.Tag.Members, illumioTag); ok {
-					tmpDagEntries[net.ParseIP(e.IP).String()] = newEntry
 					found = true
+					pan.RegIPs[net.ParseIP(e.IP).String()] = IPTags{Found: found, Labels: newEntry}
+					//tmpDagEntries[net.ParseIP(e.IP).String()] = newEntry
+
 					illumioCount++
 				}
 				continue
@@ -354,8 +370,8 @@ func (pan *PAN) LoadRegisteredIPs() {
 			if illumioTag == "" {
 				illumioCount++
 			}
-
-			tmpDagEntries[net.ParseIP(e.IP).String()] = e.Tag.Members
+			pan.RegIPs[net.ParseIP(e.IP).String()] = IPTags{Found: found, Labels: e.Tag.Members}
+			//tmpDagEntries[net.ParseIP(e.IP).String()] = e.Tag.Members
 
 		}
 		totalCount += len(dagResp.Result.Entry)
@@ -370,29 +386,27 @@ func (pan *PAN) LoadRegisteredIPs() {
 
 	}
 	//print out total and how many RegisterIPs are available to work with. *note using -t "" counts all registerIPs.
-	utils.LogInfo(fmt.Sprintf("Total Registered IPs %d. Total being worked on by Workloader : %d", totalCount, illumioCount), true)
+	utils.LogInfo(fmt.Sprintf("%d Total RegisteredIPs on PanOS. Of those RegisteredIPs %d previously added by PCE ", totalCount, illumioCount), true)
 
 	//Send Set VSYS back to "none" API request.  panHttp check for success within the response message.  Fails if not successful.
 	setVsysCMD = "<set><system><setting><target-vsys>none</target-vsys></setting></system></set>"
 	dagResp = pan.callHTTP("op", setVsysCMD)
 
-	pan.RegIPs = tmpDagEntries
-
 }
 
 //UnRegister - Call PAN to remove IPs or Labels.
-func (pan *PAN) UnRegister(listRegisterIP map[string][]string) {
+func (pan *PAN) UnRegister(listRegisterIP map[string]IPTags) {
 	var request DagRequest
 	var entries []Entry
 
 	//If the label list=0 then its is just an IP then it should be removed.  Remove no matter if there are labels if flush is selected.
 	for ip, labels := range listRegisterIP {
-		if len(labels) == 0 && flush {
+		if len(labels.Labels) == 0 || flush {
 			entries = append(entries, Entry{IP: ip}) //, Tag: Tag{Members: labels}
 			utils.LogInfo(fmt.Sprintf("Unregister %s", ip), false)
 		} else {
-			entries = append(entries, Entry{IP: ip, Tag: Tag{Members: labels}})
-			utils.LogInfo(fmt.Sprintf("Unregistering Labels %s - labels %s", ip, labels), false)
+			entries = append(entries, Entry{IP: ip, Tag: Tag{Members: labels.Labels}})
+			utils.LogInfo(fmt.Sprintf("Unregistering Labels %s - labels %s", ip, labels.Labels), false)
 		}
 	}
 	request = DagRequest{Type: "update", Version: "2.0", Payload: Payload{Unregister: Unregister{Entry: entries}}}
@@ -401,22 +415,25 @@ func (pan *PAN) UnRegister(listRegisterIP map[string][]string) {
 	xmlData, _ := xml.MarshalIndent(request, "", "")
 	dagResp := pan.callHTTP("user-id", string(xmlData))
 	if dagResp.Status != "success" {
-		utils.LogInfo(fmt.Sprintf("Register/Unregister API call received error - %s", dagResp.MSG), true)
+		utils.LogInfo("UnRegister API response received error. Check logs", true)
+		for _, entry := range dagResp.MSG.Line.UIDResponse.Payload.Unregister.Entry {
+			utils.LogInfo(fmt.Sprintf("Unregister received error - %s", entry), false)
+		}
 	}
 	utils.LogInfo(fmt.Sprintf("%d IPs and/or Tags were unregistered on PAN", len(listRegisterIP)), true)
 }
 
 //Register - Call PAN to add IPs and labels to Registered IPs
-func (pan *PAN) Register(listRegisterIP map[string][]string) {
+func (pan *PAN) Register(listRegisterIP map[string]IPTags) {
 	var request DagRequest
 	var entries []Entry
 
 	for ip, labels := range listRegisterIP {
-		if illumioTag != "" && !ok {
-			labels = append(labels, illumioTag)
+		if illumioTag != "" && !labels.Found {
+			labels.Labels = append(labels.Labels, illumioTag)
 		}
-		entries = append(entries, Entry{IP: ip, FromAgent: "0", Persistent: "1", Tag: Tag{Members: labels}})
-		utils.LogInfo(fmt.Sprintf("Register %s with the following labels %s", ip, labels), false)
+		entries = append(entries, Entry{IP: ip, FromAgent: "0", Persistent: "1", Tag: Tag{Members: labels.Labels}})
+		utils.LogInfo(fmt.Sprintf("Register %s with the following labels %s", ip, labels.Labels), false)
 	}
 	request = DagRequest{Type: "update", Version: "2.0", Payload: Payload{Register: Register{Entry: entries}}}
 
@@ -424,10 +441,14 @@ func (pan *PAN) Register(listRegisterIP map[string][]string) {
 	xmlData, _ := xml.MarshalIndent(request, "", "")
 	dagResp := pan.callHTTP("user-id", string(xmlData))
 	if dagResp.Status != "success" {
-		utils.LogInfo(fmt.Sprintf("Register/Unregister API call received error - %s", dagResp.MSG), true)
+		utils.LogInfo("Register API response received error. Check logs", true)
+		for _, entry := range dagResp.MSG.Line.UIDResponse.Payload.Register.Entry {
+			utils.LogInfo(fmt.Sprintf("Register received error - %s", entry), false)
+		}
+
 	}
 
-	utils.LogInfo(fmt.Sprintf("%d IPs and/or Tags were registered on PAN", len(listRegisterIP)), true)
+	utils.LogInfo(fmt.Sprintf("%d IPs and/or Tags were updated/registered on PAN", len(listRegisterIP)), true)
 }
 
 //checkHAPrimary - make sure we are adding Registered IPs to primary PAN in a HA
@@ -455,10 +476,10 @@ func (pan *PAN) removeEntry(slice []string, i int) []string {
 
 // Contains tells whether a contains x.
 func (pan *PAN) FindandRemoveEntry(a []string, x string) (bool, []string) {
-	for _, n := range a {
+	for i, n := range a {
 		if x == n {
-			//return true, pan.removeElement(a, i)
-			return true, a
+			return true, pan.removeEntry(a, i)
+			//return true, a
 		}
 	}
 	return false, []string{}
@@ -546,8 +567,8 @@ func dagSync() {
 	} else if panKey == "" {
 		utils.LogError("User must either use environment variable \"PANOS_KEY\" or \"--key\" or \"-k\"")
 	}
-
-	pan := PAN{Key: panKey, URL: panURL, RegIPs: make(map[string][]string)}
+	//tmpRegIPs := RegIPs{Labels: []string{}, Found: true}
+	pan := PAN{Key: panKey, URL: panURL, RegIPs: map[string]IPTags{}}
 
 	//Check to see if URL is for non-HA or active/active-primary PAN.  Need to only push IPs to active.
 	if !pan.checkHA() {
@@ -567,8 +588,8 @@ func dagSync() {
 	pan.LoadRegisteredIPs()
 
 	//Get all Workloads from PCE.
-	workloadsMap := make(map[string][]string)
-	if !flush && illumioTag != "" {
+	workloadsMap := make(map[string]IPTags)
+	if !flush {
 		utils.LogInfo(fmt.Sprintf("Calling get ALL Workloads on PCE - %s", pce.FQDN), true)
 		workloadsMap = workloadIPMap()
 	}
@@ -619,25 +640,25 @@ func dagSync() {
 	}
 
 	//Cycle through Workload list as long as there are labels/tags continue.  Build arrays of IPs/Tags to Add/Remove.
-	regEntries := make(map[string][]string)
-	unregEntries := make(map[string][]string)
+	regEntries := make(map[string]IPTags)
+	unregEntries := make(map[string]IPTags)
 	for ip, labels := range workloadsMap {
-		if len(labels) == 0 {
+		if len(labels.Labels) == 0 {
 			continue
 		}
 		//If there isnt an entry for that IP on the PAN add the workload and labels/tags
 		if _, ok := pan.RegIPs[ip]; !ok {
-			regEntries[ip] = labels
+			regEntries[ip] = IPTags{Labels: labels.Labels, Found: false}
 			continue
 		}
 		//Check if both label sets are equal.  If not return the labels to add or remove or both
-		if ok, removeLabels, addLabels := isEqual(pan.RegIPs[ip], labels); !ok {
+		if ok, removeLabels, addLabels := isEqual(pan.RegIPs[ip].Labels, labels.Labels); !ok {
 			//skip adding these entries if list of labels is empty
 			if len(addLabels) != 0 {
-				regEntries[ip] = addLabels
+				regEntries[ip] = IPTags{Labels: addLabels, Found: true}
 			}
 			if len(removeLabels) != 0 {
-				unregEntries[ip] = removeLabels
+				unregEntries[ip] = IPTags{Labels: removeLabels, Found: true}
 			}
 		}
 	}
@@ -647,12 +668,17 @@ func dagSync() {
 	for ip := range pan.RegIPs {
 		if _, ok := workloadsMap[ip]; !ok {
 			if removeOld {
-				unregEntries[ip] = []string{}
+				unregEntries[ip] = IPTags{}
+			} else {
+				utils.LogInfo(fmt.Sprintf("RegisterIPs %s is stale.  But will not be removed from PanOS.", ip), false)
 			}
 			countStaleIPs++
 		}
 	}
-	utils.LogInfo(fmt.Sprintf("PAN has %d stale RegisterIPs.  Removing these is set to %t. (\"-r\" or \"--remove-stale\")", countStaleIPs, removeOld), true)
+
+	if countStaleIPs > 0 && !removeOld {
+		utils.LogInfo(fmt.Sprintf("PanOS has %d stale RegisterIPs.  To remove please set \"-r\" or \"--remove-stale\"", countStaleIPs), true)
+	}
 
 	if len(regEntries) == 0 && len(unregEntries) == 0 {
 		utils.LogInfo(fmt.Sprintf("Nothing to do. No Add/Update/Removals needed on PAN."), true)
