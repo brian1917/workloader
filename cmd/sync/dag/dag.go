@@ -639,12 +639,13 @@ func dagSync() {
 	}
 
 	//Get PAN registered IPs and Workload IPs from PAN/PCE
-	utils.LogInfo(fmt.Sprintf("Calling get Registered-IP on PanOS - %s", panURL), true)
+	utils.LogInfo(fmt.Sprintf("Calling PanOS get All Registered-IP - %s", panURL), true)
 	pan.LoadRegisteredIPs()
 
 	//Get all Workloads from PCE.  Dont do if you are cleanup RegisteredIPs.
 	workloadsMap := make(map[string]IPTags)
 	if !clean {
+		utils.LogInfo(fmt.Sprintf("Calling PCE Get ALL Workloads - %s", pce.FQDN), true)
 		workloadsMap = workloadIPMap(filter)
 		utils.LogInfo(fmt.Sprintf("Found %d Workloads on PCE - %s", len(workloadsMap), pce.FQDN), true)
 	}
