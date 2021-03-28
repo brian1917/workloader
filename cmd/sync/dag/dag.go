@@ -40,17 +40,12 @@ type DagRequest struct {
 
 // Payload contains the information for the API Request
 type Payload struct {
-	Register   Register   `xml:"register,omitempty"`
-	Unregister Unregister `xml:"unregister,omitempty"`
+	Register   RegIPs `xml:"register,omitempty"`
+	Unregister RegIPs `xml:"unregister,omitempty"`
 }
 
 // Register contains the information for the API Request
-type Register struct {
-	Entry []Entry `xml:"entry,omitempty"`
-}
-
-// Unregister contains the information for the API Request
-type Unregister struct {
+type RegIPs struct {
 	Entry []Entry `xml:"entry,omitempty"`
 }
 
@@ -107,7 +102,13 @@ type LocalInfo struct {
 
 // Tag - Declare Entry container of PAN API call
 type Tag struct {
-	Members []string `xml:"member,omitempty"`
+	Members []Member `xml:"member,omitempty"`
+}
+
+// Tag - Declare Entry container of PAN API call
+type Member struct {
+	Member  string `xml:",chardata"`
+	Timeout string `xml:"timeout,attr,omitempty"`
 }
 
 //PAN structure used to
@@ -115,9 +116,6 @@ type PAN struct {
 	Key    string
 	URL    string
 	RegIPs map[string]IPTags
-	// 	RegIPs        map[string][]string
-	// 	UpdatedRegIPs map[string]UpdateRegIPS
-	// 	RemovedRegIPs map[string][]string
 }
 
 //List of New or Updates RegisteredIPs
@@ -129,35 +127,45 @@ type IPTags struct {
 // Declare local global variables
 var pce illumioapi.PCE
 var err error
-var noPrompt, addIPv6, update, insecure, flush, removeOld bool
-var outFormat, panURL, panKey, panVsys, illumioTag, filterFile string
+var noPrompt, addIPv6, update, insecure, clean, removeOld, changePersistent bool
+var outFormat, panURL, panKey, panVsys, illumioTag, filterFile, timeout string
 
 func init() {
 	DAGSyncCmd.Flags().StringVarP(&panURL, "url", "u", "", "URL required to reach Panorama or PAN FW(requires https://).")
 	DAGSyncCmd.Flags().StringVarP(&panKey, "key", "k", "", "Key used to authenticate with Panorama or PAN FW.")
-	DAGSyncCmd.Flags().StringVarP(&panVsys, "vsys", "v", "", "Vsys used to progam registered IPs and tags.")
-	DAGSyncCmd.MarkFlagRequired("vsys")
+	DAGSyncCmd.Flags().StringVarP(&panVsys, "vsys", "v", "vsys1", "Vsys used to progam registered IPs and tags. Default =\"vsys1\"")
 	DAGSyncCmd.Flags().BoolVarP(&addIPv6, "ipv6", "6", false, "Include IPv6 addresses in the syncing of PCE IP and labels/tags with PAN DAGs")
 	DAGSyncCmd.Flags().BoolVarP(&insecure, "insecure", "i", false, "Ignore SSL certificate validation when communicating with PAN.")
 	DAGSyncCmd.Flags().BoolVarP(&update, "update-panos", "", false, "By default do not Sync Illumio PCE IP address and labels/tags to PAN DAGs but provide output and log what would have synced.")
-	DAGSyncCmd.Flags().BoolVarP(&flush, "flush", "f", false, "Remove all Registered IPs from PAN")
-	DAGSyncCmd.Flags().MarkHidden("flush")
-	DAGSyncCmd.Flags().StringVarP(&illumioTag, "tag", "t", "%#ILLUMIO-ADDED#%", "Ignore adding and looking for ILLLUMIO tag - %#ILLUMIO-ADDED#% ")
-	DAGSyncCmd.Flags().MarkHidden("tag")
-	DAGSyncCmd.Flags().StringVarP(&filterFile, "file", "", "", "Enter filename for CSV that has labels to filter on")
+	DAGSyncCmd.Flags().StringVarP(&filterFile, "file", "f", "", "Enter filename for CSV that has labels to filter on")
+	DAGSyncCmd.Flags().StringVarP(&timeout, "timeout", "t", "0", "Enter filename for CSV that has labels to filter on")
 	DAGSyncCmd.Flags().BoolVarP(&removeOld, "remove-stale", "r", false, "Remove all Registered IPs that don't have IP on the PCE")
+	DAGSyncCmd.Flags().BoolVarP(&changePersistent, "persistent", "p", false, "RegisterIPs are persistent by default.")
+	DAGSyncCmd.Flags().BoolVarP(&clean, "clean", "c", false, "Remove all Registered IPs from PAN")
+	DAGSyncCmd.Flags().MarkHidden("clean")
+	DAGSyncCmd.Flags().StringVarP(&illumioTag, "mark", "", "%#ILLUMIO-ADDED#%", "Ignore adding and looking for ILLLUMIO tag - %#ILLUMIO-ADDED#% ")
+	DAGSyncCmd.Flags().MarkHidden("mark")
 
 }
 
 // DAGSyncCmd runs the DAG register/unregister PAN API Sync
 var DAGSyncCmd = &cobra.Command{
 	Use:   "dagsync",
-	Short: "Syncs IPs and Labels for Workloads between PCE and Dynamic Access Group on Palo Alto FW",
+	Short: "Syncs IPs and Labels for Workloads between PCE and Dynamic Access Group on Palo Alto Devices",
 	Long: `
-Syncs PCE Workloads IPs and Labels and Palo Alto FW Dynamic Access Groups.  Must either pass ("-u") PAN-URL, ("-k") PAN-KEY and ("-v") PAN-VSYS.  
-You can also configure environmental variables PANOS_URL, PANOS_KEY and PANOS_VSYS.
+Collects from the workloader default PCE all workload IPs and labels. Workloader will push the IPs and Labels/Tag into a PanOS device's RegisteredIP objects to be used by Dynamic Access Groups.  
 
-The update-pce and --no-prompt flags are ignored for this command.`,
+To be able to access the PanOS device you must pass the URL, and API Key of the PanOS device.  You can configure environment variables (PANOS_URL and  PANOS_KEY) or enter ("-u" or "--url") for PanOS URL and  ("-k" or "--key") for PanOS API Key.  Workloader also requires a "vsys" value to be sent with each message to the PanOS device.  By default the value will use "vsys1".  To change that to another value use ("-v" or "vsys") or configure the environment variable PANOS_VSYS.  Failure to configure PANOS_URL and/or PANOS_KEY will cause workloader with exit. 
+
+To filter only workloads with certain labels you can include a CSV file via "-f" or "--file. The CSV file must have a header of role,app,env,loc.  Every row after that should have the labels you want to include.  Any row will match all 4 of the labels if present.  If any row has a blank entry any label on a workload for that label type will match." 
+
+Workloader will add an additional tag when adding workload IPs/Labels to the PanOS.  The extra tag is used to help uniquely match PanOS and PCE IPs.  If you dont want to add the label add ("-t" "" or "--tag" "") to the command line.  If you want to change the default tag text enter ("-t" "<UserDefinedTag>" or "--tag" "<UserDefinedTag>").
+
+Workloader will ignore any IPv6 address on any PCE workload and add IPv4 addresses only.  To add IPv6 addresses as well enter "-6" or "--ipv6".  *Note All ipv4 or ipv6 link local addresses will always be ignored (169.254.0.0/16 or FE80::/10).
+
+Workloader can remove stale objects on the PanOS that are not on the PCE anymore.  By default workloader does not do that.  You can remove these objects by entering "-r" or "--remove-stale".
+
+The update-pce flag is ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
@@ -290,7 +298,7 @@ func ipCheck(ip string) string {
 }
 
 //workloadIPMap - Build a map of all workloads IPs and their corresponding labels.
-func workloadIPMap() map[string]IPTags {
+func workloadIPMap(filterList []map[string]string) map[string]IPTags {
 	var pceIpMap = make(map[string]IPTags)
 
 	wklds, a, err := pce.GetAllWorkloads()
@@ -307,20 +315,50 @@ func workloadIPMap() map[string]IPTags {
 			continue
 		}
 
-		//Cycle through labels getting the Value from the Href
+		//matchValue := 0
+
+		//Cycle through labels getting the Value from the HrefLabelMap as well as build a label map to use for filtering
+		wkldLabels := make(map[string]string)
 		for _, l := range *w.Labels {
-			if true {
-			}
 			labels = append(labels, pce.Labels[l.Href].Value)
+			wkldLabels[pce.Labels[l.Href].Key] = pce.Labels[l.Href].Value
 		}
 
-		// Check ip address to make sure valid and not link local.
-		for _, ip := range w.Interfaces {
-			if ipCheck(ip.Address) != "" {
-				pceIpMap[ip.Address] = IPTags{Labels: labels, Found: false}
+		match := false
+		for i := 1; i < len(filterList); i++ {
+			numMatch := 0
+			for k, v := range filterList[i] {
+				if v == "" {
+					numMatch++
+					continue
+				}
+				if _, ok := wkldLabels[k]; !ok {
+					numMatch++
+					continue
+				}
+				if wkldLabels[k] == v {
+					numMatch++
+				}
+			}
+			//found match
+			if numMatch == 4 {
+				match = true
+				break
 			}
 		}
+		if filterFile == "" {
+			match = true
+		}
+		if match {
+			for _, ip := range w.Interfaces {
+				if ipCheck(ip.Address) != "" {
+					pceIpMap[ip.Address] = IPTags{Labels: labels, Found: false}
+				}
+			}
+		}
+
 	}
+
 	return pceIpMap
 }
 
@@ -337,7 +375,7 @@ func (pan *PAN) LoadRegisteredIPs() {
 
 	//remove parameter so we can readd
 	entryLimit := 500
-	startPoint := 0
+	startPoint := 1
 	//limit calls to 500.  and Cycle through if you find more.
 	getRegIPCMD := "<show><object><registered-ip><all></all></registered-ip></object></show>"
 
@@ -351,13 +389,19 @@ func (pan *PAN) LoadRegisteredIPs() {
 		for _, e := range dagResp.Result.Entry {
 			found := false
 			if net.ParseIP(e.IP) == nil {
-				utils.LogError(fmt.Sprintf("Invalid IP addres from PAN - %s", e.IP))
+				utils.LogError(fmt.Sprintf("Invalid IP addres from PanOS - %s", e.IP))
 				continue
 			}
 
+			//Must Create a Member struct for each label.  Needed to add timeout option.
+			allLabels := []string{}
+			for _, m := range e.Tag.Members {
+				allLabels = append(allLabels, m.Member)
+			}
 			//If we want to Ignore illumio Tags
 			if illumioTag != "" {
-				if ok, newEntry := pan.FindandRemoveEntry(e.Tag.Members, illumioTag); ok {
+				if ok, newEntry := pan.FindandRemoveEntry(allLabels, illumioTag); ok {
+					//if ok, newEntry := pan.FindandRemoveEntry(e.Tag.Members, illumioTag); ok {
 					found = true
 					pan.RegIPs[net.ParseIP(e.IP).String()] = IPTags{Found: found, Labels: newEntry}
 					//tmpDagEntries[net.ParseIP(e.IP).String()] = newEntry
@@ -370,7 +414,7 @@ func (pan *PAN) LoadRegisteredIPs() {
 			if illumioTag == "" {
 				illumioCount++
 			}
-			pan.RegIPs[net.ParseIP(e.IP).String()] = IPTags{Found: found, Labels: e.Tag.Members}
+			pan.RegIPs[net.ParseIP(e.IP).String()] = IPTags{Found: found, Labels: allLabels}
 			//tmpDagEntries[net.ParseIP(e.IP).String()] = e.Tag.Members
 
 		}
@@ -401,15 +445,21 @@ func (pan *PAN) UnRegister(listRegisterIP map[string]IPTags) {
 
 	//If the label list=0 then its is just an IP then it should be removed.  Remove no matter if there are labels if flush is selected.
 	for ip, labels := range listRegisterIP {
-		if len(labels.Labels) == 0 || flush {
+		if len(labels.Labels) == 0 || clean {
 			entries = append(entries, Entry{IP: ip}) //, Tag: Tag{Members: labels}
 			utils.LogInfo(fmt.Sprintf("Unregister %s", ip), false)
 		} else {
-			entries = append(entries, Entry{IP: ip, Tag: Tag{Members: labels.Labels}})
+
+			//Must Create a Member struct for each label.  Needed to add timeout option.
+			allMembers := []Member{}
+			for _, l := range labels.Labels {
+				allMembers = append(allMembers, Member{Member: l, Timeout: timeout})
+			}
+			entries = append(entries, Entry{IP: ip, Tag: Tag{Members: allMembers}})
 			utils.LogInfo(fmt.Sprintf("Unregistering Labels %s - labels %s", ip, labels.Labels), false)
 		}
 	}
-	request = DagRequest{Type: "update", Version: "2.0", Payload: Payload{Unregister: Unregister{Entry: entries}}}
+	request = DagRequest{Type: "update", Version: "2.0", Payload: Payload{Unregister: RegIPs{Entry: entries}}}
 
 	//Create and Send API call to PAN to unregister
 	xmlData, _ := xml.MarshalIndent(request, "", "")
@@ -432,12 +482,22 @@ func (pan *PAN) Register(listRegisterIP map[string]IPTags) {
 		if illumioTag != "" && !labels.Found {
 			labels.Labels = append(labels.Labels, illumioTag)
 		}
-		entries = append(entries, Entry{IP: ip, FromAgent: "0", Persistent: "1", Tag: Tag{Members: labels.Labels}})
+		//Must Create a Member struct for each label.  Needed to add timeout option.
+		allMembers := []Member{}
+		for _, l := range labels.Labels {
+			allMembers = append(allMembers, Member{Member: l, Timeout: timeout})
+		}
+		p := "1"
+		if changePersistent {
+			p = "0"
+		}
+		entries = append(entries, Entry{IP: ip, FromAgent: "0", Persistent: p, Tag: Tag{Members: allMembers}})
 		utils.LogInfo(fmt.Sprintf("Register %s with the following labels %s", ip, labels.Labels), false)
 	}
-	request = DagRequest{Type: "update", Version: "2.0", Payload: Payload{Register: Register{Entry: entries}}}
+	request = DagRequest{Type: "update", Version: "2.0", Payload: Payload{Register: RegIPs{Entry: entries}}}
 
 	//If update set send api to PAN
+
 	xmlData, _ := xml.MarshalIndent(request, "", "")
 	dagResp := pan.callHTTP("user-id", string(xmlData))
 	if dagResp.Status != "success" {
@@ -517,42 +577,11 @@ func isEqual(a1 []string, a2 []string) (bool, []string, []string) {
 	return equal, remove, addLabels
 }
 
-// func (pan *PAN) FilterLabels() ([][]string, err error) {
-
-// 	// Open CSV File and create the reader
-// 	file, err := os.Open(filename)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer file.Close()
-// 	reader := csv.NewReader(ClearBOM(bufio.NewReader(file)))
-
-// 	// Create our slice to return
-// 	var data [][]string
-
-// 	// Iterate through CSV entries
-// 	for {
-
-// 		// Read the line
-// 		line, err := reader.Read()
-// 		if err == io.EOF {
-// 			break
-// 		}
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		// Append
-// 		data = append(data, line)
-// 	}
-// 	return data, err
-
-// }
-
 //dagSync - Compares IPs already registered on PAN with those on the PCE also compare the labels/tags currently configured.  If different labels/tags
 func dagSync() {
 
 	//Enter Start Log for PAN DAG Sync
-	utils.LogStartCommand(fmt.Sprintf("PAN DAG Sync - change=%t, insecure=%t, ipv6=%t, flush=%t, rmeoveOld=%t", update, insecure, addIPv6, flush, removeOld))
+	utils.LogStartCommand(fmt.Sprintf("PanOS DAG Sync - change=%t, insecure=%t, ipv6=%t, flush=%t, rmeoveOld=%t", update, insecure, addIPv6, clean, removeOld))
 
 	//Create PAN struct with empty map of registered IPs
 
@@ -567,7 +596,14 @@ func dagSync() {
 	} else if panKey == "" {
 		utils.LogError("User must either use environment variable \"PANOS_KEY\" or \"--key\" or \"-k\"")
 	}
-	//tmpRegIPs := RegIPs{Labels: []string{}, Found: true}
+
+	//Too override default --vsys vsys1 check to see the default is selected and environment variable is set.
+	if tmp := os.Getenv("PANOS_VSYS"); tmp != "" && panVsys == "vsys1" {
+		panVsys = tmp
+	} else if panVsys == "" {
+		utils.LogError("User must either use environment variable \"PANOS_VSYS\" or \"--url\" or \"-u\"")
+	}
+
 	pan := PAN{Key: panKey, URL: panURL, RegIPs: map[string]IPTags{}}
 
 	//Check to see if URL is for non-HA or active/active-primary PAN.  Need to only push IPs to active.
@@ -575,30 +611,49 @@ func dagSync() {
 		utils.LogError(fmt.Sprintf("URL entered is trying to use backup HA device. URL - %s", panURL))
 	}
 
-	// Parse the CSV File
-
-	// if filterFile != "" {
-	// 	data, err := utils.ParseCSV(filterFile)
-	// 	if err != nil {
-	// 		utils.LogError(err.Error())
-	// 	}
-	// }
-	//Get PAN registered IPs and Workload IPs from PAN/PCE
-	utils.LogInfo(fmt.Sprintf("Calling get Registered-IP on PAN - %s", panURL), true)
-	pan.LoadRegisteredIPs()
-
-	//Get all Workloads from PCE.
-	workloadsMap := make(map[string]IPTags)
-	if !flush {
-		utils.LogInfo(fmt.Sprintf("Calling get ALL Workloads on PCE - %s", pce.FQDN), true)
-		workloadsMap = workloadIPMap()
+	// Parse the CSV File if there is one.
+	fileData := [][]string{}
+	var err error
+	if filterFile != "" {
+		fileData, err = utils.ParseCSV(filterFile)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
 	}
 
-	//clear RegisterIPs and exit.
-	if flush {
+	//build filter structure and check for empty row.
+	var filter []map[string]string
+	//check that row has entries if not tell end user.
+	for i, row := range fileData {
+		totLen := 0
+		for _, c := range row {
+			if len(c) != 0 {
+				totLen += len(c)
+			}
+		}
+		if totLen == 0 {
+			utils.LogInfo(fmt.Sprintf("Filter File Row %d does not has ANY entries..This will cause everything to match", i), true)
+		}
+		//Build filter structure to be used when getting PCE workloads.
+		filter = append(filter, map[string]string{"role": row[0], "app": row[1], "env": row[2], "loc": row[3]})
+	}
+
+	//Get PAN registered IPs and Workload IPs from PAN/PCE
+	utils.LogInfo(fmt.Sprintf("Calling get Registered-IP on PanOS - %s", panURL), true)
+	pan.LoadRegisteredIPs()
+
+	//Get all Workloads from PCE.  Dont do if you are cleanup RegisteredIPs.
+	workloadsMap := make(map[string]IPTags)
+	if !clean {
+		workloadsMap = workloadIPMap(filter)
+		utils.LogInfo(fmt.Sprintf("Found %d Workloads on PCE - %s", len(workloadsMap), pce.FQDN), true)
+	}
+
+	//clear RegisterIPs and exit.  Make sure user adds --update-panos. Prompt user to make sure they want to do this..
+	if clean && len(pan.RegIPs) != 0 {
 		if !noPrompt && update {
 			var prompt string
-			fmt.Printf("\r\n%s [PROMPT] - workloader will flush %d IPs/Tags on the following PAN : %s. Do you want to continue (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), len(pan.RegIPs), panURL)
+			fmt.Printf("\r\n%s [PROMPT] - workloader will flush %d IPs/Tags on the following PanOS: %s. Do you want to continue (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), len(pan.RegIPs), panURL)
 			fmt.Scanln(&prompt)
 			if strings.ToLower(prompt) != "yes" {
 				utils.LogInfo(fmt.Sprintf("prompt denied flushing %d entries.", len(pan.RegIPs)), true)
@@ -610,18 +665,19 @@ func dagSync() {
 			utils.LogInfo(fmt.Sprintf("%d unregister changes will NOT be made - must enter \"--update-panos\" to make changes to PAN!!!", len(pan.RegIPs)), true)
 			utils.LogEndCommand("dag-sync")
 			return
+		} else {
+			utils.LogInfo(fmt.Sprintf("Flushing %d Register-IPs", len(pan.RegIPs)), true)
+			pan.UnRegister(pan.RegIPs)
+			utils.LogEndCommand("dag-sync")
+			return
 		}
-		utils.LogInfo(fmt.Sprintf("Flushing %d Register-IPs", len(pan.RegIPs)), true)
-		pan.UnRegister(pan.RegIPs)
-		utils.LogEndCommand("dag-sync")
-		return
 	}
 
-	//If there are no entries from PAN just add all the workloads.
+	//If there are no entries from PAN to match against just add all the workloads.
 	if len(pan.RegIPs) == 0 && len(workloadsMap) != 0 {
 		if !noPrompt && update {
 			var prompt string
-			fmt.Printf("\r\n%s [PROMPT] - workloader will register %d IPs/Tags on the following PAN : %s. Do you want to make these changes (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), len(workloadsMap), panURL)
+			fmt.Printf("\r\n%s [PROMPT] - workloader will register %d IPs/Tags on the following PanOS : %s. Do you want to make these changes (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), len(workloadsMap), panURL)
 			fmt.Scanln(&prompt)
 			if strings.ToLower(prompt) != "yes" {
 				utils.LogInfo(fmt.Sprintf("prompt denied to registered %d IPs/Tags.", len(workloadsMap)), true)
@@ -633,10 +689,11 @@ func dagSync() {
 			utils.LogInfo(fmt.Sprintf("%d register changes will NOT be made - must enter \"--update-panos\" to make changes to PAN!!!", len(workloadsMap)), true)
 			utils.LogEndCommand("dag-sync")
 			return
+		} else {
+			pan.Register(workloadsMap)
+			utils.LogEndCommand("dag-sync")
+			return
 		}
-		pan.Register(workloadsMap)
-		utils.LogEndCommand("dag-sync")
-		return
 	}
 
 	//Cycle through Workload list as long as there are labels/tags continue.  Build arrays of IPs/Tags to Add/Remove.
@@ -681,7 +738,7 @@ func dagSync() {
 	}
 
 	if len(regEntries) == 0 && len(unregEntries) == 0 {
-		utils.LogInfo(fmt.Sprintf("Nothing to do. No Add/Update/Removals needed on PAN."), true)
+		utils.LogInfo(fmt.Sprintf("Nothing to do. No Add/Update/Removals needed on PanOS."), true)
 		utils.LogEndCommand("dag-sync")
 		return
 	}
@@ -689,7 +746,7 @@ func dagSync() {
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if update && !noPrompt {
 		var prompt string
-		fmt.Printf("\r\n%s [PROMPT] - workloader will register %d and unregister %d IPs and Tags on the following PAN : %s. Do you want to make these changes (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), len(regEntries), len(unregEntries), panURL)
+		fmt.Printf("\r\n%s [PROMPT] - workloader will register %d and unregister %d IPs and Tags on the following PanOS : %s. Do you want to make these changes (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), len(regEntries), len(unregEntries), panURL)
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo(fmt.Sprintf("prompt denied to registered %d and unregistered %d IPs/Tags.", len(regEntries), len(unregEntries)), true)
