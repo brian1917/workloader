@@ -625,8 +625,9 @@ func dagSync() {
 				totLen += len(c)
 			}
 		}
+
 		if totLen == 0 {
-			utils.LogInfo(fmt.Sprintf("****Filter File Row %d does not have ANY entries..This will cause everything to match", i), false)
+			utils.LogInfo(fmt.Sprintf("Workload filter file : row %d does not have ANY entries..This will cause everything to match", i), true)
 		}
 		//Build filter structure to be used when getting PCE workloads.
 		filter = append(filter, map[string]string{"role": row[0], "app": row[1], "env": row[2], "loc": row[3]})
