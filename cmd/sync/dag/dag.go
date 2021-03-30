@@ -162,7 +162,7 @@ To be able to access the PanOS device you must pass the URL, and API Key of the 
 
 To filter only workloads with certain labels you can include a CSV file via "-f" or "--file. The CSV file must have a header of role,app,env,loc.  Every row after that should have the labels you want to include.  Any row will match all 4 of the labels if present.  If any row has a blank entry any label on a workload for that label type will match." 
 
-Workloader will add an additional tag when adding workload IPs/Labels to the PanOS.  The extra tag is used to help uniquely match PanOS and PCE IPs.  If you dont want to add the label add ("-t" "" or "--tag" "") to the command line.  If you want to change the default tag text enter ("-t" "<UserDefinedTag>" or "--tag" "<UserDefinedTag>").
+Workloader will add the PCE workload HREF as a tag ro RegisteredIPs being added to the. PanOS.  The extra tag is used to help uniquely match PanOS and PCE IPs.  If you dont want to add the label add ("--no-href").  
 
 Workloader will ignore any IPv6 address on any PCE workload and add IPv4 addresses only.  To add IPv6 addresses as well enter "-6" or "--ipv6".  *Note All ipv4 or ipv6 link local addresses will always be ignored (169.254.0.0/16 or FE80::/10).
 
@@ -337,7 +337,7 @@ func workloadIPMap(filterList []map[string]string) map[string]IPTags {
 					continue
 				}
 				if _, ok := wkldLabels[k]; !ok {
-					numMatch++
+					//				numMatch++
 					continue
 				}
 				if wkldLabels[k] == v {
@@ -519,7 +519,7 @@ func (pan *PAN) Register(listRegisterIP map[string]IPTags) {
 
 	}
 
-	utils.LogInfo(fmt.Sprintf("%d IP(s) and/or Tag(s) were updated/registered on PAN", len(listRegisterIP)), true)
+	utils.LogInfo(fmt.Sprintf("%d Registered changes will be made. For specifics check workloader.log", len(listRegisterIP)), true)
 }
 
 //checkHAPrimary - make sure we are adding Registered IPs to primary PAN in a HA
@@ -626,7 +626,7 @@ func dagSync() {
 			}
 		}
 		if totLen == 0 {
-			utils.LogInfo(fmt.Sprintf("Filter File Row %d does not has ANY entries..This will cause everything to match", i), true)
+			utils.LogInfo(fmt.Sprintf("****Filter File Row %d does not have ANY entries..This will cause everything to match", i), false)
 		}
 		//Build filter structure to be used when getting PCE workloads.
 		filter = append(filter, map[string]string{"role": row[0], "app": row[1], "env": row[2], "loc": row[3]})
@@ -639,16 +639,16 @@ func dagSync() {
 	//Get all Workloads from PCE.  Dont do if you are cleanup RegisteredIPs.
 	workloadsMap := make(map[string]IPTags)
 	if !clean {
-		utils.LogInfo(fmt.Sprintf("Calling PCE Get ALL Workloads - %s", pce.FQDN), true)
+		utils.LogInfo(fmt.Sprintf("Calling PCE get ALL Workloads - %s", pce.FQDN), true)
 		workloadsMap = workloadIPMap(filter)
-		utils.LogInfo(fmt.Sprintf("Found %d Workloads on PCE - %s", len(workloadsMap), pce.FQDN), true)
+		utils.LogInfo(fmt.Sprintf("%d Workloads IPs on PCE.", len(workloadsMap)), true)
 	}
 
 	//clear RegisterIPs and exit.  Make sure user adds --update-panos. Prompt user to make sure they want to do this..
 	if clean && len(pan.RegIPs) != 0 {
 		if !noPrompt && update {
 			var prompt string
-			fmt.Printf("\r\n%s [PROMPT] - workloader will flush %d of total %d RegisteredIPs on the following PanOS: %s. Do you want to continue (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), pan.FoundCounter, len(pan.RegIPs), panURL)
+			fmt.Printf("\r\n%s [PROMPT] - %d Total RegisteredIPs %d Registered changes will be made . Do you want to continue (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), pan.FoundCounter, len(pan.RegIPs))
 			fmt.Scanln(&prompt)
 			if strings.ToLower(prompt) != "yes" {
 				utils.LogInfo(fmt.Sprintf("prompt denied flushing %d of total %d RegisteredIP.", pan.FoundCounter, len(pan.RegIPs)), true)
@@ -657,7 +657,7 @@ func dagSync() {
 			}
 		}
 		if !update {
-			utils.LogInfo(fmt.Sprintf("%d unregister changes will NOT be made - must enter \"--update-panos\" to make changes to PAN!!!", len(pan.RegIPs)), true)
+			utils.LogInfo(fmt.Sprintf("%d Register changes will NOT be made - must enter \"--update-panos\" to make changes to PAN!!!", len(pan.RegIPs)), true)
 			utils.LogEndCommand("dag-sync")
 			return
 		} else {
@@ -672,7 +672,7 @@ func dagSync() {
 	if len(pan.RegIPs) == 0 && len(workloadsMap) != 0 {
 		if !noPrompt && update {
 			var prompt string
-			fmt.Printf("\r\n%s [PROMPT] - workloader will register %d IPs/Tags on the following PanOS : %s. Do you want to make these changes (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), len(workloadsMap), panURL)
+			fmt.Printf("\r\n%s [PROMPT] - %d Registers changes will be made. Do you want to make these changes (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), len(workloadsMap))
 			fmt.Scanln(&prompt)
 			if strings.ToLower(prompt) != "yes" {
 				utils.LogInfo(fmt.Sprintf("prompt denied to registered %d IPs/Tags.", len(workloadsMap)), true)
@@ -681,7 +681,7 @@ func dagSync() {
 			}
 		}
 		if !update {
-			utils.LogInfo(fmt.Sprintf("%d register changes will NOT be made - must enter \"--update-panos\" to make changes to PAN!!!", len(workloadsMap)), true)
+			utils.LogInfo(fmt.Sprintf("%d Register changes will NOT be made - must enter \"--update-panos\" to make changes to PanOS!!!", len(workloadsMap)), true)
 			utils.LogEndCommand("dag-sync")
 			return
 		} else {
@@ -741,13 +741,13 @@ func dagSync() {
 	}
 
 	if countStaleIPs+countNotFoundStaleIP > 0 && !removeOld {
-		utils.LogInfo(fmt.Sprintf("Found %d RegisteredIPs added by PCE but stale.  Another %d RegisteredIPs not added by PCE.  To remove please set \"-r\" or \"--remove-stale\"", countStaleIPs, countNotFoundStaleIP), true)
-	} else {
-		utils.LogInfo(fmt.Sprintf("Will remove %d RegisteredIPs added by PCE but stale.  Skipping %d RegisteredIPs not added by PCE.", countStaleIPs, countNotFoundStaleIP), true)
+		utils.LogInfo(fmt.Sprintf("%d RegisteredIPs added by Workloader but stale.  %d RegisteredIPs not added by Workloader.  To remove please set \"-r\" or \"--remove-stale\"", countStaleIPs, countNotFoundStaleIP), true)
+	} else if countStaleIPs+countNotFoundStaleIP > 0 {
+		utils.LogInfo(fmt.Sprintf("Skipping %d RegisteredIPs. %d Stale RegisteredIPs added by Workloader being removed.", countNotFoundStaleIP, countStaleIPs), true)
 	}
 
 	if len(regEntries) == 0 && len(unregEntries) == 0 {
-		utils.LogInfo(fmt.Sprintf("Nothing to do. No Add/Update/Removals needed on PanOS."), true)
+		utils.LogInfo(fmt.Sprintf("No Change. No Add/Update/Removals needed on PanOS."), true)
 		utils.LogEndCommand("dag-sync")
 		return
 	}
@@ -755,7 +755,7 @@ func dagSync() {
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if update && !noPrompt {
 		var prompt string
-		fmt.Printf("\r\n%s [PROMPT] - Workloader will register %d and unregister %d IPs and/or Tags on the following PanOS : %s. Do you want to make these changes (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), len(regEntries), len(unregEntries), panURL)
+		fmt.Printf("\r\n%s [PROMPT] - %d Register and %d Unregister changes will be made. Do you want to make these changes (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), len(regEntries), len(unregEntries))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo(fmt.Sprintf("prompt denied to registered %d and unregistered %d IPs/Tags.", len(regEntries), len(unregEntries)), true)
