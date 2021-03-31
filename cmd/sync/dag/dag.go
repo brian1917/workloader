@@ -581,20 +581,20 @@ func dagSync() {
 	if tmp := os.Getenv("PANOS_URL"); tmp != "" && panURL == "" {
 		panURL = tmp
 	} else if panURL == "" {
-		utils.LogError("User must either use environment variable \"PANOS_URL\" or \"--url\" or \"-u\"")
+		utils.LogError("User must either use environment variable \"PANOS_URL\" or \"--url\" or \"-u\" with url to the PanOS.  Include https://")
 	}
 
 	if tmp := os.Getenv("PANOS_KEY"); tmp != "" && panKey == "" {
 		panKey = tmp
 	} else if panKey == "" {
-		utils.LogError("User must either use environment variable \"PANOS_KEY\" or \"--key\" or \"-k\"")
+		utils.LogError("User must either use environment variable \"PANOS_KEY\" or \"--key\" or \"-k\" with PanOS key.")
 	}
 
 	//Too override default --vsys vsys1 check to see the default is selected and environment variable is set.
 	if tmp := os.Getenv("PANOS_VSYS"); tmp != "" && panVsys == "vsys1" {
 		panVsys = tmp
 	} else if panVsys == "" {
-		utils.LogError("User must either use environment variable \"PANOS_VSYS\" or \"--url\" or \"-u\"")
+		utils.LogError("Default PanOS vsys=\"vsys1\".  To override must either use environment variable \"PANOS_VSYS\" or \"--vsys\" or \"-v\" with vsys value.")
 	}
 
 	//default pan struct created.
