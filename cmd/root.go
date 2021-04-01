@@ -39,6 +39,7 @@ import (
 	"github.com/brian1917/workloader/cmd/snowsync"
 	"github.com/brian1917/workloader/cmd/subnet"
 	"github.com/brian1917/workloader/cmd/svcexport"
+	"github.com/brian1917/workloader/cmd/sync/dag"
 	"github.com/brian1917/workloader/cmd/templateimport"
 	"github.com/brian1917/workloader/cmd/traffic"
 	"github.com/brian1917/workloader/cmd/umwlcleanup"
@@ -157,6 +158,7 @@ func init() {
 
 	// Undocumented
 	RootCmd.AddCommand(extract.ExtractCmd)
+	RootCmd.AddCommand(dag.DAGSyncCmd)
 
 	// Set the usage templates
 	for _, c := range RootCmd.Commands() {
