@@ -21,15 +21,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-// APIResponse contains the information from the response of the API
-type APIResponse struct {
-	RespBody   string
-	StatusCode int
-	Header     http.Header
-	Request    *http.Request
-	ReqBody    string
-}
-
 // DagRequest contains the information for the API Request
 type DagRequest struct {
 	XMLName xml.Name `xml:"uid-message"`
@@ -130,7 +121,7 @@ type IPTags struct {
 var pce illumioapi.PCE
 var err error
 var noPrompt, addIPv6, update, insecure, clean, removeOld, changePersistent, noHref bool
-var outFormat, panURL, panKey, panVsys, filterFile, timeout string
+var panURL, panKey, panVsys, filterFile, timeout string
 
 func init() {
 	DAGSyncCmd.Flags().StringVarP(&panURL, "url", "u", "", "URL required to reach Panorama or PAN FW(requires https://).")
@@ -178,7 +169,6 @@ The update-pce flag is ignored for this command.`,
 		}
 
 		// Get the viper values
-		outFormat = viper.Get("output_format").(string)
 		noPrompt = viper.Get("no_prompt").(bool)
 
 		dagSync()
@@ -186,9 +176,9 @@ The update-pce flag is ignored for this command.`,
 }
 
 // httpSetUp - Used to make API call to PAN.  Require HTTP Action, URL, body (if present), if SSL cert ignored and headers (if present).
-func httpSetUp(httpAction, apiURL string, body []byte, disableTLSChecking bool, headers [][2]string) (APIResponse, error) {
+func httpSetUp(httpAction, apiURL string, body []byte, disableTLSChecking bool, headers [][2]string) (illumioapi.APIResponse, error) {
 
-	var response APIResponse
+	var response illumioapi.APIResponse
 	var httpBody *bytes.Buffer
 
 	// Validate the provided action
@@ -202,7 +192,7 @@ func httpSetUp(httpAction, apiURL string, body []byte, disableTLSChecking bool, 
 
 	// Create HTTP client and request
 	client := &http.Client{}
-	if disableTLSChecking == true {
+	if disableTLSChecking {
 		client.Transport = &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 	}
 
@@ -264,7 +254,6 @@ func (pan *PAN) callHTTP(cmdType string, cmd string) DagResponse {
 		utils.LogError(fmt.Sprintf("PanHTTP Call failed - %s", err))
 	}
 
-	//fmt.Println(urlInfo, resp.RespBody)
 	//Unmarshal the HTTP call and place in DagResponse.
 	if err := xml.Unmarshal([]byte(resp.RespBody), &dagResp); err != nil {
 		utils.LogError(fmt.Sprintf("Unmarshall HTTPSetUp response - %s - Body - %s", err, resp.ReqBody))
@@ -317,8 +306,6 @@ func workloadIPMap(filterList []map[string]string) map[string]IPTags {
 		if len(*w.Labels) == 0 {
 			continue
 		}
-
-		//matchValue := 0
 
 		//Cycle through labels getting the Value from the HrefLabelMap as well as build a label map to use for filtering
 		wkldLabels := make(map[string]string)
@@ -720,10 +707,6 @@ func dagSync() {
 			regEntries[ip] = IPTags{Labels: addLabels, Found: false, HrefLabel: ipTags.HrefLabel}
 		}
 
-		//
-		// if pan.RegIPs[ip].Found && !noHref {
-		// 	regEntries[ip] = IPTags{Labels: []string{ipTags.HrefLabel}, Found: true, HrefLabel: ipTags.HrefLabel}
-		// }
 	}
 
 	//Find all the register-ips that are on the PAN but not the PCE and if you set option to unregister.  Add to unregister list.
@@ -748,7 +731,7 @@ func dagSync() {
 	}
 
 	if len(regEntries) == 0 && len(unregEntries) == 0 {
-		utils.LogInfo(fmt.Sprintf("No Change. No Add/Update/Removals needed on PanOS."), true)
+		utils.LogInfo("No Change. No Add/Update/Removals needed on PanOS.", true)
 		utils.LogEndCommand("dag-sync")
 		return
 	}
