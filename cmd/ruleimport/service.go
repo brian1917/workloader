@@ -20,7 +20,7 @@ func serviceComparison(csvServices []string, rule illumioapi.Rule, pceServiceMap
 	for _, c := range csvServices {
 
 		// Check if last three letters are TCP or UDP
-		if strings.ToLower(c[len(c)-3:]) == "tcp" || strings.ToLower(c[len(c)-3:]) == "udp" {
+		if _, err := strconv.Atoi(string(c[0])); err == nil && (strings.ToLower(c[len(c)-3:]) == "tcp" || strings.ToLower(c[len(c)-3:]) == "udp") && strings.Count(c, " ") == 1 {
 
 			protocol, port, toPort, err := parseCSVPortEntry(c)
 			if err != nil {
