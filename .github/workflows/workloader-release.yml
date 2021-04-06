@@ -51,9 +51,9 @@ jobs:
 
       - name: Create release zip packages
         run: |
-          cd windows && zip -j ../windows-v${{ steps.get_version.outputs.version }}.zip . * && cd ..
-          cd mac && zip -j ../mac-v${{ steps.get_version.outputs.version }}.zip . * && cd ..
-          cd linux && zip -j ../linux-v${{ steps.get_version.outputs.version }}.zip . * && cd ..
+          zip -r windows-v${{ steps.get_version.outputs.version }}.zip windows/
+          zip -r mac-v${{ steps.get_version.outputs.version }}.zip mac/
+          zip -r linux-v${{ steps.get_version.outputs.version }}.zip linux/
 
       - name: Create GitHub Release
         id: create_release
