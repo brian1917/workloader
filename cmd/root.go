@@ -39,8 +39,10 @@ import (
 	"github.com/brian1917/workloader/cmd/snowsync"
 	"github.com/brian1917/workloader/cmd/subnet"
 	"github.com/brian1917/workloader/cmd/svcexport"
+	"github.com/brian1917/workloader/cmd/svcimport"
 	"github.com/brian1917/workloader/cmd/sync/dag"
 	"github.com/brian1917/workloader/cmd/templateimport"
+	"github.com/brian1917/workloader/cmd/templatelist"
 	"github.com/brian1917/workloader/cmd/traffic"
 	"github.com/brian1917/workloader/cmd/umwlcleanup"
 	"github.com/brian1917/workloader/cmd/unpair"
@@ -111,6 +113,7 @@ func init() {
 	RootCmd.AddCommand(labelexport.LabelExportCmd)
 	RootCmd.AddCommand(labelgroupexport.LabelGroupExportCmd)
 	RootCmd.AddCommand(labelgroupimport.LabelGroupImportCmd)
+	RootCmd.AddCommand(svcimport.SvcImportCmd)
 	RootCmd.AddCommand(svcexport.SvcExportCmd)
 	RootCmd.AddCommand(rulesetexport.RuleSetExportCmd)
 	RootCmd.AddCommand(rulesetimport.RuleSetImportCmd)
@@ -118,6 +121,7 @@ func init() {
 	RootCmd.AddCommand(ruleimport.RuleImportCmd)
 	RootCmd.AddCommand(flowimport.FlowImportCmd)
 	RootCmd.AddCommand(templateimport.TemplateImportCmd)
+	RootCmd.AddCommand(templatelist.TemplateListCmd)
 
 	// Automated Labeling
 	RootCmd.AddCommand(traffic.TrafficCmd)
