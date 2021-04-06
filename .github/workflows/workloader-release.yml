@@ -38,7 +38,6 @@ jobs:
           cp -r illumio-templates ./windows-v${{ steps.get_version.outputs.version }}/
           cp -r illumio-templates ./mac-v${{ steps.get_version.outputs.version }}/
           cp -r illumio-templates ./linux-v${{ steps.get_version.outputs.version }}/
-          ls ./windows
 
       - name: Build Windows executable
         run: GOOS=windows go build -ldflags "-X github.com/brian1917/workloader/utils.Version=$(cat version) -X github.com/brian1917/workloader/utils.Commit=$(git rev-list -1 HEAD)" -o ./windows-v${{ steps.get_version.outputs.version }}/workloader.exe
