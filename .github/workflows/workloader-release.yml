@@ -31,29 +31,29 @@ jobs:
 
       - name: Make directories and copy CSV files
         run: |
-          mkdir windows mac linux
-          cp workload-identifier-default.csv ./windows
-          cp workload-identifier-default.csv ./mac
-          cp workload-identifier-default.csv ./linux
-          cp -r illumio-templates ./windows/
-          cp -r illumio-templates ./mac/
-          cp -r illumio-templates ./linux/
+          mkdir windows-v${{ steps.get_version.outputs.version }} mac-v${{ steps.get_version.outputs.version }} linux-v${{ steps.get_version.outputs.version }}
+          cp workload-identifier-default.csv ./windows-v${{ steps.get_version.outputs.version }}
+          cp workload-identifier-default.csv ./mac-v${{ steps.get_version.outputs.version }}
+          cp workload-identifier-default.csv ./linux-v${{ steps.get_version.outputs.version }}
+          cp -r illumio-templates ./windows-v${{ steps.get_version.outputs.version }}/
+          cp -r illumio-templates ./mac-v${{ steps.get_version.outputs.version }}/
+          cp -r illumio-templates ./linux-v${{ steps.get_version.outputs.version }}/
           ls ./windows
 
       - name: Build Windows executable
-        run: GOOS=windows go build -ldflags "-X github.com/brian1917/workloader/utils.Version=$(cat version) -X github.com/brian1917/workloader/utils.Commit=$(git rev-list -1 HEAD)" -o ./windows/workloader.exe
+        run: GOOS=windows go build -ldflags "-X github.com/brian1917/workloader/utils.Version=$(cat version) -X github.com/brian1917/workloader/utils.Commit=$(git rev-list -1 HEAD)" -o ./windows-v${{ steps.get_version.outputs.version }}/workloader.exe
 
       - name: Build Mac executable
-        run: GOOS=darwin go build -ldflags "-X github.com/brian1917/workloader/utils.Version=$(cat version) -X github.com/brian1917/workloader/utils.Commit=$(git rev-list -1 HEAD)" -o ./mac/workloader
+        run: GOOS=darwin go build -ldflags "-X github.com/brian1917/workloader/utils.Version=$(cat version) -X github.com/brian1917/workloader/utils.Commit=$(git rev-list -1 HEAD)" -o ./mac-v${{ steps.get_version.outputs.version }}/workloader
 
       - name: Build Linux executable
-        run: GOOS=linux go build -ldflags "-X github.com/brian1917/workloader/utils.Version=$(cat version) -X github.com/brian1917/workloader/utils.Commit=$(git rev-list -1 HEAD)" -o ./linux/workloader
+        run: GOOS=linux go build -ldflags "-X github.com/brian1917/workloader/utils.Version=$(cat version) -X github.com/brian1917/workloader/utils.Commit=$(git rev-list -1 HEAD)" -o ./linux-v${{ steps.get_version.outputs.version }}/workloader
 
       - name: Create release zip packages
         run: |
-          zip -r windows-v${{ steps.get_version.outputs.version }}.zip windows/
-          zip -r mac-v${{ steps.get_version.outputs.version }}.zip mac/
-          zip -r linux-v${{ steps.get_version.outputs.version }}.zip linux/
+          zip -r windows-v${{ steps.get_version.outputs.version }}.zip windows-v${{ steps.get_version.outputs.version }}/
+          zip -r mac-v${{ steps.get_version.outputs.version }}.zip mac-v${{ steps.get_version.outputs.version }}/
+          zip -r linux-v${{ steps.get_version.outputs.version }}.zip linux-v${{ steps.get_version.outputs.version }}/
 
       - name: Create GitHub Release
         id: create_release
