@@ -36,6 +36,22 @@ func labelComparison(key string, csvLabels []string, pce illumioapi.PCE, rule il
 		}
 		if label, labelCheck := pce.Labels[key+value]; labelCheck {
 			csvLabelValueMap[label.Value] = label
+		} else if globalInput.CreateLabels {
+			if globalInput.UpdatePCE {
+				var a illumioapi.APIResponse
+				var err error
+				label, a, err = pce.CreateLabel(illumioapi.Label{Key: key, Value: value})
+				utils.LogAPIResp("CreateLabel", a)
+				if err != nil {
+					utils.LogError(fmt.Sprintf("CSV line %d - creating label - %s", csvLine, err.Error()))
+				}
+				csvLabelValueMap[label.Value] = label
+				pce.Labels[label.Href] = label
+				pce.Labels[label.Key+label.Value] = label
+				utils.LogInfo(fmt.Sprintf("CSV line %d - %s does not exist as a %s label. created %d", csvLine, value, key, a.StatusCode), true)
+			} else {
+				utils.LogInfo(fmt.Sprintf("CSV line %d - %s does not exist as a %s label. will be created with update-pce", csvLine, value, key), true)
+			}
 		} else {
 			utils.LogError(fmt.Sprintf("CSV line %d - %s %s does not exist as a %s label", csvLine, connectionSide, value, key))
 		}

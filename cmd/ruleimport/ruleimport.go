@@ -20,20 +20,20 @@ import (
 
 // Input is the data structure for the ImportRulesFromCSV command
 type Input struct {
-	PCE                            illumioapi.PCE
-	ImportFile                     string
-	ProvisionComment               string
-	Headers                        map[string]int
-	Provision, UpdatePCE, NoPrompt bool
+	PCE                                          illumioapi.PCE
+	ImportFile                                   string
+	ProvisionComment                             string
+	Headers                                      map[string]int
+	Provision, UpdatePCE, NoPrompt, CreateLabels bool
 }
 
 // Decluare a global iput and debug variable
-var input Input
-var debug bool
+var globalInput Input
 
 func init() {
-	RuleImportCmd.Flags().BoolVar(&input.Provision, "provision", false, "Provision rule changes.")
-	RuleImportCmd.Flags().StringVar(&input.ProvisionComment, "provision-comment", "", "Comment for when provisioning changes.")
+	RuleImportCmd.Flags().BoolVar(&globalInput.CreateLabels, "create-labels", false, "Create labels if they do not exist.")
+	RuleImportCmd.Flags().BoolVar(&globalInput.Provision, "provision", false, "Provision rule changes.")
+	RuleImportCmd.Flags().StringVar(&globalInput.ProvisionComment, "provision-comment", "", "Comment for when provisioning changes.")
 }
 
 // RuleImportCmd runs the upload command
@@ -82,7 +82,7 @@ Recommended to run without --update-pce first to log of what will change. If --u
 	Run: func(cmd *cobra.Command, args []string) {
 
 		var err error
-		input.PCE, err = utils.GetTargetPCE(false)
+		globalInput.PCE, err = utils.GetTargetPCE(false)
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for csv command - %s", err)
 		}
@@ -92,14 +92,13 @@ Recommended to run without --update-pce first to log of what will change. If --u
 			fmt.Println("Command requires 1 argument for the csv file. See usage help.")
 			os.Exit(0)
 		}
-		input.ImportFile = args[0]
+		globalInput.ImportFile = args[0]
 
 		// Get the debug value from viper
-		debug = viper.Get("debug").(bool)
-		input.UpdatePCE = viper.Get("update_pce").(bool)
-		input.NoPrompt = viper.Get("no_prompt").(bool)
+		globalInput.UpdatePCE = viper.Get("update_pce").(bool)
+		globalInput.NoPrompt = viper.Get("no_prompt").(bool)
 
-		ImportRulesFromCSV(input)
+		ImportRulesFromCSV(globalInput)
 	},
 }
 
@@ -108,6 +107,9 @@ func ImportRulesFromCSV(input Input) {
 
 	// Log start of the command
 	utils.LogStartCommand("rule-import")
+
+	// Set the global as the local for when it comes from other functions
+	globalInput = input
 
 	// Parse the CSV file
 	csvInput, err := utils.ParseCSV(input.ImportFile)
@@ -637,7 +639,7 @@ CSVEntries:
 		// Option 1 - No rule HREF provided, so it's a new rule
 		if rowRuleHref == "" {
 			newRules = append(newRules, toAdd{ruleSetHref: rs.Href, rule: csvRule, csvLine: i + 1})
-			utils.LogInfo(fmt.Sprintf("CSV line %d - create new rule for %s ruleset", i+1, l[input.Headers[ruleexport.HeaderRulesetName]]), true)
+			utils.LogInfo(fmt.Sprintf("CSV line %d - create new rule for %s ruleset", i+1, l[input.Headers[ruleexport.HeaderRulesetName]]), false)
 		} else {
 			// Option 2 - No rule href and update set, add to updated rules
 			if update {
