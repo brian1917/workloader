@@ -10,10 +10,9 @@ import (
 	"github.com/brian1917/illumioapi"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
-var debug, modeChangeInput, issuesOnly bool
+var modeChangeInput, issuesOnly bool
 var pce illumioapi.PCE
 var outputFileName, role, app, env, loc string
 var err error
@@ -45,9 +44,6 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 			utils.LogError(err.Error())
 		}
 
-		// Get the debug value from viper
-		debug = viper.Get("debug").(bool)
-
 		compatibilityReport()
 	},
 }
@@ -59,7 +55,7 @@ func compatibilityReport() {
 
 	// Start the data slice with the headers. We will append data to this.
 	var csvData, stdOutData, modeChangeInputData [][]string
-	csvData = append(csvData, []string{"hostname", "href", "status", "role", "app", "env", "loc", "os_id", "os_details", "required_packages_installed", "required_packages_missing", "ipsec_service_enabled", "ipv4_forwarding_enabled", "ipv4_forwarding_pkt_cnt", "iptables_rule_cnt", "ipv6_global_scope", "ipv6_active_conn_cnt", "ip6tables_rule_cnt", "routing_table_conflict,omitempty", "IPv6_enabled", "Unwanted_nics", "GroupPolicy", "raw_data"})
+	csvData = append(csvData, []string{"hostname", "href", "status", "role", "app", "env", "loc", "os_id", "os_details", "required_packages_installed", "required_packages_missing", "ipsec_service_enabled", "ipv4_forwarding_enabled", "ipv4_forwarding_pkt_cnt", "iptables_rule_cnt", "ipv6_global_scope", "ipv6_active_conn_cnt", "ip6tables_rule_cnt", "routing_table_conflict", "IPv6_enabled", "Unwanted_nics", "GroupPolicy", "raw_data"})
 	stdOutData = append(stdOutData, []string{"hostname", "href", "status"})
 	modeChangeInputData = append(modeChangeInputData, []string{"href", "mode"})
 
@@ -85,7 +81,6 @@ func compatibilityReport() {
 
 	// If we have query labels add to the map
 	if len(queryLabels) > 0 {
-		fmt.Println(fmt.Sprintf("[[\"%s\"]]", strings.Join(queryLabels, "\",\"")))
 		qp["labels"] = fmt.Sprintf("[[\"%s\"]]", strings.Join(queryLabels, "\",\""))
 	}
 	wklds, a, err := pce.GetAllWorkloadsQP(qp)
