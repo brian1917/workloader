@@ -574,7 +574,7 @@ func ExportRules(input Input) {
 					}
 				}
 				if s.Href == nil {
-					services = append(services, fmt.Sprintf("%d %s", s.Port, illumioapi.ProtocolList()[*s.Protocol]))
+					services = append(services, fmt.Sprintf("%d %s", *s.Port, illumioapi.ProtocolList()[*s.Protocol]))
 				}
 			}
 			csvEntryMap[HeaderServices] = strings.Join(services, ";")
