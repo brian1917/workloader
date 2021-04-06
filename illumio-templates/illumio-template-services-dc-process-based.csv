@@ -1,0 +1,33 @@
+name,description,is_windows_service,ports,protocol,process_name,service_name
+SMB,"Server Message Block (SMB), typically used by Microsoft file sharing.",FALSE,445,udp,,
+SMB,"Server Message Block (SMB), typically used by Microsoft file sharing.",FALSE,445,tcp,,
+NTDS,New Technology Directory Service,TRUE,0,0,%SystemRoot%\System32\lsass.exe,NTDS
+DCOM Launcher,The DCOMLAUNCH service launches COM and DCOM servers in response to object activation.,TRUE,0,0,%SystemRoot%\System32\svchost.exe,DcomLaunch
+Windows Time,Maintains date and time synchronization on all clients and servers in the network.,TRUE,123,udp,%SystemRoot%\System32\svchost.exe,W32Time
+NT File Replication Service,Synchronizes folders with file servers that use File Replication Service (FRS) instead of the newer DFS Replication technology.,TRUE,0,0,%SystemRoot%\System32\ntfrs.exe,NtFrs
+Security Accounts Manager,The startup of this service signals other services that the Security Accounts Manager (SAM) is ready to accept requests.,TRUE,0,0,%SystemRoot%\System32\lsass.exe,SamSs
+DCE/RPC Locator,"DCE/RPC Used to remotely manage services like DHCP server, DNS server and WINS.",TRUE,135,tcp,%SystemRoot%\System32\lsass.exe,
+Windows Management Instrumentation,"Provides a common interface and object model to access management information about operating system, devices, applications and services.",TRUE,0,0,%SystemRoot%\System32\svchost.exe,Winmgmt
+NetBIOS Session Service,Used for connection-oriented communication.,FALSE,139,tcp,,
+NetBIOS Name Service,Used by Microsoft operating systems for short name registration and resolution.,FALSE,137,tcp,,
+NetBIOS Name Service,Used by Microsoft operating systems for short name registration and resolution.,FALSE,137,udp,,
+Remote Procedure Call,"The RPCSS service is the Service Control Manager for COM and DCOM servers. It performs object activations requests, object exporter resolutions and distributed garbage collection for COM and DCOM servers.",TRUE,135,tcp,%SystemRoot%\system32\svchost.exe,RpcSs
+Link-Local Multicast Name Resolution,"Link-Local Multicast Name Resolution (LLMNR) (dnscache) caches Domain Name System (DNS) names, allowing them to be accessed via LLMNR multicast requests.",TRUE,5355,udp,%SystemRoot%\System32\svchost.exe,Dnscache
+Event Log,"This service manages events and event logs. It supports logging events, querying events, subscribing to events, archiving event logs, and managing event metadata.",TRUE,0,0,%SystemRoot%\System32\svchost.exe,EventLog
+LLMNR (Port-Based),"LLMNR (dnscache) caches Domain Name System (DNS) names, allowing them to be accessed via LLMNR multicast requests. This is the port based version of this service to assist in enabling the multicast part of the protocol.",FALSE,5355,udp,,
+NetLogon,This service is responsible for creating Secure Channel between Domain Controllers and client computers. Secure Channel is created to pass the authentication packets.,TRUE,0,0,%SystemRoot%\System32\lsass.exe,NetLogon
+Kerberos,The Microsoft specific version of Kerberos authentication,TRUE,88,tcp,%SystemRoot%\System32\lsass.exe,
+LSASS Services,Some high port services that use LSASS.EXE don't have Microsoft services attached to them. This Illumio service serves as a catch all to these services.,TRUE,49152-65535,tcp,%SystemRoot%\System32\lsass.exe,
+Distributed File System Replication,Distributed File System Replication (DFSR) enables you to synchronize folders on multiple servers across local or wide area network (WAN).,TRUE,0,0,%SystemRoot%\System32\DFSRs.exe,DFSR
+DNS,Domain Name System,FALSE,53,udp,,
+DNS,Domain Name System,FALSE,53,tcp,,
+Kerberos-v5,Kerberos Version 5,FALSE,464,udp,,
+Kerberos-v5,Kerberos Version 5,FALSE,464,tcp,,
+RPC Endpoint Mapper,Resolves Remote Procedure Call (RPC) interfaces identifiers to transport endpoints.,TRUE,135,tcp,%SystemRoot%\system32\svchost.exe,RpcEptMapper
+NetBIOS Datagram Service,This provides NetBOIS Datagram distribution service (NetBIOS-DGM) for connectionless communication.,FALSE,138,udp,,
+Distributed File System Namespce,Enables you to group shared folders located on different servers into one or more logically structured namespaces. Each namespace appears to users as a single shared folder with a series of subfolders.,TRUE,0,0,%SystemRoot%\system32\dfssvc.exe,Dfs
+LDAP,Lightweight Directory Access Protocol,FALSE,389,udp,,
+LDAP,Lightweight Directory Access Protocol,FALSE,389,tcp,,
+LDAPS,Secure LDAP,FALSE,636,udp,,
+LDAPS,Secure LDAP,FALSE,636,tcp,,
+MSFT DNS,Microsoft Domain Name System. Typically used on Domain Controllers.,TRUE,0,0,%SystemRoot%\System32\dns.exe,DNS

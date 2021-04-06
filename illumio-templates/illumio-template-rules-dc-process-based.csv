@@ -1,0 +1,41 @@
+ruleset_name,ruleset_enabled,rule_description,rule_enabled,unscoped_consumers,consumer_all_workloads,consumer_roles,consumer_apps,consumer_envs,consumer_locs,consumer_label_groups,consumer_iplists,consumer_user_groups,consumer_workloads,consumer_virtual_services,provider_all_workloads,provider_roles,provider_apps,provider_envs,provider_locs,provider_label_groups,provider_iplists,provider_workloads,provider_virtual_services,provider_virtual_servers,services,consumer_resolve_labels_as,provider_resolve_labels_as,machine_auth_enabled,secure_connect_enabled,stateless_enabled
+A-Active-Directory | E-Production | All,TRUE,,TRUE,TRUE,TRUE,,,,,,Any (0.0.0.0/0 and ::/0),,,,FALSE,R-Domain-Controller,,,,,,,,,NetLogon,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,TRUE,TRUE,,,,,,Any (0.0.0.0/0 and ::/0),,,,FALSE,R-Domain-Controller,,,,,,,,,Windows Management Instrumentation,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,TRUE,TRUE,,,,,,Any (0.0.0.0/0 and ::/0),,,,FALSE,R-Domain-Controller,,,,,,,,,Remote Procedure Call,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,TRUE,TRUE,,,,,,Any (0.0.0.0/0 and ::/0),,,,FALSE,R-Domain-Controller,,,,,,,,,Windows Time,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,TRUE,TRUE,,,,,,Any (0.0.0.0/0 and ::/0),,,,FALSE,R-Domain-Controller,,,,,,,,,Kerberos-v5,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,TRUE,TRUE,,,,,,Any (0.0.0.0/0 and ::/0),,,,FALSE,R-Domain-Controller,,,,,,,,,DCE/RPC Locator,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,TRUE,TRUE,,,,,,Any (0.0.0.0/0 and ::/0),,,,FALSE,R-Domain-Controller,,,,,,,,,LDAP,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,TRUE,TRUE,,,,,,Any (0.0.0.0/0 and ::/0),,,,FALSE,R-Domain-Controller,,,,,,,,,Kerberos,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,TRUE,TRUE,,,,,,Any (0.0.0.0/0 and ::/0),,,,FALSE,R-Domain-Controller,,,,,,,,,RPC Endpoint Mapper,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,TRUE,TRUE,,,,,,Any (0.0.0.0/0 and ::/0),,,,FALSE,R-Domain-Controller,,,,,,,,,Link-Local Multicast Name Resolution,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,TRUE,FALSE,,,,,,Any (0.0.0.0/0 and ::/0),,,,FALSE,R-Domain-Controller,,,,,,,,,DNS,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,TRUE,TRUE,,,,,,Any (0.0.0.0/0 and ::/0),,,,FALSE,R-Domain-Controller,,,,,,,,,NetBIOS Session Service,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,TRUE,TRUE,,,,,,Any (0.0.0.0/0 and ::/0),,,,FALSE,R-Domain-Controller,,,,,,,,,NetBIOS Name Service,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,TRUE,TRUE,,,,,,Any (0.0.0.0/0 and ::/0),,,,FALSE,R-Domain-Controller,,,,,,,,,NetBIOS Datagram Service,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,TRUE,TRUE,,,,,,Any (0.0.0.0/0 and ::/0),,,,FALSE,R-Domain-Controller,,,,,,,,,LSASS Services,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,TRUE,TRUE,,,,,,Any (0.0.0.0/0 and ::/0),,,,FALSE,R-Domain-Controller,,,,,,,,,SMB,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,TRUE,TRUE,,,,,,Any (0.0.0.0/0 and ::/0),,,,FALSE,R-Domain-Controller,,,,,,,,,SMB,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,FALSE,FALSE,R-Domain-Controller,,,,,,,,,FALSE,R-Domain-Controller,,,,,,,,,LDAPS,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,FALSE,FALSE,R-Domain-Controller,,,,,,,,,FALSE,R-Domain-Controller,,,,,,,,,Distributed File System Replication,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,FALSE,FALSE,R-Domain-Controller,,,,,,,,,FALSE,R-Domain-Controller,,,,,,,,,MSFT DNS,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,FALSE,FALSE,R-Domain-Controller,,,,,,,,,FALSE,R-Domain-Controller,,,,,,,,,Windows Management Instrumentation,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,FALSE,FALSE,R-Domain-Controller,,,,,,,,,FALSE,R-Domain-Controller,,,,,,,,,Remote Procedure Call,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,FALSE,FALSE,R-Domain-Controller,,,,,,,,,FALSE,R-Domain-Controller,,,,,,,,,Windows Time,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,FALSE,FALSE,R-Domain-Controller,,,,,,,,,FALSE,R-Domain-Controller,,,,,,,,,Link-Local Multicast Name Resolution,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,FALSE,FALSE,R-Domain-Controller,,,,,,,,,FALSE,R-Domain-Controller,,,,,,,,,DCE/RPC Locator,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,FALSE,FALSE,R-Domain-Controller,,,,,,,,,FALSE,R-Domain-Controller,,,,,,,,,NT File Replication Service,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,FALSE,FALSE,R-Domain-Controller,,,,,,,,,FALSE,R-Domain-Controller,,,,,,,,,DCOM Launcher,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,FALSE,FALSE,R-Domain-Controller,,,,,,,,,FALSE,R-Domain-Controller,,,,,,,,,Distributed File System Namespce,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,FALSE,FALSE,R-Domain-Controller,,,,,,,,,FALSE,R-Domain-Controller,,,,,,,,,Kerberos,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,FALSE,FALSE,R-Domain-Controller,,,,,,,,,FALSE,R-Domain-Controller,,,,,,,,,Security Accounts Manager,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,FALSE,FALSE,R-Domain-Controller,,,,,,,,,FALSE,R-Domain-Controller,,,,,,,,,NetLogon,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,FALSE,FALSE,R-Domain-Controller,,,,,,,,,FALSE,R-Domain-Controller,,,,,,,,,RPC Endpoint Mapper,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,FALSE,FALSE,R-Domain-Controller,,,,,,,,,FALSE,R-Domain-Controller,,,,,,,,,LDAP,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,FALSE,FALSE,R-Domain-Controller,,,,,,,,,FALSE,R-Domain-Controller,,,,,,,,,Event Log,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,FALSE,FALSE,R-Domain-Controller,,,,,,,,,FALSE,R-Domain-Controller,,,,,,,,,NetBIOS Name Service,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,FALSE,FALSE,R-Domain-Controller,,,,,,,,,FALSE,R-Domain-Controller,,,,,,,,,NetBIOS Datagram Service,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,FALSE,FALSE,R-Domain-Controller,,,,,,,,,FALSE,R-Domain-Controller,,,,,,,,,NetBIOS Session Service,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,FALSE,FALSE,R-Domain-Controller,,,,,,,,,FALSE,R-Domain-Controller,,,,,,,,,NTDS,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,FALSE,FALSE,R-Domain-Controller,,,,,,,,,FALSE,R-Domain-Controller,,,,,,,,,LSASS Services,workloads,workloads,FALSE,FALSE,FALSE
+A-Active-Directory | E-Production | All,TRUE,,TRUE,FALSE,FALSE,R-Domain-Controller,,,,,,,,,FALSE,R-Domain-Controller,,,,,,,,,SMB,workloads,workloads,FALSE,FALSE,FALSE

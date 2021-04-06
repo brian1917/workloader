@@ -1,0 +1,2 @@
+ruleset_name,ruleset_enabled,ruleset_description,app_scope,env_scope,loc_scope
+A-Active-Directory | E-Production | All,TRUE,Client to domain controller and domain controller to domain controller communication,A-Active-Directory,E-Production,all locs
