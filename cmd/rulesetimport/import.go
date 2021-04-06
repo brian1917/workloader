@@ -13,16 +13,18 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Remove the auto-provision as default
+type Input struct {
+	PCE                                          illumioapi.PCE
+	UpdatePCE, NoPrompt, Provision, CreateLabels bool
+	ImportFile, ProvisionComment                 string
+}
 
-// Declare some global variables
-var pce illumioapi.PCE
-var debug, updatePCE, noPrompt, provision bool
-var importFile, provisionComment string
+var input Input
 
 func init() {
-	RuleSetImportCmd.Flags().BoolVar(&provision, "provision", false, "Provision changes.")
-	RuleSetImportCmd.Flags().StringVar(&provisionComment, "provision-comments", "", "Provision comment.")
+	RuleSetImportCmd.Flags().BoolVar(&input.Provision, "provision", false, "Provision changes.")
+	RuleSetImportCmd.Flags().StringVar(&input.ProvisionComment, "provision-comments", "", "Provision comment.")
+	RuleSetImportCmd.Flags().BoolVar(&input.CreateLabels, "create-labels", false, "Create labels in scope if they do not exist.")
 }
 
 // RuleSetImportCmd runs the import command
@@ -56,7 +58,7 @@ Recommended to run without --update-pce first to log of what will change. If --u
 	Run: func(cmd *cobra.Command, args []string) {
 
 		var err error
-		pce, err = utils.GetTargetPCE(true)
+		input.PCE, err = utils.GetTargetPCE(true)
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for csv command - %s", err)
 		}
@@ -66,24 +68,23 @@ Recommended to run without --update-pce first to log of what will change. If --u
 			fmt.Println("Command requires 1 argument for the csv file. See usage help.")
 			os.Exit(0)
 		}
-		importFile = args[0]
+		input.ImportFile = args[0]
 
 		// Get the debug value from viper
-		debug = viper.Get("debug").(bool)
-		updatePCE = viper.Get("update_pce").(bool)
-		noPrompt = viper.Get("no_prompt").(bool)
+		input.UpdatePCE = viper.Get("update_pce").(bool)
+		input.NoPrompt = viper.Get("no_prompt").(bool)
 
-		importRuleSetsFromCSV()
+		ImportRuleSetsFromCSV(input)
 	},
 }
 
-func importRuleSetsFromCSV() {
+func ImportRuleSetsFromCSV(input Input) {
 
 	// Log the start of the command
 	utils.LogStartCommand("ruleset-import")
 
 	// Get all rulesets
-	pceRuleSets, a, err := pce.GetAllRuleSets("draft")
+	pceRuleSets, a, err := input.PCE.GetAllRuleSets("draft")
 	utils.LogAPIResp("GetAllRuleSets", a)
 	if err != nil {
 		utils.LogError(err.Error())
@@ -97,7 +98,7 @@ func importRuleSetsFromCSV() {
 	}
 
 	// Get the Label Groups
-	allLabelGroups, a, err := pce.GetAllLabelGroups("draft")
+	allLabelGroups, a, err := input.PCE.GetAllLabelGroups("draft")
 	utils.LogAPIResp("GetAllLabelGroups", a)
 	if err != nil {
 		utils.LogError(err.Error())
@@ -109,7 +110,7 @@ func importRuleSetsFromCSV() {
 	}
 
 	// Parse the CSV file
-	csvInput, err := utils.ParseCSV(importFile)
+	csvInput, err := utils.ParseCSV(input.ImportFile)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -142,16 +143,16 @@ func importRuleSetsFromCSV() {
 				utils.LogError(fmt.Sprintf("CSV line %d - provided ruleset href does not exist", i+1))
 			}
 			// Begin update checks
-			update := false
+			//update := false
 			// Name
 			if rs.Name != l[hm["ruleset_name"]] {
 				utils.LogInfo(fmt.Sprintf("CSV line %d - ruleset name needs to be updated from %s to %s", i+1, rs.Name, l[hm["ruleset_name"]]), false)
-				update = true
+				//update = true
 			}
 			// Description
 			if rs.Description != l[hm["ruleset_description"]] {
 				utils.LogInfo(fmt.Sprintf("CSV line %d - ruleset description needs to be updated from %s to %s", i+1, rs.Description, l[hm["ruleset_description"]]), false)
-				update = true
+				//update = true
 			}
 			// Enabled
 			csvEnabled, err := strconv.ParseBool(l[hm["ruleset_enabled"]])
@@ -160,12 +161,9 @@ func importRuleSetsFromCSV() {
 			}
 			if *rs.Enabled != csvEnabled {
 				utils.LogInfo(fmt.Sprintf("CSV line %d - ruleset enabled needs to be updated from %s to %s", i+1, strconv.FormatBool(*rs.Enabled), strconv.FormatBool(csvEnabled)), false)
-				update = true
+				//update = true
 			}
 			// Scopes - coming soon
-			if update {
-			}
-
 		}
 
 		// Build a new ruleset with name and description
@@ -202,7 +200,7 @@ func importRuleSetsFromCSV() {
 			keys := []string{"app", "env", "loc"}
 			for n, entry := range scope {
 				// If the entry ends in "-lg", it's a label group
-				if strings.ToLower(entry[len(entry)-3:]) == "-lg" {
+				if len(entry) >= 3 && strings.ToLower(entry[len(entry)-3:]) == "-lg" {
 					// Check if the label group exists. Log if it does not.
 					if val, ok := labelGroupMap[strings.Replace(entry, "-lg", "", -1)]; !ok {
 						utils.LogError(fmt.Sprintf("CSV line %d - the label group %s does not exist", i+1, strings.Replace(entry, "-lg", "", -1)))
@@ -218,8 +216,20 @@ func importRuleSetsFromCSV() {
 					continue
 				}
 				// If it's not all <key>s, check if the value exists. If it doesn't log error.
-				if val, ok := pce.Labels[keys[n]+entry]; !ok {
-					utils.LogError(fmt.Sprintf("CSV line %d - the %s label %s does not exist", i+1, keys[n], entry))
+				if val, ok := input.PCE.Labels[keys[n]+entry]; !ok {
+					if !input.CreateLabels {
+						utils.LogError(fmt.Sprintf("CSV line %d - the %s label %s does not exist", i+1, keys[n], entry))
+					} else if input.UpdatePCE {
+						l, a, err := input.PCE.CreateLabel(illumioapi.Label{Key: keys[n], Value: entry})
+						utils.LogAPIResp("CreateLabel", a)
+						if err != nil {
+							utils.LogError(fmt.Sprintf("CSV line %d - %s", i+1, err.Error()))
+						}
+						utils.LogInfo(fmt.Sprintf("CSV line %d - %s does not exist as a %s label - created %d", i+1, entry, keys[n], a.StatusCode), true)
+						rsScope = append(rsScope, &illumioapi.Scopes{Label: &illumioapi.Label{Href: l.Href}})
+					} else {
+						utils.LogInfo(fmt.Sprintf("CSV line %d - %s does not exist as a %s label - label will be created with --update-pce", i+1, entry, keys[n]), true)
+					}
 					// If the value does exist, we add it to the scope
 				} else {
 					rsScope = append(rsScope, &illumioapi.Scopes{Label: &illumioapi.Label{Href: val.Href}})
@@ -241,14 +251,14 @@ func importRuleSetsFromCSV() {
 	}
 
 	// Log findings
-	if !updatePCE {
+	if !input.UpdatePCE {
 		utils.LogInfo(fmt.Sprintf("workloader identified %d rulesets to create. To do the import, run again using --update-pce flag.", len(newRuleSets)), true)
 		utils.LogEndCommand("ruleset-import")
 		return
 	}
 
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
-	if updatePCE && !noPrompt {
+	if input.UpdatePCE && !input.NoPrompt {
 		var prompt string
 		fmt.Printf("\r\n[PROMPT] - workloader identified %d rulesets to create in %s (%s). Do you want to run the import (yes/no)? ", len(newRuleSets), viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".fqdn").(string))
 		fmt.Scanln(&prompt)
@@ -263,7 +273,7 @@ func importRuleSetsFromCSV() {
 	provisionHrefs := []string{}
 	if len(newRuleSets) > 0 {
 		for _, newRuleSet := range newRuleSets {
-			ruleset, a, err := pce.CreateRuleSet(newRuleSet.ruleSet)
+			ruleset, a, err := input.PCE.CreateRuleSet(newRuleSet.ruleSet)
 			utils.LogAPIResp("CreateRuleSetRule", a)
 			if err != nil {
 				utils.LogError(err.Error())
@@ -274,8 +284,8 @@ func importRuleSetsFromCSV() {
 	}
 
 	// Provision any changes
-	if provision {
-		a, err := pce.ProvisionHref(provisionHrefs, provisionComment)
+	if input.Provision {
+		a, err := input.PCE.ProvisionHref(provisionHrefs, input.ProvisionComment)
 		utils.LogAPIResp("ProvisionHref", a)
 		if err != nil {
 			utils.LogError(err.Error())
