@@ -1,0 +1,118 @@
+name,description,is_windows_service,ports,protocol,process_name,service_name,icmp_code,icmp_type
+NFS,Network File System,FALSE,2049,udp,,,0,0
+Telnet,Telnet,FALSE,23,udp,,,0,0
+Telnet,Telnet,FALSE,23,tcp,,,0,0
+POPv3,Post Office Protocol v3,FALSE,110,tcp,,,0,0
+HTTPS,Secure HTTP,FALSE,443,tcp,,,0,0
+Kerberos-v4,Kerberos Version 4,FALSE,750,udp,,,0,0
+Kerberos-v4,Kerberos Version 4,FALSE,750,tcp,,,0,0
+DNS,Domain Name System,FALSE,53,udp,,,0,0
+DNS,Domain Name System,FALSE,53,tcp,,,0,0
+IRC,Internet Relay Chat,FALSE,6667,udp,,,0,0
+IRC,Internet Relay Chat,FALSE,6667,tcp,,,0,0
+IRC,Internet Relay Chat,FALSE,194,tcp,,,0,0
+DHCP Client,Dynamic Host Control Protocol/BOOTP Client,FALSE,68,udp,,,0,0
+DHCP Client,Dynamic Host Control Protocol/BOOTP Client,FALSE,68,tcp,,,0,0
+SNMP,Simple Network Management Protocol,FALSE,161-162,udp,,,0,0
+SNMP,Simple Network Management Protocol,FALSE,161-162,tcp,,,0,0
+PXE,Preboot Execution Environment,FALSE,4011,tcp,,,0,0
+Kerberos-Auth,Kerberos Authentication Protocol,FALSE,88,udp,,,0,0
+Kerberos-Auth,Kerberos Authentication Protocol,FALSE,88,tcp,,,0,0
+Kerberos-v5,Kerberos Version 5,FALSE,464,udp,,,0,0
+Kerberos-v5,Kerberos Version 5,FALSE,464,tcp,,,0,0
+LPD-LPR,Line Printer Daemon-Line Printer Remote,FALSE,515,udp,,,0,0
+LPD-LPR,Line Printer Daemon-Line Printer Remote,FALSE,515,tcp,,,0,0
+MySQL, An open-source relational database management system (RDBMS),FALSE,3306,tcp,,,0,0
+MySQL, An open-source relational database management system (RDBMS),FALSE,1186,udp,,,0,0
+MySQL, An open-source relational database management system (RDBMS),FALSE,1186,tcp,,,0,0
+ISAKMP,Internet Security Association and Key Management Protocol,FALSE,500,udp,,,0,0
+ISAKMP,Internet Security Association and Key Management Protocol,FALSE,500,tcp,,,0,0
+MSFT Remote Management,Windows Remote Management (WinRM) service implements the WS-Management protocol for remote management.,FALSE,5985-5986,tcp,,,0,0
+NetLogon/NTDS,This service covers both NetLogon and NTDS high port range.,FALSE,49152-65535,tcp,,,0,0
+DHCP Server,Dynamic Host Control Protocol/BOOTP Server,FALSE,67,udp,,,0,0
+DHCP Server,Dynamic Host Control Protocol/BOOTP Server,FALSE,67,tcp,,,0,0
+SNMP-Trap,Simple Network Management Protocol Trap,FALSE,162,udp,,,0,0
+Rlogin,Remote Login,FALSE,513,tcp,,,0,0
+IRCS,Secure Internet Relay Chat,FALSE,994,udp,,,0,0
+IRCS,Secure Internet Relay Chat,FALSE,994,tcp,,,0,0
+RTSP,Real-Time Streaming Protocol,FALSE,554,udp,,,0,0
+RTSP,Real-Time Streaming Protocol,FALSE,554,tcp,,,0,0
+Klogin,Kerberos Login,FALSE,543,tcp,,,0,0
+NTP,Network Time Protocol,FALSE,123,tcp,,,0,0
+NTP,Network Time Protocol,FALSE,123,udp,,,0,0
+PTP-Events,Precision Time Protocol Events,FALSE,319,udp,,,0,0
+PTP-Events,Precision Time Protocol Events,FALSE,319,tcp,,,0,0
+SMTP,Simple Mail Transfer Protocol,FALSE,25,tcp,,,0,0
+SMTP,Simple Mail Transfer Protocol,FALSE,25,udp,,,0,0
+SMTPS,Secure SMTP,FALSE,465,tcp,,,0,0
+MSFT SQL Service Broker," There is no default port for SQL Server Service Broker, but this is the conventional configuration used in Microsoft's online examples.",FALSE,4022,tcp,,,0,0
+MSFT RPC,Resolves Remote Procedure Call (RPC) interfaces identifiers to transport endpoints.,FALSE,135,tcp,,,0,0
+MSFT Domain Controllers,Ports used by Domain Controllers.,FALSE,123,udp,,,0,0
+MSFT Domain Controllers,Ports used by Domain Controllers.,FALSE,135,tcp,,,0,0
+MSFT Domain Controllers,Ports used by Domain Controllers.,FALSE,464,tcp,,,0,0
+MSFT Domain Controllers,Ports used by Domain Controllers.,FALSE,464,udp,,,0,0
+MSFT Domain Controllers,Ports used by Domain Controllers.,FALSE,389,tcp,,,0,0
+MSFT Domain Controllers,Ports used by Domain Controllers.,FALSE,389,udp,,,0,0
+MSFT Domain Controllers,Ports used by Domain Controllers.,FALSE,636,tcp,,,0,0
+MSFT Domain Controllers,Ports used by Domain Controllers.,FALSE,3268,tcp,,,0,0
+MSFT Domain Controllers,Ports used by Domain Controllers.,FALSE,3269,tcp,,,0,0
+MSFT Domain Controllers,Ports used by Domain Controllers.,FALSE,53,tcp,,,0,0
+MSFT Domain Controllers,Ports used by Domain Controllers.,FALSE,53,udp,,,0,0
+MSFT Domain Controllers,Ports used by Domain Controllers.,FALSE,88,tcp,,,0,0
+MSFT Domain Controllers,Ports used by Domain Controllers.,FALSE,88,udp,,,0,0
+MSFT Domain Controllers,Ports used by Domain Controllers.,FALSE,445,tcp,,,0,0
+MSFT Domain Controllers,Ports used by Domain Controllers.,FALSE,49152-65535,tcp,,,0,0
+HTTP,Hyper Text Transfer Protocol,FALSE,80,tcp,,,0,0
+POPv3S,Secure POPv3,FALSE,995,tcp,,,0,0
+IMAPS,Secure IMAP,FALSE,993,tcp,,,0,0
+NAT-T,Network Address Translation - Traversal,FALSE,4500,udp,,,0,0
+RDP,Remote Desktop Protocol,FALSE,3389,udp,,,0,0
+RDP,Remote Desktop Protocol,FALSE,3389,tcp,,,0,0
+MSFT SMB,Server Message Block (SMB).,FALSE,445,tcp,,,0,0
+MSFT SMB,Server Message Block (SMB).,FALSE,445,udp,,,0,0
+Kerberos-CDC,Kerberos Certificate Distribution Center,FALSE,223,udp,,,0,0
+Kerberos-CDC,Kerberos Certificate Distribution Center,FALSE,223,tcp,,,0,0
+LDAPS,Secure LDAP,FALSE,636,udp,,,0,0
+LDAPS,Secure LDAP,FALSE,636,tcp,,,0,0
+LDAP,Lightweight Directory Access Protocol,FALSE,389,tcp,,,0,0
+LDAP,Lightweight Directory Access Protocol,FALSE,389,udp,,,0,0
+FTPS,Secure FTP Server Data,FALSE,989-990,udp,,,0,0
+FTPS,Secure FTP Server Data,FALSE,989-990,tcp,,,0,0
+IMAP,Internet Message Access Protocol,FALSE,143,tcp,,,0,0
+SFTP,Simple File Transfer Protocol,FALSE,115,tcp,,,0,0
+SFTP,Simple File Transfer Protocol,FALSE,115,udp,,,0,0
+RPC,Remote Procedure Call,FALSE,530,udp,,,0,0
+RPC,Remote Procedure Call,FALSE,530,tcp,,,0,0
+iSCSI,Internet Small Computer System Interface,FALSE,3260,tcp,,,0,0
+iSCSI,Internet Small Computer System Interface,FALSE,860,tcp,,,0,0
+Alt HTTP,Alternate HTTP,FALSE,8080,tcp,,,0,0
+MSFT Global Catalog,Microsoft Global Catalog,FALSE,3268-3269,tcp,,,0,0
+MSFT Server Update Service,Windows Server Update Service for patching. Includes both default ports.,FALSE,8531,tcp,,,0,0
+MSFT Server Update Service,Windows Server Update Service for patching. Includes both default ports.,FALSE,8530,tcp,,,0,0
+NetBIOS,"NetBIOS protocol TCP, covers the Name, Datagram and Session Services.",FALSE,137-139,udp,,,0,0
+NetBIOS,"NetBIOS protocol TCP, covers the Name, Datagram and Session Services.",FALSE,137-139,tcp,,,0,0
+DNS Cache,DNS Cache.,FALSE,5355,udp,,,0,0
+RIP,Routing Information Protocol,FALSE,520,udp,,,0,0
+MSFT SQL Server/Client Communication,A set of ports that allows SQL communication between SQL hosts or client access. Use in conjunction with the MS FoC service to enable SQL fail-over cluster communication.,FALSE,1434,udp,,,0,0
+MSFT SQL Server/Client Communication,A set of ports that allows SQL communication between SQL hosts or client access. Use in conjunction with the MS FoC service to enable SQL fail-over cluster communication.,FALSE,1433,tcp,,,0,0
+TFTP,Trivial File Transfer Protocol,FALSE,69,udp,,,0,0
+TFTP,Trivial File Transfer Protocol,FALSE,69,tcp,,,0,0
+BIND RNDC,BIND Remote Network Domain Control,FALSE,953,tcp,,,0,0
+SSH,Secure Shell,FALSE,22,udp,,,0,0
+SSH,Secure Shell,FALSE,22,tcp,,,0,0
+BGP,Border Gateway Protocol,FALSE,179,tcp,,,0,0
+PostgreSQL,Open-source Object-Relational DBMS supporting almost all SQL constructs,FALSE,5432,udp,,,0,0
+PostgreSQL,Open-source Object-Relational DBMS supporting almost all SQL constructs,FALSE,5432,tcp,,,0,0
+FTP,File transfer protocol,FALSE,20-21,udp,,,0,0
+FTP,File transfer protocol,FALSE,20-21,tcp,,,0,0
+MongoDB,Open-source cross-platform document-oriented database,FALSE,27017-27019,tcp,,,0,0
+MongoDB,Open-source cross-platform document-oriented database,FALSE,28017,tcp,,,0,0
+Syslog,System Logging,FALSE,514,udp,,,0,0
+Syslog,System Logging,FALSE,514,tcp,,,0,0
+MSFT Cluster Communication,Microsoft Fail-over Clustering - cluster communication,FALSE,3343,udp,,,0,0
+PTP-General,Precision Time Protocol General,FALSE,320,udp,,,0,0
+PTP-General,Precision Time Protocol General,FALSE,320,tcp,,,0,0
+Splunk,Splunk SIEM.,FALSE,8000,tcp,,,0,0
+Splunk,Splunk SIEM.,FALSE,8089,tcp,,,0,0
+Splunk,Splunk SIEM.,FALSE,9997,tcp,,,0,0
+MSFT Net.TCP Port Sharing,"Microsoft Net.TCP Port Sharing Service. This capability allows HTTP applications to coexist on the same physical machine in separate, isolated processes.",FALSE,808,tcp,,,0,0
