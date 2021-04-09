@@ -40,8 +40,8 @@ const (
 	HeaderRuleHref                      = "rule_href"
 )
 
-func getCSVHeaders() []string {
-	return []string{
+func getCSVHeaders(templateFormat bool) []string {
+	headers := []string{
 		HeaderRulesetName,
 		HeaderRulesetDescription,
 		HeaderRuleSetScope,
@@ -75,15 +75,18 @@ func getCSVHeaders() []string {
 		HeaderMachineAuthEnabled,
 		HeaderSecureConnectEnabled,
 		HeaderStateless,
-		HeaderRulesetContainsCustomIptables,
-		HeaderRulesetHref,
-		HeaderRuleHref,
+		HeaderRulesetContainsCustomIptables}
+
+	if !templateFormat {
+		headers = append(headers, HeaderRulesetHref, HeaderRuleHref)
 	}
+
+	return headers
 }
 
-func createEntrySlice(csvEntryMap map[string]string) []string {
+func createEntrySlice(csvEntryMap map[string]string, templateFormat bool) []string {
 	entry := []string{}
-	for _, h := range getCSVHeaders() {
+	for _, h := range getCSVHeaders(templateFormat) {
 		entry = append(entry, csvEntryMap[h])
 	}
 	return entry

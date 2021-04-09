@@ -26,6 +26,8 @@ type Input struct {
 	Debug, Edge, ExpandServices, TrafficCount, SkipWkldDetailCheck                                 bool
 	Role, App, Env, Loc, OutputFileName, ExplorerStart, ExplorerEnd, ExclServiceCSV, PolicyVersion string
 	ExplorerMax                                                                                    int
+	TemplateFormat                                                                                 bool
+	RulesetHrefs                                                                                   []string
 }
 
 var input Input
@@ -116,10 +118,27 @@ func ExportRules(input Input) {
 
 	// GetAllRulesets
 	utils.LogInfo("getting all rulesets...", true)
-	allRuleSets, a, err := input.PCE.GetAllRuleSets(input.PolicyVersion)
+	allPCERulesets, a, err := input.PCE.GetAllRuleSets(input.PolicyVersion)
 	utils.LogAPIResp("GetAllRuleSets", a)
 	if err != nil {
 		utils.LogError(err.Error())
+	}
+
+	// Filter down the rulesets if we are given a slice
+	allRuleSets := []illumioapi.RuleSet{}
+	if len(input.RulesetHrefs) == 0 {
+		allRuleSets = allPCERulesets
+	} else {
+		// Create a map
+		targetRuleSets := make(map[string]bool)
+		for _, h := range input.RulesetHrefs {
+			targetRuleSets[h] = true
+		}
+		for _, rs := range allPCERulesets {
+			if targetRuleSets[rs.Href] {
+				allRuleSets = append(allRuleSets, rs)
+			}
+		}
 	}
 
 	// Run through rulesets to see what we need
@@ -228,9 +247,9 @@ func ExportRules(input Input) {
 	// Start the data slice with headers
 	csvData := [][]string{}
 	if input.TrafficCount {
-		csvData = append(csvData, append(getCSVHeaders(), []string{"flows", "flows_by_port"}...))
+		csvData = append(csvData, append(getCSVHeaders(input.TemplateFormat), []string{"flows", "flows_by_port"}...))
 	} else {
-		csvData = append(csvData, getCSVHeaders())
+		csvData = append(csvData, getCSVHeaders(input.TemplateFormat))
 	}
 
 	edgeCSVData := [][]string{[]string{"group", "consumer_iplist", "consumer_group", "consumer_user_group", "service", "provider_group", "provider_iplist", "rule_enabled", "machine_auth", "rule_href", "ruleset_href"}}
@@ -372,6 +391,10 @@ func ExportRules(input Input) {
 
 				// IP List
 				if c.IPList != nil {
+					// If we are exporting for templates, all IP Lists should be set to Any
+					if input.TemplateFormat {
+						c.IPList.Name = "Any (0.0.0.0/0 and ::/0)"
+					}
 					if val, ok := csvEntryMap[HeaderConsumerIplists]; ok {
 						csvEntryMap[HeaderConsumerIplists] = fmt.Sprintf("%s;%s", val, input.PCE.IPLists[c.IPList.Href].Name)
 					} else {
@@ -461,6 +484,10 @@ func ExportRules(input Input) {
 				}
 				// IP List
 				if p.IPList != nil {
+					// If we are exporting for templates, all IP Lists should be set to Any
+					if input.TemplateFormat {
+						p.IPList.Name = "Any (0.0.0.0/0 and ::/0)"
+					}
 					if val, ok := csvEntryMap[HeaderProviderIplists]; ok {
 						csvEntryMap[HeaderProviderIplists] = fmt.Sprintf("%s;%s", val, input.PCE.IPLists[p.IPList.Href].Name)
 					} else {
@@ -600,9 +627,9 @@ func ExportRules(input Input) {
 
 			if len(filter) == 0 || !skip {
 				if input.TrafficCount {
-					csvData = append(csvData, append(createEntrySlice(csvEntryMap), trafficCounter(input, rs, *r)...))
+					csvData = append(csvData, append(createEntrySlice(csvEntryMap, input.TemplateFormat), trafficCounter(input, rs, *r)...))
 				} else {
-					csvData = append(csvData, createEntrySlice(csvEntryMap))
+					csvData = append(csvData, createEntrySlice(csvEntryMap, input.TemplateFormat))
 				}
 
 				matchedRules++
