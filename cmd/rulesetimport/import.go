@@ -226,6 +226,8 @@ func ImportRuleSetsFromCSV(input Input) {
 							utils.LogError(fmt.Sprintf("CSV line %d - %s", i+1, err.Error()))
 						}
 						utils.LogInfo(fmt.Sprintf("CSV line %d - %s does not exist as a %s label - created %d", i+1, entry, keys[n], a.StatusCode), true)
+						input.PCE.Labels[l.Href] = l
+						input.PCE.Labels[keys[n]+entry] = l
 						rsScope = append(rsScope, &illumioapi.Scopes{Label: &illumioapi.Label{Href: l.Href}})
 					} else {
 						utils.LogInfo(fmt.Sprintf("CSV line %d - %s does not exist as a %s label - label will be created with --update-pce", i+1, entry, keys[n]), true)
