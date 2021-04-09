@@ -33,7 +33,11 @@ var TemplateImportCmd = &cobra.Command{
 	Long: `
 Import an Illumio segmentation template.
 
-Use template-list command to see available templates. By default, workloader looks in the current directory for a folder named "illumio-templates". You can point to a different directory using the --directory flag. The trailing slash is required.`,
+Segmentation templates are a set of CSV files. By default, workloader looks for an "illumio-template" directory in the current directory. To use a different directory, use the --directory flag.
+
+Templates can be customized by editing the CSV files.
+
+Use template-list command to see available templates.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 
@@ -44,7 +48,7 @@ Use template-list command to see available templates. By default, workloader loo
 
 		// Set the template file
 		if len(args) != 1 {
-			fmt.Println("Command requires 1 argument for the template file. See usage help.")
+			fmt.Println("Command requires 1 argument for the template name. See usage help.")
 			os.Exit(0)
 		}
 		template = args[0]
@@ -74,13 +78,14 @@ func importTemplate() {
 	// Get the directory
 	if directory == "" {
 		directory = "illumio-templates/"
+	} else if directory[len(directory)-1:] != string(os.PathSeparator) {
+		directory = fmt.Sprintf("%s%s", directory, string(os.PathSeparator))
 	}
 
 	// Services
 	fmt.Println("\r\n------------------------------------------ SERVICES -------------------------------------------")
-	svcFile := fmt.Sprintf("%sillumio-template-services-%s.csv", directory, template)
+	svcFile := fmt.Sprintf("%s%s.services.csv", directory, template)
 	if _, err := os.Stat(svcFile); err == nil {
-		utils.LogInfo(fmt.Sprintf("%s template includes services. importing now.", template), true)
 		data, err := utils.ParseCSV(svcFile)
 		if err != nil {
 			utils.LogError(err.Error())
@@ -92,9 +97,8 @@ func importTemplate() {
 
 	// IP Lists
 	fmt.Println("\r\n------------------------------------------ IP Lists -------------------------------------------")
-	iplFile := fmt.Sprintf("%sillumio-template-iplists-%s.csv", directory, template)
+	iplFile := fmt.Sprintf("%s%s.iplists.csv", directory, template)
 	if _, err := os.Stat(iplFile); err == nil {
-		utils.LogInfo(fmt.Sprintf("%s template includes iplists. importing now.", template), true)
 		iplimport.ImportIPLists(pce, iplFile, updatePCE, noPrompt, false, provision)
 	} else {
 		utils.LogInfo(fmt.Sprintf("%s template does not include ip lists. skipping", template), true)
@@ -102,9 +106,8 @@ func importTemplate() {
 
 	// Rulesets
 	fmt.Println("\r\n------------------------------------------ RULE SETS ------------------------------------------")
-	rsFile := fmt.Sprintf("%sillumio-template-rulesets-%s.csv", directory, template)
+	rsFile := fmt.Sprintf("%s%s.rulesets.csv", directory, template)
 	if _, err := os.Stat(rsFile); err == nil {
-		utils.LogInfo(fmt.Sprintf("%s template includes rulesets. importing now.", template), true)
 		rulesetimport.ImportRuleSetsFromCSV(rulesetimport.Input{PCE: pce, UpdatePCE: updatePCE, NoPrompt: noPrompt, Provision: provision, CreateLabels: true, ImportFile: rsFile, ProvisionComment: "workloader template-import"})
 	} else {
 		utils.LogInfo(fmt.Sprintf("%s template does not include rule sets. skipping", template), true)
@@ -112,9 +115,8 @@ func importTemplate() {
 
 	// Rules
 	fmt.Println("\r\n------------------------------------------- RULES ---------------------------------------------")
-	rFile := fmt.Sprintf("%sillumio-template-rules-%s.csv", directory, template)
+	rFile := fmt.Sprintf("%s%s.rules.csv", directory, template)
 	if _, err := os.Stat(rFile); err == nil {
-		utils.LogInfo(fmt.Sprintf("%s template includes rules. importing now.", template), true)
 		ruleimport.ImportRulesFromCSV(ruleimport.Input{PCE: pce, ImportFile: rFile, ProvisionComment: "workloader template-import", Provision: provision, UpdatePCE: updatePCE, NoPrompt: noPrompt, CreateLabels: true})
 	} else {
 		utils.LogInfo(fmt.Sprintf("%s template does not include rules. skipping", template), true)
