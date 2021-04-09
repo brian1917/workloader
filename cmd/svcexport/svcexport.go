@@ -40,11 +40,13 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 			utils.LogError(err.Error())
 		}
 
-		exportServices()
+		ExportServices(pce, false, outputFileName, []string{})
 	},
 }
 
-func exportServices() {
+// ExportServices exports the services in the Illumio PCE to a CSV file.
+// If hrefs is an empty slice, all services are exported. If there are entries in the hrefs slice, only those services will be exported
+func ExportServices(pce illumioapi.PCE, templateFormat bool, outputFileName string, hrefs []string) {
 
 	// Log command execution
 	utils.LogStartCommand("svc-export")
@@ -56,6 +58,24 @@ func exportServices() {
 		utils.LogError(err.Error())
 	}
 
+	// Create a map of the provided hrefs
+	providedHrefs := make(map[string]bool)
+	for _, h := range hrefs {
+		providedHrefs[h] = true
+	}
+
+	// Create the targetServices
+	targetSvcs := []illumioapi.Service{}
+	if len(hrefs) > 0 {
+		for _, s := range allSvcs {
+			if providedHrefs[s.Href] {
+				targetSvcs = append(targetSvcs, s)
+			}
+		}
+	} else {
+		targetSvcs = allSvcs
+	}
+
 	csvData := [][]string{}
 
 	if compressed {
@@ -63,7 +83,7 @@ func exportServices() {
 		// Start the data slice with headers
 		csvData = [][]string{[]string{"name", "description", "service_ports", "window_services", "href"}}
 
-		for _, s := range allSvcs {
+		for _, s := range targetSvcs {
 
 			// Parse the services
 			windowsServices, servicePorts := s.ParseService()
@@ -77,9 +97,13 @@ func exportServices() {
 	if !compressed {
 
 		// Start the data slice with headers
-		csvData = [][]string{[]string{HeaderName, HeaderDescription, HeaderWinService, HeaderPort, HeaderProto, HeaderProcess, HeaderService, HeaderICMPCode, HeaderICMPType, HeaderHref}}
+		headers := []string{HeaderName, HeaderDescription, HeaderWinService, HeaderPort, HeaderProto, HeaderProcess, HeaderService, HeaderICMPCode, HeaderICMPType}
+		if !templateFormat {
+			headers = append(headers, HeaderHref)
+		}
+		csvData = [][]string{headers}
 
-		for _, s := range allSvcs {
+		for _, s := range targetSvcs {
 			var isWinSvc bool
 			if len(s.WindowsServices) > 0 {
 				isWinSvc = true
@@ -99,7 +123,11 @@ func exportServices() {
 				} else {
 					proto = strconv.Itoa(p.Protocol)
 				}
-				csvData = append(csvData, []string{s.Name, s.Description, strconv.FormatBool(isWinSvc), port, proto, "", "", strconv.Itoa(p.IcmpCode), strconv.Itoa(p.IcmpType), s.Href})
+				entry := []string{s.Name, s.Description, strconv.FormatBool(isWinSvc), port, proto, "", "", strconv.Itoa(p.IcmpCode), strconv.Itoa(p.IcmpType)}
+				if !templateFormat {
+					entry = append(entry, s.Href)
+				}
+				csvData = append(csvData, entry)
 			}
 
 			for _, p := range s.WindowsServices {
@@ -115,7 +143,11 @@ func exportServices() {
 				} else {
 					proto = strconv.Itoa(p.Protocol)
 				}
-				csvData = append(csvData, []string{s.Name, s.Description, strconv.FormatBool(isWinSvc), port, proto, p.ProcessName, p.ServiceName, strconv.Itoa(p.IcmpCode), strconv.Itoa(p.IcmpType), s.Href})
+				entry := []string{s.Name, s.Description, strconv.FormatBool(isWinSvc), port, proto, p.ProcessName, p.ServiceName, strconv.Itoa(p.IcmpCode), strconv.Itoa(p.IcmpType)}
+				if !templateFormat {
+					entry = append(entry, s.Href)
+				}
+				csvData = append(csvData, entry)
 			}
 
 		}
@@ -128,7 +160,7 @@ func exportServices() {
 			outputFileName = fmt.Sprintf("workloader-svc-export-%s.csv", time.Now().Format("20060102_150405"))
 		}
 		utils.WriteOutput(csvData, csvData, outputFileName)
-		utils.LogInfo(fmt.Sprintf("%d services exported", len(allSvcs)), true)
+		utils.LogInfo(fmt.Sprintf("%d services exported", len(targetSvcs)), true)
 	} else {
 		// Log command execution for 0 results
 		utils.LogInfo("no services in PCE.", true)
