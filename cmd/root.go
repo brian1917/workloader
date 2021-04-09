@@ -41,6 +41,7 @@ import (
 	"github.com/brian1917/workloader/cmd/svcexport"
 	"github.com/brian1917/workloader/cmd/svcimport"
 	"github.com/brian1917/workloader/cmd/sync/dag"
+	"github.com/brian1917/workloader/cmd/templatecreate"
 	"github.com/brian1917/workloader/cmd/templateimport"
 	"github.com/brian1917/workloader/cmd/templatelist"
 	"github.com/brian1917/workloader/cmd/traffic"
@@ -122,6 +123,7 @@ func init() {
 	RootCmd.AddCommand(flowimport.FlowImportCmd)
 	RootCmd.AddCommand(templateimport.TemplateImportCmd)
 	RootCmd.AddCommand(templatelist.TemplateListCmd)
+	RootCmd.AddCommand(templatecreate.TemplateCreateCmd)
 
 	// Automated Labeling
 	RootCmd.AddCommand(traffic.TrafficCmd)

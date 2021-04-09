@@ -26,7 +26,7 @@ func RootTemplate() string {
   Edge Commands:{{range .Commands}}{{if (or (eq .Name "wkld-to-ipl") (eq .Name "edge-rule-copy") (eq .Name "edge-admin"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
-  Template Commands:{{range .Commands}}{{if (or (eq .Name "template-list") (eq .Name "template-import"))}}
+  Template Commands:{{range .Commands}}{{if (or (eq .Name "template-list") (eq .Name "template-import") (eq .Name "template-create"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
   Other Commands:{{range .Commands}}{{if (or (eq .Name "delete"))}}
