@@ -9,14 +9,12 @@ import (
 	"github.com/brian1917/illumioapi"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // Declare some global variables
 var pce illumioapi.PCE
 var err error
-var debug bool
-var importFile, outputFileName, outFormat string
+var outputFileName string
 
 func init() {
 	RuleSetExportCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
@@ -40,26 +38,43 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 			utils.LogError(err.Error())
 		}
 
-		// Get the viper values
-		debug = viper.Get("debug").(bool)
-		outFormat = viper.Get("output_format").(string)
-
-		exportRuleSets()
+		ExportRuleSets(pce, outputFileName, false, []string{})
 	},
 }
 
-func exportRuleSets() {
+func ExportRuleSets(pce illumioapi.PCE, outputFileName string, templateFormat bool, hrefs []string) {
 	// Log the start of the command
 	utils.LogStartCommand("ruleset-export")
 
-	// Star the csvData
-	csvData := [][]string{{"ruleset_name", "ruleset_enabled", "ruleset_description", "app_scope", "env_scope", "loc_scope"}}
+	// Start the csvData
+	headers := []string{"ruleset_name", "ruleset_enabled", "ruleset_description", "app_scope", "env_scope", "loc_scope"}
+	if !templateFormat {
+		headers = append(headers, "href")
+	}
+	csvData := [][]string{headers}
 
 	// Get all rulesets
-	allRuleSets, a, err := pce.GetAllRuleSets("draft")
+	allPCERuleSets, a, err := pce.GetAllRuleSets("draft")
 	utils.LogAPIResp("GetAllRuleSets", a)
 	if err != nil {
 		utils.LogError(err.Error())
+	}
+
+	// Filter down the rulesets if we are given a slice
+	allRuleSets := []illumioapi.RuleSet{}
+	if len(hrefs) == 0 {
+		allRuleSets = allPCERuleSets
+	} else {
+		// Create a map
+		targetRuleSets := make(map[string]bool)
+		for _, h := range hrefs {
+			targetRuleSets[h] = true
+		}
+		for _, rs := range allPCERuleSets {
+			if targetRuleSets[rs.Href] {
+				allRuleSets = append(allRuleSets, rs)
+			}
+		}
 	}
 
 	// Get all label groups
@@ -124,7 +139,11 @@ func exportRuleSets() {
 		}
 
 		// Append to the CSV data
-		csvData = append(csvData, []string{rs.Name, strconv.FormatBool(*rs.Enabled), rs.Description, strings.Join(appScopes, ";"), strings.Join(envScopes, ";"), strings.Join(locScopes, ";")})
+		entry := []string{rs.Name, strconv.FormatBool(*rs.Enabled), rs.Description, strings.Join(appScopes, ";"), strings.Join(envScopes, ";"), strings.Join(locScopes, ";")}
+		if !templateFormat {
+			entry = append(entry, rs.Href)
+		}
+		csvData = append(csvData, entry)
 	}
 
 	// Output the CSV Data
