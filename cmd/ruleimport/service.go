@@ -32,7 +32,7 @@ func serviceComparison(csvServices []string, rule illumioapi.Rule, pceServiceMap
 			if protocol == "udp" {
 				proto = 17
 			}
-			csvServiceEntries[fmt.Sprintf("%s-%d-%d", protocol, port, toPort)] = illumioapi.IngressServices{Protocol: &proto, Port: &port, ToPort: &toPort}
+			csvServiceEntries[fmt.Sprintf("%s-%d-%d", protocol, port, toPort)] = illumioapi.IngressServices{Protocol: &proto, Port: port, ToPort: toPort}
 
 			// Check if it's a service
 		} else if service, exists := pceServiceMap[c]; exists {
@@ -89,7 +89,7 @@ func serviceComparison(csvServices []string, rule illumioapi.Rule, pceServiceMap
 	return false, *rule.IngressServices
 }
 
-func parseCSVPortEntry(entry string) (protocol string, port int, toPort int, err error) {
+func parseCSVPortEntry(entry string) (protocol string, port *int, toPort *int, err error) {
 
 	// Get the protocol
 	protocol = strings.ToLower(entry[len(entry)-3:])
@@ -100,16 +100,17 @@ func parseCSVPortEntry(entry string) (protocol string, port int, toPort int, err
 	// Split the ports on the dash
 	s := strings.Split(entry, "-")
 	if len(s) == 1 {
-		port, err = strconv.Atoi(s[0][:len(s[0])-3])
+		p, err := strconv.Atoi(s[0][:len(s[0])-3])
+		port = &p
 		if err != nil {
 			return protocol, port, toPort, err
 		}
 	} else {
-		port, err = strconv.Atoi(s[0])
+		*port, err = strconv.Atoi(s[0])
 		if err != nil {
 			return protocol, port, toPort, err
 		}
-		toPort, err = strconv.Atoi(s[1][:len(s[1])-3])
+		*toPort, err = strconv.Atoi(s[1][:len(s[1])-3])
 		if err != nil {
 			return protocol, port, toPort, err
 		}
