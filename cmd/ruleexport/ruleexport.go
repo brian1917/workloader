@@ -370,6 +370,15 @@ func ExportRules(input Input) {
 			csvEntryMap[HeaderStateless] = strconv.FormatBool(*r.Stateless)
 			csvEntryMap[HeaderMachineAuthEnabled] = strconv.FormatBool(*r.MachineAuth)
 			csvEntryMap[HeaderSecureConnectEnabled] = strconv.FormatBool(*r.SecConnect)
+			if r.UpdateType == "update" {
+				csvEntryMap[HeaderUpdateType] = "Modification Pending"
+			} else if r.UpdateType == "delete" {
+				csvEntryMap[HeaderUpdateType] = "Deletion Pending"
+			} else if r.UpdateType == "create" {
+				csvEntryMap[HeaderUpdateType] = "Addition Pending"
+			} else {
+				csvEntryMap[HeaderUpdateType] = r.UpdateType
+			}
 
 			// Reset the filter
 			ruleFilter := make(map[string]int)
@@ -648,7 +657,7 @@ func ExportRules(input Input) {
 			input.OutputFileName = fmt.Sprintf("workloader-rule-export-%s.csv", time.Now().Format("20060102_150405"))
 		}
 		utils.WriteOutput(csvData, csvData, input.OutputFileName)
-		utils.LogInfo(fmt.Sprintf("%d rules from %d rulesets exported", len(csvData)-1, i), true)
+		utils.LogInfo(fmt.Sprintf("%d rules from %d rulesets exported", len(csvData)-1, i+1), true)
 	} else {
 		// Log command execution for 0 results
 		utils.LogInfo("no rulesets in input.PCE.", true)

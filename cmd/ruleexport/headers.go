@@ -38,6 +38,7 @@ const (
 	HeaderRulesetContainsCustomIptables = "ruleset_contains_custom_iptables"
 	HeaderRulesetHref                   = "ruleset_href"
 	HeaderRuleHref                      = "rule_href"
+	HeaderUpdateType                    = "update_type"
 )
 
 func getCSVHeaders(templateFormat bool) []string {
@@ -78,7 +79,7 @@ func getCSVHeaders(templateFormat bool) []string {
 		HeaderRulesetContainsCustomIptables}
 
 	if !templateFormat {
-		headers = append(headers, HeaderRulesetHref, HeaderRuleHref)
+		headers = append(headers, HeaderRulesetHref, HeaderRuleHref, HeaderUpdateType)
 	}
 
 	return headers
