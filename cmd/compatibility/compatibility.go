@@ -14,16 +14,17 @@ import (
 
 var modeChangeInput, issuesOnly bool
 var pce illumioapi.PCE
-var outputFileName, role, app, env, loc string
+var outputFileName, role, app, env, loc, labelFile string
 var err error
 
 func init() {
 	CompatibilityCmd.Flags().BoolVarP(&modeChangeInput, "mode-input", "m", false, "generate the input file to change all idle workloads to build using workloader mode command")
 	CompatibilityCmd.Flags().BoolVarP(&issuesOnly, "issues-only", "i", false, "only export compatibility checks with an issue")
-	CompatibilityCmd.Flags().StringVarP(&role, "role", "r", "", "role label value")
-	CompatibilityCmd.Flags().StringVarP(&app, "app", "a", "", "app label value")
-	CompatibilityCmd.Flags().StringVarP(&env, "env", "e", "", "env label value")
-	CompatibilityCmd.Flags().StringVarP(&loc, "loc", "l", "", "loc label value")
+	CompatibilityCmd.Flags().StringVarP(&role, "role", "r", "", "role label value. label flags are an \"and\" operator.")
+	CompatibilityCmd.Flags().StringVarP(&app, "app", "a", "", "app label value. label flags are an \"and\" operator.")
+	CompatibilityCmd.Flags().StringVarP(&env, "env", "e", "", "env label value. label flags are an \"and\" operator.")
+	CompatibilityCmd.Flags().StringVarP(&loc, "loc", "l", "", "loc label value. label flags are an \"and\" operator.")
+	CompatibilityCmd.Flags().StringVar(&labelFile, "label-file", "", "csv file with labels to filter query. the file should have 4 headers: role, app, env, and loc. The four columns in each row is an \"AND\" operation. Each row is an \"OR\" operation.")
 	CompatibilityCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 }
 
@@ -34,7 +35,17 @@ var CompatibilityCmd = &cobra.Command{
 	Long: `
 Generate a compatibility report for all Idle workloads.
 
-Multiple labels are processed with an "AND" operator. For example, -a ERP -e PROD will return compatibility reports for all IDLE workloads that are labeled as ERP application and PROD envrionment.
+The --role (-r), --app (-a), --env(-e), and --loc(-l) flags can be used with one label per key and is run as an "AND" operation. The workloads must have all the labels.
+
+If using --label-file, the other label flags are ignored. The label file first row must be "role", "app", "env", and "loc". The order does not matter. The entries in each row are an "AND" operation and the rows are combined in "OR" operations. See example below:
++------+-----+------+-----+
+| role | app | env  | loc |
++------+-----+------+-----+
+| WEB  | ERP | PROD |     |
+| DB   | CRM |      | AWS |
++------+-----+------+-----+
+
+With the input file above, the query will get all IDLE workloads that are labeled as WEB (role) AND ERP (app) AND PROD (env) AND any location OR IDLE workloads that are labeled DB (role) AND CRM (app) AND any environment AND AWS (loc).
 
 The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -59,30 +70,52 @@ func compatibilityReport() {
 	stdOutData = append(stdOutData, []string{"hostname", "href", "status"})
 	modeChangeInputData = append(modeChangeInputData, []string{"href", "mode"})
 
-	providedValues := []string{role, app, env, loc}
-	keys := []string{"role", "app", "env", "loc"}
-	queryLabels := []string{}
-	for i, labelValue := range providedValues {
-		// Do nothing if the labelValue is blank
-		if labelValue == "" {
-			continue
-		}
-		// Confirm the label exists
-		if label, ok := pce.Labels[keys[i]+labelValue]; !ok {
-			utils.LogError(fmt.Sprintf("%s does not exist as a %s label", labelValue, keys[i]))
-		} else {
-			queryLabels = append(queryLabels, label.Href)
-		}
-
-	}
-
 	// Get all idle  workloads - start query with just idle
 	qp := map[string]string{"mode": "idle"}
 
-	// If we have query labels add to the map
-	if len(queryLabels) > 0 {
-		qp["labels"] = fmt.Sprintf("[[\"%s\"]]", strings.Join(queryLabels, "\",\""))
+	// Process the file if provided
+	if labelFile != "" {
+		// Parse the CSV
+		labelData, err := utils.ParseCSV(labelFile)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+
+		// Get the labelQuery
+		qp["labels"], err = pce.WorkloadQueryLabelParameter(labelData)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+
+	} else {
+		providedValues := []string{role, app, env, loc}
+		keys := []string{"role", "app", "env", "loc"}
+		queryLabels := []string{}
+		for i, labelValue := range providedValues {
+			// Do nothing if the labelValue is blank
+			if labelValue == "" {
+				continue
+			}
+			// Confirm the label exists
+			if label, ok := pce.Labels[keys[i]+labelValue]; !ok {
+				utils.LogError(fmt.Sprintf("%s does not exist as a %s label", labelValue, keys[i]))
+			} else {
+				queryLabels = append(queryLabels, label.Href)
+			}
+
+		}
+
+		// If we have query labels add to the map
+		if len(queryLabels) > 0 {
+			qp["labels"] = fmt.Sprintf("[[\"%s\"]]", strings.Join(queryLabels, "\",\""))
+		}
 	}
+
+	if len(qp["labels"]) > 10000 {
+		utils.LogError(fmt.Sprintf("the query is too large. the total character count is %d and the limit for this command is 10,000", len(qp["labels"])))
+	}
+
+	// Get all workloads from the query
 	wklds, a, err := pce.GetAllWorkloadsQP(qp)
 	utils.LogAPIResp("GetAllWorkloadsQP", a)
 	if err != nil {
