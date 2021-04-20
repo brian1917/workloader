@@ -26,9 +26,7 @@ var SvcImportCmd = &cobra.Command{
 	Long: `
 Create and update services from a CSV file. 
 
-It's recommended to start with a svc-export command and edit/add to it.
-
-The input should have a header row as the first row will be skipped. Acceptable values for the headers are below:
+It's recommended to start with a svc-export command and edit/add to it. The input should have a header row as the first row will be skipped. Acceptable values for the headers are below:
 ` + "\r\n- " + svcexport.HeaderName + "\r\n" +
 		"- " + svcexport.HeaderDescription + "\r\n" +
 		"- " + svcexport.HeaderPort + "\r\n" +
@@ -39,11 +37,11 @@ The input should have a header row as the first row will be skipped. Acceptable 
 		"- " + svcexport.HeaderICMPCode + "\r\n" +
 		"- " + svcexport.HeaderICMPType + "\r\n" + `	
 
-The name field is required. If an HREF field is provided the service will updated. No href means a service will be created.
 
-Rows that share a common name are the same service. For example, a service that has muliple ports should be separate rows with the same name.
-
-Ports can be individual values or a range (e.g., 10-20)
+Notes on input:
+- The name field is required. If an HREF field is provided the service will updated. No href means a service will be created.
+- Rows that share a common name are the same service. For example, a service that has muliple ports should be separate rows with the same name.
+- Ports can be individual values or a range (e.g., 10-20)
 	
 Recommended to run without --update-pce first to log of what will change. If --update-pce is used, ipl-import will create the IP lists with a  user prompt. To disable the prompt, use --no-prompt.`,
 	Run: func(cmd *cobra.Command, args []string) {
