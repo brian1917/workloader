@@ -89,33 +89,6 @@ func ExportRules(input Input) {
 		utils.LogStartCommand("rule-export")
 	}
 
-	// Build the filer list
-	filter := make(map[string]int)
-	keys := []string{"app", "env", "loc"}
-	values := []string{input.App, input.Env, input.Loc}
-	for i, k := range keys {
-		if values[i] == "" {
-			continue
-		}
-		if val, ok := input.PCE.Labels[k+values[i]]; !ok {
-			utils.LogError(fmt.Sprintf("%s does not exist as a %s label", values[i], k))
-
-		} else {
-			filter[val.Href] = 0
-		}
-	}
-
-	// Log the filter list
-	lf := []string{}
-	for f := range filter {
-		lf = append(lf, fmt.Sprintf("%s (%s)", input.PCE.Labels[f].Value, input.PCE.Labels[f].Key))
-	}
-	if len(lf) > 0 {
-		utils.LogInfo(fmt.Sprintf("filter list: %s", strings.Join(lf, ", ")), false)
-	} else {
-		utils.LogInfo("no filters", false)
-	}
-
 	// GetAllRulesets
 	utils.LogInfo("getting all rulesets...", true)
 	allPCERulesets, a, err := input.PCE.GetAllRuleSets(input.PolicyVersion)
@@ -242,6 +215,33 @@ func ExportRules(input Input) {
 			}
 		}
 
+	}
+
+	// Build the filer list
+	filter := make(map[string]int)
+	keys := []string{"app", "env", "loc"}
+	values := []string{input.App, input.Env, input.Loc}
+	for i, k := range keys {
+		if values[i] == "" {
+			continue
+		}
+		if val, ok := input.PCE.Labels[k+values[i]]; !ok {
+			utils.LogError(fmt.Sprintf("%s does not exist as a %s label", values[i], k))
+
+		} else {
+			filter[val.Href] = 0
+		}
+	}
+
+	// Log the filter list
+	lf := []string{}
+	for f := range filter {
+		lf = append(lf, fmt.Sprintf("%s (%s)", input.PCE.Labels[f].Value, input.PCE.Labels[f].Key))
+	}
+	if len(lf) > 0 {
+		utils.LogInfo(fmt.Sprintf("filter list: %s", strings.Join(lf, ", ")), false)
+	} else {
+		utils.LogInfo("no filters", false)
 	}
 
 	// Start the data slice with headers
