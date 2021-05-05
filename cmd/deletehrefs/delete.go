@@ -167,7 +167,7 @@ func DeleteHrefs(input Input) {
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if input.UpdatePCE && !input.NoPrompt {
 		var prompt string
-		fmt.Printf("\r\n[PROMPT] - workloader identified %d objects to attempt to delete in %s (%s). Do you want to run the delete (yes/no)? ", len(input.Hrefs), viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".fqdn").(string))
+		fmt.Printf("\r\n[PROMPT] - workloader identified %d objects to attempt to delete in %s (%s). Do you want to run the delete (yes/no)? ", len(input.Hrefs), input.PCE.FriendlyName, viper.Get(input.PCE.FriendlyName+".fqdn").(string))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo("prompt denied.", true)

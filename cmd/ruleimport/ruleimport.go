@@ -666,7 +666,7 @@ CSVEntries:
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if input.UpdatePCE && !input.NoPrompt {
 		var prompt string
-		fmt.Printf("\r\n[PROMPT] - workloader identified %d rules to create and %d rules to update in %s (%s). Do you want to run the import (yes/no)? ", len(newRules), len(updatedRules), viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".fqdn").(string))
+		fmt.Printf("\r\n[PROMPT] - workloader identified %d rules to create and %d rules to update in %s (%s). Do you want to run the import (yes/no)? ", len(newRules), len(updatedRules), input.PCE.FriendlyName, viper.Get(input.PCE.FriendlyName+".fqdn").(string))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo("prompt denied.", true)

@@ -13,8 +13,8 @@ import (
 	"github.com/spf13/viper"
 )
 
-var debug, updatePCE, noPrompt, delete, doNotProvision, ignoreRuleUpdate bool
-var csvFile, fromGroup, toGroup, toGroupFile string
+var updatePCE, noPrompt, delete, doNotProvision, ignoreRuleUpdate bool
+var fromGroup, toGroup, toGroupFile string
 var pce illumioapi.PCE
 var err error
 
@@ -52,7 +52,6 @@ NOTE - All rules will be copied only.  Currently, you cannot update rules across
 		}
 
 		// Get the debug value from viper
-		debug = viper.Get("debug").(bool)
 		updatePCE = viper.Get("update_pce").(bool)
 		noPrompt = viper.Get("no_prompt").(bool)
 
@@ -266,7 +265,7 @@ func edgerulescopy() {
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if updatePCE && !noPrompt {
 		var prompt string
-		fmt.Printf("[PROMPT] - workloader will create %d rules and update %d rules in %s (%s). Do you want to run the import (yes/no)? ", len(newRules), len(updatedRules), viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".fqdn").(string))
+		fmt.Printf("[PROMPT] - workloader will create %d rules and update %d rules in %s (%s). Do you want to run the import (yes/no)? ", len(newRules), len(updatedRules), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo(fmt.Sprintf("Prompt denied for creating %d rules and updating %d rules.", len(newRules), len(updatedRules)), true)

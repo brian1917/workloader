@@ -13,7 +13,7 @@ import (
 
 // Global variables
 var csvFile string
-var provision, debug, updatePCE, noPrompt bool
+var provision, updatePCE, noPrompt bool
 var pce illumioapi.PCE
 var err error
 
@@ -68,7 +68,6 @@ Recommended to run without --update-pce first to log of what will change. If --u
 		csvFile = args[0]
 
 		// Get the debug value from viper
-		debug = viper.Get("debug").(bool)
 		updatePCE = viper.Get("update_pce").(bool)
 		noPrompt = viper.Get("no_prompt").(bool)
 
@@ -338,7 +337,7 @@ CSVEntries:
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if updatePCE && !noPrompt {
 		var prompt string
-		fmt.Printf("[PROMPT] - workloader will create %d label groups and update %d label groups in %s (%s). Do you want to run the import (yes/no)? ", len(newLabelGroups), len(updatedLabelGroups), viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".fqdn").(string))
+		fmt.Printf("[PROMPT] - workloader will create %d label groups and update %d label groups in %s (%s). Do you want to run the import (yes/no)? ", len(newLabelGroups), len(updatedLabelGroups), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
 
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {

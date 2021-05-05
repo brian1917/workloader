@@ -211,7 +211,7 @@ func unpair() {
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if updatePCE && !noPrompt {
 		var prompt string
-		fmt.Printf("%s [PROMPT] - workloader identified %d workloads requiring unpairing in %s (%s). See %s for details. Do you want to run the unpair? (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), len(targetWklds), viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".fqdn").(string), outputFileName)
+		fmt.Printf("%s [PROMPT] - workloader identified %d workloads requiring unpairing in %s (%s). See %s for details. Do you want to run the unpair? (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), len(targetWklds), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string), outputFileName)
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo(fmt.Sprintf("prompt denied to unpair %d workloads.", len(targetWklds)), true)

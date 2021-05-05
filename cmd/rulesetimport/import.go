@@ -262,7 +262,7 @@ func ImportRuleSetsFromCSV(input Input) {
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if input.UpdatePCE && !input.NoPrompt {
 		var prompt string
-		fmt.Printf("\r\n[PROMPT] - workloader identified %d rulesets to create in %s (%s). Do you want to run the import (yes/no)? ", len(newRuleSets), viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".fqdn").(string))
+		fmt.Printf("\r\n[PROMPT] - workloader identified %d rulesets to create in %s (%s). Do you want to run the import (yes/no)? ", len(newRuleSets), input.PCE.FriendlyName, viper.Get(input.PCE.FriendlyName+".fqdn").(string))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo("prompt denied.", true)

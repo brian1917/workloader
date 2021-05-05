@@ -17,7 +17,7 @@ import (
 
 // Set global variables for flags
 var csvFile string
-var verbose, debug, updatePCE, noPrompt bool
+var debug, updatePCE, noPrompt bool
 var hrefCol, desiredStateCol int
 var pce illumioapi.PCE
 var err error
@@ -189,7 +189,7 @@ func modeUpdate() {
 
 		// If updatePCE is disabled, we are just going to alert the user what will happen and log
 		if !updatePCE {
-			utils.LogInfo(fmt.Sprintf("workloader identified %d workloads requiring mode change in %s (%s). To update their modes, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.", len(data)-1, viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".fqdn").(string)), true)
+			utils.LogInfo(fmt.Sprintf("workloader identified %d workloads requiring mode change in %s (%s). To update their modes, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.", len(data)-1, pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string)), true)
 			utils.LogEndCommand("mode")
 			return
 		}

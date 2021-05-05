@@ -14,8 +14,8 @@ import (
 	"github.com/spf13/viper"
 )
 
-var inputFile, csvFile, outFormat string
-var debug, updatePCE, noPrompt bool
+var csvFile string
+var updatePCE, noPrompt bool
 var pce illumioapi.PCE
 var err error
 
@@ -55,8 +55,6 @@ Use --update-pce to make the changes in the PCE.
 
 		// Get the debug value from viper
 		updatePCE = viper.Get("update_pce").(bool)
-		debug = viper.Get("debug").(bool)
-		outFormat = viper.Get("output_format").(string)
 
 		renameLabel()
 	},
@@ -141,7 +139,7 @@ func renameLabel() {
 	// Prompt the user
 	if updatePCE && !noPrompt {
 		var prompt string
-		fmt.Printf("label-rename will update %d labels and create %d labels in %s (%s). See workloader.log for details. Do you want to run the import (yes/no)? ", len(updateLabels), len(newLabels), viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".fqdn").(string))
+		fmt.Printf("label-rename will update %d labels and create %d labels in %s (%s). See workloader.log for details. Do you want to run the import (yes/no)? ", len(updateLabels), len(newLabels), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo(fmt.Sprintf("prompt denied to update %d labels and create %d new labels.", len(updateLabels), len(newLabels)), true)
