@@ -8,7 +8,7 @@ import (
 	"strings"
 	"syscall"
 
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 
 	"github.com/brian1917/illumioapi"
 	"github.com/brian1917/workloader/utils"
@@ -18,7 +18,7 @@ import (
 )
 
 // Set global variables for flags
-var session, remove bool
+var session bool
 var debug bool
 var configFilePath string
 var err error
@@ -93,6 +93,11 @@ func addPCE() {
 	if pceName == "" {
 		fmt.Print("Name of PCE (no spaces or periods) [default-pce]: ")
 		fmt.Scanln(&pceName)
+		for strings.Contains(pceName, "."){
+			fmt.Println("\r\n[WARNING] - The name of the PCE cannot contain periods. Please re-enter.")
+			fmt.Print("Name of PCE (no spaces or periods) [default-pce]: ")
+			fmt.Scanln(&pceName)
+		}
 		if pceName == "" {
 			pceName = "default-pce"
 		}
@@ -131,7 +136,7 @@ func addPCE() {
 	pwd = os.Getenv("PCE_PWD")
 	if pwd == "" {
 		fmt.Print("Password: ")
-		bytePassword, _ := terminal.ReadPassword(int(syscall.Stdin))
+		bytePassword, _ := term.ReadPassword(int(syscall.Stdin))
 		pwd = string(bytePassword)
 		fmt.Println("")
 	}
