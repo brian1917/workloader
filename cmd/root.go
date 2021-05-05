@@ -50,6 +50,7 @@ import (
 	"github.com/brian1917/workloader/cmd/upgrade"
 	"github.com/brian1917/workloader/cmd/wkldexport"
 	"github.com/brian1917/workloader/cmd/wkldimport"
+	"github.com/brian1917/workloader/cmd/wkldiplmapping"
 	"github.com/brian1917/workloader/cmd/wkldtoipl"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -152,6 +153,7 @@ func init() {
 	RootCmd.AddCommand(explorer.ExplorerCmd)
 	RootCmd.AddCommand(nicexport.NICExportCmd)
 	RootCmd.AddCommand(servicefinder.ServiceFinderCmd)
+	RootCmd.AddCommand(wkldiplmapping.WkldIPLMappingCmd)
 
 	// Edge Commands
 	RootCmd.AddCommand(wkldtoipl.WorkloadToIPLCmd)
