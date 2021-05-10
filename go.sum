@@ -26,6 +26,10 @@ github.com/bgentry/speakeasy v0.1.0/go.mod h1:+zsyZBPWlz7T6j88CTgSN5bM796AkVf0kB
 github.com/bketelsen/crypt v0.0.3-0.20200106085610-5cbc8cc4026c/go.mod h1:MKsuJmJgSg28kpZDP6UIiPt0e0Oz0kqKNGyRaWEPv84=
 github.com/brian1917/illumioapi v1.16.0 h1:0LtKinamhE6AgpoBXcy7XHGLHZiDmrvxSwtvFW7HQ1o=
 github.com/brian1917/illumioapi v1.16.0/go.mod h1:bjIvUDUX41hxKaJ35ztNOkqUt6bQq5fGa1RPDI7d+S4=
+github.com/brian1917/illumioapi v1.17.0 h1:/yRk1uHE4Go7FvJciNwXBnxwzVBPK0v8bUl/Unm41d8=
+github.com/brian1917/illumioapi v1.17.0/go.mod h1:bjIvUDUX41hxKaJ35ztNOkqUt6bQq5fGa1RPDI7d+S4=
+github.com/brian1917/illumioapi v1.18.0 h1:Myl7EiJYXJN59lIPyMpekk8uyVlSYU2c4tPoTInEeSg=
+github.com/brian1917/illumioapi v1.18.0/go.mod h1:bjIvUDUX41hxKaJ35ztNOkqUt6bQq5fGa1RPDI7d+S4=
 github.com/cespare/xxhash v1.1.0/go.mod h1:XrSqR1VqqWfGrhpAt58auRo0WTKS1nRRg3ghfAqPWnc=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
 github.com/coreos/bbolt v1.3.2/go.mod h1:iRUV2dpdMOn7Bo10OQBFzIJO9kkE559Wcmn+qkEiiKk=
