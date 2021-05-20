@@ -7,5 +7,5 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/viper v1.7.1
-	golang.org/x/term v0.0.0-20210422114643-f5beecf764ed
+	golang.org/x/term v0.0.0-20210503060354-a79de5458b56
 )
