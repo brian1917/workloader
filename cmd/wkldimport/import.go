@@ -120,7 +120,7 @@ CSVEntries:
 		if _, ok := input.PCE.Workloads[line[*input.MatchIndex]]; !ok && input.Umwl {
 
 			// Create the workload
-			newWkld := illumioapi.Workload{Hostname: line[*input.MatchIndex]}
+			newWkld := illumioapi.Workload{Hostname: line[*input.MatchIndex], Labels: &[]*illumioapi.Label{}}
 
 			// Process if interface is in import and if interface entry has values
 			if index, ok := input.Headers[wkldexport.HeaderInterfaces]; ok && len(line[index]) > 0 {
