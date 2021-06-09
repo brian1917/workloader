@@ -16,6 +16,7 @@ type Input struct {
 	PCE                                                             illumioapi.PCE
 	ImportFile                                                      string
 	RemoveValue                                                     string
+	RolePrefix, AppPrefix, EnvPrefix, LocPrefix                     string
 	Headers                                                         map[string]int
 	MatchIndex                                                      *int
 	Umwl, KeepAllPCEInterfaces, FQDNtoHostname, UpdatePCE, NoPrompt bool
@@ -33,6 +34,10 @@ func init() {
 	if matchIndex == -1 {
 		input.MatchIndex = nil
 	}
+	WkldImportCmd.Flags().StringVar(&input.RolePrefix, "role-prefix", "", "Prefix to add to role labels in CSV.")
+	WkldImportCmd.Flags().StringVar(&input.AppPrefix, "app-prefix", "", "Prefix to add to app labels in CSV.")
+	WkldImportCmd.Flags().StringVar(&input.EnvPrefix, "env-prefix", "", "Prefix to add to env labels in CSV.")
+	WkldImportCmd.Flags().StringVar(&input.LocPrefix, "loc-prefix", "", "Prefix to add to loc labels in CSV.")
 
 	// Hidden flag for use when called from SNOW command
 	WkldImportCmd.Flags().BoolVarP(&input.FQDNtoHostname, "fqdn-to-hostname", "f", false, "Convert FQDN hostnames reported by Illumio VEN to short hostnames by removing everything after first period (e.g., test.domain.com becomes test).")

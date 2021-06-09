@@ -105,6 +105,15 @@ CSVEntries:
 			continue
 		}
 
+		// Process the prefixes to labels
+		prefixes := []string{input.RolePrefix, input.AppPrefix, input.EnvPrefix, input.LocPrefix}
+		for i, header := range []string{wkldexport.HeaderRole, wkldexport.HeaderApp, wkldexport.HeaderEnv, wkldexport.HeaderLoc} {
+			if index, ok := input.Headers[header]; ok {
+				// If the value is blank, do nothing
+				line[index] = prefixes[i] + line[index]
+			}
+		}
+
 		// Check if we are matching on href or hostname
 		if csvLine == 2 && strings.Contains(line[*input.MatchIndex], "/workloads/") && input.Umwl {
 			utils.LogError("cannot match on hrefs and create unmanaged workloads")
