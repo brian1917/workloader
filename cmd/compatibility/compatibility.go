@@ -130,6 +130,9 @@ func compatibilityReport() {
 		}
 	}
 
+	// Create a warning logs holder
+	warningLogs := []string{}
+
 	// Iterate through each workload
 	for i, w := range idleWklds {
 
@@ -207,6 +210,18 @@ func compatibilityReport() {
 			}
 		}
 
+		// Update stdout
+		end := ""
+		if i+1 == len(idleWklds) {
+			end = "\r\n"
+		}
+		fmt.Printf("\r%s [INFO] - reviewed compatibility report %d of %d (%d%%).%s", time.Now().Format("2006-01-02 15:04:05 "), i+1, len(wklds), (i+1)*100/len(wklds), end)
+
+		if cr.QualifyStatus == "" {
+			warningLogs = append(warningLogs, fmt.Sprintf("%s is an idle workload but does not have a compatibility report", w.Hostname))
+			continue
+		}
+
 		// Put into slice if it's NOT green and issuesOnly is true
 		if (cr.QualifyStatus != "green" && issuesOnly) || !issuesOnly {
 			csvData = append(csvData, []string{w.Hostname, w.Href, cr.QualifyStatus, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, w.OsID, w.OsDetail, requiredPackagesInstalled, requiredPackagesMissing, ipsecServiceEnabled, ipv4ForwardingEnabled, ipv4ForwardingPktCnt, iptablesRuleCnt, ipv6GlobalScope, ipv6ActiveConnCnt, iP6TablesRuleCnt, routingTableConflict, iPv6Enabled, unwantedNics, groupPolicy, a.RespBody})
@@ -217,12 +232,11 @@ func compatibilityReport() {
 			modeChangeInputData = append(modeChangeInputData, []string{w.Href, "build"})
 		}
 
-		// Update stdout
-		end := ""
-		if i+1 == len(idleWklds) {
-			end = "\r\n"
-		}
-		fmt.Printf("\r[INFO] - Exported %d of %d idle workloads (%d%%).%s", i+1, len(wklds), (i+1)*100/len(wklds), end)
+	}
+
+	// Warnings
+	for _, wl := range warningLogs {
+		utils.LogWarning(wl, true)
 	}
 
 	// If the CSV data has more than just the headers, create output file and write it.
@@ -234,7 +248,7 @@ func compatibilityReport() {
 		utils.LogInfo(fmt.Sprintf("%d compatibility reports exported.", len(csvData)-1), true)
 	} else {
 		// Log command execution for 0 results
-		utils.LogInfo("no workloads in idle mode for provided query.", true)
+		utils.LogInfo("no workloads with compatibility reports for provided query.", true)
 	}
 
 	// Write the mode change CSV

@@ -185,7 +185,7 @@ func unpair() {
 		// Get the hours since last heartbeat
 		timeParsed, err := time.Parse(time.RFC3339, t.Agent.Status.LastHeartbeatOn)
 		if err != nil {
-			utils.LogWarning(fmt.Sprintf("error parsing time - %s", err.Error()), true)
+			utils.LogWarning(fmt.Sprintf("%s - %s - agent.status.last_heartbeat_on: %s - error parsing time since last heartbeat - %s", t.Hostname, t.Href, t.Agent.Status.LastHeartbeatOn, err.Error()), true)
 			hoursSinceLastHB = "NA"
 		} else {
 			now := time.Now().UTC()
