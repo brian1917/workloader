@@ -79,8 +79,26 @@ func ImportWkldsFromCSV(input Input) {
 	input.log()
 
 	// Check if we have the workload map populate
-	if input.PCE.Workloads == nil {
-		utils.LogError("input PCE cannot have nil workload map. Load workloads.")
+	if input.PCE.Workloads == nil || len(input.PCE.WorkloadsSlice) == 0 {
+		utils.LogError("input PCE cannot have nil Workloads or 0 length of WorkloadsSlice. Load workloads.")
+	}
+
+	// Check for invalid flag combinations
+	if input.Umwl && (input.ManagedOnly || input.UnmanagedOnly) {
+		utils.LogError("--umwl cannot be used with --managed-only or --unmanaged-ony")
+	}
+
+	// If we only want to look at unmanaged or managed rebuild our workload map.
+	if input.UnmanagedOnly || input.ManagedOnly {
+		input.PCE.Workloads = nil
+		input.PCE.Workloads = make(map[string]illumioapi.Workload)
+		for _, w := range input.PCE.WorkloadsSlice {
+			if (w.GetMode() == "unmanaged" && input.UnmanagedOnly) || (w.GetMode() != "managed" && input.ManagedOnly) {
+				input.PCE.Workloads[w.Href] = w
+				input.PCE.Workloads[w.Hostname] = w
+				input.PCE.Workloads[w.Name] = w
+			}
+		}
 	}
 
 	// Create slices to hold the workloads we will update and create

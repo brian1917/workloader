@@ -20,6 +20,8 @@ type Input struct {
 	Headers                                                         map[string]int
 	MatchIndex                                                      *int
 	Umwl, KeepAllPCEInterfaces, FQDNtoHostname, UpdatePCE, NoPrompt bool
+	ManagedOnly                                                     bool
+	UnmanagedOnly                                                   bool
 }
 
 // input is a global variable for the wkld-import command's isntance of Input
@@ -38,6 +40,8 @@ func init() {
 	WkldImportCmd.Flags().StringVar(&input.AppPrefix, "app-prefix", "", "Prefix to add to app labels in CSV.")
 	WkldImportCmd.Flags().StringVar(&input.EnvPrefix, "env-prefix", "", "Prefix to add to env labels in CSV.")
 	WkldImportCmd.Flags().StringVar(&input.LocPrefix, "loc-prefix", "", "Prefix to add to loc labels in CSV.")
+	WkldImportCmd.Flags().BoolVar(&input.UnmanagedOnly, "unmanaged-only", false, "Only label unmanaged workloads in the PCE.")
+	WkldImportCmd.Flags().BoolVar(&input.ManagedOnly, "managed-only", false, "Only label managed workloads in the PCE.")
 
 	// Hidden flag for use when called from SNOW command
 	WkldImportCmd.Flags().BoolVarP(&input.FQDNtoHostname, "fqdn-to-hostname", "f", false, "Convert FQDN hostnames reported by Illumio VEN to short hostnames by removing everything after first period (e.g., test.domain.com becomes test).")
