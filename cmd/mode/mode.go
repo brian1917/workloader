@@ -27,6 +27,7 @@ func init() {
 
 	ModeCmd.Flags().IntVar(&hrefCol, "hrefCol", 1, "Column number with href value. First column is 1.")
 	ModeCmd.Flags().IntVar(&desiredStateCol, "stateCol", 2, "Column number with desired state value.")
+	//ModeCmd.Flags().IntVar(&desiredVisibilityLevelCol, "visibilityLevelCol", 3, "Column number with desired visibility level value.")
 	ModeCmd.Flags().SortFlags = false
 
 }
@@ -158,6 +159,9 @@ func modeUpdate() {
 	// Build data slice for writing
 	data := [][]string{[]string{"hostname", "href", "role", "app", "env", "loc", "current_mode", "target_mode"}}
 
+	// Enforcement switch is false unless we are moving a workload into enforcement
+	enforceCount := 0
+
 	// Cycle through each entry in the CSV
 	for _, t := range targets {
 
@@ -172,6 +176,10 @@ func modeUpdate() {
 					utils.LogError(fmt.Sprintf("error setting mode - %s", err))
 				}
 				workloadUpdates = append(workloadUpdates, w)
+				// Check if we are going into enforcement
+				if t.targetMode == "enforced-no" || t.targetMode == "enforced-low" || t.targetMode == "enforced-high" {
+					enforceCount++
+				}
 			}
 		} else {
 			utils.LogWarning(fmt.Sprintf("%s is not a managed workload in the PCE", t.workloadHref), true)
@@ -197,13 +205,25 @@ func modeUpdate() {
 		// If updatePCE is set, but not noPrompt, we will prompt the user.
 		if updatePCE && !noPrompt {
 			var prompt string
-			fmt.Printf("Mode will change the state of %d workloads. Do you want to run the change (yes/no)? ", len(data)-1)
+			fmt.Printf("\r\n%s [PROMPT] - workloader will change the state of %d workloads. Do you want to run the change (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), len(data)-1)
 			fmt.Scanln(&prompt)
 			if strings.ToLower(prompt) != "yes" {
 				utils.LogInfo(fmt.Sprintf("prompt denied to change mode for %d workloads.", len(data)-1), true)
 				utils.LogEndCommand("mode")
 				return
 			}
+
+			if enforceCount > 0 {
+				fmt.Printf("\r\n%s [PROMPT] - this mode change includes changing %d workloads into a new enforcement state. Please type \"enforce\" to confirm you want to continue: ", time.Now().Format("2006-01-02 15:04:05 "), enforceCount)
+				fmt.Scanln(&prompt)
+				fmt.Println()
+				if strings.ToLower(prompt) != "enforce" {
+					utils.LogInfo(fmt.Sprintf("prompt denied to change mode for %d workloads.", len(data)-1), true)
+					utils.LogEndCommand("mode")
+					return
+				}
+			}
+
 		}
 
 		// If we get here, user accepted prompt or no-prompt was set.
