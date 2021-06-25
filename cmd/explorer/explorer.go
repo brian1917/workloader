@@ -12,8 +12,8 @@ import (
 	"github.com/spf13/viper"
 )
 
-var app, env, inclHrefDstFile, exclHrefDstFile, inclHrefSrcFile, exclHrefSrcFile, exclServiceObj, inclServiceCSV, exclServiceCSV, start, end, loopFile, outputFileName string
-var exclAllowed, exclPotentiallyBlocked, exclBlocked, appGroupLoc, ignoreIPGroup, consolidate, nonUni, debug, legacyOutput, consAndProvierOnLoop bool
+var inclHrefDstFile, exclHrefDstFile, inclHrefSrcFile, exclHrefSrcFile, inclServiceCSV, exclServiceCSV, start, end, loopFile, outputFileName string
+var exclAllowed, exclPotentiallyBlocked, exclBlocked, appGroupLoc, consolidate, nonUni, legacyOutput, consAndProvierOnLoop bool
 var maxResults, iterativeThreshold int
 var pce illumioapi.PCE
 var err error
@@ -66,9 +66,6 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 			utils.LogError(err.Error())
 		}
 
-		// Get the debug value from viper
-		debug = viper.Get("debug").(bool)
-
 		// Set output to CSV only
 		viper.Set("output_format", "csv")
 
@@ -118,14 +115,14 @@ func explorerExport() {
 	}
 
 	// Get the start date
-	tq.StartTime, err = time.Parse(fmt.Sprintf("2006-01-02 MST"), fmt.Sprintf("%s %s", start, "UTC"))
+	tq.StartTime, err = time.Parse("2006-01-02 MST", fmt.Sprintf("%s %s", start, "UTC"))
 	if err != nil {
 		utils.LogError(err.Error())
 	}
 	tq.StartTime = tq.StartTime.In(time.UTC)
 
 	// Get the end date
-	tq.EndTime, err = time.Parse(fmt.Sprintf("2006-01-02 15:04:05 MST"), fmt.Sprintf("%s 23:59:59 %s", end, "UTC"))
+	tq.EndTime, err = time.Parse("2006-01-02 15:04:05 MST", fmt.Sprintf("%s 23:59:59 %s", end, "UTC"))
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -429,13 +426,13 @@ func consolidateFlows(trafficFlows []illumioapi.TrafficAnalysis) []illumioapi.Tr
 func createExplorerCSV(filename string, traffic []illumioapi.TrafficAnalysis) {
 
 	// Build our CSV structure
-	data := [][]string{[]string{"src_ip", "src_interface_name", "src_net_mask", "src_default_gw", "src_hostname", "src_role", "src_app", "src_env", "src_loc", "src_app_group", "dst_ip", "dst_interface_name", "dst_net_mask", "dst_default_gw", "dst_hostname", "dst_role", "dst_app", "dst_env", "dst_loc", "dst_app_group", "port", "protocol", "process", "windows_service", "user", "transmission", "policy_status", "date_first", "date_last", "num_flows"}}
+	data := [][]string{[]string{"src_ip", "src_interface_name", "src_net_mask", "src_default_gw", "src_hostname", "src_role", "src_app", "src_env", "src_loc", "src_app_group", "src_ip_lists", "dst_ip", "dst_interface_name", "dst_net_mask", "dst_default_gw", "dst_hostname", "dst_role", "dst_app", "dst_env", "dst_loc", "dst_app_group", "dst_ip_lists", "port", "protocol", "process", "windows_service", "user", "transmission", "policy_status", "date_first", "date_last", "num_flows"}}
 
 	if legacyOutput {
 		data = [][]string{[]string{"src_ip", "src_interface_name", "src_net_mask", "src_default_gw", "src_hostname", "src_role", "src_app", "src_env", "src_loc", "src_app_group", "dst_ip", "dst_interface_name", "dst_net_mask", "dst_default_gw", "dst_hostname", "dst_role", "dst_app", "dst_env", "dst_loc", "dst_app_group", "port", "protocol", "policy_status", "date_first", "date_last", "num_flows"}}
 	}
 
-	// Add each traffic entry to the data slic
+	// Add each traffic entry to the data slice
 	for _, t := range traffic {
 		src := []string{t.Src.IP, "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA"}
 		if t.Src.Workload != nil {
@@ -447,6 +444,16 @@ func createExplorerCSV(filename string, traffic []illumioapi.TrafficAnalysis) {
 			src = []string{t.Src.IP, wkldInterfaceName(t.Src.Workload.Hostname, t.Src.IP, whm), wkldNetMask(t.Src.Workload.Hostname, t.Src.IP, whm), wkldGW(t.Src.Workload.Hostname, whm), t.Src.Workload.Hostname, t.Src.Workload.GetRole(pce.Labels).Value, t.Src.Workload.GetApp(pce.Labels).Value, t.Src.Workload.GetEnv(pce.Labels).Value, t.Src.Workload.GetLoc(pce.Labels).Value, sag}
 		}
 
+		srcIPL := []string{}
+		if t.Src.IPLists != nil {
+			for _, sIPL := range *t.Src.IPLists {
+				srcIPL = append(srcIPL, sIPL.Name)
+			}
+			src = append(src, strings.Join(srcIPL, ";"))
+		} else {
+			src = append(src, "NA")
+		}
+
 		// Destination
 		dst := []string{t.Dst.IP, "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA"}
 		if t.Dst.Workload != nil {
@@ -456,6 +463,16 @@ func createExplorerCSV(filename string, traffic []illumioapi.TrafficAnalysis) {
 				dag = t.Src.Workload.GetAppGroupL(pce.Labels)
 			}
 			dst = []string{t.Dst.IP, wkldInterfaceName(t.Dst.Workload.Hostname, t.Dst.IP, whm), wkldNetMask(t.Dst.Workload.Hostname, t.Dst.IP, whm), wkldGW(t.Dst.Workload.Hostname, whm), t.Dst.Workload.Hostname, t.Dst.Workload.GetRole(pce.Labels).Value, t.Dst.Workload.GetApp(pce.Labels).Value, t.Dst.Workload.GetEnv(pce.Labels).Value, t.Dst.Workload.GetLoc(pce.Labels).Value, dag}
+		}
+
+		dstIPL := []string{}
+		if t.Dst.IPLists != nil {
+			for _, dIPL := range *t.Dst.IPLists {
+				dstIPL = append(dstIPL, dIPL.Name)
+			}
+			dst = append(dst, strings.Join(dstIPL, ";"))
+		} else {
+			dst = append(dst, "NA")
 		}
 
 		// Set the transmission type variable
