@@ -50,6 +50,7 @@ If a rule_href is provided, the existing rule will be updated. If it's not provi
 The order of the CSV columns do not matter. The input format accepts the following header values:
 - ruleset_name (required. name of the target ruleset.)
 - rule_enabled (required. true/false)
+- rule_description
 - unscoped_consumers (required. true/false. true is extra-scope and false is intra-scope.)
 - consumer_all_workloads (true/false)
 - consumer_roles (label value. multiple separated by ";")
@@ -69,7 +70,7 @@ The order of the CSV columns do not matter. The input format accepts the followi
 - provider_locs (label value. multiple separated by ";")
 - provider_iplists (names of IP lists. multiple separated by ";")
 - provider_workloads (names of workloads. multiple separated by ";")
-- provider_virtual_services
+- provider_virtual_services (names of virtual services separated by ";")
 - provider_resolve_labels_as (required. valid options are "workloads", "virtual_services", or "workloads;virtual_services")
 - services (required. service name, port/proto, or port range/proto. multiple separated by ";")
 - machine_auth_enabled (true/false)
@@ -536,6 +537,16 @@ CSVEntries:
 			}
 		}
 
+		// ******************** Description ********************
+		var description string
+		if c, ok := input.Headers[ruleexport.HeaderRuleDescription]; ok {
+			if rowRuleHref != "" && rHrefMap[rowRuleHref].Description != l[c] {
+				update = true
+				utils.LogInfo(fmt.Sprintf("CSV line %d - rule_description needs to be updated from %s to %s.", i+1, rHrefMap[rowRuleHref].Description, l[c]), false)
+			}
+			description = l[c]
+		}
+
 		// ******************** Enabled ********************
 		var enabled bool
 		if c, ok := input.Headers[ruleexport.HeaderRuleEnabled]; ok {
@@ -633,7 +644,7 @@ CSVEntries:
 		}
 
 		// Create the rule
-		csvRule := illumioapi.Rule{UnscopedConsumers: &unscopedConsumers, Consumers: consumers, ConsumingSecurityPrincipals: consumingSecPrincipals, Providers: providers, IngressServices: &ingressSvc, Enabled: &enabled, MachineAuth: &machineAuth, SecConnect: &secConnect, ResolveLabelsAs: &illumioapi.ResolveLabelsAs{Consumers: consResolveAs, Providers: provResolveAs}}
+		csvRule := illumioapi.Rule{Description: description, UnscopedConsumers: &unscopedConsumers, Consumers: consumers, ConsumingSecurityPrincipals: consumingSecPrincipals, Providers: providers, IngressServices: &ingressSvc, Enabled: &enabled, MachineAuth: &machineAuth, SecConnect: &secConnect, ResolveLabelsAs: &illumioapi.ResolveLabelsAs{Consumers: consResolveAs, Providers: provResolveAs}}
 
 		// Add to our array
 		// Option 1 - No rule HREF provided, so it's a new rule
