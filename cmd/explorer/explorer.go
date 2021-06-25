@@ -338,6 +338,7 @@ func explorerExport() {
 			for _, b := range badChars {
 				f = strings.ReplaceAll(f, b, "")
 			}
+			f = strings.ReplaceAll(f, ":", "-")
 
 			outFileName := fmt.Sprintf("workloader-explorer-%s-%s.csv", f, time.Now().Format("20060102_150405"))
 			if outputFileName != "" {
