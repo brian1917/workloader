@@ -15,13 +15,14 @@ import (
 // Declare local global variables
 var pce illumioapi.PCE
 var err error
-var managedOnly, unmanagedOnly bool
+var managedOnly, unmanagedOnly, removeDescNewLines bool
 var outputFileName string
 
 func init() {
 	WkldExportCmd.Flags().BoolVarP(&managedOnly, "managed-only", "m", false, "Only export managed workloads.")
 	WkldExportCmd.Flags().BoolVarP(&unmanagedOnly, "unmanaged-only", "u", false, "Only export unmanaged workloads.")
 	WkldExportCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+	WkldExportCmd.Flags().BoolVar(&removeDescNewLines, "remove-desc-newline", false, "will remove new line characters in description field.")
 
 }
 
@@ -124,6 +125,11 @@ func exportWorkloads() {
 			online = "unmanaged"
 		} else {
 			online = strconv.FormatBool(w.Online)
+		}
+
+		// Remove newlines in description
+		if removeDescNewLines {
+			w.Description = utils.ReplaceNewLine(w.Description)
 		}
 
 		// Append to data slice
