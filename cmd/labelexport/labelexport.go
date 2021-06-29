@@ -2,6 +2,7 @@ package labelexport
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -9,14 +10,12 @@ import (
 
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // Declare local global variables
 var pce illumioapi.PCE
 var err error
-var debug bool
-var search, outFormat, outputFileName string
+var search, outputFileName string
 
 func init() {
 	LabelExportCmd.Flags().StringVarP(&search, "search", "s", "", "Only export labels containing a specific string (not case sensitive)")
@@ -38,10 +37,6 @@ Create a CSV export of all labels in the PCE. The update-pce and --no-prompt fla
 			utils.LogError(err.Error())
 		}
 
-		// Get the viper values
-		debug = viper.Get("debug").(bool)
-		outFormat = viper.Get("output_format").(string)
-
 		exportLabels()
 	},
 }
@@ -52,11 +47,11 @@ func exportLabels() {
 	utils.LogStartCommand("label-export")
 
 	// Start the data slice with headers
-	csvData := [][]string{[]string{"href", "key", "value", "ext_dataset", "ext_dataset_ref"}}
+	csvData := [][]string{[]string{"href", "key", "value", "ext_dataset", "ext_dataset_ref", "virtual_server_usage", "label_group_usage", "ruleset_usage", "static_policy_scopes_usage", "pairing_profile_usage", "permission_usage", "workload_usage", "container_workload_usage", "firewall_coexistence_scope_usage", "containers_inherit_host_policy_scopes_usage", "container_workload_profile_usage", "blocked_connection_reject_scope_usage", "enforcement_boundary_usage", "loopback_interfaces_in_policy_scopes_usage", "virtual_service_usage"}}
 	stdOutData := [][]string{[]string{"href", "key", "value"}}
 
 	// GetAllWorkloads
-	labels, a, err := pce.GetAllLabels()
+	labels, a, err := pce.GetAllLabelsQP(map[string]string{"usage": "true"})
 	utils.LogAPIResp("GetAllLabels", a)
 	if err != nil {
 		utils.LogError(err.Error())
@@ -81,7 +76,7 @@ func exportLabels() {
 		}
 
 		// Append to data slice
-		csvData = append(csvData, []string{l.Href, l.Key, l.Value, l.ExternalDataSet, l.ExternalDataReference})
+		csvData = append(csvData, []string{l.Href, l.Key, l.Value, l.ExternalDataSet, l.ExternalDataReference, strconv.FormatBool(l.LabelUsage.VirtualServer), strconv.FormatBool(l.LabelUsage.LabelGroup), strconv.FormatBool(l.LabelUsage.Ruleset), strconv.FormatBool(l.LabelUsage.StaticPolicyScopes), strconv.FormatBool(l.LabelUsage.PairingProfile), strconv.FormatBool(l.LabelUsage.Permission), strconv.FormatBool(l.LabelUsage.Workload), strconv.FormatBool(l.LabelUsage.ContainerWorkload), strconv.FormatBool(l.LabelUsage.FirewallCoexistenceScope), strconv.FormatBool(l.LabelUsage.ContainersInheritHostPolicyScopes), strconv.FormatBool(l.LabelUsage.ContainerWorkloadProfile), strconv.FormatBool(l.LabelUsage.BlockedConnectionRejectScope), strconv.FormatBool(l.LabelUsage.EnforcementBoundary), strconv.FormatBool(l.LabelUsage.LoopbackInterfacesInPolicyScopes), strconv.FormatBool(l.LabelUsage.VirtualService)})
 		stdOutData = append(stdOutData, []string{l.Href, l.Key, l.Value})
 	}
 
