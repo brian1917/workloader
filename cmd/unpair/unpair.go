@@ -55,10 +55,10 @@ Use --update-pce and --no-prompt to run unpair with no prompts.`,
   workloader unpair --hours 50 --restore saved --update-pce --no-prompt
 
   # Unpair workloads in ERP application in Production that have not had a heartbeat for 40 hours with no prompt (e.g., command to run on cron).
-  workloader unpair --hours 50 --app ERP --env PROD --restore saved --update-pce --no-prompt
+  workloader unpair --hours 40 --app ERP --env PROD --restore saved --update-pce --no-prompt
 
   # See what workloads would unpair if we set the threshold for 24 hours for all labels:
-  workloader unpair --hours 50 --restore saved
+  workloader unpair --hours 24 --restore saved
  `,
 	Run: func(cmd *cobra.Command, args []string) {
 		pce, err = utils.GetTargetPCE(true)
