@@ -134,6 +134,7 @@ func renameLabel() {
 	if !updatePCE {
 		utils.LogInfo(fmt.Sprintf("label-rename will update %d labels and create %d labels. See workloader.log for details. Run with --update-pce to make changes.", len(updateLabels), len(newLabels)), true)
 		utils.LogEndCommand("label-rename")
+		return
 	}
 
 	// Prompt the user
