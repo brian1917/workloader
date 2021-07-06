@@ -11,21 +11,30 @@ import (
 	"github.com/brian1917/illumioapi"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
-var csvFile, app, consExcl, outputFileName string
-var lookupTO int
-var privOnly, exclWLs, debug bool
+var csvFile, inclHrefDstFile, exclHrefDstFile, inclHrefSrcFile, exclHrefSrcFile, inclServiceCSV, exclServiceCSV, start, end, outputFileName string
+var lookupTO, maxResults int
+var privOnly, exclAllowed, exclPotentiallyBlocked, exclBlocked, exclWLs bool
 var pce illumioapi.PCE
 var err error
 
 func init() {
+	TrafficCmd.Flags().BoolVarP(&privOnly, "excl-public-ips", "p", false, "exclude public IP addresses and limit suggested workloads to the RFC 1918 address space")
+	TrafficCmd.Flags().BoolVarP(&exclWLs, "excl-wklds", "w", false, "exclude IP addresses already assigned to workloads to suggest or verify labels")
+	TrafficCmd.Flags().StringVarP(&inclHrefDstFile, "incl-dst-file", "a", "", "file with hrefs on separate lines to be used in as a provider include. Each line is treated as OR logic. On same line, combine hrefs of same object type for an AND logic. Headers optional")
+	TrafficCmd.Flags().StringVarP(&exclHrefDstFile, "excl-dst-file", "b", "", "file with hrefs on separate lines to be used in as a provider exclude. Can be a csv with hrefs in first column. Headers optional")
+	TrafficCmd.Flags().StringVarP(&inclHrefSrcFile, "incl-src-file", "c", "", "file with hrefs on separate lines to be used in as a consumer include. Each line is treated as OR logic. On same line, combine hrefs of same object type for an AND logic. Headers optional")
+	TrafficCmd.Flags().StringVarP(&exclHrefSrcFile, "excl-src-file", "d", "", "file with hrefs on separate lines to be used in as a consumer exclude. Can be a csv with hrefs in first column. Headers optional")
+	TrafficCmd.Flags().StringVarP(&inclServiceCSV, "incl-svc-file", "i", "", "file location of csv with port/protocols to exclude. Port number in column 1 and IANA numeric protocol in Col 2. Headers optional.")
+	TrafficCmd.Flags().StringVarP(&exclServiceCSV, "excl-svc-file", "j", "", "file location of csv with port/protocols to exclude. Port number in column 1 and IANA numeric protocol in Col 2. Headers optional.")
+	TrafficCmd.Flags().StringVarP(&start, "start", "s", time.Date(time.Now().Year()-5, time.Now().Month(), time.Now().Day(), 0, 0, 0, 0, time.UTC).Format("2006-01-02"), "start date in the format of yyyy-mm-dd.")
+	TrafficCmd.Flags().StringVarP(&end, "end", "e", time.Now().Add(time.Hour*24).Format("2006-01-02"), "end date in the format of yyyy-mm-dd.")
+	TrafficCmd.Flags().IntVarP(&maxResults, "max-results", "m", 100000, "max results in explorer. Maximum value is 100000")
+	TrafficCmd.Flags().BoolVar(&exclAllowed, "excl-allowed", false, "excludes allowed traffic flows.")
+	TrafficCmd.Flags().BoolVar(&exclPotentiallyBlocked, "excl-potentially-blocked", false, "excludes potentially blocked traffic flows.")
+	TrafficCmd.Flags().BoolVar(&exclBlocked, "excl-blocked", false, "excludes blocked traffic flows.")
 	TrafficCmd.Flags().IntVarP(&lookupTO, "time", "t", 1000, "timeout to lookup hostname in ms. 0 will skip hostname lookups.")
-	TrafficCmd.Flags().StringVarP(&app, "app", "a", "", "app name to limit Explorer results to flows with that app as a provider or consumer. default is all apps")
-	TrafficCmd.Flags().StringVarP(&consExcl, "exclConsumer", "e", "", "label to exclude as a consumer role")
-	TrafficCmd.Flags().BoolVarP(&privOnly, "exclPubIPs", "p", false, "exclude public IP addresses and limit suggested workloads to the RFC 1918 address space")
-	TrafficCmd.Flags().BoolVarP(&exclWLs, "exclWklds", "w", false, "exclude IP addresses already assigned to workloads to suggest or verify labels")
 	TrafficCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 
 	TrafficCmd.Flags().SortFlags = false
@@ -54,9 +63,6 @@ The --update-pce and --no-prompt flags are ignored for this command. Use workloa
 		}
 		csvFile = args[0]
 
-		// Get the debug value from viper
-		debug = viper.Get("debug").(bool)
-
 		workloadIdentifier()
 	},
 }
@@ -81,23 +87,25 @@ type result struct {
 
 // Workload Labels
 func (m *result) existingLabels(workloads map[string]illumioapi.Workload, labels map[string]illumioapi.Label) {
-	for _, l := range *workloads[m.ipAddress].Labels {
-		switch {
-		case labels[l.Href].Key == "app":
-			{
-				m.eApp = labels[l.Href].Value
-			}
-		case labels[l.Href].Key == "role":
-			{
-				m.eRole = labels[l.Href].Value
-			}
-		case labels[l.Href].Key == "env":
-			{
-				m.eEnv = labels[l.Href].Value
-			}
-		case labels[l.Href].Key == "loc":
-			{
-				m.eLoc = labels[l.Href].Value
+	if workloads[m.ipAddress].Labels != nil {
+		for _, l := range *workloads[m.ipAddress].Labels {
+			switch {
+			case labels[l.Href].Key == "app":
+				{
+					m.eApp = labels[l.Href].Value
+				}
+			case labels[l.Href].Key == "role":
+				{
+					m.eRole = labels[l.Href].Value
+				}
+			case labels[l.Href].Key == "env":
+				{
+					m.eEnv = labels[l.Href].Value
+				}
+			case labels[l.Href].Key == "loc":
+				{
+					m.eLoc = labels[l.Href].Value
+				}
 			}
 		}
 	}
@@ -142,16 +150,14 @@ func workloadIdentifier() {
 	// Parse the iunput CSVs
 	coreServices := parseCoreServices(csvFile)
 
+	// Get Labels and workloads
+	if err := pce.Load(illumioapi.LoadInput{Labels: true, Workloads: true}); err != nil {
+		utils.LogError(err.Error())
+	}
+
 	// Get all workloads and create workload map
 	allIPWLs := make(map[string]illumioapi.Workload)
-	wls, a, err := pce.GetAllWorkloads()
-	if debug {
-		utils.LogAPIResp("GetAllWorkloads", a)
-	}
-	if err != nil {
-		utils.LogError(fmt.Sprintf("getting all workloads - %s", err))
-	}
-	for _, wl := range wls {
+	for _, wl := range pce.WorkloadsSlice {
 		for _, iface := range wl.Interfaces {
 			// We are going to use the workloads name field. If hostname is populated and not an IP address, we put that value in workload name to use the hostname
 			if net.ParseIP(wl.Hostname) == nil && len(wl.Hostname) > 0 {
@@ -162,62 +168,124 @@ func workloadIdentifier() {
 	}
 
 	// Create the default query struct
-	tq := illumioapi.TrafficQuery{
-		StartTime:      time.Date(2013, 1, 1, 0, 0, 0, 0, time.UTC),
-		EndTime:        time.Date(2020, 12, 30, 0, 0, 0, 0, time.UTC),
-		PolicyStatuses: []string{"allowed", "potentially_blocked", "blocked"},
-		MaxFLows:       100000}
+	tq := illumioapi.TrafficQuery{}
 
-	// Get the label if we are going to do a consumer exclude
-	var exclLabel illumioapi.Label
-	if len(consExcl) > 0 {
-		exclLabel, _, err = pce.GetLabelbyKeyValue("role", consExcl)
-		if err != nil {
-			utils.LogError(fmt.Sprintf("getting label HREF - %s", err))
-		}
-		if exclLabel.Href == "" {
-			utils.LogError(fmt.Sprintf("%s does not exist as an role label.", consExcl))
-		}
-		tq.SourcesExclude = []string{exclLabel.Href}
+	// Check max results for valid value
+	if maxResults < 1 || maxResults > 100000 {
+		utils.LogError("max-results must be between 1 and 100000")
+	}
+	tq.MaxFLows = maxResults
+
+	// Build policy status slice
+	if !exclAllowed {
+		tq.PolicyStatuses = append(tq.PolicyStatuses, "allowed")
+	}
+	if !exclPotentiallyBlocked {
+		tq.PolicyStatuses = append(tq.PolicyStatuses, "potentially_blocked")
+	}
+	if !exclBlocked {
+		tq.PolicyStatuses = append(tq.PolicyStatuses, "blocked")
+	}
+	if !exclAllowed && !exclPotentiallyBlocked && !exclBlocked {
+		tq.PolicyStatuses = []string{}
 	}
 
-	// If an app is provided, adjust query to include it
-	if app != "" {
-		label, a, err := pce.GetLabelbyKeyValue("app", app)
-		if debug {
-			utils.LogAPIResp("GetLabelbyKeyValue", a)
-		}
-		if err != nil {
-			utils.LogError(fmt.Sprintf("getting label HREF - %s", err))
-		}
-		if label.Href == "" {
-			utils.LogError(fmt.Sprintf("%s does not exist as an app label.", app))
-		}
-		tq.SourcesInclude = [][]string{[]string{label.Href}}
+	// Get the start date
+	tq.StartTime, err = time.Parse("2006-01-02 MST", fmt.Sprintf("%s %s", start, "UTC"))
+	if err != nil {
+		utils.LogError(err.Error())
 	}
+	tq.StartTime = tq.StartTime.In(time.UTC)
+
+	// Get the end date
+	tq.EndTime, err = time.Parse("2006-01-02 15:04:05 MST", fmt.Sprintf("%s 23:59:59 %s", end, "UTC"))
+	if err != nil {
+		utils.LogError(err.Error())
+	}
+	tq.EndTime = tq.EndTime.In(time.UTC)
+
+	// Get the services
+	if exclServiceCSV != "" {
+		tq.PortProtoExclude, err = utils.GetServicePortsCSV(exclServiceCSV)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+	}
+	if inclServiceCSV != "" {
+		tq.PortProtoInclude, err = utils.GetServicePortsCSV(inclServiceCSV)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+	}
+
+	// Get the Include Source
+	if inclHrefSrcFile != "" {
+		// Parse the file
+		d, err := utils.ParseCSV(inclHrefSrcFile)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		// For each entry in the file, add an include - OR operator
+		// Semi-colons are used to differentiate hrefs in the same include - AND operator.
+		for _, entry := range d {
+			tq.SourcesInclude = append(tq.SourcesInclude, strings.Split(strings.ReplaceAll(entry[0], "; ", ";"), ";"))
+		}
+	} else {
+		tq.SourcesInclude = append(tq.SourcesInclude, make([]string, 0))
+	}
+
+	// Get the Include Destination
+	if inclHrefDstFile != "" {
+		// Parse the file
+		d, err := utils.ParseCSV(inclHrefDstFile)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		// For each entry in the file, add an include - OR operator
+		// Semi-colons are used to differentiate hrefs in the same include - AND operator.
+		for _, entry := range d {
+			tq.DestinationsInclude = append(tq.DestinationsInclude, strings.Split(strings.ReplaceAll(entry[0], "; ", ";"), ";"))
+		}
+	} else {
+		tq.DestinationsInclude = append(tq.DestinationsInclude, make([]string, 0))
+	}
+
+	// Get the Exclude Sources
+	if exclHrefSrcFile != "" {
+		// Parse the file
+		d, err := utils.ParseCSV(exclHrefSrcFile)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		// For each entry in the file, add an exclude - OR operator
+		for _, entry := range d {
+			tq.SourcesExclude = append(tq.SourcesExclude, entry[0])
+		}
+	}
+
+	// Get the Exclude Destinations
+	if exclHrefDstFile != "" {
+		// Parse the file
+		d, err := utils.ParseCSV(exclHrefDstFile)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		// For each entry in the file, add an exclude - OR operator
+		for _, entry := range d {
+			tq.DestinationsExclude = append(tq.DestinationsExclude, entry[0])
+		}
+	}
+
+	// Focus on unicast
+	tq.TransmissionExcludes = []string{"broadcast", "multicast"}
 
 	// Run traffic query
 	traffic, a, err := pce.GetTrafficAnalysis(tq)
-	if debug {
-		utils.LogAPIResp("GetTrafficAnalysis", a)
-	}
+	utils.LogAPIResp("GetTrafficAnalysis", a)
 	if err != nil {
 		utils.LogError(fmt.Sprintf("making explorer API call - %s", err))
 	}
-
-	// If app is provided, switch to the destination include, clear the sources include, run query again, append to previous result
-	if app != "" {
-		tq.DestinationsInclude = tq.SourcesInclude
-		tq.SourcesInclude = [][]string{}
-		traffic2, a, err := pce.GetTrafficAnalysis(tq)
-		if debug {
-			utils.LogAPIResp("GetTrafficAnalysis", a)
-		}
-		if err != nil {
-			utils.LogError(fmt.Sprintf("making second explorer API call - %s", err))
-		}
-		traffic = append(traffic, traffic2...)
-	}
+	utils.LogInfo(fmt.Sprintf("explorer query returned %d records", len(traffic)), true)
 
 	// Get matches for provider ports (including non-match existing workloads), consumer ports, and processes
 	portProv, _ := findPorts(traffic, coreServices, true)
