@@ -41,6 +41,7 @@ func (i *Input) processHeaders(headers []string) {
 	if val, ok := i.Headers[wkldexport.HeaderHref]; ok && !i.Umwl {
 		i.MatchIndex = &val
 		utils.LogInfo(fmt.Sprintf("match column set to %d because href header is present and unmanaged workload flag is not set.", *i.MatchIndex), false)
+		return
 	}
 
 	// If hostname is set, use that.
