@@ -25,7 +25,7 @@ import (
 	"github.com/brian1917/workloader/cmd/labelexport"
 	"github.com/brian1917/workloader/cmd/labelgroupexport"
 	"github.com/brian1917/workloader/cmd/labelgroupimport"
-	"github.com/brian1917/workloader/cmd/labelrename"
+	"github.com/brian1917/workloader/cmd/labelimport"
 	"github.com/brian1917/workloader/cmd/mislabel"
 	"github.com/brian1917/workloader/cmd/mode"
 	"github.com/brian1917/workloader/cmd/nicexport"
@@ -113,6 +113,7 @@ func init() {
 	RootCmd.AddCommand(iplexport.IplExportCmd)
 	RootCmd.AddCommand(iplimport.IplImportCmd)
 	RootCmd.AddCommand(labelexport.LabelExportCmd)
+	RootCmd.AddCommand(labelimport.LabelImportCmd)
 	RootCmd.AddCommand(labelgroupexport.LabelGroupExportCmd)
 	RootCmd.AddCommand(labelgroupimport.LabelGroupImportCmd)
 	RootCmd.AddCommand(svcimport.SvcImportCmd)
@@ -144,7 +145,6 @@ func init() {
 
 	// Label management
 	RootCmd.AddCommand(deleteunusedlabels.LabelsDeleteUnusedCmd)
-	RootCmd.AddCommand(labelrename.LabelRenameCmd)
 
 	// Reporting
 	RootCmd.AddCommand(mislabel.MisLabelCmd)
