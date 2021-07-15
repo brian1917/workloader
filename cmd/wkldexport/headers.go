@@ -37,8 +37,7 @@ const (
 	HeaderExternalDataSet          = "external_data_set"
 	HeaderExternalDataReference    = "external_data_reference"
 	HeaderCreatedAt                = "created_at"
-	HeaderAgentHealthErrors        = "agent_health_errors"
-	HeaderAgentHealthWarnings      = "agent_health_warnings"
+	HeaderAgentHealth              = "agent_health"
 )
 
 func AllHeaders() []string {
