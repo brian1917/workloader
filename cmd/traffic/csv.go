@@ -28,6 +28,7 @@ type coreService struct {
 	env                string
 	loc                string
 	role               string
+	ignoreSameSubnet   bool
 }
 
 func parseCoreServices(filename string) []coreService {
@@ -39,12 +40,13 @@ func parseCoreServices(filename string) []coreService {
 	csvOptPorts := 3
 	csvNumOptPorts := 4
 	csvNumFlows := 5
-	csvProcesses := 6
-	csvNumProcess := 7
-	csvRole := 8
-	csvApp := 9
-	csvEnv := 10
-	csvLoc := 11
+	csvIgnoreSameSubnet := 6
+	csvProcesses := 7
+	csvNumProcess := 8
+	csvRole := 9
+	csvApp := 10
+	csvEnv := 11
+	csvLoc := 12
 
 	// Create slice to hold the parsed results
 	var coreServices []coreService
@@ -147,11 +149,17 @@ func parseCoreServices(filename string) []coreService {
 			}
 
 			// Convert the number of processes to int if there is any text in the field
-			if len(line[6]) > 0 {
+			if len(line[csvNumProcess]) > 0 {
 				numProcessesReq, err = strconv.Atoi(line[csvNumProcess])
 				if err != nil {
 					utils.LogError(fmt.Sprintf("converting number of required consumer services to int on line %d - %s", i, err))
 				}
+			}
+
+			// Convert bool of ignore same subnet
+			ignoreSameSubnetBool, err := strconv.ParseBool(line[csvIgnoreSameSubnet])
+			if err != nil {
+				utils.LogError(err.Error())
 			}
 
 			// Append to the coreServices slice
@@ -168,8 +176,8 @@ func parseCoreServices(filename string) []coreService {
 				app:                line[csvApp],
 				env:                line[csvEnv],
 				loc:                line[csvLoc],
-				role:               line[csvRole]})
-
+				role:               line[csvRole],
+				ignoreSameSubnet:   ignoreSameSubnetBool})
 		}
 	}
 

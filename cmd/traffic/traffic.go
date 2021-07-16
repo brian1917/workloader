@@ -288,12 +288,71 @@ func workloadIdentifier() {
 	utils.LogInfo(fmt.Sprintf("explorer query returned %d records", len(traffic)), true)
 
 	// Get matches for provider ports (including non-match existing workloads), consumer ports, and processes
-	portProv, _ := findPorts(traffic, coreServices, true)
-	portCons, _ := findPorts(traffic, coreServices, false)
-	process := findProcesses(traffic, coreServices)
+	ignoreSameSubnetCS := []coreService{}
+	includeSameSubnetCS := []coreService{}
+	for _, cs := range coreServices {
+		if cs.ignoreSameSubnet {
+			ignoreSameSubnetCS = append(ignoreSameSubnetCS, cs)
+		} else {
+			includeSameSubnetCS = append(includeSameSubnetCS, cs)
+		}
+	}
+
+	ignoreSameSubnetTraffic := []illumioapi.TrafficAnalysis{}
+	includeSameSubnetTraffic := []illumioapi.TrafficAnalysis{}
+	for _, t := range traffic {
+		var network, ipCheck string
+		// Skip any traffic that is between same workload
+		if t.Src.IP == t.Dst.IP {
+			continue
+		}
+		// All traffic goes into all bucker
+		includeSameSubnetTraffic = append(includeSameSubnetTraffic, t)
+
+		// Look at destination first. If the Destination does not have a workload, look at the source
+		if t.Dst.Workload != nil && t.Dst.Workload.Href != "" {
+			dstWkld := pce.Workloads[t.Dst.Workload.Href]
+			if dstWkld.GetMode() != "unmanaged" && dstWkld.GetNetworkWithDefaultGateway() != "NA" {
+				network = dstWkld.GetNetworkWithDefaultGateway()
+				ipCheck = t.Src.IP
+			}
+		} else if t.Src.Workload != nil && t.Src.Workload.Href != "" {
+			srcWkld := pce.Workloads[t.Src.Workload.Href]
+			if srcWkld.GetMode() != "unmanaged" && srcWkld.GetNetworkWithDefaultGateway() != "NA" {
+				network = srcWkld.GetNetworkWithDefaultGateway()
+				ipCheck = t.Dst.IP
+			}
+		}
+
+		// Parse the network
+		_, ipNet, err := net.ParseCIDR(network)
+
+		// If we can't parse the network, put it in the ignore to be safe
+		if err != nil {
+			ignoreSameSubnetTraffic = append(ignoreSameSubnetTraffic, t)
+			continue
+		}
+		// Check the IP. If it is NOT in the same subnet, add it to the ignore
+		ip := net.ParseIP(ipCheck)
+		if !ipNet.Contains(ip) {
+			ignoreSameSubnetTraffic = append(ignoreSameSubnetTraffic, t)
+		}
+
+	}
+	utils.LogInfo(fmt.Sprintf("explorer query returned %d records after removing flows with same src and dst", len(includeSameSubnetTraffic)), true)
+	utils.LogInfo(fmt.Sprintf("explorer query returned %d records for core services ignoring same subnet traffic", len(ignoreSameSubnetTraffic)), true)
+	portProv1, _ := findPorts(ignoreSameSubnetTraffic, ignoreSameSubnetCS, true)
+	portCons1, _ := findPorts(ignoreSameSubnetTraffic, ignoreSameSubnetCS, false)
+	portProv2, _ := findPorts(includeSameSubnetTraffic, includeSameSubnetCS, true)
+	portCons2, _ := findPorts(includeSameSubnetTraffic, includeSameSubnetCS, false)
+	process := findProcesses(includeSameSubnetTraffic, coreServices)
+
+	// Get matches for
 
 	// Make one slice from port port results (prov and cons), processes, and nonmatches
-	results := append(append(portProv, portCons...), process...)
+	results := append(portProv1, portProv2...)
+	results = append(append(results, portCons1...), portCons2...)
+	results = append(results, process...)
 
 	// Create the final matches array
 	finalMatches := []result{}

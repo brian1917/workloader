@@ -23,15 +23,6 @@ func findPorts(traffic []illumioapi.TrafficAnalysis, coreServices []coreService,
 	var matches []result
 	var nonmatches []result
 
-	var ft []illumioapi.TrafficAnalysis
-
-	// Create the filter traffic slice by removing traffic that is talking to each other
-	for _, entry := range traffic {
-		if entry.Src.IP != entry.Dst.IP {
-			ft = append(ft, entry)
-		}
-	}
-
 	// Get the traffic flow count for each machine on a port
 	ipPortCount := make(map[string]int)
 
@@ -57,7 +48,7 @@ func findPorts(traffic []illumioapi.TrafficAnalysis, coreServices []coreService,
 
 	// For each traffic flow not going to a workload, see if it already exists in the ipAddrPorts map. If no, add it.
 	ipPorts := make(map[string][]int)
-	for _, flow := range ft {
+	for _, flow := range traffic {
 		// Set the IP as destination or source
 		ip := flow.Dst.IP
 		if !provider {
