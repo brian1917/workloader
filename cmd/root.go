@@ -22,6 +22,7 @@ import (
 	"github.com/brian1917/workloader/cmd/hostparse"
 	"github.com/brian1917/workloader/cmd/iplexport"
 	"github.com/brian1917/workloader/cmd/iplimport"
+	"github.com/brian1917/workloader/cmd/killswitch"
 	"github.com/brian1917/workloader/cmd/labelexport"
 	"github.com/brian1917/workloader/cmd/labelgroupexport"
 	"github.com/brian1917/workloader/cmd/labelgroupimport"
@@ -142,6 +143,7 @@ func init() {
 	RootCmd.AddCommand(deletehrefs.DeleteCmd)
 	RootCmd.AddCommand(umwlcleanup.UMWLCleanUpCmd)
 	RootCmd.AddCommand(nicmanage.NICManageCmd)
+	RootCmd.AddCommand(killswitch.KillSwitchCmd)
 
 	// Label management
 	RootCmd.AddCommand(deleteunusedlabels.LabelsDeleteUnusedCmd)
