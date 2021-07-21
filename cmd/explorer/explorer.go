@@ -13,7 +13,7 @@ import (
 )
 
 var inclHrefDstFile, exclHrefDstFile, inclHrefSrcFile, exclHrefSrcFile, inclServiceCSV, exclServiceCSV, start, end, loopFile, outputFileName string
-var exclAllowed, exclPotentiallyBlocked, exclBlocked, appGroupLoc, consolidate, nonUni, legacyOutput, consAndProvierOnLoop bool
+var exclAllowed, exclPotentiallyBlocked, exclBlocked, exclUnknown, appGroupLoc, consolidate, nonUni, legacyOutput, consAndProvierOnLoop bool
 var maxResults, iterativeThreshold int
 var pce illumioapi.PCE
 var err error
@@ -34,6 +34,7 @@ func init() {
 	ExplorerCmd.Flags().BoolVar(&exclAllowed, "excl-allowed", false, "excludes allowed traffic flows.")
 	ExplorerCmd.Flags().BoolVar(&exclPotentiallyBlocked, "excl-potentially-blocked", false, "excludes potentially blocked traffic flows.")
 	ExplorerCmd.Flags().BoolVar(&exclBlocked, "excl-blocked", false, "excludes blocked traffic flows.")
+	ExplorerCmd.Flags().BoolVar(&exclUnknown, "excl-unknown", false, "excludes unkown policy decision traffic flows.")
 	ExplorerCmd.Flags().BoolVar(&nonUni, "incl-non-unicast", false, "includes non-unicast (broadcast and multicast) flows in the output. Default is unicast only.")
 	ExplorerCmd.Flags().IntVarP(&maxResults, "max-results", "m", 100000, "max results in explorer. Maximum value is 100000")
 	ExplorerCmd.Flags().BoolVar(&consolidate, "consolidate", false, "consolidate flows that have same source IP, destination IP, port, and protocol.")
@@ -110,7 +111,10 @@ func explorerExport() {
 	if !exclBlocked {
 		tq.PolicyStatuses = append(tq.PolicyStatuses, "blocked")
 	}
-	if !exclAllowed && !exclPotentiallyBlocked && !exclBlocked {
+	if !exclUnknown {
+		tq.PolicyStatuses = append(tq.PolicyStatuses, "unknown")
+	}
+	if !exclAllowed && !exclPotentiallyBlocked && !exclBlocked && !exclUnknown {
 		tq.PolicyStatuses = []string{}
 	}
 
