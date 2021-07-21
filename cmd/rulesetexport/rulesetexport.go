@@ -47,7 +47,7 @@ func ExportRuleSets(pce illumioapi.PCE, outputFileName string, templateFormat bo
 	utils.LogStartCommand("ruleset-export")
 
 	// Start the csvData
-	headers := []string{"ruleset_name", "ruleset_enabled", "ruleset_description", "app_scope", "env_scope", "loc_scope"}
+	headers := []string{"ruleset_name", "ruleset_enabled", "ruleset_description", "app_scope", "env_scope", "loc_scope", "contains_custom_iptables_rules"}
 	if !templateFormat {
 		headers = append(headers, "href")
 	}
@@ -90,6 +90,12 @@ func ExportRuleSets(pce illumioapi.PCE, outputFileName string, templateFormat bo
 
 	// Iterate through each ruleset
 	for _, rs := range allRuleSets {
+		// Check for custom iptables rules
+		customIPTables := false
+		if len(rs.IPTablesRules) != 0 {
+			customIPTables = true
+		}
+		utils.LogInfo(fmt.Sprintf("custom iptables rules: %t", customIPTables), false)
 		var appScopes, envScopes, locScopes []string
 		// Iterate through each scope
 		for _, scope := range rs.Scopes {
@@ -139,7 +145,7 @@ func ExportRuleSets(pce illumioapi.PCE, outputFileName string, templateFormat bo
 		}
 
 		// Append to the CSV data
-		entry := []string{rs.Name, strconv.FormatBool(*rs.Enabled), rs.Description, strings.Join(appScopes, ";"), strings.Join(envScopes, ";"), strings.Join(locScopes, ";")}
+		entry := []string{rs.Name, strconv.FormatBool(*rs.Enabled), rs.Description, strings.Join(appScopes, ";"), strings.Join(envScopes, ";"), strings.Join(locScopes, ";"), strconv.FormatBool(customIPTables)}
 		if !templateFormat {
 			entry = append(entry, rs.Href)
 		}

@@ -75,8 +75,7 @@ func getCSVHeaders(templateFormat bool) []string {
 		HeaderProviderResolveLabelsAs,
 		HeaderMachineAuthEnabled,
 		HeaderSecureConnectEnabled,
-		HeaderStateless,
-		HeaderRulesetContainsCustomIptables}
+		HeaderStateless}
 
 	if !templateFormat {
 		headers = append(headers, HeaderRulesetHref, HeaderRuleHref, HeaderUpdateType)

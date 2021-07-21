@@ -269,13 +269,6 @@ func ExportRules(input Input) {
 		// Log ruleset processing
 		utils.LogInfo(fmt.Sprintf("processing ruleset %s with %d rules", rs.Name, len(rs.Rules)), false)
 
-		// Check for custom iptables rules
-		customIPTables := false
-		if len(rs.IPTablesRules) != 0 {
-			customIPTables = true
-		}
-		utils.LogInfo(fmt.Sprintf("custom iptables rules: %t", customIPTables), false)
-
 		// Get the scopes
 		scopesSlice := []string{}
 
