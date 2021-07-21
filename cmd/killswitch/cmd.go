@@ -80,7 +80,7 @@ The --update-pce flag is required for Steps 2 through 7. If the --update-pce fla
 
 func portLock(port int, protocol string) {
 	// Log the start of the command
-	utils.LogStartCommand("port-lock")
+	utils.LogStartCommand("kill-switch")
 
 	// Declare the workloads variable so it's available globally in the portLock() scope
 	var wklds []illumioapi.Workload
@@ -169,27 +169,32 @@ func portLock(port int, protocol string) {
 		if !noPrompt {
 			changes := []string{}
 			if len(targetWorkloads) > 0 {
-				changes = append(changes, fmt.Sprintf("create %s virtual service and ruleset", objectName))
+				changes = append(changes, fmt.Sprintf("create the %s virtual service and bind %d workloads to it", objectName, len(targetWorkloads)))
+				changes = append(changes, fmt.Sprintf("create the %s ruleset allowing traffic to the created virtual service on %d %s", objectName, port, protocol))
 			}
-			changes = append(changes, fmt.Sprintf("create %s enforcement boundary", objectName))
+			changes = append(changes, fmt.Sprintf("create the %s enforcement boundary for any IP address to All Worklodas on %d %s", objectName, port, protocol))
 			if !skipModeChange {
 				wklds, api, err = pce.GetAllWorkloadsQP(map[string]string{"managed": "true", "enforcement_mode": "visibility_only"})
 				utils.LogAPIResp("GetAllWorkloadsQP", api)
 				if err != nil {
 					utils.LogError(err.Error())
 				}
-				changes = append(changes, fmt.Sprintf("move %d workloads from visibility-only to selective-enforcement", len(wklds)))
+				changes = append(changes, fmt.Sprintf("move %d workloads from visibility-only to selective-enforcement to enforce created boundary", len(wklds)))
 			}
 
 			var prompt string
-			fmt.Printf("\r\n%s [PROMPT] - workloader will %s in %s (%s). Do you want to run the kill-switch (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), strings.Join(changes, "; "), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
+			fmt.Printf("\r\n%s[PROMPT] - workloader will do the following in %s (%s):\r\n", time.Now().Format("2006-01-02 15:04:05 "), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
+			for i, c := range changes {
+				fmt.Printf("%s [PROMPT] - %d) %s\r\n", time.Now().Format("2006-01-02 15:04:05"), i+1, c)
+			}
+			fmt.Printf("%s [PROMPT] - Do you want to run the kill-switch (yes/no)? ", time.Now().Format("2006-01-02 15:04:05"))
 			fmt.Scanln(&prompt)
 			if strings.ToLower(prompt) != "yes" {
 				utils.LogInfo("prompt denied", true)
 				utils.LogEndCommand("kill-switch")
 				return
 			}
-
+			fmt.Println()
 		}
 
 		// Create the virutal service if we have workloads that need it.
@@ -209,7 +214,7 @@ func portLock(port int, protocol string) {
 			utils.LogInfo(fmt.Sprintf("created virtual service - %s - %s - status code: %d", vs.Name, vs.Href, api.StatusCode), true)
 
 			// Provision the virutal service
-			api, err = pce.ProvisionHref([]string{vs.Href}, "provisioned by workloader port-lock")
+			api, err = pce.ProvisionHref([]string{vs.Href}, "provisioned by workloader kill-switch")
 			utils.LogAPIResp("ProvisionHref", api)
 			if err != nil {
 				utils.LogError(err.Error())
@@ -230,7 +235,7 @@ func portLock(port int, protocol string) {
 
 			// Create a new ruleset
 			rs := illumioapi.RuleSet{
-				Description: "created by workloader port-lock",
+				Description: "created by workloader kill-switch",
 				Name:        objectName,
 			}
 			rs.Scopes = append(rs.Scopes, []*illumioapi.Scopes{})
@@ -258,7 +263,7 @@ func portLock(port int, protocol string) {
 			utils.LogInfo(fmt.Sprintf("created rule in %s - %s - status code: %d", rs.Name, rule.Href, api.StatusCode), true)
 
 			// Provision the ruleset
-			api, err = pce.ProvisionHref([]string{rs.Href}, "provisioned by workloader port-lock")
+			api, err = pce.ProvisionHref([]string{rs.Href}, "provisioned by workloader kill-switch")
 			utils.LogAPIResp("ProvisionHref", api)
 			if err != nil {
 				utils.LogError(err.Error())
@@ -283,7 +288,7 @@ func portLock(port int, protocol string) {
 	utils.LogInfo(fmt.Sprintf("created enforcement boundary - %s - %s - status code: %d", eb.Name, eb.Href, api.StatusCode), true)
 
 	// Provision enforcement boundary
-	api, err = pce.ProvisionHref([]string{eb.Href}, "provisioned by workloader port-lock")
+	api, err = pce.ProvisionHref([]string{eb.Href}, "provisioned by workloader kill-switch")
 	utils.LogAPIResp("ProvisionHref", api)
 	if err != nil {
 		utils.LogError(err.Error())
@@ -309,5 +314,5 @@ func portLock(port int, protocol string) {
 		}
 	}
 	// Log the end of the command
-	utils.LogEndCommand("port-lock")
+	utils.LogEndCommand("kill-switch")
 }
