@@ -9,6 +9,7 @@ import (
 
 	"github.com/brian1917/workloader/cmd/checkversion"
 	"github.com/brian1917/workloader/cmd/compatibility"
+	"github.com/brian1917/workloader/cmd/containmentswitch"
 	"github.com/brian1917/workloader/cmd/deletehrefs"
 	"github.com/brian1917/workloader/cmd/deleteunusedlabels"
 	"github.com/brian1917/workloader/cmd/dupecheck"
@@ -22,7 +23,6 @@ import (
 	"github.com/brian1917/workloader/cmd/hostparse"
 	"github.com/brian1917/workloader/cmd/iplexport"
 	"github.com/brian1917/workloader/cmd/iplimport"
-	"github.com/brian1917/workloader/cmd/killswitch"
 	"github.com/brian1917/workloader/cmd/labelexport"
 	"github.com/brian1917/workloader/cmd/labelgroupexport"
 	"github.com/brian1917/workloader/cmd/labelgroupimport"
@@ -143,7 +143,7 @@ func init() {
 	RootCmd.AddCommand(deletehrefs.DeleteCmd)
 	RootCmd.AddCommand(umwlcleanup.UMWLCleanUpCmd)
 	RootCmd.AddCommand(nicmanage.NICManageCmd)
-	RootCmd.AddCommand(killswitch.KillSwitchCmd)
+	RootCmd.AddCommand(containmentswitch.ContainmentSwitchCmd)
 
 	// Label management
 	RootCmd.AddCommand(deleteunusedlabels.LabelsDeleteUnusedCmd)
