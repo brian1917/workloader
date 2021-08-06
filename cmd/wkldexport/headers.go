@@ -38,6 +38,7 @@ const (
 	HeaderExternalDataReference    = "external_data_reference"
 	HeaderCreatedAt                = "created_at"
 	HeaderAgentHealth              = "agent_health"
+	HeaderVisibilityState          = "visibility_state"
 )
 
 func AllHeaders() []string {
