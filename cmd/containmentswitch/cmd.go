@@ -1,4 +1,4 @@
-package killswitch
+package containmentswitch
 
 import (
 	"fmt"
@@ -20,18 +20,18 @@ var pce illumioapi.PCE
 var err error
 
 func init() {
-	KillSwitchCmd.Flags().StringVarP(&start, "start", "s", time.Now().AddDate(0, 0, -14).In(time.UTC).Format("2006-01-02"), "start date in the format of yyyy-mm-dd.")
-	KillSwitchCmd.Flags().StringVarP(&end, "end", "e", time.Now().AddDate(0, 0, -7).In(time.UTC).Format("2006-01-02"), "end date in the format of yyyy-mm-dd.")
-	KillSwitchCmd.Flags().BoolVar(&skipAllow, "skip-allow", false, "do not analyze traffic to see where traffic should be allowed.")
-	KillSwitchCmd.Flags().BoolVar(&skipModeChange, "skip-mode-change", false, "do not move all visibility-only workloads into selective-enforcement.")
-	KillSwitchCmd.Flags().StringVar(&objectName, "object-name", "", "name for created policy objects (virtual services, rules, and enforcement boundaries). if none is provided the default is \"Workloader-Kill-Switch-Port-Protocol\"")
+	ContainmentSwitchCmd.Flags().StringVarP(&start, "start", "s", time.Now().AddDate(0, 0, -14).In(time.UTC).Format("2006-01-02"), "start date in the format of yyyy-mm-dd.")
+	ContainmentSwitchCmd.Flags().StringVarP(&end, "end", "e", time.Now().AddDate(0, 0, -7).In(time.UTC).Format("2006-01-02"), "end date in the format of yyyy-mm-dd.")
+	ContainmentSwitchCmd.Flags().BoolVar(&skipAllow, "skip-allow", false, "do not analyze traffic to see where traffic should be allowed.")
+	ContainmentSwitchCmd.Flags().BoolVar(&skipModeChange, "skip-mode-change", false, "do not move all visibility-only workloads into selective-enforcement.")
+	ContainmentSwitchCmd.Flags().StringVar(&objectName, "object-name", "", "name for created policy objects (virtual services, rules, and enforcement boundaries). if none is provided the default is \"Workloader-Containment-Switch-Port-Protocol\"")
 
-	KillSwitchCmd.Flags().SortFlags = false
+	ContainmentSwitchCmd.Flags().SortFlags = false
 }
 
 // TrafficCmd runs the workload identifier
-var KillSwitchCmd = &cobra.Command{
-	Use:   "kill-switch [port protocol]",
+var ContainmentSwitchCmd = &cobra.Command{
+	Use:   "containment-switch [port protocol]",
 	Short: "Isolate a port on all workloads and optionally keep open the port on workloads that had traffic to that port in a configurable past window.",
 	Long: `
 Isolate a port on all workloads and optionally keep open the port on workloads that had traffic to that port in a configurable past window.
@@ -80,7 +80,7 @@ The --update-pce flag is required for Steps 2 through 7. If the --update-pce fla
 
 func portLock(port int, protocol string) {
 	// Log the start of the command
-	utils.LogStartCommand("kill-switch")
+	utils.LogStartCommand("containment-switch")
 
 	// Declare the workloads variable so it's available globally in the portLock() scope
 	var wklds []illumioapi.Workload
@@ -102,7 +102,7 @@ func portLock(port int, protocol string) {
 
 	// Set the Object Name
 	if objectName == "" {
-		objectName = fmt.Sprintf("Workloader-Kill-Switch-%d-%s", port, protocol)
+		objectName = fmt.Sprintf("Workloader-Containment-Switch-%d-%s", port, protocol)
 	}
 
 	// Get the Any IP List for use in the rule and/or enfourcement boundary.
@@ -161,8 +161,8 @@ func portLock(port int, protocol string) {
 
 		// Check that we should make changes to the PCE.
 		if !updatePCE {
-			utils.LogInfo("run with --update-pce and optionally --no-prompt flag to implement kill-switch.", true)
-			utils.LogEndCommand("kill-switch")
+			utils.LogInfo("run with --update-pce and optionally --no-prompt flag to implement containment-switch.", true)
+			utils.LogEndCommand("containment-switch")
 			return
 		}
 
@@ -187,11 +187,11 @@ func portLock(port int, protocol string) {
 			for i, c := range changes {
 				fmt.Printf("%s [PROMPT] - %d) %s\r\n", time.Now().Format("2006-01-02 15:04:05"), i+1, c)
 			}
-			fmt.Printf("%s [PROMPT] - Do you want to run the kill-switch (yes/no)? ", time.Now().Format("2006-01-02 15:04:05"))
+			fmt.Printf("%s [PROMPT] - Do you want to run the containment-switch (yes/no)? ", time.Now().Format("2006-01-02 15:04:05"))
 			fmt.Scanln(&prompt)
 			if strings.ToLower(prompt) != "yes" {
 				utils.LogInfo("prompt denied", true)
-				utils.LogEndCommand("kill-switch")
+				utils.LogEndCommand("containment-switch")
 				return
 			}
 			fmt.Println()
@@ -202,7 +202,7 @@ func portLock(port int, protocol string) {
 
 			// Create the virtual service
 			vs := illumioapi.VirtualService{
-				Description:  fmt.Sprintf("Created by workloader kill-switch for %d %s", port, protocol),
+				Description:  fmt.Sprintf("Created by workloader containment-switch for %d %s", port, protocol),
 				Name:         objectName,
 				ServicePorts: []*illumioapi.ServicePort{&illumioapi.ServicePort{Port: port, Protocol: protocolNum}}}
 
@@ -214,7 +214,7 @@ func portLock(port int, protocol string) {
 			utils.LogInfo(fmt.Sprintf("created virtual service - %s - %s - status code: %d", vs.Name, vs.Href, api.StatusCode), true)
 
 			// Provision the virutal service
-			api, err = pce.ProvisionHref([]string{vs.Href}, "provisioned by workloader kill-switch")
+			api, err = pce.ProvisionHref([]string{vs.Href}, "provisioned by workloader containment-switch")
 			utils.LogAPIResp("ProvisionHref", api)
 			if err != nil {
 				utils.LogError(err.Error())
@@ -235,7 +235,7 @@ func portLock(port int, protocol string) {
 
 			// Create a new ruleset
 			rs := illumioapi.RuleSet{
-				Description: "created by workloader kill-switch",
+				Description: "created by workloader containment-switch",
 				Name:        objectName,
 			}
 			rs.Scopes = append(rs.Scopes, []*illumioapi.Scopes{})
@@ -263,7 +263,7 @@ func portLock(port int, protocol string) {
 			utils.LogInfo(fmt.Sprintf("created rule in %s - %s - status code: %d", rs.Name, rule.Href, api.StatusCode), true)
 
 			// Provision the ruleset
-			api, err = pce.ProvisionHref([]string{rs.Href}, "provisioned by workloader kill-switch")
+			api, err = pce.ProvisionHref([]string{rs.Href}, "provisioned by workloader containment-switch")
 			utils.LogAPIResp("ProvisionHref", api)
 			if err != nil {
 				utils.LogError(err.Error())
@@ -288,7 +288,7 @@ func portLock(port int, protocol string) {
 	utils.LogInfo(fmt.Sprintf("created enforcement boundary - %s - %s - status code: %d", eb.Name, eb.Href, api.StatusCode), true)
 
 	// Provision enforcement boundary
-	api, err = pce.ProvisionHref([]string{eb.Href}, "provisioned by workloader kill-switch")
+	api, err = pce.ProvisionHref([]string{eb.Href}, "provisioned by workloader containment-switch")
 	utils.LogAPIResp("ProvisionHref", api)
 	if err != nil {
 		utils.LogError(err.Error())
@@ -314,5 +314,5 @@ func portLock(port int, protocol string) {
 		}
 	}
 	// Log the end of the command
-	utils.LogEndCommand("kill-switch")
+	utils.LogEndCommand("containment-switch")
 }
