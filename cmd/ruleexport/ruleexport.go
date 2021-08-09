@@ -556,10 +556,14 @@ func ExportRules(input Input) {
 						csvEntryMap[HeaderProviderWorkloads] = input.PCE.Workloads[p.Workload.Href].Hostname
 					}
 					// Check the labels
-					for _, l := range *input.PCE.Workloads[p.Workload.Href].Labels {
-						if val, ok := ruleFilter[l.Href]; ok {
-							ruleFilter[l.Href] = val + 1
-							utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is a provider label on %s workload - rule %s", input.PCE.Labels[l.Href].Value, input.PCE.Labels[l.Href].Key, input.PCE.Workloads[p.Workload.Href].Name, r.Href), false)
+					if _, wkldExists := input.PCE.Workloads[p.Workload.Href]; wkldExists {
+						if input.PCE.Workloads[p.Workload.Href].Labels != nil {
+							for _, l := range *input.PCE.Workloads[p.Workload.Href].Labels {
+								if val, ok := ruleFilter[l.Href]; ok {
+									ruleFilter[l.Href] = val + 1
+									utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is a provider label on %s workload - rule %s", input.PCE.Labels[l.Href].Value, input.PCE.Labels[l.Href].Key, input.PCE.Workloads[p.Workload.Href].Name, r.Href), false)
+								}
+							}
 						}
 					}
 				}
