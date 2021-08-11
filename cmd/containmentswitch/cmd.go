@@ -117,7 +117,7 @@ func portLock(port int, protocol string) {
 		// Build the explorer query
 		tq := illumioapi.TrafficQuery{
 			MaxFLows:         100000,
-			PolicyStatuses:   []string{"potentially_blocked", "blocked", "unknown"},
+			PolicyStatuses:   []string{"potentially_blocked", "unknown"},
 			PortProtoInclude: [][2]int{[2]int{port, protocolNum}},
 		}
 
