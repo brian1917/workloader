@@ -21,6 +21,7 @@ import (
 	"github.com/brian1917/workloader/cmd/flowsummary"
 	"github.com/brian1917/workloader/cmd/getpairingkey"
 	"github.com/brian1917/workloader/cmd/hostparse"
+	"github.com/brian1917/workloader/cmd/increasevenupdaterate"
 	"github.com/brian1917/workloader/cmd/iplexport"
 	"github.com/brian1917/workloader/cmd/iplimport"
 	"github.com/brian1917/workloader/cmd/labelexport"
@@ -144,6 +145,7 @@ func init() {
 	RootCmd.AddCommand(umwlcleanup.UMWLCleanUpCmd)
 	RootCmd.AddCommand(nicmanage.NICManageCmd)
 	RootCmd.AddCommand(containmentswitch.ContainmentSwitchCmd)
+	RootCmd.AddCommand(increasevenupdaterate.IncreaseVENUpdateRateCmd)
 
 	// Label management
 	RootCmd.AddCommand(deleteunusedlabels.LabelsDeleteUnusedCmd)
