@@ -9,7 +9,6 @@ import (
 	"github.com/brian1917/illumioapi"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // PCE global variable
@@ -17,7 +16,6 @@ var pce illumioapi.PCE
 var err error
 var pStatus []string
 var outDir string
-var debug bool
 
 // ExtractCmd extracts PCE objects
 var ExtractCmd = &cobra.Command{
@@ -30,9 +28,6 @@ var ExtractCmd = &cobra.Command{
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-
-		// Get the debug value from viper
-		debug = viper.Get("debug").(bool)
 
 		extract()
 	},
@@ -255,8 +250,8 @@ func ruleSets() {
 
 func traffic() {
 	tq := illumioapi.TrafficQuery{
-		StartTime:      time.Date(2013, 1, 1, 0, 0, 0, 0, time.UTC),
-		EndTime:        time.Date(2020, 12, 30, 0, 0, 0, 0, time.UTC),
+		StartTime:      time.Now().AddDate(0, 0, -88).In(time.UTC),
+		EndTime:        time.Now().Add(time.Hour * 24).In(time.UTC),
 		PolicyStatuses: []string{"allowed", "potentially_blocked", "blocked"},
 		MaxFLows:       100000}
 
