@@ -455,17 +455,30 @@ func ExportRules(input Input) {
 					}
 				}
 				if c.Workload != nil {
-					if val, ok := csvEntryMap[HeaderConsumerWorkloads]; ok {
-						csvEntryMap[HeaderConsumerWorkloads] = fmt.Sprintf("%s;%s", val, input.PCE.Workloads[c.Workload.Href].Hostname)
+					// Get the hostname
+					pceHostname := ""
+					if pceWorkload, ok := input.PCE.Workloads[c.Workload.Href]; ok {
+						if pceWorkload.Hostname != "" {
+							pceHostname = pceWorkload.Hostname
+						} else {
+							pceHostname = pceWorkload.Name
+						}
 					} else {
-						csvEntryMap[HeaderConsumerWorkloads] = input.PCE.Workloads[c.Workload.Href].Hostname
+						pceHostname = "DELETED-WORKLOAD"
+					}
+					if val, ok := csvEntryMap[HeaderConsumerWorkloads]; ok {
+						csvEntryMap[HeaderConsumerWorkloads] = fmt.Sprintf("%s;%s", val, pceHostname)
+					} else {
+						csvEntryMap[HeaderConsumerWorkloads] = pceHostname
 					}
 					// Check the labels
-					if *input.PCE.Workloads[c.Workload.Href].Labels != nil {
-						for _, l := range *input.PCE.Workloads[c.Workload.Href].Labels {
-							if val, ok := ruleFilter[l.Href]; ok {
-								ruleFilter[l.Href] = val + 1
-								utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is a consumer label on %s workload - rule %s", input.PCE.Labels[l.Href].Value, input.PCE.Labels[l.Href].Key, input.PCE.Workloads[c.Workload.Href].Name, r.Href), false)
+					if pceHostname != "DELETED-WORKLOAD" {
+						if *input.PCE.Workloads[c.Workload.Href].Labels != nil {
+							for _, l := range *input.PCE.Workloads[c.Workload.Href].Labels {
+								if val, ok := ruleFilter[l.Href]; ok {
+									ruleFilter[l.Href] = val + 1
+									utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is a consumer label on %s workload - rule %s", input.PCE.Labels[l.Href].Value, input.PCE.Labels[l.Href].Key, input.PCE.Workloads[c.Workload.Href].Name, r.Href), false)
+								}
 							}
 						}
 					}
@@ -550,18 +563,27 @@ func ExportRules(input Input) {
 				}
 				// Workloads
 				if p.Workload != nil {
-					if val, ok := csvEntryMap[HeaderProviderWorkloads]; ok {
-						csvEntryMap[HeaderProviderWorkloads] = fmt.Sprintf("%s;%s", val, input.PCE.Workloads[p.Workload.Href].Hostname)
+					// Get the hostname
+					pceHostname := ""
+					if pceWorkload, ok := input.PCE.Workloads[p.Workload.Href]; ok {
+						pceHostname = pceWorkload.Hostname
 					} else {
-						csvEntryMap[HeaderProviderWorkloads] = input.PCE.Workloads[p.Workload.Href].Hostname
+						pceHostname = "DELETED-WORKLOAD"
+					}
+					if val, ok := csvEntryMap[HeaderProviderWorkloads]; ok {
+						csvEntryMap[HeaderProviderWorkloads] = fmt.Sprintf("%s;%s", val, pceHostname)
+					} else {
+						csvEntryMap[HeaderProviderWorkloads] = pceHostname
 					}
 					// Check the labels
-					if _, wkldExists := input.PCE.Workloads[p.Workload.Href]; wkldExists {
-						if input.PCE.Workloads[p.Workload.Href].Labels != nil {
-							for _, l := range *input.PCE.Workloads[p.Workload.Href].Labels {
-								if val, ok := ruleFilter[l.Href]; ok {
-									ruleFilter[l.Href] = val + 1
-									utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is a provider label on %s workload - rule %s", input.PCE.Labels[l.Href].Value, input.PCE.Labels[l.Href].Key, input.PCE.Workloads[p.Workload.Href].Name, r.Href), false)
+					if pceHostname != "" {
+						if _, wkldExists := input.PCE.Workloads[p.Workload.Href]; wkldExists {
+							if input.PCE.Workloads[p.Workload.Href].Labels != nil {
+								for _, l := range *input.PCE.Workloads[p.Workload.Href].Labels {
+									if val, ok := ruleFilter[l.Href]; ok {
+										ruleFilter[l.Href] = val + 1
+										utils.LogInfo(fmt.Sprintf("filter match - %s (%s) is a provider label on %s workload - rule %s", input.PCE.Labels[l.Href].Value, input.PCE.Labels[l.Href].Key, input.PCE.Workloads[p.Workload.Href].Name, r.Href), false)
+									}
 								}
 							}
 						}

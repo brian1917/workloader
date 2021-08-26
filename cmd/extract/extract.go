@@ -125,7 +125,7 @@ func ipLists() {
 	for _, p := range pStatus {
 		// Reset the services API and then call it for each provision status
 		ipListAPI := illumioapi.APIResponse{}
-		ipLists := []illumioapi.IPList{}
+		var ipLists []illumioapi.IPList
 		if p == "draft" {
 			ipLists, ipListAPI, err = pce.GetAllDraftIPLists()
 			if err != nil {
