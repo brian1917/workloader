@@ -607,7 +607,9 @@ func ExportRules(input Input) {
 
 			// Services
 			services := []string{}
+			// Iterate through ingress service
 			for _, s := range *r.IngressServices {
+				// Windows Services
 				if s.Href != nil && input.PCE.Services[*s.Href].WindowsServices != nil {
 					a := input.PCE.Services[*s.Href]
 					b, _ := a.ParseService()
@@ -617,6 +619,7 @@ func ExportRules(input Input) {
 						services = append(services, fmt.Sprintf("%s (%s)", input.PCE.Services[*s.Href].Name, strings.Join(b, ";")))
 					}
 				}
+				// Port/Proto Services
 				if s.Href != nil && input.PCE.Services[*s.Href].ServicePorts != nil {
 					a := input.PCE.Services[*s.Href]
 					_, b := a.ParseService()
@@ -630,8 +633,14 @@ func ExportRules(input Input) {
 						}
 					}
 				}
+
+				// Port or port ranges
 				if s.Href == nil {
-					services = append(services, fmt.Sprintf("%d %s", *s.Port, illumioapi.ProtocolList()[*s.Protocol]))
+					if s.ToPort == nil || *s.ToPort == 0 {
+						services = append(services, fmt.Sprintf("%d %s", *s.Port, illumioapi.ProtocolList()[*s.Protocol]))
+					} else {
+						services = append(services, fmt.Sprintf("%d-%d %s", *s.Port, *s.ToPort, illumioapi.ProtocolList()[*s.Protocol]))
+					}
 				}
 			}
 			csvEntryMap[HeaderServices] = strings.Join(services, ";")

@@ -106,13 +106,17 @@ func parseCSVPortEntry(entry string) (protocol string, port *int, toPort *int, e
 			return protocol, port, toPort, err
 		}
 	} else {
-		*port, err = strconv.Atoi(s[0])
+
+		a, err := strconv.Atoi(s[0])
+		port = &a
 		if err != nil {
 			return protocol, port, toPort, err
 		}
-		*toPort, err = strconv.Atoi(s[1][:len(s[1])-3])
+		b, err := strconv.Atoi(s[1][:len(s[1])-3])
+		toPort = &b
 		if err != nil {
 			return protocol, port, toPort, err
+
 		}
 	}
 
