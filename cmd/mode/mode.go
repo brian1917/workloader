@@ -15,21 +15,22 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Set the Headers
+const (
+	headerHref        = "href"
+	headerEnforcement = "enforcement"
+	headerVisibility  = "visibility"
+)
+
 // Set global variables for flags
 var csvFile string
-var debug, updatePCE, noPrompt bool
-var hrefCol, desiredStateCol int
+var useIndividualAPI, legacyPCE, updatePCE, noPrompt bool
 var pce illumioapi.PCE
 var err error
 
 // Init handles flags
 func init() {
-
-	ModeCmd.Flags().IntVar(&hrefCol, "hrefCol", 1, "Column number with href value. First column is 1.")
-	ModeCmd.Flags().IntVar(&desiredStateCol, "stateCol", 2, "Column number with desired state value.")
-	//ModeCmd.Flags().IntVar(&desiredVisibilityLevelCol, "visibilityLevelCol", 3, "Column number with desired visibility level value.")
-	ModeCmd.Flags().SortFlags = false
-
+	ModeCmd.Flags().BoolVarP(&useIndividualAPI, "individual-api", "i", false, "Use individual API calls getting workloads from the PCE. This will save time for PCEs with large number of workloads when a small amount is being changed.")
 }
 
 // ModeCmd runs the hostname parser
@@ -39,19 +40,13 @@ var ModeCmd = &cobra.Command{
 	Long: `
 Change a workload's state based on an input CSV with at least two columns: workload href and desired state.
 
-The state must be either idle, build, test, enforced-no, enforced-low, or enforced-high. The three enforced options include logging (no, low detail, or high).
+All VENs can accept the following values: idle, build, test, enforced-no, enforced-low, or enforced-high. The three enforced options include logging (no, low detail, or high).
 
-An example is below:
+20.2+ VENs can accept the following enforcement-state values: idle, visibility_only, selective, or full.
 
-+--------------------------------------------------------+-------------+
-|                          href                          |  state      |
-+--------------------------------------------------------+-------------+
-| /orgs/1/workloads/721d1621-31a6-40a0-a0cb-1e4b1c051210 | build       |
-| /orgs/1/workloads/d1e6266c-0b07-4b6e-b68f-c3f2386bdf08 | test        |
-| /orgs/1/workloads/77d72edc-8734-4a5d-a01d-d055898e6ba1 | enforced-no |
-+--------------------------------------------------------+-------------+
+20.2+ VENs accept accept the following visibility values: off, blocked, blocked_allowed. Older VENs will ignore the visibility column.
 
-Use --hrefCol and --stateCol to specify the columns if not default (href=1, state=2). Additional columns will be ignored.`,
+The acceptable headers are ` + headerHref + `, ` + headerEnforcement + `, and ` + headerVisibility + `. Additional columns will be ignored.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 		pce, err = utils.GetTargetPCE(true)
@@ -67,7 +62,6 @@ Use --hrefCol and --stateCol to specify the columns if not default (href=1, stat
 		csvFile = args[0]
 
 		// Get Viper configuration
-		debug = viper.Get("debug").(bool)
 		updatePCE = viper.Get("update_pce").(bool)
 		noPrompt = viper.Get("no_prompt").(bool)
 
@@ -76,20 +70,21 @@ Use --hrefCol and --stateCol to specify the columns if not default (href=1, stat
 }
 
 type target struct {
-	workloadHref string
-	targetMode   string
+	href        string
+	enforcement string
+	visibility  string
 }
 
 func parseCsv(filename string) []target {
 
-	// If debug, log the columns before adjusting by 1
-	if debug {
-		utils.LogDebug(fmt.Sprintf("CSV Columns. Href: %d; DesiredState: %d", hrefCol, desiredStateCol))
+	// Get PCE Version
+	version, err := pce.GetVersion()
+	if err != nil {
+		utils.LogError(err.Error())
 	}
-
-	// Adjust the columns so first column is  0
-	hrefCol--
-	desiredStateCol--
+	if version.Major < 20 || (version.Major == 20 && version.Minor < 2) {
+		legacyPCE = true
+	}
 
 	// Create our targets slice to hold results
 	var targets []target
@@ -104,6 +99,9 @@ func parseCsv(filename string) []target {
 
 	// Start the counter
 	i := 0
+
+	// Initiate the header map
+	csvHeaders := make(map[string]*int)
 
 	// Iterate through CSV entries
 	for {
@@ -120,17 +118,42 @@ func parseCsv(filename string) []target {
 		// Increment the counter
 		i++
 
-		// Skipe the header row
+		// Populate headers
 		if i == 1 {
+			for r, header := range line {
+				x := r
+				csvHeaders[header] = &x
+			}
+			if csvHeaders[headerEnforcement] == nil || csvHeaders[headerHref] == nil {
+				utils.LogError("href and enforcement are required headers.")
+			}
 			continue
 		}
 
 		// Check to make sure we have a valid build state and then append to targets slice
-		m := strings.ToLower(line[desiredStateCol])
-		if m != "idle" && m != "build" && m != "test" && m != "enforced-no" && m != "enforced-low" && m != "enforced-high" {
-			utils.LogError(fmt.Sprintf("invalid mode on line %d - %s not acceptable. Values must be idle, build, test, enforced-no, enforced-low, or enforced-high", i, line[desiredStateCol]))
+		m := strings.ToLower(line[*csvHeaders[headerEnforcement]])
+		if legacyPCE {
+			if m != "idle" && m != "build" && m != "test" && m != "enforced-no" && m != "enforced-low" && m != "enforced-high" {
+				utils.LogError(fmt.Sprintf("csv line %d - invalid mode for a %d.%d pce - %s not acceptable. Values must be idle, build, test, enforced-no, enforced-low, enforced-high", i, version.Major, version.Minor, line[*csvHeaders[headerEnforcement]]))
+			}
+		} else {
+			if m != "idle" && m != "visibility_only" && m != "selective" && m != "full" {
+				utils.LogError(fmt.Sprintf("csv line %d - invalid mode for a %d.%d pce - %s not acceptable. Values must be idle, visibility_only, selective, full", i, version.Major, version.Minor, line[*csvHeaders[headerEnforcement]]))
+			}
 		}
-		targets = append(targets, target{workloadHref: line[hrefCol], targetMode: m})
+
+		v := ""
+		if csvHeaders[headerVisibility] != nil && !legacyPCE {
+			v = strings.ToLower(line[*csvHeaders[headerVisibility]])
+			if v != "off" && v != "blocked" && v != "blocked_allowed" && v != "enhanced_data_collection" && v != "" {
+				utils.LogError(fmt.Sprintf("csv line %d - invalid mode - %s not acceptable. Values must be off, blocked, blocked_allowed, enhanced_data_collection, or a blank value", i, line[*csvHeaders[headerVisibility]]))
+			}
+			if (v != "blocked_allowed" && v != "enhanced_data_collection") && m != "full" {
+				utils.LogError(fmt.Sprintf("csv line %d - invalid combination - %s visibility and %s enforcement", i, v, m))
+			}
+		}
+
+		targets = append(targets, target{href: line[*csvHeaders[headerHref]], enforcement: m, visibility: v})
 	}
 
 	return targets
@@ -141,23 +164,46 @@ func modeUpdate() {
 	// Log start of execution
 	utils.LogStartCommand("mode")
 
-	// Build a map of all managed workloads
-	wkldMap, a, err := pce.GetWkldHrefMap()
-	if debug {
-		utils.LogAPIResp("GetWkldHrefMap", a)
-	}
-	if err != nil {
-		utils.LogError(fmt.Sprintf("error getting workload map - %s", err))
-	}
-
 	// Get targets
 	targets := parseCsv(csvFile)
+
+	// Get workloads
+	var wklds []illumioapi.Workload
+	var a illumioapi.APIResponse
+
+	if useIndividualAPI {
+		for i, t := range targets {
+			w, a, err := pce.GetWkldByHref(t.href)
+			utils.LogAPIResp("GetWkldByHref", a)
+			if err != nil {
+				utils.LogError(err.Error())
+			}
+			fmt.Printf("\r%s [INFO] - Getting %d of %d workloads (%d%%) from PCE.", time.Now().Format("2006-01-02 15:04:05 "), i+1, len(targets), (i+1)*100/len(targets))
+			wklds = append(wklds, w)
+		}
+		fmt.Println()
+	} else {
+		var qp = (map[string]string{"managed": "true"})
+		utils.LogInfo("Getting all managed worklodas from the PCE. For large deployments and limited number of mode changes, it might be quicker to use the -i flag to run individual API calls to get just workloads that will be changed.", true)
+		wklds, a, err = pce.GetAllWorkloadsQP(qp)
+		utils.LogAPIResp("GetAllWorkloadsQP", a)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+	}
+
+	// Build the map
+	wkldMap := make(map[string]illumioapi.Workload)
+	for _, w := range wklds {
+		wkldMap[w.Href] = w
+	}
+	utils.LogAPIResp("GetWkldHrefMap", a)
 
 	// Create a slice to hold all the workloads we need to update
 	workloadUpdates := []illumioapi.Workload{}
 
 	// Build data slice for writing
-	data := [][]string{[]string{"hostname", "href", "role", "app", "env", "loc", "current_mode", "target_mode"}}
+	data := [][]string{[]string{"hostname", "href", "role", "app", "env", "loc", "current_enforcement", "target_enforcement", "current_visibility", "target_visibility"}}
 
 	// Enforcement switch is false unless we are moving a workload into enforcement
 	enforceCount := 0
@@ -166,23 +212,39 @@ func modeUpdate() {
 	for _, t := range targets {
 
 		// Check if the mode matches the target mode
-		if w, ok := wkldMap[t.workloadHref]; ok {
-			if w.GetMode() != t.targetMode {
-				// Log the change is needed
-				utils.LogInfo(fmt.Sprintf("required Change - %s - current state: %s - desired state: %s", w.Hostname, w.GetMode(), t.targetMode), false)
-				data = append(data, []string{w.Hostname, w.Href, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, w.GetMode(), t.targetMode})
-				// Copy workload with the right target mode and append to slice
-				if err := w.SetMode(t.targetMode); err != nil {
-					utils.LogError(fmt.Sprintf("error setting mode - %s", err))
+		if w, ok := wkldMap[t.href]; ok {
+			update := false
+			currentEnforcement := ""
+			currentVisibility := ""
+			// Enforcement
+			if w.GetMode() != t.enforcement && t.enforcement != "" {
+				utils.LogInfo(fmt.Sprintf("required change - %s - current enforcement: %s - desired enforcement: %s", w.Hostname, w.GetMode(), t.enforcement), false)
+				update = true
+				currentEnforcement = w.GetMode()
+				if err := w.SetMode(t.enforcement); err != nil {
+					utils.LogError(fmt.Sprintf("error setting enforcemment - %s", err))
 				}
+			}
+			// Visibility
+			if !legacyPCE && (w.GetVisibilityLevel() != t.visibility) && t.visibility != "" {
+				utils.LogInfo(fmt.Sprintf("required change - %s - current visibility: %s - desired visibility: %s", w.Hostname, w.GetVisibilityLevel(), t.visibility), false)
+				update = true
+				currentVisibility = w.GetVisibilityLevel()
+				if err := w.SetVisibilityLevel(t.visibility); err != nil {
+					utils.LogError(fmt.Sprintf("error setting visibility - %s", err))
+				}
+			}
+			if update {
+				data = append(data, []string{w.Hostname, w.Href, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, currentEnforcement, w.GetMode(), currentVisibility, w.GetVisibilityLevel()})
 				workloadUpdates = append(workloadUpdates, w)
 				// Check if we are going into enforcement
-				if t.targetMode == "enforced-no" || t.targetMode == "enforced-low" || t.targetMode == "enforced-high" {
+				if t.enforcement == "enforced-no" || t.enforcement == "enforced-low" || t.enforcement == "enforced-high" || t.enforcement == "full" || t.enforcement == "selective" {
 					enforceCount++
 				}
 			}
+
 		} else {
-			utils.LogWarning(fmt.Sprintf("%s is not a managed workload in the PCE", t.workloadHref), true)
+			utils.LogWarning(fmt.Sprintf("%s is not a managed workload in the PCE", t.href), true)
 		}
 	}
 
@@ -228,9 +290,10 @@ func modeUpdate() {
 
 		// If we get here, user accepted prompt or no-prompt was set.
 		api, err := pce.BulkWorkload(workloadUpdates, "update", true)
-		if debug {
-			for _, a := range api {
-				utils.LogAPIResp("BulkWorkloadUpdate", a)
+		for _, a := range api {
+			utils.LogAPIResp("BulkWorkloadUpdate", a)
+			for _, w := range a.Warnings {
+				utils.LogWarning(w, true)
 			}
 		}
 		if err != nil {
@@ -238,10 +301,9 @@ func modeUpdate() {
 		}
 		// Log successful run.
 		utils.LogInfo(fmt.Sprintf("bulk updated %d workloads. API Responses:", len(workloadUpdates)), false)
-		if !debug {
-			for _, a := range api {
-				utils.LogInfo(a.RespBody, false)
-			}
+		for _, a := range api {
+			utils.LogInfo(a.RespBody, false)
+
 		}
 	}
 
