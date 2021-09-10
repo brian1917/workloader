@@ -122,7 +122,11 @@ func parseCsv(filename string) []target {
 		if i == 1 {
 			for r, header := range line {
 				x := r
-				csvHeaders[header] = &x
+				if header == "state" {
+					csvHeaders[headerEnforcement] = &x
+				} else {
+					csvHeaders[header] = &x
+				}
 			}
 			if csvHeaders[headerEnforcement] == nil || csvHeaders[headerHref] == nil {
 				utils.LogError("href and enforcement are required headers.")
