@@ -135,29 +135,29 @@ func parseCsv(filename string) []target {
 		}
 
 		// Check to make sure we have a valid build state and then append to targets slice
-		m := strings.ToLower(line[*csvHeaders[headerEnforcement]])
+		targetMode := strings.ToLower(line[*csvHeaders[headerEnforcement]])
 		if legacyPCE {
-			if m != "idle" && m != "build" && m != "test" && m != "enforced-no" && m != "enforced-low" && m != "enforced-high" {
+			if targetMode != "idle" && targetMode != "build" && targetMode != "test" && targetMode != "enforced-no" && targetMode != "enforced-low" && targetMode != "enforced-high" {
 				utils.LogError(fmt.Sprintf("csv line %d - invalid mode for a %d.%d pce - %s not acceptable. Values must be idle, build, test, enforced-no, enforced-low, enforced-high", i, version.Major, version.Minor, line[*csvHeaders[headerEnforcement]]))
 			}
 		} else {
-			if m != "idle" && m != "visibility_only" && m != "selective" && m != "full" {
+			if targetMode != "idle" && targetMode != "visibility_only" && targetMode != "selective" && targetMode != "full" {
 				utils.LogError(fmt.Sprintf("csv line %d - invalid mode for a %d.%d pce - %s not acceptable. Values must be idle, visibility_only, selective, full", i, version.Major, version.Minor, line[*csvHeaders[headerEnforcement]]))
 			}
 		}
 
-		v := ""
+		targetVisibility := ""
 		if csvHeaders[headerVisibility] != nil && !legacyPCE {
-			v = strings.ToLower(line[*csvHeaders[headerVisibility]])
-			if v != "off" && v != "blocked" && v != "blocked_allowed" && v != "enhanced_data_collection" && v != "" {
+			targetVisibility = strings.ToLower(line[*csvHeaders[headerVisibility]])
+			if targetVisibility != "off" && targetVisibility != "blocked" && targetVisibility != "blocked_allowed" && targetVisibility != "enhanced_data_collection" && targetVisibility != "" {
 				utils.LogError(fmt.Sprintf("csv line %d - invalid mode - %s not acceptable. Values must be off, blocked, blocked_allowed, enhanced_data_collection, or a blank value", i, line[*csvHeaders[headerVisibility]]))
 			}
-			if (v != "blocked_allowed" && v != "enhanced_data_collection") && m != "full" {
-				utils.LogError(fmt.Sprintf("csv line %d - invalid combination - %s visibility and %s enforcement", i, v, m))
+			if targetMode != "full" && (targetVisibility != "blocked_allowed" && targetVisibility != "enhanced_data_collection") {
+				utils.LogError(fmt.Sprintf("csv line %d - invalid combination - %s visibility and %s enforcement", i, targetVisibility, targetMode))
 			}
 		}
 
-		targets = append(targets, target{href: line[*csvHeaders[headerHref]], enforcement: m, visibility: v})
+		targets = append(targets, target{href: line[*csvHeaders[headerHref]], enforcement: targetMode, visibility: targetVisibility})
 	}
 
 	return targets
