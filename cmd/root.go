@@ -50,6 +50,8 @@ import (
 	"github.com/brian1917/workloader/cmd/umwlcleanup"
 	"github.com/brian1917/workloader/cmd/unpair"
 	"github.com/brian1917/workloader/cmd/upgrade"
+	"github.com/brian1917/workloader/cmd/venexport"
+	"github.com/brian1917/workloader/cmd/venimport"
 	"github.com/brian1917/workloader/cmd/wkldexport"
 	"github.com/brian1917/workloader/cmd/wkldimport"
 	"github.com/brian1917/workloader/cmd/wkldiplmapping"
@@ -112,6 +114,8 @@ func init() {
 	// Import/Export
 	RootCmd.AddCommand(wkldexport.WkldExportCmd)
 	RootCmd.AddCommand(wkldimport.WkldImportCmd)
+	RootCmd.AddCommand(venexport.VenExportCmd)
+	RootCmd.AddCommand(venimport.VenImportCmd)
 	RootCmd.AddCommand(iplexport.IplExportCmd)
 	RootCmd.AddCommand(iplimport.IplImportCmd)
 	RootCmd.AddCommand(labelexport.LabelExportCmd)
