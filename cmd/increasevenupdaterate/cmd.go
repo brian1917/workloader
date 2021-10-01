@@ -63,7 +63,9 @@ func increaseVENUpdateRate() {
 	utils.LogStartCommand("increase-ven-rate")
 
 	// Get the labels
-	if err := pce.Load(illumioapi.LoadInput{Labels: true}); err != nil {
+	apiResps, err := pce.Load(illumioapi.LoadInput{Labels: true})
+	utils.LogMultiAPIResp(apiResps)
+	if err != nil {
 		utils.LogError(err.Error())
 	}
 

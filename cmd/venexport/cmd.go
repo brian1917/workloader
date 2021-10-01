@@ -47,7 +47,9 @@ func exportVens() {
 	csvData := [][]string{{HeaderName, HeaderHostname, HeaderDescription, HeaderStatus, HeaderVersion, HeaderActivationType, HeaderActivePceFqdn, HeaderTargetPceFqdn, HeaderWorkloads, HeaderContainerCluster, HeaderHref, HeaderUID}}
 
 	// Load the PCE
-	if err := pce.Load(illumioapi.LoadInput{Workloads: true, WorkloadsQueryParameters: map[string]string{"managed": "true"}, VENs: true, ContainerClusters: true, ContainerWorkloads: true}); err != nil {
+	apiResps, err := pce.Load(illumioapi.LoadInput{Workloads: true, WorkloadsQueryParameters: map[string]string{"managed": "true"}, VENs: true, ContainerClusters: true, ContainerWorkloads: true})
+	utils.LogMultiAPIResp(apiResps)
+	if err != nil {
 		utils.LogError(err.Error())
 	}
 

@@ -97,7 +97,9 @@ func explorerExport() {
 	tq.MaxFLows = maxResults
 
 	// Get Labels and workloads
-	if err := pce.Load(illumioapi.LoadInput{Labels: true, Workloads: true}); err != nil {
+	apiResps, err := pce.Load(illumioapi.LoadInput{Labels: true, Workloads: true})
+	utils.LogMultiAPIResp(apiResps)
+	if err != nil {
 		utils.LogError(err.Error())
 	}
 

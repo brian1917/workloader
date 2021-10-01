@@ -91,7 +91,9 @@ func ImportLabels(pce illumioapi.PCE, inputFile string, updatePCE, noPrompt bool
 	reader := csv.NewReader(utils.ClearBOM(bufio.NewReader(file)))
 
 	// Get all the labels
-	if err := pce.Load(illumioapi.LoadInput{Labels: true}); err != nil {
+	apiResps, err := pce.Load(illumioapi.LoadInput{Labels: true})
+	utils.LogMultiAPIResp(apiResps)
+	if err != nil {
 		utils.LogError(err.Error())
 	}
 

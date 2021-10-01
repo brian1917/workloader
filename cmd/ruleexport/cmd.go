@@ -179,7 +179,7 @@ func ExportRules(input Input) {
 		neededObjectsSlice = append(neededObjectsSlice, n)
 	}
 	utils.LogInfo(fmt.Sprintf("getting %s ...", strings.Join(neededObjectsSlice, ", ")), true)
-	if err = input.PCE.Load(illumioapi.LoadInput{
+	apiResps, err := input.PCE.Load(illumioapi.LoadInput{
 		Labels:                      true,
 		IPLists:                     true,
 		Services:                    true,
@@ -189,7 +189,9 @@ func ExportRules(input Input) {
 		VirtualServices:             needVirtualServices,
 		VirtualServers:              needVirtualServers,
 		ProvisionStatus:             input.PolicyVersion,
-	}); err != nil {
+	})
+	utils.LogMultiAPIResp(apiResps)
+	if err != nil {
 		utils.LogError(err.Error())
 	}
 

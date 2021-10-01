@@ -95,7 +95,9 @@ func wkldToIPLMapping(input input) {
 	utils.LogStartCommand("wkld-ipl-mapping")
 
 	// Load the PCE
-	if err := input.pce.Load(illumioapi.LoadInput{Labels: true, IPLists: true, Workloads: false}); err != nil {
+	apiResps, err := input.pce.Load(illumioapi.LoadInput{Labels: true, IPLists: true, Workloads: false})
+	utils.LogMultiAPIResp(apiResps)
+	if err != nil {
 		utils.LogError(err.Error())
 	}
 

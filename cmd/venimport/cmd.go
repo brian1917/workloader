@@ -72,7 +72,9 @@ func importVens() {
 	utils.LogStartCommand("ven-import")
 
 	// Load PCE
-	if err := pce.Load(illumioapi.LoadInput{VENs: true}); err != nil {
+	apiResps, err := pce.Load(illumioapi.LoadInput{VENs: true})
+	utils.LogMultiAPIResp(apiResps)
+	if err != nil {
 		utils.LogError(err.Error())
 	}
 

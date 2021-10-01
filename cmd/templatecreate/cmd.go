@@ -73,7 +73,9 @@ func importTemplate() {
 	utils.LogStartCommand("template-create")
 
 	// Load the PCE with RuleSets
-	if err := pce.Load(illumioapi.LoadInput{RuleSets: true}); err != nil {
+	apiResps, err := pce.Load(illumioapi.LoadInput{RuleSets: true})
+	utils.LogMultiAPIResp(apiResps)
+	if err != nil {
 		utils.LogError(err.Error())
 	}
 

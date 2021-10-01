@@ -86,6 +86,12 @@ func LogAPIResp(callType string, apiResp illumioapi.APIResponse) {
 	}
 }
 
+func LogMultiAPIResp(APIResps map[string]illumioapi.APIResponse) {
+	for k, v := range APIResps {
+		LogAPIResp(k, v)
+	}
+}
+
 // LogStartCommand is used at the beginning of each command
 func LogStartCommand(commandName string) {
 	Logger.Println("-----------------------------------------------------------------------------")

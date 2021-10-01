@@ -110,7 +110,9 @@ Recommended to run without --update-pce first to log of what will change. If --u
 		input.NoPrompt = viper.Get("no_prompt").(bool)
 
 		// Load the PCE with workloads
-		if err := input.PCE.Load(illumioapi.LoadInput{Workloads: true}); err != nil {
+		apiResps, err := input.PCE.Load(illumioapi.LoadInput{Workloads: true})
+		utils.LogMultiAPIResp(apiResps)
+		if err != nil {
 			utils.LogError(err.Error())
 		}
 

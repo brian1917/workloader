@@ -235,7 +235,7 @@ func ImportRulesFromCSV(input Input) {
 		neededObjectsSlice = append(neededObjectsSlice, n)
 	}
 	utils.LogInfo(fmt.Sprintf("getting %s ...", strings.Join(neededObjectsSlice, ", ")), true)
-	if err := input.PCE.Load(illumioapi.LoadInput{
+	apiResps, err := input.PCE.Load(illumioapi.LoadInput{
 		ProvisionStatus:             "draft",
 		Labels:                      true,
 		IPLists:                     true,
@@ -245,7 +245,9 @@ func ImportRulesFromCSV(input Input) {
 		VirtualServers:              needVirtualServers,
 		VirtualServices:             needVirtualServices,
 		ConsumingSecurityPrincipals: needUserGroups,
-	}); err != nil {
+	})
+	utils.LogMultiAPIResp(apiResps)
+	if err != nil {
 		utils.LogError(err.Error())
 	}
 
