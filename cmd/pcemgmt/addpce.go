@@ -46,6 +46,8 @@ to generate a session token that is valid for 10 minutes after inactivity.
 The command can be automated (avoid prompt) by setting the following environment variables:
 PCE_NAME, PCE_FQDN, PCE_PORT, PCE_USER, PCE_PWD, PCE_DISABLET_TLS.
 
+The ILLUMIO_LOGIN_SERVER environment variable can be used to specify a login server (note - rarely needed).
+
 The --update-pce and --no-prompt flags are ignored for this command.
 `,
 	PreRun: func(cmd *cobra.Command, args []string) {
@@ -93,7 +95,7 @@ func addPCE() {
 	if pceName == "" {
 		fmt.Print("Name of PCE (no spaces or periods) [default-pce]: ")
 		fmt.Scanln(&pceName)
-		for strings.Contains(pceName, "."){
+		for strings.Contains(pceName, ".") {
 			fmt.Println("\r\n[WARNING] - The name of the PCE cannot contain periods. Please re-enter.")
 			fmt.Print("Name of PCE (no spaces or periods) [default-pce]: ")
 			fmt.Scanln(&pceName)
