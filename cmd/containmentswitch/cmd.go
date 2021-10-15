@@ -146,7 +146,7 @@ func portLock(port int, protocol string) {
 		// Get all the workloads with the inbound traffic
 		targetWorkloads := make(map[string]illumioapi.Workload)
 		for _, t := range traffic {
-			if t.Dst.Workload != nil {
+			if t.Dst.Workload != nil && t.Dst.Workload.Href != "" {
 				targetWorkloads[t.Dst.Workload.Href] = *t.Dst.Workload
 			}
 		}
