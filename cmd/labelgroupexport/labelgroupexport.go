@@ -61,22 +61,16 @@ func exportLabels() {
 	utils.LogInfo(fmt.Sprintf("provision status: %s", provisionStatus), false)
 
 	// Start the data slice with headers
-	csvData := [][]string{[]string{"name", "key", "description", "member_labels", "member_label_groups", "fully_expanded_members", "href"}}
+	csvData := [][]string{[]string{HeaderName, HeaderKey, HeaderDescription, HeaderMemberLabels, HeaderMemberLabelGroups, HeaderFullyExpandedMembers, HeaderHref}}
 
 	// GetAllLabelGroups
-	lgs, a, err := pce.GetAllLabelGroups(provisionStatus)
-	utils.LogAPIResp("GetAllLabelGroups", a)
+	apiResps, err := pce.Load(illumioapi.LoadInput{LabelGroups: true, ProvisionStatus: provisionStatus})
+	utils.LogMultiAPIResp(apiResps)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
 
-	// Populuate the LabelGroupMap
-	pce.LabelGroups = make(map[string]illumioapi.LabelGroup)
-	for _, lg := range lgs {
-		pce.LabelGroups[lg.Href] = lg
-	}
-
-	for _, lg := range lgs {
+	for _, lg := range pce.LabelGroupsSlice {
 		// Find members
 		labels := []string{}
 		sgs := []string{}
