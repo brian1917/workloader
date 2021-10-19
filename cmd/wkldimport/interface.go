@@ -10,37 +10,55 @@ import (
 
 // userInputConvert takes an ip address in the format of eth0:192.168.20.21 and returns an illumio interface struct
 func userInputConvert(ip string) (illumioapi.Interface, error) {
-	var ifaceName, ifaceAddress string
 
 	x := strings.Split(ip, ":")
 
+	// If the length is 1, we know it's IPv4 with no interface name
 	if len(x) == 1 {
-		ifaceName = "umwl"
-		ifaceAddress = x[0]
-	} else if len(x) == 2 {
-		ifaceName = x[0]
-		ifaceAddress = x[1]
-	} else {
-		return illumioapi.Interface{}, fmt.Errorf("%s is not a valid format", ip)
+		nic, err := ipCheck(ip)
+		nic.Name = "umwl"
+		return nic, err
 	}
 
-	// If the input includes a CIDR, make sure it's valid by parsing and then return it
-	if strings.Contains(ifaceAddress, "/") {
-		ipAddress, ipNet, err := net.ParseCIDR(ifaceAddress)
-		if err != nil {
-			return illumioapi.Interface{}, err
+	// If the length is 2, we know it's an IPv4 address with an interface name
+	if len(x) == 2 {
+		nic, err := ipCheck(x[1])
+		nic.Name = x[0]
+		return nic, err
+	}
+
+	// If the length is greater than 2, it's an IPv6 address. Check with no name. If err is nil, return it
+	nic, err := ipCheck(ip)
+	if err == nil {
+		nic.Name = "umwl"
+		return nic, err
+	}
+
+	// Check with name
+	nic, err = ipCheck(strings.Join(x[1:], ":"))
+	if err == nil {
+		nic.Name = x[0]
+		return nic, err
+	}
+
+	return illumioapi.Interface{}, fmt.Errorf("%s is an invalid ip format", ip)
+}
+
+func ipCheck(ip string) (illumioapi.Interface, error) {
+	if strings.Contains(ip, "/") {
+		ipAddress, ipNet, err := net.ParseCIDR(ip)
+		if err == nil {
+			cidr, _ := ipNet.Mask.Size()
+			return illumioapi.Interface{Address: ipAddress.String(), CidrBlock: &cidr}, nil
 		}
-		cidr, _ := ipNet.Mask.Size()
-		return illumioapi.Interface{Address: ipAddress.String(), CidrBlock: &cidr, Name: ifaceName}, nil
 	}
 
-	// We only get here if it does not include CIDR notation.
-	// Validate IP address by parsing it with /32
-	ipAddress := net.ParseIP(ifaceAddress)
-	if ipAddress == nil {
-		return illumioapi.Interface{}, fmt.Errorf("%s is an invalid ip address", ip)
+	ipAddress := net.ParseIP(ip)
+	if ipAddress != nil {
+		return illumioapi.Interface{Address: ipAddress.String(), CidrBlock: nil}, nil
 	}
-	return illumioapi.Interface{Address: ipAddress.String(), CidrBlock: nil, Name: ifaceName}, nil
+
+	return illumioapi.Interface{}, fmt.Errorf("invalid IP address")
 }
 
 // publicIPIsValid validates the ip string is either a valid CIDR or IP address
