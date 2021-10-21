@@ -24,6 +24,7 @@ import (
 	"github.com/brian1917/workloader/cmd/increasevenupdaterate"
 	"github.com/brian1917/workloader/cmd/iplexport"
 	"github.com/brian1917/workloader/cmd/iplimport"
+	"github.com/brian1917/workloader/cmd/iplreplace"
 	"github.com/brian1917/workloader/cmd/labelexport"
 	"github.com/brian1917/workloader/cmd/labelgroupexport"
 	"github.com/brian1917/workloader/cmd/labelgroupimport"
@@ -118,6 +119,7 @@ func init() {
 	RootCmd.AddCommand(venimport.VenImportCmd)
 	RootCmd.AddCommand(iplexport.IplExportCmd)
 	RootCmd.AddCommand(iplimport.IplImportCmd)
+	RootCmd.AddCommand(iplreplace.IplReplaceCmd)
 	RootCmd.AddCommand(labelexport.LabelExportCmd)
 	RootCmd.AddCommand(labelimport.LabelImportCmd)
 	RootCmd.AddCommand(labelgroupexport.LabelGroupExportCmd)
