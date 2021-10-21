@@ -1,10 +1,7 @@
 package iplimport
 
 import (
-	"bufio"
-	"encoding/csv"
 	"fmt"
-	"io"
 	"os"
 	"sort"
 	"strings"
@@ -31,22 +28,35 @@ var IplImportCmd = &cobra.Command{
 	Use:   "ipl-import [csv file to import]",
 	Short: "Create and update IP Lists from a CSV.",
 	Long: `
-Create and update IPlists from a CSV file. 
+Create and update IP lists from a CSV file.
+
+This command creates or updates multiple IP Lists at once with each IP list on a single line. To update (or create) a single IP list with IP entries on multiple lines, use the ipl-replace command.
 
 The input should have a header row as the first row will be skipped. An example input file is below.
-	
-The default import format is below. It matches the columns of the workloader ipl-export command to easily export workloads, edit, and reimport.
 
-+------------+-------------+-----------------------------------------+----------------------------------------------------------------------------------+-----------------+-------------------+-------------------+
-|    name    | description |                 include                 |                                     exclude                                      |      fqdns      | external_data_set | external_data_ref |
-+------------+-------------+-----------------------------------------+----------------------------------------------------------------------------------+-----------------+-------------------+-------------------+
-| Internet   |             | 0.0.0.0/0                               | 10.0.0.0/8;172.16.0.0/12;192.168.0.0/16;169.254.0.0/16;224.0.0.0-239.255.255.255 |                 |                   |                   |
-| Link Local |             | 169.254.0.0/16                          |                                                                                  |                 |                   |                   |
-| RFC 1918   |             | 10.0.0.0/8;172.16.0.0/12;192.168.0.0/16 |                                                                                  |                 |                   |                   |
-| Multicast  |             | 224.0.0.0-239.255.255.255               |                                                                                  |                 |                   |                   |
-| Microsoft  |             |                                         |                                                                                  | *.microsoft.com |                   |                   |
-+------------+-------------+-----------------------------------------+----------------------------------------------------------------------------------+-----------------+-------------------+-------------------+
-	
+The input file requires headers and matches fields to header values. The following headers can be used:
+` + "\r\n- " + HeaderName + "\r\n" +
+		"- " + HeaderHref + "\r\n" +
+		"- " + HeaderDescription + "\r\n" +
+		"- " + HeaderInclude + "\r\n" +
+		"- " + HeaderExclude + "\r\n" +
+		"- " + HeaderFqdns + "\r\n" +
+		"- " + HeaderExternalDataSet + "\r\n" +
+		"- " + HeaderExternalDataRef + "\r\n" + `
+
+If an href value is provided the the IPL with the matching href will be updated. If href value is not provided, the name is used to match. If the name exists it in the PCE, the IPL is updated. If the name does not exist it is created.
+
+An example input format for multiple iplists is below.
+
++-----------+-------------+---------------------------+-------------------------------------------------------------------+-----------------+------+
+|   name    | description |          include          |                              exclude                              |      fqdns      | href |
++-----------+-------------+---------------------------+-------------------------------------------------------------------+-----------------+------+
+| Public    |             | 0.0.0.0/0                 | 10.0.0.0/8;172.16.0.0/12;169.254.0.0/16;224.0.0.0-239.255.255.255 |                 |      |
+| Internal  |             | 10.0.0.0/8;172.16.0.0/12  |                                                                   |                 |      |
+| Multicast |             | 224.0.0.0-239.255.255.255 |                                                                   |                 |      |
+| Microsoft |             |                           |                                                                   | *.microsoft.com |      |
++-----------+-------------+---------------------------+-------------------------------------------------------------------+-----------------+------+
+
 Recommended to run without --update-pce first to log of what will change. If --update-pce is used, ipl-import will create the IP lists with a  user prompt. To disable the prompt, use --no-prompt.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
@@ -58,7 +68,7 @@ Recommended to run without --update-pce first to log of what will change. If --u
 
 		// Set the CSV file
 		if len(args) != 1 {
-			fmt.Println("Command requires 1 argument for the csv file. See usage help.")
+			fmt.Println("command requires 1 argument for the csv file. See usage help.")
 			os.Exit(0)
 		}
 		csvFile = args[0]
@@ -78,23 +88,11 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 	// Log command execution
 	utils.LogStartCommand("ipl-import")
 
-	// Hard code in some columns so we can make flags later
-	nameCol := 1
-	descCol := 2
-	incCol := 3
-	excCol := 4
-	fqdnsCol := 5
-	extDsCol := 6
-	extDrCol := 7
-
-	// Lower the hard-coded values by 1
-	nameCol--
-	descCol--
-	incCol--
-	excCol--
-	fqdnsCol--
-	extDsCol--
-	extDrCol--
+	// Parse the CSV
+	csvData, err := utils.ParseCSV(csvFile)
+	if err != nil {
+		utils.LogError(err.Error())
+	}
 
 	// Create a map for our CSV ip lists
 	type entry struct {
@@ -102,107 +100,110 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 		csvLine int
 	}
 
-	csvIPLs := make(map[string]entry)
+	csvIPLs := []entry{}
 
-	// Open CSV File
-	file, err := os.Open(csvFile)
-	if err != nil {
-		utils.LogError(err.Error())
-	}
-	defer file.Close()
-	reader := csv.NewReader(utils.ClearBOM(bufio.NewReader(file)))
+	// Create the headers
+	headers := make(map[string]*int)
 
-	// Start the counters
-	i := 0
+	// Iterate through the CSV
+csvEntries:
+	for i, line := range csvData {
+		csvLine := i + 1
 
-	// Iterate through CSV entries
-	for {
-
-		// Increment the counter
-		i++
-
-		// Read the line
-		line, err := reader.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			utils.LogError(err.Error())
-		}
-
-		// Skip the header row
-		if i == 1 {
+		// If it's the first row, process the headers
+		if i == 0 {
+			for i, l := range line {
+				x := i
+				headers[l] = &x
+			}
 			continue
 		}
 
 		// Create our array of ranges
 		ranges := []*illumioapi.IPRange{}
+		var includeCSV, excludeCSV, fqdns []string
 
-		// Build our ranges for include
-		includeCSV := strings.Split(strings.ReplaceAll(line[incCol], " ", ""), ";")
-		if includeCSV[0] == "" {
-			includeCSV = nil
-		}
-		excludeCSV := strings.Split(strings.ReplaceAll(line[excCol], " ", ""), ";")
-		if excludeCSV[0] == "" {
-			excludeCSV = nil
-		}
-		fqdns := strings.Split(strings.ReplaceAll(line[fqdnsCol], " ", ""), ";")
-		if fqdns[0] == "" {
-			fqdns = nil
-		}
-
-		// Iterate the includes
-		for _, i := range includeCSV {
-			iprange := illumioapi.IPRange{}
-			if strings.Contains(i, "-") {
-				iprange.FromIP = strings.Split(i, "-")[0]
-				iprange.ToIP = strings.Split(i, "-")[1]
-			} else {
-				iprange.FromIP = i
-			}
-			ranges = append(ranges, &iprange)
-		}
-
-		// Iterate the excludes
-		for _, i := range excludeCSV {
-			if len(excludeCSV) == 1 && len(excludeCSV[0]) == 0 {
-				continue
-			}
-			iprange := illumioapi.IPRange{}
-			if strings.Contains(i, "-") {
-				iprange.FromIP = strings.Split(i, "-")[0]
-				iprange.ToIP = strings.Split(i, "-")[1]
-			} else {
-				iprange.FromIP = i
-			}
-			iprange.Exclusion = true
-			ranges = append(ranges, &iprange)
-		}
-
-		// Iterate the FQDNs
-		fqdnsEntry := []*illumioapi.FQDN{}
-		for _, i := range fqdns {
-			if i != "" {
-				fqdnsEntry = append(fqdnsEntry, &illumioapi.FQDN{FQDN: i})
+		// Include
+		if val, ok := headers[HeaderInclude]; ok && line[*val] != "" {
+			includeCSV = strings.Split(strings.ReplaceAll(line[*val], " ", ""), ";")
+			for _, i := range includeCSV {
+				// Validate the IP
+				if !ValidateIplistEntry(i) {
+					utils.LogWarning(fmt.Sprintf("csv line %d - %s is not a valid ip list entry. skipping csv line.", csvLine, i), true)
+					continue csvEntries
+				}
+				iprange := illumioapi.IPRange{}
+				if strings.Contains(i, "-") {
+					iprange.FromIP = strings.Split(i, "-")[0]
+					iprange.ToIP = strings.Split(i, "-")[1]
+				} else {
+					iprange.FromIP = i
+				}
+				ranges = append(ranges, &iprange)
 			}
 		}
 
+		// Exclude
+		if val, ok := headers[HeaderExclude]; ok && line[*val] != "" {
+			excludeCSV = strings.Split(strings.ReplaceAll(line[*val], " ", ""), ";")
+			for _, i := range excludeCSV {
+				if len(excludeCSV) == 1 && len(excludeCSV[0]) == 0 {
+					continue
+				}
+				// Validate the IP
+				if !ValidateIplistEntry(i) {
+					utils.LogWarning(fmt.Sprintf("csv line %d - %s is not a valid ip list entry. skipping csv line.", csvLine, i), true)
+					continue csvEntries
+				}
+				iprange := illumioapi.IPRange{}
+				if strings.Contains(i, "-") {
+					iprange.FromIP = strings.Split(i, "-")[0]
+					iprange.ToIP = strings.Split(i, "-")[1]
+				} else {
+					iprange.FromIP = i
+				}
+				iprange.Exclusion = true
+				ranges = append(ranges, &iprange)
+			}
+		}
+
+		// FQDNs
+		var fqdnsEntry []*illumioapi.FQDN
+		if val, ok := headers[HeaderFqdns]; ok && line[*val] != "" {
+			fqdns = strings.Split(strings.ReplaceAll(line[*val], " ", ""), ";")
+			for _, i := range fqdns {
+				if i != "" {
+					fqdnsEntry = append(fqdnsEntry, &illumioapi.FQDN{FQDN: i})
+				}
+			}
+		}
+
+		// Create the IP list
+		ipl := illumioapi.IPList{IPRanges: ranges, FQDNs: fqdnsEntry}
+		if val, ok := headers[HeaderName]; ok {
+			ipl.Name = line[*val]
+		}
+		if val, ok := headers[HeaderDescription]; ok {
+			ipl.Description = line[*val]
+		}
+		if val, ok := headers[HeaderExternalDataRef]; ok {
+			ipl.ExternalDataReference = line[*val]
+		}
+		if val, ok := headers[HeaderExternalDataSet]; ok {
+			ipl.ExternalDataSet = line[*val]
+		}
+		if val, ok := headers[HeaderHref]; ok {
+			ipl.Href = line[*val]
+		}
 		// Add our IPlist to our CSV Map
-		csvIPLs[line[nameCol]] = entry{
-			csvLine: i,
-			IPL:     illumioapi.IPList{Name: line[nameCol], Description: line[descCol], IPRanges: ranges, FQDNs: fqdnsEntry, ExternalDataSet: line[extDsCol], ExternalDataReference: line[extDrCol]}}
+		csvIPLs = append(csvIPLs, entry{csvLine: i, IPL: ipl})
 	}
 
 	// Get all IP lists in the pce
-	existingIPLsSlice, a, err := pce.GetAllDraftIPLists()
-	utils.LogAPIResp("GetAllDraftIPLists", a)
+	apiResps, err := pce.Load(illumioapi.LoadInput{IPLists: true})
+	utils.LogMultiAPIResp(apiResps)
 	if err != nil {
 		utils.LogError(err.Error())
-	}
-	existingIPLs := make(map[string]illumioapi.IPList)
-	for _, e := range existingIPLsSlice {
-		existingIPLs[e.Name] = e
 	}
 
 	// Create a map of CSV IP ranges
@@ -218,7 +219,7 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 
 	// Create a map of Existing IP ranges
 	existingRangeMap := make(map[string]bool)
-	for _, ipl := range existingIPLs {
+	for _, ipl := range pce.IPListsSlice {
 		for _, iplr := range ipl.IPRanges {
 			existingRangeMap[fmt.Sprintf("%s%s%s%t", ipl.Name, iplr.FromIP, iplr.ToIP, iplr.Exclusion)] = true
 		}
@@ -231,83 +232,97 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 	var IPLsToCreate, IPLsToUpdate []entry
 
 	// Iterate through each CSV IP list and see what we need to do
-	for n, csvIPL := range csvIPLs {
-		if existingIPL, ok := existingIPLs[n]; !ok {
-			utils.LogInfo(fmt.Sprintf("CSV Line %d - %s does not exist and will be created.", csvIPL.csvLine, csvIPL.IPL.Name), false)
+	for _, csvIPL := range csvIPLs {
+
+		var existingIPL illumioapi.IPList
+		var ok bool
+
+		// If an href is provided, verify it exists. If it doesn't skip the entry.
+		if csvIPL.IPL.Href != "" {
+			if existingIPL, ok = pce.IPLists[csvIPL.IPL.Href]; !ok {
+				utils.LogWarning(fmt.Sprintf("csv line %d - %s does not exist in the PCE. skipping.", csvIPL.csvLine, csvIPL.IPL.Href), true)
+				continue
+			}
+			// If no href is provided, search the IPL by name. If it doesn't exist, create it.
+		} else if existingIPL, ok = pce.IPLists[csvIPL.IPL.Name]; !ok {
+			utils.LogInfo(fmt.Sprintf("csv line %d - %s does not exist and will be created.", csvIPL.csvLine, csvIPL.IPL.Name), false)
 			IPLsToCreate = append(IPLsToCreate, csvIPL)
-		} else {
-			// The IP List does exist in the PCE.
-			// Start the log message
-			logMsg := fmt.Sprintf("%s exists in the PCE.", csvIPL.IPL.Name)
+			continue
+		}
 
-			// Set the update value to false
-			update := false
+		// Get here if we are updating and start the log message
+		logMsg := fmt.Sprintf("csv line %d - %s exists in the PCE.", csvIPL.csvLine, existingIPL.Href)
 
-			// Check the description
-			if existingIPL.Description != csvIPL.IPL.Description {
+		// Set the update value to false
+		update := false
+
+		// Check the name
+		if existingIPL.Name != csvIPL.IPL.Name {
+			update = true
+			logMsg = fmt.Sprintf("%s name to be updated from %s to %s.", logMsg, existingIPL.Name, csvIPL.IPL.Name)
+		}
+
+		// Check the description
+		if existingIPL.Description != csvIPL.IPL.Description {
+			update = true
+			logMsg = fmt.Sprintf("%s descrption to be updated from %s to %s.", logMsg, existingIPL.Description, csvIPL.IPL.Description)
+		}
+
+		// Check that all IP ranges from CSV are in the PCE.
+		for _, r := range csvIPL.IPL.IPRanges {
+			if !existingRangeMap[fmt.Sprintf("%s%s%s%t", existingIPL.Name, r.FromIP, r.ToIP, r.Exclusion)] { // use existingIPL.Name in case name is being changed
+				rangeTxt := r.FromIP
+				if r.ToIP != "" {
+					rangeTxt = fmt.Sprintf("%s-%s", r.FromIP, r.ToIP)
+				}
+				if r.Exclusion {
+					rangeTxt = fmt.Sprintf("!%s", rangeTxt)
+				}
+				logMsg = fmt.Sprintf("%s %s will be added to the ip list.", logMsg, rangeTxt)
 				update = true
-				logMsg = fmt.Sprintf("%s Descrption requires updating.", logMsg)
 			}
+		}
 
-			// Check that all IP ranges from CSV are in the PCE
-			for _, r := range csvIPL.IPL.IPRanges {
-				if !existingRangeMap[fmt.Sprintf("%s%s%s%t", csvIPL.IPL.Name, r.FromIP, r.ToIP, r.Exclusion)] {
-					rangeTxt := r.FromIP
-					if r.ToIP != "" {
-						rangeTxt = fmt.Sprintf("%s-%s", r.FromIP, r.ToIP)
-					}
-					if r.Exclusion {
-						rangeTxt = fmt.Sprintf("!%s", rangeTxt)
-					}
-					logMsg = fmt.Sprintf("%s %s is in the CSV but not in the PCE IP List. It will be added to the IP List in the PCE.", logMsg, rangeTxt)
-					update = true
+		// Check that all IP ranges from PCE are in CSV
+		for _, r := range existingIPL.IPRanges {
+			if !csvRangeMap[fmt.Sprintf("%s%s%s%t", csvIPL.IPL.Name, r.FromIP, r.ToIP, r.Exclusion)] { // use csvIPL.IPL.Name in case name is being changed
+				rangeTxt := r.FromIP
+				if r.ToIP != "" {
+					rangeTxt = fmt.Sprintf("%s-%s", r.FromIP, r.ToIP)
 				}
-			}
-
-			// Check that all IP ranges from PCE are in CSV
-			for _, r := range existingIPL.IPRanges {
-				if !csvRangeMap[fmt.Sprintf("%s%s%s%t", existingIPL.Name, r.FromIP, r.ToIP, r.Exclusion)] {
-					rangeTxt := r.FromIP
-					if r.ToIP != "" {
-						rangeTxt = fmt.Sprintf("%s-%s", r.FromIP, r.ToIP)
-					}
-					if r.Exclusion {
-						rangeTxt = fmt.Sprintf("!%s", rangeTxt)
-					}
-					logMsg = fmt.Sprintf("%s %s is not in the CSV but is existing in the PCE. It will be removed from the IP List in the PCE.", logMsg, rangeTxt)
-					update = true
+				if r.Exclusion {
+					rangeTxt = fmt.Sprintf("!%s", rangeTxt)
 				}
+				logMsg = fmt.Sprintf("%s %s will be removed from the ip list.", logMsg, rangeTxt)
+				update = true
 			}
+		}
 
-			// Check that FQDNs in the CSV are in the PCE
-			for _, f := range csvIPL.IPL.FQDNs {
-				if !existingRangeMap[fmt.Sprintf("%s%s", csvIPL.IPL.Name, f.FQDN)] {
-					logMsg = fmt.Sprintf("%s %s is in the CSV but not in the PCE FQDN list. It will be added to the IP List in the PCE.", logMsg, f.FQDN)
-					update = true
-				}
+		// Check that FQDNs in the CSV are in the PCE
+		for _, f := range csvIPL.IPL.FQDNs {
+			if !existingRangeMap[fmt.Sprintf("%s%s", existingIPL.Name, f.FQDN)] { // use existingIPL.Name in case name is being changed
+				logMsg = fmt.Sprintf("%s %s will be added to the ip list.", logMsg, f.FQDN)
+				update = true
 			}
+		}
 
-			// Check that FQDNs in the PCE are in the CSV
-			for _, f := range existingIPL.FQDNs {
-				if !csvRangeMap[fmt.Sprintf("%s%s", existingIPL.Name, f.FQDN)] {
-					logMsg = fmt.Sprintf("%s %s is not in the CSV but is existing in the PCE FQDN list. It will be removed from the IP List in the PCE.", logMsg, f.FQDN)
-					update = true
-				}
+		// Check that FQDNs in the PCE are in the CSV
+		for _, f := range existingIPL.FQDNs {
+			if !csvRangeMap[fmt.Sprintf("%s%s", csvIPL.IPL.Name, f.FQDN)] { // use csvIPL.IPL.Name in case name is being changed
+				logMsg = fmt.Sprintf("%s %s will be removed from the ip list.", logMsg, f.FQDN)
+				update = true
 			}
+		}
 
-			// If we don't need to update, adjust the log message
-			if !update {
-				logMsg = fmt.Sprintf("%s No updates required", logMsg)
-			}
+		// Log the log message
+		if update {
+			utils.LogInfo(logMsg, false)
+		}
 
-			// Log the log message
-			utils.LogInfo(fmt.Sprintf("CSV Line %d - %s", csvIPL.csvLine, logMsg), false)
-
-			// If we need to update, add it to our slice
-			if update {
-				csvIPL.IPL.Href = existingIPL.Href
-				IPLsToUpdate = append(IPLsToUpdate, csvIPL)
-			}
+		// If we need to update, add it to our slice
+		if update {
+			csvIPL.IPL.Href = existingIPL.Href
+			IPLsToUpdate = append(IPLsToUpdate, csvIPL)
 		}
 	}
 
@@ -320,7 +335,7 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
-		utils.LogInfo(fmt.Sprintf("workloader identified %d ip-lists to create and %d ip-lists to update. See workloader.log for all identified changes. To do the import, run again using --update-pce flag", len(IPLsToCreate), len(IPLsToUpdate)), true)
+		utils.LogInfo(fmt.Sprintf("workloader identified %d ip-lists to create and %d ip-lists to update. see workloader.log for all identified changes. to do the import, run again using --update-pce flag", len(IPLsToCreate), len(IPLsToUpdate)), true)
 		utils.LogEndCommand("ipl-import")
 		return
 	}
@@ -328,11 +343,11 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if updatePCE && !noPrompt {
 		var prompt string
-		fmt.Printf("[PROMPT] - workloader will create %d iplists and update %d iplists in %s (%s). Do you want to run the import (yes/no)? ", len(IPLsToCreate), len(IPLsToUpdate), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
+		fmt.Printf("[PROMPT] - workloader will create %d iplists and update %d iplists in %s (%s). do you want to run the import (yes/no)? ", len(IPLsToCreate), len(IPLsToUpdate), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
 
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
-			utils.LogInfo(fmt.Sprintf("Prompt denied for creating %d iplists and updating %d iplists.", len(IPLsToCreate), len(IPLsToUpdate)), true)
+			utils.LogInfo(fmt.Sprintf("prompt denied for creating %d iplists and updating %d iplists.", len(IPLsToCreate), len(IPLsToUpdate)), true)
 			utils.LogEndCommand("ipl-import")
 			return
 		}
@@ -350,16 +365,16 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 		ipl, a, err := pce.CreateIPList(newIPL.IPL)
 		utils.LogAPIResp("CreateIPList", a)
 		if err != nil && a.StatusCode != 406 {
-			utils.LogError(fmt.Sprintf("Ending run - %d IP Lists created - %d IP Lists updated.", createdIPLs, updatedIPLs))
+			utils.LogError(fmt.Sprintf("ending run - %d ip lists created - %d ip lists updated.", createdIPLs, updatedIPLs))
 			utils.LogError(err.Error())
 		}
 		if a.StatusCode == 406 {
-			utils.LogWarning(fmt.Sprintf("CSV Line %d - %s - 406 Not Acceptable - See workloader.log for more details", newIPL.csvLine, newIPL.IPL.Name), true)
+			utils.LogWarning(fmt.Sprintf("csv line %d - %s - 406 not acceptable - see workloader.log for more details", newIPL.csvLine, newIPL.IPL.Name), true)
 			utils.LogWarning(a.RespBody, false)
 			skippedIPLs++
 		}
 		if err == nil {
-			utils.LogInfo(fmt.Sprintf("CSV Line %d - %s created - status code %d", newIPL.csvLine, ipl.Name, a.StatusCode), true)
+			utils.LogInfo(fmt.Sprintf("csv line %d - %s created - status code %d", newIPL.csvLine, ipl.Name, a.StatusCode), true)
 			createdIPLs++
 			provisionableIPLs = append(provisionableIPLs, ipl.Href)
 		}
@@ -370,16 +385,16 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 		a, err := pce.UpdateIPList(updateIPL.IPL)
 		utils.LogAPIResp("UpdateIPList", a)
 		if err != nil && a.StatusCode != 406 {
-			utils.LogError(fmt.Sprintf("Ending run - %d IP Lists created - %d IP Lists updated.", createdIPLs, updatedIPLs))
+			utils.LogError(fmt.Sprintf("ending run - %d ip lists created - %d ip lists updated.", createdIPLs, updatedIPLs))
 			utils.LogError(err.Error())
 		}
 		if a.StatusCode == 406 {
-			utils.LogWarning(fmt.Sprintf("CSV Line %d - %s - 406 Not Acceptable - See workloader.log for more details", updateIPL.csvLine, updateIPL.IPL.Name), true)
+			utils.LogWarning(fmt.Sprintf("csv line %d - %s - 406 not acceptable - see workloader.log for more details", updateIPL.csvLine, updateIPL.IPL.Name), true)
 			utils.LogWarning(a.RespBody, false)
 			skippedIPLs++
 		}
 		if err == nil {
-			utils.LogInfo(fmt.Sprintf("CSV Line %d - %s updated - status code %d", updateIPL.csvLine, updateIPL.IPL.Name, a.StatusCode), true)
+			utils.LogInfo(fmt.Sprintf("csv line %d - %s updated - status code %d", updateIPL.csvLine, updateIPL.IPL.Name, a.StatusCode), true)
 			updatedIPLs++
 			provisionableIPLs = append(provisionableIPLs, updateIPL.IPL.Href)
 		}
@@ -392,7 +407,7 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-		utils.LogInfo(fmt.Sprintf("Provisioning successful - status code %d", a.StatusCode), true)
+		utils.LogInfo(fmt.Sprintf("provisioning successful - status code %d", a.StatusCode), true)
 	}
 
 	utils.LogEndCommand("ipl-import")

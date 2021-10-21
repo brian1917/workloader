@@ -7,16 +7,15 @@ import (
 
 	"github.com/brian1917/illumioapi"
 
+	"github.com/brian1917/workloader/cmd/iplimport"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // Declare local global variables
 var pce illumioapi.PCE
 var err error
-var debug bool
-var outFormat, outputFileName string
+var outputFileName string
 
 func init() {
 	IplExportCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
@@ -34,14 +33,10 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
-		pce, err = utils.GetTargetPCE(true)
+		pce, err = utils.GetTargetPCE(false)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-
-		// Get the viper values
-		debug = viper.Get("debug").(bool)
-		outFormat = viper.Get("output_format").(string)
 
 		exportIPL()
 	},
@@ -53,7 +48,7 @@ func exportIPL() {
 	utils.LogStartCommand("ipl-export")
 
 	// Start the data slice with headers
-	csvData := [][]string{[]string{"name", "description", "include", "exclude", "fqdns", "external_data_set", "external_data_ref", "href"}}
+	csvData := [][]string{[]string{iplimport.HeaderName, iplimport.HeaderDescription, iplimport.HeaderInclude, iplimport.HeaderExclude, iplimport.HeaderFqdns, iplimport.HeaderExternalDataSet, iplimport.HeaderExternalDataRef, iplimport.HeaderHref}}
 
 	// Get all IPLists
 	ipls, a, err := pce.GetAllDraftIPLists()
