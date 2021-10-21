@@ -107,7 +107,7 @@ func portLock(port int, protocol string) {
 
 	// Get the Any IP List for use in the rule and/or enfourcement boundary.
 	// Get it here so it's available in the traffic conditional as well as in the EB
-	anyIPList, api, err := pce.GetIPList("Any (0.0.0.0/0 and ::/0)")
+	anyIPList, api, err := pce.GetIPList("Any (0.0.0.0/0 and ::/0)", "active")
 	utils.LogAPIResp("GetIPList", api)
 	if err != nil {
 		utils.LogError(err.Error())
