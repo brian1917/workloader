@@ -87,9 +87,9 @@ func exportWorkloads() {
 		}
 
 		// Get Managed Status
-		managedStatus := true
+		managedStatus := false
 		if (w.Agent != nil && w.Agent.Href != "") || (w.VEN != nil && w.VEN.Href != "") {
-			managedStatus = false
+			managedStatus = true
 		}
 
 		// Assume the VEN-dependent fields are unmanaged
