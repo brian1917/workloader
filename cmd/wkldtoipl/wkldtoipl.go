@@ -163,12 +163,12 @@ func wkldtoipl() {
 					// Add it to the map
 					addresses[nic.Address] = 1
 					// Add it to the IPList range
-					ipl.IPRanges = append(ipl.IPRanges, &illumioapi.IPRange{FromIP: nic.Address})
+					*ipl.IPRanges = append(*ipl.IPRanges, &illumioapi.IPRange{FromIP: nic.Address})
 				}
 			}
 		}
 		// Add the slice if we have some ip ranges in
-		if len(ipl.IPRanges) > 0 {
+		if ipl.IPRanges != nil && len(*ipl.IPRanges) > 0 {
 			ipls = append(ipls, ipl)
 		}
 	}
@@ -179,11 +179,13 @@ func wkldtoipl() {
 		for _, i := range ipls {
 			// Build the include string
 			includes := []string{}
-			for _, ip := range i.IPRanges {
-				if ip.Exclusion {
-					continue
+			if i.IPRanges != nil {
+				for _, ip := range *i.IPRanges {
+					if ip.Exclusion {
+						continue
+					}
+					includes = append(includes, ip.FromIP)
 				}
-				includes = append(includes, ip.FromIP)
 			}
 			csvOut = append(csvOut, []string{i.Name, i.Description, strings.Join(includes, ";"), "", "", ""})
 		}
