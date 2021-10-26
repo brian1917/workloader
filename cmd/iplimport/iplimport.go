@@ -168,7 +168,7 @@ csvEntries:
 		}
 
 		// FQDNs
-		var fqdnsEntry []*illumioapi.FQDN
+		fqdnsEntry := []*illumioapi.FQDN{}
 		if val, ok := headers[HeaderFqdns]; ok && line[*val] != "" {
 			fqdns = strings.Split(strings.ReplaceAll(line[*val], " ", ""), ";")
 			for _, i := range fqdns {
@@ -179,7 +179,7 @@ csvEntries:
 		}
 
 		// Create the IP list
-		ipl := illumioapi.IPList{IPRanges: ranges, FQDNs: fqdnsEntry}
+		ipl := illumioapi.IPList{IPRanges: &ranges, FQDNs: &fqdnsEntry}
 		if val, ok := headers[HeaderName]; ok {
 			ipl.Name = line[*val]
 		}
@@ -209,22 +209,30 @@ csvEntries:
 	// Create a map of CSV IP ranges
 	csvRangeMap := make(map[string]bool)
 	for _, ipl := range csvIPLs {
-		for _, iplr := range ipl.IPL.IPRanges {
-			csvRangeMap[fmt.Sprintf("%s%s%s%t", ipl.IPL.Name, iplr.FromIP, iplr.ToIP, iplr.Exclusion)] = true
+		if ipl.IPL.IPRanges != nil {
+			for _, iplr := range *ipl.IPL.IPRanges {
+				csvRangeMap[fmt.Sprintf("%s%s%s%t", ipl.IPL.Name, iplr.FromIP, iplr.ToIP, iplr.Exclusion)] = true
+			}
 		}
-		for _, f := range ipl.IPL.FQDNs {
-			csvRangeMap[fmt.Sprintf("%s%s", ipl.IPL.Name, f.FQDN)] = true
+		if ipl.IPL.FQDNs != nil {
+			for _, f := range *ipl.IPL.FQDNs {
+				csvRangeMap[fmt.Sprintf("%s%s", ipl.IPL.Name, f.FQDN)] = true
+			}
 		}
 	}
 
 	// Create a map of Existing IP ranges
 	existingRangeMap := make(map[string]bool)
 	for _, ipl := range pce.IPListsSlice {
-		for _, iplr := range ipl.IPRanges {
-			existingRangeMap[fmt.Sprintf("%s%s%s%t", ipl.Name, iplr.FromIP, iplr.ToIP, iplr.Exclusion)] = true
+		if ipl.IPRanges != nil {
+			for _, iplr := range *ipl.IPRanges {
+				existingRangeMap[fmt.Sprintf("%s%s%s%t", ipl.Name, iplr.FromIP, iplr.ToIP, iplr.Exclusion)] = true
+			}
 		}
-		for _, f := range ipl.FQDNs {
-			existingRangeMap[fmt.Sprintf("%s%s", ipl.Name, f.FQDN)] = true
+		if ipl.FQDNs != nil {
+			for _, f := range *ipl.FQDNs {
+				existingRangeMap[fmt.Sprintf("%s%s", ipl.Name, f.FQDN)] = true
+			}
 		}
 	}
 
@@ -269,48 +277,56 @@ csvEntries:
 		}
 
 		// Check that all IP ranges from CSV are in the PCE.
-		for _, r := range csvIPL.IPL.IPRanges {
-			if !existingRangeMap[fmt.Sprintf("%s%s%s%t", existingIPL.Name, r.FromIP, r.ToIP, r.Exclusion)] { // use existingIPL.Name in case name is being changed
-				rangeTxt := r.FromIP
-				if r.ToIP != "" {
-					rangeTxt = fmt.Sprintf("%s-%s", r.FromIP, r.ToIP)
+		if csvIPL.IPL.IPRanges != nil {
+			for _, r := range *csvIPL.IPL.IPRanges {
+				if !existingRangeMap[fmt.Sprintf("%s%s%s%t", existingIPL.Name, r.FromIP, r.ToIP, r.Exclusion)] { // use existingIPL.Name in case name is being changed
+					rangeTxt := r.FromIP
+					if r.ToIP != "" {
+						rangeTxt = fmt.Sprintf("%s-%s", r.FromIP, r.ToIP)
+					}
+					if r.Exclusion {
+						rangeTxt = fmt.Sprintf("!%s", rangeTxt)
+					}
+					logMsg = fmt.Sprintf("%s %s will be added to the ip list.", logMsg, rangeTxt)
+					update = true
 				}
-				if r.Exclusion {
-					rangeTxt = fmt.Sprintf("!%s", rangeTxt)
-				}
-				logMsg = fmt.Sprintf("%s %s will be added to the ip list.", logMsg, rangeTxt)
-				update = true
 			}
 		}
 
 		// Check that all IP ranges from PCE are in CSV
-		for _, r := range existingIPL.IPRanges {
-			if !csvRangeMap[fmt.Sprintf("%s%s%s%t", csvIPL.IPL.Name, r.FromIP, r.ToIP, r.Exclusion)] { // use csvIPL.IPL.Name in case name is being changed
-				rangeTxt := r.FromIP
-				if r.ToIP != "" {
-					rangeTxt = fmt.Sprintf("%s-%s", r.FromIP, r.ToIP)
+		if existingIPL.IPRanges != nil {
+			for _, r := range *existingIPL.IPRanges {
+				if !csvRangeMap[fmt.Sprintf("%s%s%s%t", csvIPL.IPL.Name, r.FromIP, r.ToIP, r.Exclusion)] { // use csvIPL.IPL.Name in case name is being changed
+					rangeTxt := r.FromIP
+					if r.ToIP != "" {
+						rangeTxt = fmt.Sprintf("%s-%s", r.FromIP, r.ToIP)
+					}
+					if r.Exclusion {
+						rangeTxt = fmt.Sprintf("!%s", rangeTxt)
+					}
+					logMsg = fmt.Sprintf("%s %s will be removed from the ip list.", logMsg, rangeTxt)
+					update = true
 				}
-				if r.Exclusion {
-					rangeTxt = fmt.Sprintf("!%s", rangeTxt)
-				}
-				logMsg = fmt.Sprintf("%s %s will be removed from the ip list.", logMsg, rangeTxt)
-				update = true
 			}
 		}
 
 		// Check that FQDNs in the CSV are in the PCE
-		for _, f := range csvIPL.IPL.FQDNs {
-			if !existingRangeMap[fmt.Sprintf("%s%s", existingIPL.Name, f.FQDN)] { // use existingIPL.Name in case name is being changed
-				logMsg = fmt.Sprintf("%s %s will be added to the ip list.", logMsg, f.FQDN)
-				update = true
+		if csvIPL.IPL.FQDNs != nil {
+			for _, f := range *csvIPL.IPL.FQDNs {
+				if !existingRangeMap[fmt.Sprintf("%s%s", existingIPL.Name, f.FQDN)] { // use existingIPL.Name in case name is being changed
+					logMsg = fmt.Sprintf("%s %s will be added to the ip list.", logMsg, f.FQDN)
+					update = true
+				}
 			}
 		}
 
 		// Check that FQDNs in the PCE are in the CSV
-		for _, f := range existingIPL.FQDNs {
-			if !csvRangeMap[fmt.Sprintf("%s%s", csvIPL.IPL.Name, f.FQDN)] { // use csvIPL.IPL.Name in case name is being changed
-				logMsg = fmt.Sprintf("%s %s will be removed from the ip list.", logMsg, f.FQDN)
-				update = true
+		if existingIPL.FQDNs != nil {
+			for _, f := range *existingIPL.FQDNs {
+				if !csvRangeMap[fmt.Sprintf("%s%s", csvIPL.IPL.Name, f.FQDN)] { // use csvIPL.IPL.Name in case name is being changed
+					logMsg = fmt.Sprintf("%s %s will be removed from the ip list.", logMsg, f.FQDN)
+					update = true
+				}
 			}
 		}
 
