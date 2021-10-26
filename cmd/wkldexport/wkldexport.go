@@ -52,7 +52,7 @@ func exportWorkloads() {
 	utils.LogStartCommand("wkld-export")
 
 	// Start the data slice with headers
-	csvData := [][]string{{HeaderHostname, HeaderName, HeaderRole, HeaderApp, HeaderEnv, HeaderLoc, HeaderInterfaces, HeaderPublicIP, HeaderMachineAuthenticationID, HeaderIPWithDefaultGw, HeaderNetmaskOfIPWithDefGw, HeaderDefaultGw, HeaderDefaultGwNetwork, HeaderSPN, HeaderHref, HeaderDescription, HeaderPolicyState, HeaderVisibilityState, HeaderOnline, HeaderAgentStatus, HeaderAgentHealth, HeaderSecurityPolicySyncState, HeaderSecurityPolicyAppliedAt, HeaderSecurityPolicyReceivedAt, HeaderSecurityPolicyRefreshAt, HeaderLastHeartbeatOn, HeaderHoursSinceLastHeartbeat, HeaderCreatedAt, HeaderOsID, HeaderOsDetail, HeaderAgentVersion, HeaderAgentID, HeaderActivePceFqdn, HeaderServiceProvider, HeaderDataCenter, HeaderDataCenterZone, HeaderCloudInstanceID, HeaderExternalDataSet, HeaderExternalDataReference}}
+	csvData := [][]string{{HeaderHostname, HeaderName, HeaderManaged, HeaderRole, HeaderApp, HeaderEnv, HeaderLoc, HeaderInterfaces, HeaderPublicIP, HeaderMachineAuthenticationID, HeaderIPWithDefaultGw, HeaderNetmaskOfIPWithDefGw, HeaderDefaultGw, HeaderDefaultGwNetwork, HeaderSPN, HeaderHref, HeaderDescription, HeaderPolicyState, HeaderVisibilityState, HeaderOnline, HeaderAgentStatus, HeaderAgentHealth, HeaderSecurityPolicySyncState, HeaderSecurityPolicyAppliedAt, HeaderSecurityPolicyReceivedAt, HeaderSecurityPolicyRefreshAt, HeaderLastHeartbeatOn, HeaderHoursSinceLastHeartbeat, HeaderCreatedAt, HeaderOsID, HeaderOsDetail, HeaderAgentVersion, HeaderAgentID, HeaderActivePceFqdn, HeaderServiceProvider, HeaderDataCenter, HeaderDataCenterZone, HeaderCloudInstanceID, HeaderExternalDataSet, HeaderExternalDataReference}}
 	stdOutData := [][]string{{HeaderHostname, HeaderRole, HeaderApp, HeaderEnv, HeaderLoc, HeaderPolicyState}}
 
 	// GetAllWorkloads
@@ -84,6 +84,12 @@ func exportWorkloads() {
 				ipAddress = fmt.Sprintf("%s:%s/%s", i.Name, i.Address, strconv.Itoa(*i.CidrBlock))
 			}
 			interfaces = append(interfaces, ipAddress)
+		}
+
+		// Get Managed Status
+		managedStatus := true
+		if (w.Agent != nil && w.Agent.Href != "") || (w.VEN != nil && w.VEN.Href != "") {
+			managedStatus = false
 		}
 
 		// Assume the VEN-dependent fields are unmanaged
@@ -129,21 +135,13 @@ func exportWorkloads() {
 			}
 		}
 
-		// Set online status
-		var online string
-		if w.GetMode() == "unmanaged" {
-			online = "unmanaged"
-		} else {
-			online = strconv.FormatBool(w.Online)
-		}
-
 		// Remove newlines in description
 		if removeDescNewLines {
 			w.Description = utils.ReplaceNewLine(w.Description)
 		}
 
 		// Append to data slice
-		csvData = append(csvData, []string{w.Hostname, w.Name, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, strings.Join(interfaces, ";"), w.PublicIP, w.DistinguishedName, w.GetIPWithDefaultGW(), w.GetNetMaskWithDefaultGW(), w.GetDefaultGW(), w.GetNetworkWithDefaultGateway(), w.ServicePrincipalName, w.Href, w.Description, w.GetMode(), w.GetVisibilityLevel(), online, agentStatus, agentHealth, policySyncStatus, policyAppliedAt, poicyReceivedAt, policyRefreshAt, lastHeartBeat, hoursSinceLastHB, w.CreatedAt, w.OsID, w.OsDetail, venVersion, venID, pairedPCE, w.ServiceProvider, w.DataCenter, w.DataCenterZone, instanceID, w.ExternalDataSet, w.ExternalDataReference})
+		csvData = append(csvData, []string{w.Hostname, w.Name, strconv.FormatBool(managedStatus), w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, strings.Join(interfaces, ";"), w.PublicIP, w.DistinguishedName, w.GetIPWithDefaultGW(), w.GetNetMaskWithDefaultGW(), w.GetDefaultGW(), w.GetNetworkWithDefaultGateway(), w.ServicePrincipalName, w.Href, w.Description, w.GetMode(), w.GetVisibilityLevel(), strconv.FormatBool(w.Online), agentStatus, agentHealth, policySyncStatus, policyAppliedAt, poicyReceivedAt, policyRefreshAt, lastHeartBeat, hoursSinceLastHB, w.CreatedAt, w.OsID, w.OsDetail, venVersion, venID, pairedPCE, w.ServiceProvider, w.DataCenter, w.DataCenterZone, instanceID, w.ExternalDataSet, w.ExternalDataReference})
 		stdOutData = append(stdOutData, []string{w.Hostname, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, w.GetMode()})
 	}
 

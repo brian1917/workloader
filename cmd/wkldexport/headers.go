@@ -40,6 +40,7 @@ const (
 	HeaderAgentHealth              = "agent_health"
 	HeaderVisibilityState          = "visibility"
 	HeaderSPN                      = "spn"
+	HeaderManaged                  = "managed"
 )
 
 func AllHeaders() []string {
@@ -82,7 +83,8 @@ func AllHeaders() []string {
 		HeaderCreatedAt,
 		HeaderAgentHealth,
 		HeaderVisibilityState,
-		HeaderSPN}
+		HeaderSPN,
+		HeaderManaged}
 }
 
 func ImportHeaders() []string {
