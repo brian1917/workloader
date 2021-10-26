@@ -153,7 +153,7 @@ func DeleteHrefs(input Input) {
 	}
 
 	// Print out
-	utils.LogInfo(fmt.Sprintf("%d records identified to be deleted:", len(input.Hrefs)), true)
+	utils.LogInfo(fmt.Sprintf("%d records identified to be deleted...", len(input.Hrefs)), true)
 	for key, value := range deleteCounts {
 		utils.LogInfo(fmt.Sprintf("%s:%d", key, value), true)
 	}
@@ -177,9 +177,15 @@ func DeleteHrefs(input Input) {
 	}
 
 	// If we get here - we do the delete
+	bulkWorkloads := []illumioapi.Workload{}
+	utils.LogInfo("deleting non-workload objects...", true)
 	for _, href := range input.Hrefs {
 
 		// For each other entry, delete the href
+		if strings.Contains(href, "/workloads/") {
+			bulkWorkloads = append(bulkWorkloads, illumioapi.Workload{Href: href})
+			continue
+		}
 		a, _ := input.PCE.DeleteHref(href)
 		utils.LogAPIResp("DeleteHref", a)
 		if a.StatusCode != 204 {
@@ -218,6 +224,15 @@ func DeleteHrefs(input Input) {
 	// Log the deleted total
 	utils.LogInfo(fmt.Sprintf("%d items deleted", deleted), true)
 	utils.LogInfo(fmt.Sprintf("%d items skipped.", skipped), true)
+
+	utils.LogInfo("using bulk api action delete workloads ...", true)
+	apiResps, err := input.PCE.BulkWorkload(bulkWorkloads, "delete", true)
+	for _, a := range apiResps {
+		utils.LogAPIResp("BulkWorkload", a)
+	}
+	if err != nil {
+		utils.LogError(err.Error())
+	}
 
 	// Provision if needed
 	if len(provision) > 0 && input.Provision {
