@@ -67,24 +67,26 @@ func ipCheck(ip string, ipl illumioapi.IPList) (bool, error) {
 		return false, fmt.Errorf("%s is not a valid IP address", ip)
 	}
 
-	for _, ipRange := range ipl.IPRanges {
+	if ipl.IPRanges != nil {
+		for _, ipRange := range *ipl.IPRanges {
 
-		// If it's a valid CIDR and the IP address falls into it return true
-		_, network, err := net.ParseCIDR(ipRange.FromIP)
-		if err == nil && network.Contains(providedIP) {
-			return true, nil
-		}
+			// If it's a valid CIDR and the IP address falls into it return true
+			_, network, err := net.ParseCIDR(ipRange.FromIP)
+			if err == nil && network.Contains(providedIP) {
+				return true, nil
+			}
 
-		// Get here if FromIP is not a CIDR
-		fromIP := net.ParseIP(ipRange.FromIP)
-		toIP := net.ParseIP(ipRange.ToIP)
-		if toIP == nil {
-			toIP = fromIP
-		}
-		if bytes.Compare(providedIP, fromIP) >= 0 && bytes.Compare(providedIP, toIP) <= 0 {
-			return true, nil
-		}
+			// Get here if FromIP is not a CIDR
+			fromIP := net.ParseIP(ipRange.FromIP)
+			toIP := net.ParseIP(ipRange.ToIP)
+			if toIP == nil {
+				toIP = fromIP
+			}
+			if bytes.Compare(providedIP, fromIP) >= 0 && bytes.Compare(providedIP, toIP) <= 0 {
+				return true, nil
+			}
 
+		}
 	}
 	return false, nil
 }
