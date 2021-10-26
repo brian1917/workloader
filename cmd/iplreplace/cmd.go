@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
+
+	"github.com/brian1917/workloader/cmd/iplexport"
 
 	"github.com/brian1917/workloader/cmd/iplimport"
 
@@ -16,17 +19,20 @@ import (
 // Declare local global variables
 var pce illumioapi.PCE
 var err error
-var ipCol, fqdnCol int
-var create, provision, noHeaders, updatePCE, noPrompt bool
-var csvFile, iplName string
+var ipCol, ipDescCol, fqdnCol int
+var create, provision, noHeaders, noBackup, updatePCE, noPrompt bool
+var iplCsvFile, fqdnCsvFile, iplName string
 
 func init() {
-	IplReplaceCmd.Flags().StringVarP(&iplName, "name", "n", "", "name of ip List to update")
+	IplReplaceCmd.Flags().StringVarP(&iplCsvFile, "ip-file-name", "i", "", "name of file with ip entries")
+	IplReplaceCmd.Flags().StringVarP(&fqdnCsvFile, "fqdn-file-name", "f", "", "name of file with ip entries")
 	IplReplaceCmd.MarkFlagRequired("name")
 	IplReplaceCmd.Flags().BoolVarP(&create, "create", "c", false, "create ip list if it does not exist")
-	IplReplaceCmd.Flags().IntVarP(&ipCol, "ip-col", "i", 1, "column with ip entries. first column is 1. negative number means column is not presesent.")
-	IplReplaceCmd.Flags().IntVarP(&fqdnCol, "fqdn-col", "f", -1, "column with fqdn entries. first column is 1. nevative number means column is not present")
+	IplReplaceCmd.Flags().IntVar(&ipCol, "ip-col", 1, "column with ip entries. first column is 1.")
+	IplReplaceCmd.Flags().IntVar(&ipDescCol, "ip-desc-col", -1, "column with ip entry descriptions. first column is 1. negative number means column is not presesent.")
+	IplReplaceCmd.Flags().IntVar(&fqdnCol, "fqdn-col", 1, "column with fqdn entries. first column is 1.")
 	IplReplaceCmd.Flags().BoolVarP(&noHeaders, "no-headers", "x", false, "process the first row since there are no headers.")
+	IplReplaceCmd.Flags().BoolVar(&noBackup, "no-backup", false, "will not create a backup file of the original ip list before making changes.")
 	IplReplaceCmd.Flags().BoolVarP(&provision, "provision", "p", false, "provision ip list after replacing contents.")
 
 	IplReplaceCmd.Flags().SortFlags = false
@@ -34,14 +40,16 @@ func init() {
 
 // IplImportCmd runs the iplist import command
 var IplReplaceCmd = &cobra.Command{
-	Use:   "ipl-replace [csv file to import]",
+	Use:   "ipl-replace [name of IPL to replace or create]",
 	Short: "Replace all entries in an IP List with contents of a CSV file.",
 	Long: `
-Replace all entries in an IP List with contents of a CSV file. Two columns will be processed: one for IPs and one for FQDNs.
+Replace all entries in an IP List with contents of a CSV file or files. Two files can be provided: one for ip entries (-i or --ip-file-name) and one for fqdns (-f or --fqdn-file-name).
 
-The default expects IPs in the first column and no FQDNs to be provided. See flags for details to change this.
+The command will process 2 columns in the IP file: ip entry and description. The IP entries can be individual addresses, ranges using a "-", or CIDRs. An "!" in front can be used for an exclude. (e.g., !192.168.0.0/16)
 
-The IP addresses can be individual addresses, ranges using a "-", or CIDRs. An "!" in front can be used for an exclude. (e.g., !192.168.0.0/16)
+The command will process 1 column in the FQDN file: fqdn.
+
+Other columns can be present but will be ignored. Column location and skipping headers can be set in the flags.
 
 By default, the command will error if the provided IP List does not exist in the PCE. Use the --create (-c) flag to create the IP list if it does not exist.
 
@@ -56,10 +64,10 @@ Recommended to run without --update-pce first to log of what will change. If --u
 
 		// Set the CSV file
 		if len(args) != 1 {
-			fmt.Println("command requires 1 argument for the csv file. See usage help.")
+			fmt.Println("command requires 1 argument for the name of the IP list. See usage help.")
 			os.Exit(0)
 		}
-		csvFile = args[0]
+		iplName = args[0]
 
 		// Get the viper values
 		updatePCE = viper.Get("update_pce").(bool)
@@ -76,12 +84,22 @@ func iplReplace() {
 
 	// Offset the columns by 1
 	ipCol--
+	ipDescCol--
 	fqdnCol--
 
 	// Parse the CSV
-	csvData, err := utils.ParseCSV(csvFile)
-	if err != nil {
-		utils.LogError(err.Error())
+	var iplCsvData, fqdnCsvData [][]string
+	if iplCsvFile != "" {
+		iplCsvData, err = utils.ParseCSV(iplCsvFile)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+	}
+	if fqdnCsvFile != "" {
+		fqdnCsvData, err = utils.ParseCSV(fqdnCsvFile)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
 	}
 
 	// Get the IPL
@@ -107,41 +125,49 @@ func iplReplace() {
 	fqdns := []*illumioapi.FQDN{}
 	var ipCount, fqdnCount int
 
-	for i, line := range csvData {
+	for i, line := range iplCsvData {
 
 		if i == 0 && !noHeaders {
 			continue
 		}
 
-		if ipCol > -1 && line[ipCol] != "" {
-			// Check exclusion
-			ipRange := illumioapi.IPRange{}
-			if line[ipCol][0:1] == "!" {
-				ipRange.Exclusion = true
-				line[ipCol] = strings.Replace(line[ipCol], "!", "", 1)
-			}
-
-			// Validate the IP
-			if !iplimport.ValidateIplistEntry(line[ipCol]) {
-				utils.LogError(fmt.Sprintf("csv line %d - %s is not a valid ip list entry", i+1, line[ipCol]))
-				continue
-			}
-			// Process the entry
-			if strings.Contains(line[ipCol], "-") {
-				ipRange.FromIP = strings.Split(line[ipCol], "-")[0]
-				ipRange.ToIP = strings.Split(line[ipCol], "-")[1]
-			} else {
-				ipRange.FromIP = line[ipCol]
-			}
-			ranges = append(ranges, &ipRange)
-			ipCount++
+		// Check exclusion
+		ipRange := illumioapi.IPRange{}
+		if line[ipCol][0:1] == "!" {
+			ipRange.Exclusion = true
+			line[ipCol] = strings.Replace(line[ipCol], "!", "", 1)
 		}
 
+		// Validate the IP
+		if !iplimport.ValidateIplistEntry(line[ipCol]) {
+			utils.LogError(fmt.Sprintf("csv line %d - %s is not a valid ip list entry", i+1, line[ipCol]))
+			continue
+		}
+
+		// Description
+		if ipDescCol > 0 {
+			ipRange.Description = line[ipDescCol]
+		}
+
+		// Process the entry
+		if strings.Contains(line[ipCol], "-") {
+			ipRange.FromIP = strings.Split(line[ipCol], "-")[0]
+			ipRange.ToIP = strings.Split(line[ipCol], "-")[1]
+		} else {
+			ipRange.FromIP = line[ipCol]
+		}
+		ranges = append(ranges, &ipRange)
+		ipCount++
+
+	}
+
+	for i, line := range fqdnCsvData {
+		if i == 0 && !noHeaders {
+			continue
+		}
 		// Process the FQDNs
-		if fqdnCol > -1 && line[fqdnCol] != "" {
-			fqdns = append(fqdns, &illumioapi.FQDN{FQDN: line[fqdnCol]})
-			fqdnCount++
-		}
+		fqdns = append(fqdns, &illumioapi.FQDN{FQDN: line[fqdnCol]})
+		fqdnCount++
 	}
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
@@ -149,7 +175,7 @@ func iplReplace() {
 		if iplToBeCreated {
 			utils.LogInfo(fmt.Sprintf("workloader will create %s ip list with %d ip entries and %d. to do the create, run again using --update-pce flag", iplName, ipCount, fqdnCount), true)
 		} else {
-			utils.LogInfo(fmt.Sprintf("workloader identified %d ip entries and %d fqdn entries to replace the existing %d ip entries and %d fqdn entries in %s ip list. to do the replace, run again using --update-pce flag", ipCount, fqdnCount, len(pceIPL.IPRanges), len(pceIPL.FQDNs), pceIPL.Name), true)
+			utils.LogInfo(fmt.Sprintf("workloader identified %d ip entries and %d fqdn entries to replace the existing %d ip entries and %d fqdn entries in %s ip list. to do the replace, run again using --update-pce flag", ipCount, fqdnCount, len(*pceIPL.IPRanges), len(*pceIPL.FQDNs), pceIPL.Name), true)
 		}
 		utils.LogEndCommand("ipl-replace")
 		return
@@ -161,7 +187,7 @@ func iplReplace() {
 		if iplToBeCreated {
 			fmt.Printf("[PROMPT] - workloader will create %s ip list with %d ip entries and %d in %s(%s). do you want to run the import (yes/no)? ", iplName, ipCount, fqdnCount, pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
 		} else {
-			fmt.Printf("[PROMPT] - workloader identified %d ip entries and %d fqdn entries to replace the existing %d ip entries and %d fqdn entries in %s ip list in %s(%s). do you want to run the import (yes/no)? ", ipCount, fqdnCount, len(pceIPL.IPRanges), len(pceIPL.FQDNs), pceIPL.Name, pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
+			fmt.Printf("[PROMPT] - workloader identified %d ip entries and %d fqdn entries to replace the existing %d ip entries and %d fqdn entries in %s ip list in %s(%s). do you want to run the import (yes/no)? ", ipCount, fqdnCount, len(*pceIPL.IPRanges), len(*pceIPL.FQDNs), pceIPL.Name, pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
 		}
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
@@ -171,9 +197,15 @@ func iplReplace() {
 		}
 	}
 
+	// Create backup
+	if !noBackup {
+		utils.LogInfo("creating backup file of original ip list ...", true)
+		iplexport.ExportIPL(pce, pceIPL.Name, fmt.Sprintf("workloader-ip-list-backup-%s-%s.csv", pceIPL.Name, time.Now().Format("20060102_150405")))
+	}
+
 	// Edit the PCE IPL and update or create
-	pceIPL.IPRanges = ranges
-	pceIPL.FQDNs = fqdns
+	pceIPL.IPRanges = &ranges
+	pceIPL.FQDNs = &fqdns
 
 	if iplToBeCreated {
 		pceIPL, api, err = pce.CreateIPList(pceIPL)
