@@ -70,18 +70,16 @@ The input file requires headers and matches fields to header values. The followi
 		"- " + wkldexport.HeaderInterfaces + "\r\n" +
 		"- " + wkldexport.HeaderPublicIP + "\r\n" +
 		"- " + wkldexport.HeaderMachineAuthenticationID + "\r\n" +
+		"- " + wkldexport.HeaderSPN + " (unmanaged workloads for Kerberos only)\r\n" +
+		"- " + wkldexport.HeaderPolicyState + " (unmanaged workloads for Kerberos only)\r\n" +
+		"- " + wkldexport.HeaderVisibilityState + " (unmanaged workloads for Kerberos only)\r\n" +
 		"- " + wkldexport.HeaderDescription + "\r\n" +
 		"- " + wkldexport.HeaderOsID + "\r\n" +
 		"- " + wkldexport.HeaderOsDetail + "\r\n" +
 		"- " + wkldexport.HeaderDataCenter + "\r\n" +
 		"- " + wkldexport.HeaderExternalDataSet + "\r\n" +
 		"- " + wkldexport.HeaderExternalDataReference + "\r\n" + `
-Besides either href or hostname for matching, no field is required.
-For example, to only update the location field you can provide just two columns: href and loc (or hostname and loc). All other workload properties will be preserved.
-Similarily, if to only update labels, you do not need to include an interface, name, description, etc.
-
-If you need to override the header to to field matching you can specify the column number with any flag.
-For example --name 2 will force workloader to use the second column in the CSV as the name field, regardless of what the header value is.
+Besides either href, hostname, or name for matching, no field is required.
 
 Other columns are allowed but will be ignored.
 
