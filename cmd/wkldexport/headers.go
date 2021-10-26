@@ -16,7 +16,7 @@ const (
 	HeaderDefaultGwNetwork         = "default_gw_network"
 	HeaderHref                     = "href"
 	HeaderDescription              = "description"
-	HeaderPolicyState              = "policy_state"
+	HeaderPolicyState              = "enforcement"
 	HeaderOnline                   = "online"
 	HeaderAgentStatus              = "agent_status"
 	HeaderSecurityPolicySyncState  = "security_policy_sync_state"
@@ -38,7 +38,8 @@ const (
 	HeaderExternalDataReference    = "external_data_reference"
 	HeaderCreatedAt                = "created_at"
 	HeaderAgentHealth              = "agent_health"
-	HeaderVisibilityState          = "visibility_state"
+	HeaderVisibilityState          = "visibility"
+	HeaderSPN                      = "spn"
 )
 
 func AllHeaders() []string {
@@ -78,7 +79,10 @@ func AllHeaders() []string {
 		HeaderCloudInstanceID,
 		HeaderExternalDataSet,
 		HeaderExternalDataReference,
-		HeaderCreatedAt}
+		HeaderCreatedAt,
+		HeaderAgentHealth,
+		HeaderVisibilityState,
+		HeaderSPN}
 }
 
 func ImportHeaders() []string {
@@ -92,6 +96,9 @@ func ImportHeaders() []string {
 		HeaderInterfaces,
 		HeaderPublicIP,
 		HeaderMachineAuthenticationID,
+		HeaderSPN,
+		HeaderPolicyState,
+		HeaderVisibilityState,
 		HeaderDescription,
 		HeaderOsID,
 		HeaderOsDetail,

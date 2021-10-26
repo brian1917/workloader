@@ -139,7 +139,7 @@ CSVEntries:
 
 		// Check to make sure we have an entry in the match column
 		if line[*input.MatchIndex] == "" {
-			utils.LogWarning(fmt.Sprintf("CSV line %d - the match column cannot be blank.", csvLine), true)
+			utils.LogWarning(fmt.Sprintf("csv line %d - the match column cannot be blank.", csvLine), true)
 			continue
 		}
 
@@ -160,8 +160,8 @@ CSVEntries:
 					}
 					newWkld.Interfaces = append(newWkld.Interfaces, &ipInterface)
 				}
-			} else {
-				utils.LogWarning(fmt.Sprintf("CSV line %d - no interface provided for unmanaged workload %s.", csvLine, line[*input.MatchIndex]), true)
+			} else if spnIndex, ok := input.Headers[wkldexport.HeaderSPN]; !ok || line[spnIndex] == "" {
+				utils.LogWarning(fmt.Sprintf("csv line %d - no interface and no spn provided for unmanaged workload %s.", csvLine, line[*input.MatchIndex]), true)
 			}
 
 			// Process the labels
@@ -190,9 +190,34 @@ CSVEntries:
 			// Process the Public IP
 			if index, ok := input.Headers[wkldexport.HeaderPublicIP]; ok {
 				if !publicIPIsValid(line[index]) {
-					utils.LogError(fmt.Sprintf("CSV line %d - invalid Public IP address format.", csvLine))
+					utils.LogError(fmt.Sprintf("csv line %d - invalid public ip address format.", csvLine))
 				}
 				newWkld.PublicIP = line[index]
+			}
+
+			// Process the SPN
+			if index, ok := input.Headers[wkldexport.HeaderSPN]; ok {
+				newWkld.ServicePrincipalName = line[index]
+			}
+
+			// Process the enforcement state
+			if index, ok := input.Headers[wkldexport.HeaderPolicyState]; ok && strings.ToLower(line[index]) != "unmanaged" {
+				m := strings.ToLower(line[index])
+				if m != "visibility_only" && m != "full" && m != "selective" && m != "idle" && m != "" {
+					utils.LogWarning(fmt.Sprintf("csv line %d - invalid mode state for unmanaged workload %s. values must be blank, visibility_only, full, selective, or idle. skipping line.", csvLine, line[*input.MatchIndex]), true)
+					continue CSVEntries
+				}
+				newWkld.EnforcementMode = m
+			}
+
+			// Process the visibility state
+			if index, ok := input.Headers[wkldexport.HeaderVisibilityState]; ok && strings.ToLower(line[index]) != "unmanaged" {
+				v := strings.ToLower(line[index])
+				if v != "blocked_allowed" && v != "blocked" && v != "off" && v != "" {
+					utils.LogWarning(fmt.Sprintf("csv line %d - invalid visibility state for unmanaged workload %s. values must be blank, blocked_allowed, blocked, or off. skipping line.", csvLine, line[*input.MatchIndex]), true)
+					continue CSVEntries
+				}
+				newWkld.VisibilityLevel = line[index]
 			}
 
 			// Process string variables requiring no logic check.
@@ -217,11 +242,11 @@ CSVEntries:
 					x = append(x, i.Name+":"+i.Address)
 				}
 			}
-			utils.LogInfo(fmt.Sprintf("CSV line %d - %s to be created - %s (role), %s (app), %s (env), %s(loc) - interfaces: %s", csvLine, newWkld.Hostname, newWkld.GetRole(input.PCE.Labels).Value, newWkld.GetApp(input.PCE.Labels).Value, newWkld.GetEnv(input.PCE.Labels).Value, newWkld.GetLoc(input.PCE.Labels).Value, strings.Join(x, ";")), false)
+			utils.LogInfo(fmt.Sprintf("csv line %d - %s to be created - %s (role), %s (app), %s (env), %s(loc) - interfaces: %s", csvLine, newWkld.Hostname, newWkld.GetRole(input.PCE.Labels).Value, newWkld.GetApp(input.PCE.Labels).Value, newWkld.GetEnv(input.PCE.Labels).Value, newWkld.GetLoc(input.PCE.Labels).Value, strings.Join(x, ";")), false)
 			continue
 		} else if !ok && !input.Umwl {
 			// If the workload does not exist and umwl flag is not set, log the entry
-			utils.LogInfo(fmt.Sprintf("CSV line %d - %s is not a workload. Include umwl flag to create it. Nothing done.", csvLine, line[*input.MatchIndex]), false)
+			utils.LogInfo(fmt.Sprintf("csv line %d - %s is not a workload. Include umwl flag to create it. Nothing done.", csvLine, line[*input.MatchIndex]), false)
 			continue
 		}
 
@@ -288,7 +313,7 @@ CSVEntries:
 				for _, n := range nics {
 					ipInterface, err := userInputConvert(n)
 					if err != nil {
-						utils.LogWarning(fmt.Sprintf("CSV Line %d - %s - skipping workload entry.", csvLine, err.Error()), true)
+						utils.LogWarning(fmt.Sprintf("csv line %d - %s - skipping workload entry.", csvLine, err.Error()), true)
 						continue CSVEntries
 					}
 					netInterfaces = append(netInterfaces, &ipInterface)
@@ -338,7 +363,7 @@ CSVEntries:
 					if !userMap[w.Address+cidrText+w.Name] {
 						updateInterfaces = true
 						change = true
-						utils.LogInfo(fmt.Sprintf("CSV line %d - Interface not in user provided data - IP: %s, CIDR: %s, Name: %s", csvLine, w.Address, cidrText, w.Name), false)
+						utils.LogInfo(fmt.Sprintf("csv line %d - interface not in user provided data - ip: %s, cidr: %s, name: %s", csvLine, w.Address, cidrText, w.Name), false)
 					}
 				}
 
@@ -351,7 +376,7 @@ CSVEntries:
 					if !wkldIntMap[u.Address+cidrText+u.Name] {
 						updateInterfaces = true
 						change = true
-						utils.LogInfo(fmt.Sprintf("CSV line %d - User provided interface not in workload - IP: %s, CIDR: %s, Name: %s", csvLine, u.Address, cidrText, u.Name), false)
+						utils.LogInfo(fmt.Sprintf("csv line %d - user provided interface not in workload - ip: %s, cidr: %s, name: %s", csvLine, u.Address, cidrText, u.Name), false)
 					}
 				}
 
@@ -363,16 +388,54 @@ CSVEntries:
 			if index, ok := input.Headers[wkldexport.HeaderHostname]; ok && strings.Contains(line[index], "/workloads/") {
 				if wkld.Hostname != line[index] {
 					change = true
-					utils.LogInfo(fmt.Sprintf("CSV line %d - Hostname to be changed from %s to %s", csvLine, wkld.Hostname, line[index]), false)
+					utils.LogInfo(fmt.Sprintf("csv line %d - hostname to be changed from %s to %s", csvLine, wkld.Hostname, line[index]), false)
 					wkld.Hostname = line[index]
 				}
 			}
+
+			// Update the SPN
+			if index, ok := input.Headers[wkldexport.HeaderSPN]; ok {
+				if wkld.ServicePrincipalName != line[index] {
+					change = true
+					utils.LogInfo(fmt.Sprintf("csv line %d - spn to be changed from %s to %s", csvLine, wkld.ServicePrincipalName, line[index]), false)
+					wkld.ServicePrincipalName = line[index]
+				}
+			}
+
+			// Update the enforcement
+			if index, ok := input.Headers[wkldexport.HeaderPolicyState]; ok && strings.ToLower(line[index]) != "unmanaged" && line[index] != "" {
+				m := strings.ToLower(line[index])
+				if m != "visibility_only" && m != "full" && m != "selective" && m != "idle" && m != "" {
+					utils.LogWarning(fmt.Sprintf("csv line %d - invalid mode state for unmanaged workload %s. values must be blank, visibility_only, full, selective, or idle. skipping line.", csvLine, line[*input.MatchIndex]), true)
+					continue CSVEntries
+				}
+				if wkld.EnforcementMode != m {
+					change = true
+					utils.LogInfo(fmt.Sprintf("csv line %d - enforcement to be changed from %s to %s", csvLine, wkld.EnforcementMode, line[index]), false)
+					wkld.EnforcementMode = m
+				}
+			}
+
+			// Update the visibility
+			if index, ok := input.Headers[wkldexport.HeaderVisibilityState]; ok && strings.ToLower(line[index]) != "unmanaged" && line[index] != "" {
+				v := strings.ToLower(line[index])
+				if v != "blocked_allowed" && v != "blocked" && v != "off" && v != "" {
+					utils.LogWarning(fmt.Sprintf("csv line %d - invalid visibility state for unmanaged workload %s. values must be blank, blocked_allowed, blocked, or off. skipping line.", csvLine, line[*input.MatchIndex]), true)
+					continue CSVEntries
+				}
+				if wkld.VisibilityLevel != v {
+					change = true
+					utils.LogInfo(fmt.Sprintf("csv line %d - visibility to be changed from %s to %s", csvLine, wkld.VisibilityLevel, line[index]), false)
+					wkld.VisibilityLevel = v
+				}
+
+			}
 		}
 
-		// Change the name if the name field is provided  it doesn't match unless the name in the CSV is blank and PCE is reporting the name as the hostname
+		// Change the name if the name field is provided it doesn't match unless the name in the CSV is blank and PCE is reporting the name as the hostname
 		if index, ok := input.Headers[wkldexport.HeaderName]; ok && wkld.Name != line[index] && line[index] != "" {
 			change = true
-			utils.LogInfo(fmt.Sprintf("CSV line %d - Name to be changed from %s to %s", csvLine, wkld.Name, line[index]), false)
+			utils.LogInfo(fmt.Sprintf("csv line %d - Name to be changed from %s to %s", csvLine, wkld.Name, line[index]), false)
 			wkld.Name = line[index]
 		}
 
@@ -381,10 +444,10 @@ CSVEntries:
 			if line[index] != wkld.PublicIP {
 				// Validate it first
 				if !publicIPIsValid(line[index]) {
-					utils.LogError(fmt.Sprintf("CSV line %d - invalid Public IP address format.", csvLine))
+					utils.LogError(fmt.Sprintf("csv line %d - invalid Public IP address format.", csvLine))
 				}
 				change = true
-				utils.LogInfo(fmt.Sprintf("CSV line %d - Public IP to be changed from %s to %s", csvLine, wkld.PublicIP, line[index]), false)
+				utils.LogInfo(fmt.Sprintf("csv line %d - Public IP to be changed from %s to %s", csvLine, wkld.PublicIP, line[index]), false)
 				wkld.PublicIP = line[index]
 			}
 		}
@@ -395,7 +458,7 @@ CSVEntries:
 		for i, header := range headerValues {
 			if index, ok := input.Headers[header]; ok {
 				if line[index] != *targetUpdates[i] {
-					utils.LogInfo(fmt.Sprintf("CSV line %d - %s to be changed from %s to %s", csvLine, header, *targetUpdates[i], line[index]), false)
+					utils.LogInfo(fmt.Sprintf("csv line %d - %s to be changed from %s to %s", csvLine, header, *targetUpdates[i], line[index]), false)
 					change = true
 					*targetUpdates[i] = line[index]
 					*targetUpdates[i] = line[index]
