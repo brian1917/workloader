@@ -84,16 +84,25 @@ var PCEListCmd = &cobra.Command{
 
 		allSettings := viper.AllSettings()
 
-		defaultPCEName := viper.Get("default_pce_name").(string)
+		defaultPCEName := ""
+		if viper.Get("default_pce_name") != nil {
+			defaultPCEName = viper.Get("default_pce_name").(string)
+		}
 
+		count := 0
 		for k := range allSettings {
 			if viper.Get(k+".fqdn") != nil {
 				if k == defaultPCEName {
 					fmt.Printf("* %s (%s)\r\n", k, viper.Get(k+".fqdn").(string))
+					count++
 				} else {
 					fmt.Printf("  %s (%s)\r\n", k, viper.Get(k+".fqdn").(string))
+					count++
 				}
 			}
+		}
+		if count == 0 {
+			utils.LogInfo("no pce configured. run pce-add to add a pce to pce.yaml file.", true)
 		}
 
 	},

@@ -26,7 +26,7 @@ func init() {
 // LogError writes the error the workloader.log and always prints an error to stdout.
 func LogError(msg string) {
 	Logger.SetPrefix(time.Now().Format("2006-01-02 15:04:05 "))
-	fmt.Printf("%s [ERROR] - %s - run with --debug and see workloader.log for detailed API response information.\r\n", time.Now().Format("2006-01-02 15:04:05 "), msg)
+	fmt.Printf("%s [ERROR] - %s see workloader.log for detailed information if error is from an illumio api call.\r\n", time.Now().Format("2006-01-02 15:04:05 "), msg)
 	Logger.Fatalf("[ERROR] - %s\r\n", msg)
 }
 
