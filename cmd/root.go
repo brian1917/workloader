@@ -50,6 +50,7 @@ import (
 	"github.com/brian1917/workloader/cmd/traffic"
 	"github.com/brian1917/workloader/cmd/umwlcleanup"
 	"github.com/brian1917/workloader/cmd/unpair"
+	"github.com/brian1917/workloader/cmd/unusedports"
 	"github.com/brian1917/workloader/cmd/upgrade"
 	"github.com/brian1917/workloader/cmd/venexport"
 	"github.com/brian1917/workloader/cmd/venimport"
@@ -157,6 +158,7 @@ func init() {
 	RootCmd.AddCommand(deleteunusedlabels.LabelsDeleteUnusedCmd)
 
 	// Reporting
+	RootCmd.AddCommand(unusedports.UnusedPortsCmd)
 	RootCmd.AddCommand(mislabel.MisLabelCmd)
 	RootCmd.AddCommand(dupecheck.DupeCheckCmd)
 	RootCmd.AddCommand(flowsummary.FlowSummaryCmd)
