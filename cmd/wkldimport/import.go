@@ -80,7 +80,11 @@ func ImportWkldsFromCSV(input Input) {
 
 	// Check if we have the workload map populate
 	if input.PCE.Workloads == nil || len(input.PCE.WorkloadsSlice) == 0 {
-		utils.LogError("input PCE cannot have nil Workloads or 0 length of WorkloadsSlice. Load workloads.")
+		apiResps, err := input.PCE.Load(illumioapi.LoadInput{Workloads: true})
+		utils.LogMultiAPIResp(apiResps)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
 	}
 
 	// Check for invalid flag combinations
