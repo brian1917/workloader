@@ -2,6 +2,7 @@ package wkldexport
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -15,12 +16,13 @@ import (
 // Declare local global variables
 var pce illumioapi.PCE
 var err error
-var managedOnly, unmanagedOnly, removeDescNewLines bool
+var managedOnly, unmanagedOnly, includeVuln, removeDescNewLines bool
 var outputFileName string
 
 func init() {
-	WkldExportCmd.Flags().BoolVarP(&managedOnly, "managed-only", "m", false, "Only export managed workloads.")
-	WkldExportCmd.Flags().BoolVarP(&unmanagedOnly, "unmanaged-only", "u", false, "Only export unmanaged workloads.")
+	WkldExportCmd.Flags().BoolVarP(&managedOnly, "managed-only", "m", false, "only export managed workloads.")
+	WkldExportCmd.Flags().BoolVarP(&unmanagedOnly, "unmanaged-only", "u", false, "only export unmanaged workloads.")
+	WkldExportCmd.Flags().BoolVarP(&includeVuln, "incude-vuln-data", "v", false, "include vulnerability data.")
 	WkldExportCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 	WkldExportCmd.Flags().BoolVar(&removeDescNewLines, "remove-desc-newline", false, "will remove new line characters in description field.")
 
@@ -52,7 +54,11 @@ func exportWorkloads() {
 	utils.LogStartCommand("wkld-export")
 
 	// Start the data slice with headers
-	csvData := [][]string{{HeaderHostname, HeaderName, HeaderManaged, HeaderRole, HeaderApp, HeaderEnv, HeaderLoc, HeaderInterfaces, HeaderPublicIP, HeaderMachineAuthenticationID, HeaderIPWithDefaultGw, HeaderNetmaskOfIPWithDefGw, HeaderDefaultGw, HeaderDefaultGwNetwork, HeaderSPN, HeaderHref, HeaderDescription, HeaderPolicyState, HeaderVisibilityState, HeaderOnline, HeaderAgentStatus, HeaderAgentHealth, HeaderSecurityPolicySyncState, HeaderSecurityPolicyAppliedAt, HeaderSecurityPolicyReceivedAt, HeaderSecurityPolicyRefreshAt, HeaderLastHeartbeatOn, HeaderHoursSinceLastHeartbeat, HeaderCreatedAt, HeaderOsID, HeaderOsDetail, HeaderAgentVersion, HeaderAgentID, HeaderActivePceFqdn, HeaderServiceProvider, HeaderDataCenter, HeaderDataCenterZone, HeaderCloudInstanceID, HeaderExternalDataSet, HeaderExternalDataReference}}
+	headers := []string{HeaderHostname, HeaderName, HeaderManaged, HeaderRole, HeaderApp, HeaderEnv, HeaderLoc, HeaderInterfaces, HeaderPublicIP, HeaderMachineAuthenticationID, HeaderIPWithDefaultGw, HeaderNetmaskOfIPWithDefGw, HeaderDefaultGw, HeaderDefaultGwNetwork, HeaderSPN, HeaderHref, HeaderDescription, HeaderPolicyState, HeaderVisibilityState, HeaderOnline, HeaderAgentStatus, HeaderAgentHealth, HeaderSecurityPolicySyncState, HeaderSecurityPolicyAppliedAt, HeaderSecurityPolicyReceivedAt, HeaderSecurityPolicyRefreshAt, HeaderLastHeartbeatOn, HeaderHoursSinceLastHeartbeat, HeaderCreatedAt, HeaderOsID, HeaderOsDetail, HeaderAgentVersion, HeaderAgentID, HeaderActivePceFqdn, HeaderServiceProvider, HeaderDataCenter, HeaderDataCenterZone, HeaderCloudInstanceID}
+	if includeVuln {
+		headers = append(headers, HeaderVulnExposureScore, HeaderNumVulns, HeaderMaxVulnScore, HeaderVulnScore, HeaderVulnPortExposure, HeaderAnyVulnExposure, HeaderIpListVulnExposure)
+	}
+	csvData := [][]string{append(headers, HeaderExternalDataSet, HeaderExternalDataReference)}
 	stdOutData := [][]string{{HeaderHostname, HeaderRole, HeaderApp, HeaderEnv, HeaderLoc, HeaderPolicyState}}
 
 	// GetAllWorkloads
@@ -63,6 +69,7 @@ func exportWorkloads() {
 	if managedOnly {
 		qp["managed"] = "true"
 	}
+	qp["representation"] = "workload_labels_vulnerabilities"
 	wklds, a, err := pce.GetAllWorkloadsQP(qp)
 	utils.LogAPIResp("GetAllWorkloads", a)
 	if err != nil {
@@ -141,7 +148,26 @@ func exportWorkloads() {
 		}
 
 		// Append to data slice
-		csvData = append(csvData, []string{w.Hostname, w.Name, strconv.FormatBool(managedStatus), w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, strings.Join(interfaces, ";"), w.PublicIP, w.DistinguishedName, w.GetIPWithDefaultGW(), w.GetNetMaskWithDefaultGW(), w.GetDefaultGW(), w.GetNetworkWithDefaultGateway(), w.ServicePrincipalName, w.Href, w.Description, w.GetMode(), w.GetVisibilityLevel(), strconv.FormatBool(w.Online), agentStatus, agentHealth, policySyncStatus, policyAppliedAt, poicyReceivedAt, policyRefreshAt, lastHeartBeat, hoursSinceLastHB, w.CreatedAt, w.OsID, w.OsDetail, venVersion, venID, pairedPCE, w.ServiceProvider, w.DataCenter, w.DataCenterZone, instanceID, w.ExternalDataSet, w.ExternalDataReference})
+		data := []string{w.Hostname, w.Name, strconv.FormatBool(managedStatus), w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, strings.Join(interfaces, ";"), w.PublicIP, w.DistinguishedName, w.GetIPWithDefaultGW(), w.GetNetMaskWithDefaultGW(), w.GetDefaultGW(), w.GetNetworkWithDefaultGateway(), w.ServicePrincipalName, w.Href, w.Description, w.GetMode(), w.GetVisibilityLevel(), strconv.FormatBool(w.Online), agentStatus, agentHealth, policySyncStatus, policyAppliedAt, poicyReceivedAt, policyRefreshAt, lastHeartBeat, hoursSinceLastHB, w.CreatedAt, w.OsID, w.OsDetail, venVersion, venID, pairedPCE, w.ServiceProvider, w.DataCenter, w.DataCenterZone, instanceID}
+
+		if includeVuln {
+			var numVulns, maxVulnScore, vulnScore, vulnPortExposure, anyExposure, iplExposure, vulnExposureScore string
+			targets := []*string{&maxVulnScore, &vulnScore, &vulnExposureScore}
+			if w.VulnerabilitySummary != nil {
+				values := []int{w.VulnerabilitySummary.MaxVulnerabilityScore, w.VulnerabilitySummary.VulnerabilityScore, w.VulnerabilitySummary.VulnerabilityExposureScore}
+				for i, t := range targets {
+					*t = strconv.Itoa(int((math.Round((float64(values[i]) / float64(10))))))
+				}
+
+				numVulns = strconv.Itoa(w.VulnerabilitySummary.NumVulnerabilities)
+				vulnPortExposure = strconv.Itoa(w.VulnerabilitySummary.VulnerablePortExposure)
+				anyExposure = strconv.FormatBool(w.VulnerabilitySummary.VulnerablePortWideExposure.Any)
+				iplExposure = strconv.FormatBool(w.VulnerabilitySummary.VulnerablePortWideExposure.IPList)
+			}
+			data = append(data, vulnExposureScore, numVulns, maxVulnScore, vulnScore, vulnPortExposure, anyExposure, iplExposure, w.ExternalDataSet, w.ExternalDataReference)
+		}
+		csvData = append(csvData, data)
+
 		stdOutData = append(stdOutData, []string{w.Hostname, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, w.GetMode()})
 	}
 

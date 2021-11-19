@@ -41,6 +41,13 @@ const (
 	HeaderVisibilityState          = "visibility"
 	HeaderSPN                      = "spn"
 	HeaderManaged                  = "managed"
+	HeaderVulnExposureScore        = "vuln_exposure_score"
+	HeaderNumVulns                 = "num_vulns"
+	HeaderMaxVulnScore             = "max_vuln_score"
+	HeaderVulnScore                = "vuln_score"
+	HeaderVulnPortExposure         = "vuln_port_exposure"
+	HeaderAnyVulnExposure          = "any_ip_vuln_exposure"
+	HeaderIpListVulnExposure       = "ip_list_vuln_exposure"
 )
 
 func AllHeaders() []string {
@@ -84,7 +91,14 @@ func AllHeaders() []string {
 		HeaderAgentHealth,
 		HeaderVisibilityState,
 		HeaderSPN,
-		HeaderManaged}
+		HeaderManaged,
+		HeaderVulnExposureScore,
+		HeaderNumVulns,
+		HeaderMaxVulnScore,
+		HeaderVulnScore,
+		HeaderVulnPortExposure,
+		HeaderAnyVulnExposure,
+		HeaderIpListVulnExposure}
 }
 
 func ImportHeaders() []string {
