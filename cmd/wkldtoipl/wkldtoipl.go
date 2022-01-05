@@ -145,7 +145,7 @@ func wkldtoipl() {
 		// Create a map to check IP addresses so we don't duplicate
 		addresses := make(map[string]int)
 		// Create the IP list
-		ipl := illumioapi.IPList{Name: name}
+		ipRanges := []*illumioapi.IPRange{}
 	workloads:
 		for _, w := range wklds {
 			// Check each label to see if matches
@@ -163,14 +163,16 @@ func wkldtoipl() {
 					// Add it to the map
 					addresses[nic.Address] = 1
 					// Add it to the IPList range
-					*ipl.IPRanges = append(*ipl.IPRanges, &illumioapi.IPRange{FromIP: nic.Address})
+					ipRanges = append(ipRanges, &illumioapi.IPRange{FromIP: nic.Address})
 				}
 			}
 		}
 		// Add the slice if we have some ip ranges in
-		if ipl.IPRanges != nil && len(*ipl.IPRanges) > 0 {
+		ipl := illumioapi.IPList{Name: name, IPRanges: &ipRanges}
+		if len(ipRanges) > 0 {
 			ipls = append(ipls, ipl)
 		}
+
 	}
 
 	// Output the CSV
