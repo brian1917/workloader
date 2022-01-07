@@ -536,9 +536,9 @@ func ExportRules(input Input) {
 				// Label Groups
 				if p.LabelGroup != nil {
 					if val, ok := csvEntryMap[HeaderProviderLabelGroups]; ok {
-						csvEntryMap[HeaderProviderLabelGroups] = fmt.Sprintf("%s;%s", val, input.PCE.Labels[p.LabelGroup.Href].Value)
+						csvEntryMap[HeaderProviderLabelGroups] = fmt.Sprintf("%s;%s", val, input.PCE.LabelGroups[p.LabelGroup.Href].Name)
 					} else {
-						csvEntryMap[HeaderProviderLabelGroups] = input.PCE.Labels[p.LabelGroup.Href].Value
+						csvEntryMap[HeaderProviderLabelGroups] = input.PCE.LabelGroups[p.LabelGroup.Href].Name
 					}
 					// Expand the label group and check each
 					labels := input.PCE.ExpandLabelGroup(p.LabelGroup.Href)
