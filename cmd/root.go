@@ -53,6 +53,7 @@ import (
 	"github.com/brian1917/workloader/cmd/unusedports"
 	"github.com/brian1917/workloader/cmd/upgrade"
 	"github.com/brian1917/workloader/cmd/venexport"
+	"github.com/brian1917/workloader/cmd/venhealth"
 	"github.com/brian1917/workloader/cmd/venimport"
 	"github.com/brian1917/workloader/cmd/wkldexport"
 	"github.com/brian1917/workloader/cmd/wkldimport"
@@ -166,6 +167,7 @@ func init() {
 	RootCmd.AddCommand(nicexport.NICExportCmd)
 	RootCmd.AddCommand(servicefinder.ServiceFinderCmd)
 	RootCmd.AddCommand(wkldiplmapping.WkldIPLMappingCmd)
+	RootCmd.AddCommand(venhealth.VenHealthCmd)
 
 	// Edge Commands
 	RootCmd.AddCommand(wkldtoipl.WorkloadToIPLCmd)

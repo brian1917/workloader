@@ -20,7 +20,7 @@ func RootTemplate() string {
   Label Management Commands:{{range .Commands}}{{if (or (eq .Name "labels-delete-unused") (eq .Name "label-rename"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
-  Reporting Commands:{{range .Commands}}{{if (or (eq .Name "unused-ports") (eq .Name "mislabel") (eq .Name "dupecheck") (eq .Name "flowsummary") (eq .Name "explorer") (eq .Name "nic-export") (eq .Name "service-finder") (eq .Name "wkld-ipl-mapping"))}}
+  Reporting Commands:{{range .Commands}}{{if (or (eq .Name "unused-ports") (eq .Name "mislabel") (eq .Name "dupecheck") (eq .Name "flowsummary") (eq .Name "explorer") (eq .Name "nic-export") (eq .Name "service-finder") (eq .Name "wkld-ipl-mapping") (eq .Name "ven-health"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
   Edge Commands:{{range .Commands}}{{if (or (eq .Name "wkld-to-ipl") (eq .Name "edge-rule-copy") (eq .Name "edge-admin"))}}
