@@ -38,7 +38,7 @@ func checkLabel(pce illumioapi.PCE, updatePCE bool, label illumioapi.Label, csvL
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-		utils.LogInfo(fmt.Sprintf("CSV line - %d - created label - %s (%s) - %s", csvLine, l.Value, l.Key, l.Href), true)
+		utils.LogInfo(fmt.Sprintf("csv line %d - created label - %s (%s) - %s", csvLine, l.Value, l.Key, l.Href), true)
 
 		// Append the label back to the map
 		pce.Labels[l.Key+l.Value] = l
@@ -51,7 +51,7 @@ func checkLabel(pce illumioapi.PCE, updatePCE bool, label illumioapi.Label, csvL
 	}
 
 	// If updatePCE is not set, create a placeholder href for provided label, and add it back to the maps
-	utils.LogInfo(fmt.Sprintf("Potential New Label - Key: %s, Value: %s", label.Key, label.Value), false)
+	utils.LogInfo(fmt.Sprintf("csv line %d - new label required - %s (%s)", csvLine, label.Value, label.Key), false)
 	label.Href = fmt.Sprintf("place-holder-href-%s-%s", label.Key, label.Value)
 	pce.Labels[label.Key+label.Value] = label
 	pce.Labels[label.Href] = label
@@ -291,7 +291,7 @@ CSVEntries:
 					// Change the change flag
 					change = true
 					// Log change required
-					utils.LogInfo(fmt.Sprintf("CSV Line - %d - %s requiring %s label update from %s to %s.", csvLine, line[*input.MatchIndex], labelKeys[i], wkldCurrentLabels[i].Value, line[index]), false)
+					utils.LogInfo(fmt.Sprintf("csv line %d - %s requiring %s label update from %s to %s.", csvLine, line[*input.MatchIndex], labelKeys[i], wkldCurrentLabels[i].Value, line[index]), false)
 					// Add that label to the new labels slice
 					*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: checkLabel(input.PCE, input.UpdatePCE, illumioapi.Label{Key: labelKeys[i], Value: line[index]}, csvLine).Href})
 					continue
@@ -406,6 +406,9 @@ CSVEntries:
 				}
 			}
 
+		}
+
+		if input.AllowEnforcementChanges {
 			// Update the enforcement
 			if index, ok := input.Headers[wkldexport.HeaderPolicyState]; ok && strings.ToLower(line[index]) != "unmanaged" && line[index] != "" {
 				m := strings.ToLower(line[index])
@@ -415,7 +418,7 @@ CSVEntries:
 				}
 				if wkld.EnforcementMode != m {
 					change = true
-					utils.LogInfo(fmt.Sprintf("csv line %d - enforcement to be changed from %s to %s", csvLine, wkld.EnforcementMode, line[index]), false)
+					utils.LogInfo(fmt.Sprintf("csv line %d - %s enforcement to be changed from %s to %s", csvLine, wkld.Hostname, wkld.EnforcementMode, line[index]), false)
 					wkld.EnforcementMode = m
 				}
 			}
@@ -427,12 +430,11 @@ CSVEntries:
 					utils.LogWarning(fmt.Sprintf("csv line %d - invalid visibility state for unmanaged workload %s. values must be blank, blocked_allowed, blocked, or off. skipping line.", csvLine, line[*input.MatchIndex]), true)
 					continue CSVEntries
 				}
-				if wkld.VisibilityLevel != v {
+				if wkld.GetVisibilityLevel() != v {
 					change = true
-					utils.LogInfo(fmt.Sprintf("csv line %d - visibility to be changed from %s to %s", csvLine, wkld.VisibilityLevel, line[index]), false)
-					wkld.VisibilityLevel = v
+					utils.LogInfo(fmt.Sprintf("csv line %d - %s visibility to be changed from %s to %s", csvLine, wkld.Hostname, wkld.VisibilityLevel, line[index]), false)
+					wkld.SetVisibilityLevel(v)
 				}
-
 			}
 		}
 

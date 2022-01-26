@@ -13,15 +13,15 @@ import (
 
 // Input is the data structure the FromCSV function expects
 type Input struct {
-	PCE                                                             illumioapi.PCE
-	ImportFile                                                      string
-	RemoveValue                                                     string
-	RolePrefix, AppPrefix, EnvPrefix, LocPrefix                     string
-	Headers                                                         map[string]int
-	MatchIndex                                                      *int
-	Umwl, KeepAllPCEInterfaces, FQDNtoHostname, UpdatePCE, NoPrompt bool
-	ManagedOnly                                                     bool
-	UnmanagedOnly                                                   bool
+	PCE                                                                                      illumioapi.PCE
+	ImportFile                                                                               string
+	RemoveValue                                                                              string
+	RolePrefix, AppPrefix, EnvPrefix, LocPrefix                                              string
+	Headers                                                                                  map[string]int
+	MatchIndex                                                                               *int
+	Umwl, KeepAllPCEInterfaces, FQDNtoHostname, AllowEnforcementChanges, UpdatePCE, NoPrompt bool
+	ManagedOnly                                                                              bool
+	UnmanagedOnly                                                                            bool
 }
 
 // input is a global variable for the wkld-import command's isntance of Input
@@ -30,23 +30,24 @@ var matchIndex int
 
 func init() {
 
-	WkldImportCmd.Flags().BoolVar(&input.Umwl, "umwl", false, "Create unmanaged workloads if the host does not exist. Disabled if matching on href.")
-	WkldImportCmd.Flags().StringVar(&input.RemoveValue, "remove-value", "", "Value in CSV used to remove existing labels. Blank values in the CSV will not change existing. If you want to delete a label do something like --remove-value DELETE and use DELETE in CSV to indicate where to clear existing labels on a workload.")
-	WkldImportCmd.Flags().IntVar(&matchIndex, "match", -1, "Column number to override selected column to match workloads. -1 uses default workloader logic.")
+	WkldImportCmd.Flags().BoolVar(&input.Umwl, "umwl", false, "create unmanaged workloads if the host does not exist. Disabled if matching on href.")
+	WkldImportCmd.Flags().StringVar(&input.RemoveValue, "remove-value", "", "value in CSV used to remove existing labels. Blank values in the CSV will not change existing. If you want to delete a label do something like --remove-value DELETE and use DELETE in CSV to indicate where to clear existing labels on a workload.")
+	WkldImportCmd.Flags().IntVar(&matchIndex, "match", -1, "column number to override selected column to match workloads. -1 uses default workloader logic.")
 	if matchIndex == -1 {
 		input.MatchIndex = nil
 	}
-	WkldImportCmd.Flags().StringVar(&input.RolePrefix, "role-prefix", "", "Prefix to add to role labels in CSV.")
-	WkldImportCmd.Flags().StringVar(&input.AppPrefix, "app-prefix", "", "Prefix to add to app labels in CSV.")
-	WkldImportCmd.Flags().StringVar(&input.EnvPrefix, "env-prefix", "", "Prefix to add to env labels in CSV.")
-	WkldImportCmd.Flags().StringVar(&input.LocPrefix, "loc-prefix", "", "Prefix to add to loc labels in CSV.")
-	WkldImportCmd.Flags().BoolVar(&input.UnmanagedOnly, "unmanaged-only", false, "Only label unmanaged workloads in the PCE.")
-	WkldImportCmd.Flags().BoolVar(&input.ManagedOnly, "managed-only", false, "Only label managed workloads in the PCE.")
+	WkldImportCmd.Flags().StringVar(&input.RolePrefix, "role-prefix", "", "prefix to add to role labels in CSV.")
+	WkldImportCmd.Flags().StringVar(&input.AppPrefix, "app-prefix", "", "prefix to add to app labels in CSV.")
+	WkldImportCmd.Flags().StringVar(&input.EnvPrefix, "env-prefix", "", "prefix to add to env labels in CSV.")
+	WkldImportCmd.Flags().StringVar(&input.LocPrefix, "loc-prefix", "", "prefix to add to loc labels in CSV.")
+	WkldImportCmd.Flags().BoolVar(&input.AllowEnforcementChanges, "allow-enforcement-changes", false, "allow wkld-import to update the enforcement state and visibility levels.")
+	WkldImportCmd.Flags().BoolVar(&input.UnmanagedOnly, "unmanaged-only", false, "only label unmanaged workloads in the PCE.")
+	WkldImportCmd.Flags().BoolVar(&input.ManagedOnly, "managed-only", false, "only label managed workloads in the PCE.")
 
 	// Hidden flag for use when called from SNOW command
-	WkldImportCmd.Flags().BoolVarP(&input.FQDNtoHostname, "fqdn-to-hostname", "f", false, "Convert FQDN hostnames reported by Illumio VEN to short hostnames by removing everything after first period (e.g., test.domain.com becomes test).")
+	WkldImportCmd.Flags().BoolVarP(&input.FQDNtoHostname, "fqdn-to-hostname", "f", false, "convert FQDN hostnames reported by Illumio VEN to short hostnames by removing everything after first period (e.g., test.domain.com becomes test).")
 	WkldImportCmd.Flags().MarkHidden("fqdn-to-hostname")
-	WkldImportCmd.Flags().BoolVarP(&input.KeepAllPCEInterfaces, "keep-all-pce-interfaces", "k", false, "Will not delete an interface on an unmanaged workload if it's not in the import. It will only add interfaces to the workload.")
+	WkldImportCmd.Flags().BoolVarP(&input.KeepAllPCEInterfaces, "keep-all-pce-interfaces", "k", false, "will not delete an interface on an unmanaged workload if it's not in the import. It will only add interfaces to the workload.")
 	WkldImportCmd.Flags().MarkHidden("keep-all-pce-interfaces")
 
 	WkldImportCmd.Flags().SortFlags = false
