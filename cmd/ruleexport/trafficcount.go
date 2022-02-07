@@ -14,7 +14,7 @@ import (
 func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule) []string {
 	// Build the new explorer query object
 	// Using the raw data structure for more flexibility versus illumioapi.TrafficQuery
-	trafficReq := illumioapi.TrafficAnalysisRequest{}
+	trafficReq := illumioapi.TrafficAnalysisRequest{MaxResults: input.ExplorerMax}
 
 	// Build the holder consumer label slice
 	var consumerLabels []illumioapi.Label
