@@ -32,7 +32,7 @@ var RuleSetImportCmd = &cobra.Command{
 	Use:   "ruleset-import [csv file to import]",
 	Short: "Create rulesets from a CSV file.",
 	Long: `
-Create rulesets in the PCE from a CSV file.
+Create or update rulesets in the PCE from a CSV file.
 
 If the app_scope, env_scope, or loc_scope is a label group, the name bust be appended with "-lg" in the CSV. The PCE object does not need any modification; it's just a tag in the CSV to tell workloader to look up the object as a label group.
 
@@ -52,6 +52,8 @@ The order of the CSV columns do not matter. The input format requires the follow
 - app_scope
 - env_scope
 - loc_scope
+
+Existing rulesets can be udpated if the href is provided. Only ruleset_name, ruleset_enabled, and ruleset_description can be updated.
 
 Recommended to run without --update-pce first to log of what will change. If --update-pce is used, import will create labels without prompt, but it will not create/update workloads without user confirmation, unless --no-prompt is used.`,
 
@@ -121,11 +123,13 @@ func ImportRuleSetsFromCSV(input Input) {
 		csvLine int
 	}
 	newRuleSets := []newRuleSet{}
+	updateRuleSets := []newRuleSet{}
 
 	// Declare hm to hold the headermap
 	var hm map[string]int
 
 	// Process the CSV input
+csvEntries:
 	for i, l := range csvInput {
 
 		// Skip the header row
@@ -137,33 +141,42 @@ func ImportRuleSetsFromCSV(input Input) {
 		}
 
 		// If the ruleset column is provided and there is a value, make sure it's valid.
-		if rsHrefCol, ok := hm["ruleset_href"]; ok && l[hm["ruleset_href"]] != "" {
+		if rsHrefCol, ok := hm["href"]; ok && l[hm["href"]] != "" {
 			var rs illumioapi.RuleSet
 			if rs, ok = rsMap[l[rsHrefCol]]; !ok {
-				utils.LogError(fmt.Sprintf("CSV line %d - provided ruleset href does not exist", i+1))
+				utils.LogError(fmt.Sprintf("csv line %d - provided ruleset href does not exist", i+1))
 			}
 			// Begin update checks
-			//update := false
+			update := false
 			// Name
 			if rs.Name != l[hm["ruleset_name"]] {
-				utils.LogInfo(fmt.Sprintf("CSV line %d - ruleset name needs to be updated from %s to %s", i+1, rs.Name, l[hm["ruleset_name"]]), false)
-				//update = true
+				utils.LogInfo(fmt.Sprintf("csv line %d - ruleset name needs to be updated from %s to %s", i+1, rs.Name, l[hm["ruleset_name"]]), false)
+				update = true
+				rs.Name = l[hm["ruleset_name"]]
 			}
 			// Description
 			if rs.Description != l[hm["ruleset_description"]] {
-				utils.LogInfo(fmt.Sprintf("CSV line %d - ruleset description needs to be updated from %s to %s", i+1, rs.Description, l[hm["ruleset_description"]]), false)
-				//update = true
+				utils.LogInfo(fmt.Sprintf("csv line %d - ruleset description needs to be updated from %s to %s", i+1, rs.Description, l[hm["ruleset_description"]]), false)
+				update = true
+				rs.Description = l[hm["ruleset_description"]]
 			}
 			// Enabled
 			csvEnabled, err := strconv.ParseBool(l[hm["ruleset_enabled"]])
 			if err != nil {
-				utils.LogError(fmt.Sprintf("CSV line %d - invalid entry for ruleset enabled. Expects true/false", i+1))
+				utils.LogError(fmt.Sprintf("csv line %d - invalid entry for ruleset enabled. Expects true/false", i+1))
 			}
 			if *rs.Enabled != csvEnabled {
-				utils.LogInfo(fmt.Sprintf("CSV line %d - ruleset enabled needs to be updated from %s to %s", i+1, strconv.FormatBool(*rs.Enabled), strconv.FormatBool(csvEnabled)), false)
-				//update = true
+				utils.LogInfo(fmt.Sprintf("csv line %d - ruleset enabled needs to be updated from %s to %s", i+1, strconv.FormatBool(*rs.Enabled), strconv.FormatBool(csvEnabled)), false)
+				update = true
+				*rs.Enabled = csvEnabled
 			}
-			// Scopes - coming soon
+
+			if update {
+				updateRuleSets = append(updateRuleSets, newRuleSet{csvLine: i + 1, ruleSet: rs})
+			}
+
+			// Continue past the new rule set creation
+			continue csvEntries
 		}
 
 		// Build a new ruleset with name and description
@@ -246,7 +259,7 @@ func ImportRuleSetsFromCSV(input Input) {
 	}
 
 	// End run if we have nothing to do
-	if len(newRuleSets) == 0 {
+	if len(newRuleSets) == 0 && len(updateRuleSets) == 0 {
 		utils.LogInfo("nothing to be done", true)
 		utils.LogEndCommand("ruleset-import")
 		return
@@ -254,7 +267,7 @@ func ImportRuleSetsFromCSV(input Input) {
 
 	// Log findings
 	if !input.UpdatePCE {
-		utils.LogInfo(fmt.Sprintf("workloader identified %d rulesets to create. To do the import, run again using --update-pce flag.", len(newRuleSets)), true)
+		utils.LogInfo(fmt.Sprintf("workloader identified %d rulesets to create and %d rulesets to update. To do the import, run again using --update-pce flag.", len(newRuleSets), len(updateRuleSets)), true)
 		utils.LogEndCommand("ruleset-import")
 		return
 	}
@@ -262,7 +275,7 @@ func ImportRuleSetsFromCSV(input Input) {
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if input.UpdatePCE && !input.NoPrompt {
 		var prompt string
-		fmt.Printf("\r\n[PROMPT] - workloader identified %d rulesets to create in %s (%s). Do you want to run the import (yes/no)? ", len(newRuleSets), input.PCE.FriendlyName, viper.Get(input.PCE.FriendlyName+".fqdn").(string))
+		fmt.Printf("\r\n[PROMPT] - workloader identified %d rulesets to create and %d rulesets to update in %s (%s). Do you want to run the import (yes/no)? ", len(newRuleSets), len(updateRuleSets), input.PCE.FriendlyName, viper.Get(input.PCE.FriendlyName+".fqdn").(string))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo("prompt denied.", true)
@@ -281,7 +294,20 @@ func ImportRuleSetsFromCSV(input Input) {
 				utils.LogError(err.Error())
 			}
 			provisionHrefs = append(provisionHrefs, ruleset.Href)
-			utils.LogInfo(fmt.Sprintf("CSV line %d - created ruleset %s - %d", newRuleSet.csvLine, ruleset.Href, a.StatusCode), true)
+			utils.LogInfo(fmt.Sprintf("csv line %d - created ruleset %s - %d", newRuleSet.csvLine, ruleset.Href, a.StatusCode), true)
+		}
+	}
+
+	if len(updateRuleSets) > 0 {
+		for _, updateRuleSet := range updateRuleSets {
+			a, err := input.PCE.UpdateRuleSet(updateRuleSet.ruleSet)
+			utils.LogAPIResp("UpateRuleSet", a)
+			if err != nil {
+				utils.LogError(err.Error())
+			}
+			provisionHrefs = append(provisionHrefs, updateRuleSet.ruleSet.Href)
+			utils.LogInfo(fmt.Sprintf("csv line %d - updated ruleset %s - %d", updateRuleSet.csvLine, updateRuleSet.ruleSet.Href, a.StatusCode), true)
+
 		}
 	}
 
@@ -296,7 +322,7 @@ func ImportRuleSetsFromCSV(input Input) {
 	}
 
 	// Log end
-	utils.LogEndCommand("rule-import")
+	utils.LogEndCommand("ruleset-import")
 }
 
 func processHeaders(headerRow []string) map[string]int {
