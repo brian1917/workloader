@@ -291,7 +291,11 @@ CSVEntries:
 					// Change the change flag
 					change = true
 					// Log change required
-					utils.LogInfo(fmt.Sprintf("csv line %d - %s requiring %s label update from %s to %s.", csvLine, line[*input.MatchIndex], labelKeys[i], wkldCurrentLabels[i].Value, line[index]), false)
+					currentlLabel := wkldCurrentLabels[i].Value
+					if wkldCurrentLabels[i].Value == "" {
+						currentlLabel = "<empty>"
+					}
+					utils.LogInfo(fmt.Sprintf("csv line %d - %s %s label to be changed from %s to %s.", csvLine, line[*input.MatchIndex], labelKeys[i], currentlLabel, line[index]), false)
 					// Add that label to the new labels slice
 					*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: checkLabel(input.PCE, input.UpdatePCE, illumioapi.Label{Key: labelKeys[i], Value: line[index]}, csvLine).Href})
 					continue
