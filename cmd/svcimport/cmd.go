@@ -19,7 +19,7 @@ func init() {
 	SvcImportCmd.Flags().BoolVarP(&input.Provision, "provision", "p", false, "Provision IP Lists after creating and/or updating.")
 }
 
-// IplImportCmd runs the iplist import command
+// SvcImportCmd runs the service import command
 var SvcImportCmd = &cobra.Command{
 	Use:   "svc-import [csv file to import]",
 	Short: "Create and update services from a CSV.",
@@ -43,7 +43,7 @@ Notes on input:
 - Rows that share a common name are the same service. For example, a service that has muliple ports should be separate rows with the same name.
 - Ports can be individual values or a range (e.g., 10-20)
 	
-Recommended to run without --update-pce first to log of what will change. If --update-pce is used, ipl-import will create the IP lists with a  user prompt. To disable the prompt, use --no-prompt.`,
+Recommended to run without --update-pce first to log of what will change. If --update-pce is used, svc-import will create the services with a  user prompt. To disable the prompt, use --no-prompt.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
