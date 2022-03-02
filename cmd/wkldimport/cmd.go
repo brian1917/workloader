@@ -72,8 +72,8 @@ The input file requires headers and matches fields to header values. The followi
 		"- " + wkldexport.HeaderPublicIP + "\r\n" +
 		"- " + wkldexport.HeaderMachineAuthenticationID + "\r\n" +
 		"- " + wkldexport.HeaderSPN + " (unmanaged workloads for Kerberos only)\r\n" +
-		"- " + wkldexport.HeaderPolicyState + " (unmanaged workloads for Kerberos only)\r\n" +
-		"- " + wkldexport.HeaderVisibilityState + " (unmanaged workloads for Kerberos only)\r\n" +
+		"- " + wkldexport.HeaderPolicyState + " (only with --allow-enforcement-changes flag)\r\n" +
+		"- " + wkldexport.HeaderVisibilityState + " (only with --allow-enforcement-changes flag)\r\n" +
 		"- " + wkldexport.HeaderDescription + "\r\n" +
 		"- " + wkldexport.HeaderOsID + "\r\n" +
 		"- " + wkldexport.HeaderOsDetail + "\r\n" +
