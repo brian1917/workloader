@@ -166,6 +166,7 @@ func exportWorkloads() {
 			}
 			data = append(data, vulnExposureScore, numVulns, maxVulnScore, vulnScore, vulnPortExposure, anyExposure, iplExposure, w.ExternalDataSet, w.ExternalDataReference)
 		}
+		data = append(data, w.ExternalDataSet, w.ExternalDataReference)
 		csvData = append(csvData, data)
 
 		stdOutData = append(stdOutData, []string{w.Hostname, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, w.GetMode()})
