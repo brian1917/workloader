@@ -233,6 +233,13 @@ func DeleteHrefs(input Input) {
 	if err != nil {
 		utils.LogError(err.Error())
 	}
+	for _, w := range bulkWorkloads {
+		n := w.Hostname
+		if n == "" {
+			n = w.Name
+		}
+		utils.LogInfo(fmt.Sprintf("%s - %s - passed into bulk workload delete - see bulk API responses for confirmation.", w.Href, n), false)
+	}
 
 	// Provision if needed
 	if len(provision) > 0 && input.Provision {
