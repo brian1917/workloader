@@ -29,32 +29,31 @@ func (i *Input) processHeaders(headers []string) {
 		i.Headers[fieldMap[header]] = col
 	}
 
-	// If the match is explicitly set, use that.
-	if i.MatchIndex != nil {
-		utils.LogInfo(fmt.Sprintf("match column set to %d by user", i.MatchIndex), false)
-		// User input is the column number. Lower that by 1 for the index.
-		*i.MatchIndex = *i.MatchIndex - 1
+	if i.MatchString != "" {
+		if i.MatchString != "href" && i.MatchString != "hostname" && i.MatchString != "name" && i.MatchString != "external_data" {
+			utils.LogError("invalid match value. must be href, hostname, name, or external_data")
+		}
 		return
 	}
 
 	// If href is provided and UMWL is not set, use href
 	if val, ok := i.Headers[wkldexport.HeaderHref]; ok && !i.Umwl {
-		i.MatchIndex = &val
-		utils.LogInfo(fmt.Sprintf("match column set to %d because href header is present and unmanaged workload flag is not set.", *i.MatchIndex), false)
+		i.MatchString = wkldexport.HeaderHref
+		utils.LogInfo(fmt.Sprintf("match column set to %d because href header is present and unmanaged workload flag is not set.", val), false)
 		return
 	}
 
 	// If hostname is set, use that.
 	if val, ok := i.Headers[wkldexport.HeaderHostname]; ok {
-		i.MatchIndex = &val
-		utils.LogInfo(fmt.Sprintf("match column set to hostname column (%d)", *i.MatchIndex), false)
+		i.MatchString = wkldexport.HeaderHostname
+		utils.LogInfo(fmt.Sprintf("match column set to hostname column (%d)", val), false)
 		return
 	}
 
 	// If name is set, use that.
 	if val, ok := i.Headers[wkldexport.HeaderName]; ok {
-		i.MatchIndex = &val
-		utils.LogInfo(fmt.Sprintf("match column set to name column (%d)", *i.MatchIndex), false)
+		i.MatchString = wkldexport.HeaderName
+		utils.LogInfo(fmt.Sprintf("match column set to name column (%d)", val), false)
 		return
 	}
 
@@ -139,14 +138,8 @@ func (i *Input) log() {
 		if v.Type().Field(a).Name == "PCE" || v.Type().Field(a).Name == "KeepAllPCEInterfaces" || v.Type().Field(a).Name == "FQDNtoHostname" {
 			continue
 		}
-		if v.Type().Field(a).Name == "MatchIndex" {
-			logEntry = append(logEntry, fmt.Sprintf("%s: %v", v.Type().Field(a).Name, *i.MatchIndex))
-			continue
-		}
 		logEntry = append(logEntry, fmt.Sprintf("%s: %v", v.Type().Field(a).Name, v.Field(a).Interface()))
 	}
-
-	// Append the MatchIndex
 
 	utils.LogInfo(strings.Join(logEntry, "; "), false)
 }

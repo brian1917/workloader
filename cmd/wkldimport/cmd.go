@@ -13,12 +13,13 @@ import (
 
 // Input is the data structure the FromCSV function expects
 type Input struct {
-	PCE                                                                                      illumioapi.PCE
-	ImportFile                                                                               string
-	RemoveValue                                                                              string
-	RolePrefix, AppPrefix, EnvPrefix, LocPrefix                                              string
-	Headers                                                                                  map[string]int
-	MatchIndex                                                                               *int
+	PCE                                         illumioapi.PCE
+	ImportFile                                  string
+	RemoveValue                                 string
+	RolePrefix, AppPrefix, EnvPrefix, LocPrefix string
+	Headers                                     map[string]int
+	// MatchIndex                                                                               *int
+	MatchString                                                                              string
 	Umwl, KeepAllPCEInterfaces, FQDNtoHostname, AllowEnforcementChanges, UpdatePCE, NoPrompt bool
 	ManagedOnly                                                                              bool
 	UnmanagedOnly                                                                            bool
@@ -26,16 +27,12 @@ type Input struct {
 
 // input is a global variable for the wkld-import command's isntance of Input
 var input Input
-var matchIndex int
 
 func init() {
 
 	WkldImportCmd.Flags().BoolVar(&input.Umwl, "umwl", false, "create unmanaged workloads if the host does not exist. Disabled if matching on href.")
-	WkldImportCmd.Flags().StringVar(&input.RemoveValue, "remove-value", "", "value in CSV used to remove existing labels. Blank values in the CSV will not change existing. If you want to delete a label do something like --remove-value DELETE and use DELETE in CSV to indicate where to clear existing labels on a workload.")
-	WkldImportCmd.Flags().IntVar(&matchIndex, "match", -1, "column number to override selected column to match workloads. -1 uses default workloader logic.")
-	if matchIndex == -1 {
-		input.MatchIndex = nil
-	}
+	WkldImportCmd.Flags().StringVar(&input.RemoveValue, "remove-value", "", "value in CSV used to remove existing labels. Blank values in the CSV will not change existing. for example, to delete a label an option would be --remove-value DELETE and use DELETE in CSV to indicate where to clear existing labels on a workload.")
+	WkldImportCmd.Flags().StringVar(&input.MatchString, "match", "", "match options. blank means to follow workloader default logic. Available options are href, hostname, name, and external_data. The default logic uses href if present, then hostname if present, then name if present. The external_data option uses the unique combinatio of external_data_set and external_data_reference.")
 	WkldImportCmd.Flags().StringVar(&input.RolePrefix, "role-prefix", "", "prefix to add to role labels in CSV.")
 	WkldImportCmd.Flags().StringVar(&input.AppPrefix, "app-prefix", "", "prefix to add to app labels in CSV.")
 	WkldImportCmd.Flags().StringVar(&input.EnvPrefix, "env-prefix", "", "prefix to add to env labels in CSV.")

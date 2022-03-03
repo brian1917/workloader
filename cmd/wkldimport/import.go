@@ -137,21 +137,25 @@ CSVEntries:
 		}
 
 		// Check if we are matching on href or hostname
-		if csvLine == 2 && strings.Contains(line[*input.MatchIndex], "/workloads/") && input.Umwl {
+		if csvLine == 2 && input.MatchString == "href" {
 			utils.LogError("cannot match on hrefs and create unmanaged workloads")
 		}
 
 		// Check to make sure we have an entry in the match column
-		if line[*input.MatchIndex] == "" {
+		if line[input.Headers[input.MatchString]] == "" {
 			utils.LogWarning(fmt.Sprintf("csv line %d - the match column cannot be blank.", csvLine), true)
 			continue
 		}
 
 		// If the workload does not exist and umwl is set to true, create the unmanaged workload
-		if _, ok := input.PCE.Workloads[line[*input.MatchIndex]]; !ok && input.Umwl {
+		compareString := line[input.Headers[input.MatchString]]
+		if input.MatchString == "external_data" {
+			compareString = line[input.Headers[wkldexport.HeaderExternalDataSet]] + line[input.Headers[wkldexport.HeaderExternalDataReference]]
+		}
+		if _, ok := input.PCE.Workloads[compareString]; !ok && input.Umwl {
 
 			// Create the workload
-			newWkld := illumioapi.Workload{Hostname: line[*input.MatchIndex], Labels: &[]*illumioapi.Label{}}
+			newWkld := illumioapi.Workload{Hostname: line[input.Headers[wkldexport.HeaderHostname]], Labels: &[]*illumioapi.Label{}}
 
 			// Process if interface is in import and if interface entry has values
 			if index, ok := input.Headers[wkldexport.HeaderInterfaces]; ok && len(line[index]) > 0 {
@@ -165,7 +169,7 @@ CSVEntries:
 					newWkld.Interfaces = append(newWkld.Interfaces, &ipInterface)
 				}
 			} else if spnIndex, ok := input.Headers[wkldexport.HeaderSPN]; !ok || line[spnIndex] == "" {
-				utils.LogWarning(fmt.Sprintf("csv line %d - no interface and no spn provided for unmanaged workload %s.", csvLine, line[*input.MatchIndex]), true)
+				utils.LogWarning(fmt.Sprintf("csv line %d - no interface and no spn provided for %s.", csvLine, compareString), true)
 			}
 
 			// Process the labels
@@ -208,7 +212,7 @@ CSVEntries:
 			if index, ok := input.Headers[wkldexport.HeaderPolicyState]; ok && strings.ToLower(line[index]) != "unmanaged" {
 				m := strings.ToLower(line[index])
 				if m != "visibility_only" && m != "full" && m != "selective" && m != "idle" && m != "" {
-					utils.LogWarning(fmt.Sprintf("csv line %d - invalid mode state for unmanaged workload %s. values must be blank, visibility_only, full, selective, or idle. skipping line.", csvLine, line[*input.MatchIndex]), true)
+					utils.LogWarning(fmt.Sprintf("csv line %d - invalid mode state for %s. values must be blank, visibility_only, full, selective, or idle. skipping line.", csvLine, compareString), true)
 					continue CSVEntries
 				}
 				newWkld.EnforcementMode = m
@@ -218,7 +222,7 @@ CSVEntries:
 			if index, ok := input.Headers[wkldexport.HeaderVisibilityState]; ok && strings.ToLower(line[index]) != "unmanaged" {
 				v := strings.ToLower(line[index])
 				if v != "blocked_allowed" && v != "blocked" && v != "off" && v != "" {
-					utils.LogWarning(fmt.Sprintf("csv line %d - invalid visibility state for unmanaged workload %s. values must be blank, blocked_allowed, blocked, or off. skipping line.", csvLine, line[*input.MatchIndex]), true)
+					utils.LogWarning(fmt.Sprintf("csv line %d - invalid visibility state for %s. values must be blank, blocked_allowed, blocked, or off. skipping line.", csvLine, compareString), true)
 					continue CSVEntries
 				}
 				newWkld.VisibilityLevel = line[index]
@@ -250,7 +254,7 @@ CSVEntries:
 			continue
 		} else if !ok && !input.Umwl {
 			// If the workload does not exist and umwl flag is not set, log the entry
-			utils.LogInfo(fmt.Sprintf("csv line %d - %s is not a workload. Include umwl flag to create it. Nothing done.", csvLine, line[*input.MatchIndex]), false)
+			utils.LogInfo(fmt.Sprintf("csv line %d - %s is not a workload. Include umwl flag to create it. Nothing done.", csvLine, compareString), false)
 			continue
 		}
 
@@ -262,7 +266,7 @@ CSVEntries:
 		change := false
 
 		// Check labels
-		wkld := input.PCE.Workloads[line[*input.MatchIndex]] // Need this since can't perform pointer method on map element
+		wkld := input.PCE.Workloads[compareString] // Need this since can't perform pointer method on map element
 		wkldCurrentLabels := []illumioapi.Label{wkld.GetRole(input.PCE.Labels), wkld.GetApp(input.PCE.Labels), wkld.GetEnv(input.PCE.Labels), wkld.GetLoc(input.PCE.Labels)}
 
 		// Clear the existing labels
@@ -282,7 +286,7 @@ CSVEntries:
 				if line[index] == input.RemoveValue && line[index] != "" && wkldCurrentLabels[i].Href != "" {
 					change = true
 					// Log change required
-					utils.LogInfo(fmt.Sprintf("%s requiring removal of %s label.", line[*input.MatchIndex], labelKeys[i]), false)
+					utils.LogInfo(fmt.Sprintf("%s requiring removal of %s label.", compareString, labelKeys[i]), false)
 					continue
 				}
 
@@ -295,7 +299,7 @@ CSVEntries:
 					if wkldCurrentLabels[i].Value == "" {
 						currentlLabel = "<empty>"
 					}
-					utils.LogInfo(fmt.Sprintf("csv line %d - %s %s label to be changed from %s to %s.", csvLine, line[*input.MatchIndex], labelKeys[i], currentlLabel, line[index]), false)
+					utils.LogInfo(fmt.Sprintf("csv line %d - %s %s label to be changed from %s to %s.", csvLine, compareString, labelKeys[i], currentlLabel, line[index]), false)
 					// Add that label to the new labels slice
 					*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: checkLabel(input.PCE, input.UpdatePCE, illumioapi.Label{Key: labelKeys[i], Value: line[index]}, csvLine).Href})
 					continue
@@ -393,7 +397,7 @@ CSVEntries:
 				}
 			}
 			// Update the hostname if field provided and matching on Href
-			if index, ok := input.Headers[wkldexport.HeaderHostname]; ok && strings.Contains(line[index], "/workloads/") {
+			if index, ok := input.Headers[wkldexport.HeaderHostname]; ok && input.MatchString != wkldexport.HeaderHostname {
 				if wkld.Hostname != line[index] {
 					change = true
 					utils.LogInfo(fmt.Sprintf("csv line %d - hostname to be changed from %s to %s", csvLine, wkld.Hostname, line[index]), false)
@@ -417,7 +421,7 @@ CSVEntries:
 			if index, ok := input.Headers[wkldexport.HeaderPolicyState]; ok && strings.ToLower(line[index]) != "unmanaged" && line[index] != "" {
 				m := strings.ToLower(line[index])
 				if m != "visibility_only" && m != "full" && m != "selective" && m != "idle" && m != "" {
-					utils.LogWarning(fmt.Sprintf("csv line %d - invalid mode state for unmanaged workload %s. values must be blank, visibility_only, full, selective, or idle. skipping line.", csvLine, line[*input.MatchIndex]), true)
+					utils.LogWarning(fmt.Sprintf("csv line %d - invalid mode state for unmanaged workload %s. values must be blank, visibility_only, full, selective, or idle. skipping line.", csvLine, compareString), true)
 					continue CSVEntries
 				}
 				if wkld.EnforcementMode != m {
@@ -431,7 +435,7 @@ CSVEntries:
 			if index, ok := input.Headers[wkldexport.HeaderVisibilityState]; ok && strings.ToLower(line[index]) != "unmanaged" && line[index] != "" {
 				v := strings.ToLower(line[index])
 				if v != "blocked_allowed" && v != "blocked" && v != "off" && v != "" {
-					utils.LogWarning(fmt.Sprintf("csv line %d - invalid visibility state for unmanaged workload %s. values must be blank, blocked_allowed, blocked, or off. skipping line.", csvLine, line[*input.MatchIndex]), true)
+					utils.LogWarning(fmt.Sprintf("csv line %d - invalid visibility state for unmanaged workload %s. values must be blank, blocked_allowed, blocked, or off. skipping line.", csvLine, compareString), true)
 					continue CSVEntries
 				}
 				if wkld.GetVisibilityLevel() != v {
