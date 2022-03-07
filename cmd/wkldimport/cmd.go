@@ -19,10 +19,10 @@ type Input struct {
 	RolePrefix, AppPrefix, EnvPrefix, LocPrefix string
 	Headers                                     map[string]int
 	// MatchIndex                                                                               *int
-	MatchString                                                                              string
-	Umwl, KeepAllPCEInterfaces, FQDNtoHostname, AllowEnforcementChanges, UpdatePCE, NoPrompt bool
-	ManagedOnly                                                                              bool
-	UnmanagedOnly                                                                            bool
+	MatchString                                                                                               string
+	Umwl, KeepAllPCEInterfaces, FQDNtoHostname, AllowEnforcementChanges, UpdateWorkloads, UpdatePCE, NoPrompt bool
+	ManagedOnly                                                                                               bool
+	UnmanagedOnly                                                                                             bool
 }
 
 // input is a global variable for the wkld-import command's isntance of Input
@@ -31,6 +31,7 @@ var input Input
 func init() {
 
 	WkldImportCmd.Flags().BoolVar(&input.Umwl, "umwl", false, "create unmanaged workloads if the host does not exist. Disabled if matching on href.")
+	WkldImportCmd.Flags().BoolVar(&input.UpdateWorkloads, "update", true, "update existing workloads. --update=false will only create unmanaged workloads")
 	WkldImportCmd.Flags().StringVar(&input.RemoveValue, "remove-value", "", "value in CSV used to remove existing labels. Blank values in the CSV will not change existing. for example, to delete a label an option would be --remove-value DELETE and use DELETE in CSV to indicate where to clear existing labels on a workload.")
 	WkldImportCmd.Flags().StringVar(&input.MatchString, "match", "", "match options. blank means to follow workloader default logic. Available options are href, hostname, name, and external_data. The default logic uses href if present, then hostname if present, then name if present. The external_data option uses the unique combinatio of external_data_set and external_data_reference.")
 	WkldImportCmd.Flags().StringVar(&input.RolePrefix, "role-prefix", "", "prefix to add to role labels in CSV.")

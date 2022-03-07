@@ -136,8 +136,8 @@ CSVEntries:
 			}
 		}
 
-		// Check if we are matching on href or hostname
-		if csvLine == 2 && input.MatchString == "href" {
+		// // Check if we are matching on href or hostname
+		if input.MatchString == "href" && input.Umwl {
 			utils.LogError("cannot match on hrefs and create unmanaged workloads")
 		}
 
@@ -262,231 +262,233 @@ CSVEntries:
 		// *** Get here if the workload does exist ***
 		// *******************************************
 
-		// Initialize the change variable
-		change := false
+		if input.UpdateWorkloads {
+			// Initialize the change variable
+			change := false
 
-		// Check labels
-		wkld := input.PCE.Workloads[compareString] // Need this since can't perform pointer method on map element
-		wkldCurrentLabels := []illumioapi.Label{wkld.GetRole(input.PCE.Labels), wkld.GetApp(input.PCE.Labels), wkld.GetEnv(input.PCE.Labels), wkld.GetLoc(input.PCE.Labels)}
+			// Check labels
+			wkld := input.PCE.Workloads[compareString] // Need this since can't perform pointer method on map element
+			wkldCurrentLabels := []illumioapi.Label{wkld.GetRole(input.PCE.Labels), wkld.GetApp(input.PCE.Labels), wkld.GetEnv(input.PCE.Labels), wkld.GetLoc(input.PCE.Labels)}
 
-		// Clear the existing labels
-		wkld.Labels = nil
-		wkld.Labels = &[]*illumioapi.Label{}
+			// Clear the existing labels
+			wkld.Labels = nil
+			wkld.Labels = &[]*illumioapi.Label{}
 
-		// Process the new label headers
-		for i, header := range []string{wkldexport.HeaderRole, wkldexport.HeaderApp, wkldexport.HeaderEnv, wkldexport.HeaderLoc} {
-			if index, ok := input.Headers[header]; ok {
-				// If the value is blank and the current label exists, keep the current label.
-				if line[index] == "" && wkldCurrentLabels[i].Href != "" {
-					*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: wkldCurrentLabels[i].Href})
-					continue
-				}
-
-				// If the value is the delete value, the delete value is not blank, and the current label is not already blank, log a change without putting any label in.
-				if line[index] == input.RemoveValue && line[index] != "" && wkldCurrentLabels[i].Href != "" {
-					change = true
-					// Log change required
-					utils.LogInfo(fmt.Sprintf("%s requiring removal of %s label.", compareString, labelKeys[i]), false)
-					continue
-				}
-
-				// If the value does not equal the current value and it does not equal the remove value, add the new label.
-				if line[index] != wkldCurrentLabels[i].Value && line[index] != input.RemoveValue {
-					// Change the change flag
-					change = true
-					// Log change required
-					currentlLabel := wkldCurrentLabels[i].Value
-					if wkldCurrentLabels[i].Value == "" {
-						currentlLabel = "<empty>"
+			// Process the new label headers
+			for i, header := range []string{wkldexport.HeaderRole, wkldexport.HeaderApp, wkldexport.HeaderEnv, wkldexport.HeaderLoc} {
+				if index, ok := input.Headers[header]; ok {
+					// If the value is blank and the current label exists, keep the current label.
+					if line[index] == "" && wkldCurrentLabels[i].Href != "" {
+						*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: wkldCurrentLabels[i].Href})
+						continue
 					}
-					utils.LogInfo(fmt.Sprintf("csv line %d - %s %s label to be changed from %s to %s.", csvLine, compareString, labelKeys[i], currentlLabel, line[index]), false)
-					// Add that label to the new labels slice
-					*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: checkLabel(input.PCE, input.UpdatePCE, illumioapi.Label{Key: labelKeys[i], Value: line[index]}, csvLine).Href})
-					continue
-				}
 
-				// If the labels match keep existing and don't mark a change
-				if line[index] == wkldCurrentLabels[i].Value && line[index] != "" {
+					// If the value is the delete value, the delete value is not blank, and the current label is not already blank, log a change without putting any label in.
+					if line[index] == input.RemoveValue && line[index] != "" && wkldCurrentLabels[i].Href != "" {
+						change = true
+						// Log change required
+						utils.LogInfo(fmt.Sprintf("%s requiring removal of %s label.", compareString, labelKeys[i]), false)
+						continue
+					}
+
+					// If the value does not equal the current value and it does not equal the remove value, add the new label.
+					if line[index] != wkldCurrentLabels[i].Value && line[index] != input.RemoveValue {
+						// Change the change flag
+						change = true
+						// Log change required
+						currentlLabel := wkldCurrentLabels[i].Value
+						if wkldCurrentLabels[i].Value == "" {
+							currentlLabel = "<empty>"
+						}
+						utils.LogInfo(fmt.Sprintf("csv line %d - %s %s label to be changed from %s to %s.", csvLine, compareString, labelKeys[i], currentlLabel, line[index]), false)
+						// Add that label to the new labels slice
+						*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: checkLabel(input.PCE, input.UpdatePCE, illumioapi.Label{Key: labelKeys[i], Value: line[index]}, csvLine).Href})
+						continue
+					}
+
+					// If the labels match keep existing and don't mark a change
+					if line[index] == wkldCurrentLabels[i].Value && line[index] != "" {
+						*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: wkldCurrentLabels[i].Href})
+					}
+					// If the column is not present and the workload has a current label, reapply it
+				} else if wkldCurrentLabels[i].Href != "" {
 					*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: wkldCurrentLabels[i].Href})
 				}
-				// If the column is not present and the workload has a current label, reapply it
-			} else if wkldCurrentLabels[i].Href != "" {
-				*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: wkldCurrentLabels[i].Href})
 			}
-		}
 
-		// Check interfaces
-		if wkld.GetMode() == "unmanaged" {
-			// If IP field is there and  IP address is provided, check it out
-			if index, ok := input.Headers[wkldexport.HeaderInterfaces]; ok && len(line[index]) > 0 {
-				// Build out the netInterfaces slice provided by the user
-				netInterfaces := []*illumioapi.Interface{}
-				nics := strings.Split(strings.Replace(line[index], " ", "", -1), ";")
-				for _, n := range nics {
-					ipInterface, err := userInputConvert(n)
-					if err != nil {
-						utils.LogWarning(fmt.Sprintf("csv line %d - %s - skipping workload entry.", csvLine, err.Error()), true)
-						continue CSVEntries
+			// Check interfaces
+			if wkld.GetMode() == "unmanaged" {
+				// If IP field is there and  IP address is provided, check it out
+				if index, ok := input.Headers[wkldexport.HeaderInterfaces]; ok && len(line[index]) > 0 {
+					// Build out the netInterfaces slice provided by the user
+					netInterfaces := []*illumioapi.Interface{}
+					nics := strings.Split(strings.Replace(line[index], " ", "", -1), ";")
+					for _, n := range nics {
+						ipInterface, err := userInputConvert(n)
+						if err != nil {
+							utils.LogWarning(fmt.Sprintf("csv line %d - %s - skipping workload entry.", csvLine, err.Error()), true)
+							continue CSVEntries
+						}
+						netInterfaces = append(netInterfaces, &ipInterface)
 					}
-					netInterfaces = append(netInterfaces, &ipInterface)
-				}
 
-				// If instructed by flag, make sure we keep all PCE interfaces
-				if input.KeepAllPCEInterfaces {
-					// Build a map of the interfaces provided by the user with the address as the key
-					interfaceMap := make(map[string]illumioapi.Interface)
-					for _, i := range netInterfaces {
-						interfaceMap[i.Address] = *i
-					}
-					// For each interface on the PCE, check if the address is in the map
-					for _, i := range wkld.Interfaces {
-						// If it's not in them map, append it to the user provdided netInterfaces so we keep it
-						if _, ok := interfaceMap[i.Address]; !ok {
-							netInterfaces = append(netInterfaces, i)
+					// If instructed by flag, make sure we keep all PCE interfaces
+					if input.KeepAllPCEInterfaces {
+						// Build a map of the interfaces provided by the user with the address as the key
+						interfaceMap := make(map[string]illumioapi.Interface)
+						for _, i := range netInterfaces {
+							interfaceMap[i.Address] = *i
+						}
+						// For each interface on the PCE, check if the address is in the map
+						for _, i := range wkld.Interfaces {
+							// If it's not in them map, append it to the user provdided netInterfaces so we keep it
+							if _, ok := interfaceMap[i.Address]; !ok {
+								netInterfaces = append(netInterfaces, i)
+							}
 						}
 					}
-				}
 
-				// Build some maps
-				userMap := make(map[string]bool)
-				wkldIntMap := make(map[string]bool)
-				for _, w := range wkld.Interfaces {
-					cidrText := "nil"
-					if w.CidrBlock != nil {
-						cidrText = strconv.Itoa(*w.CidrBlock)
+					// Build some maps
+					userMap := make(map[string]bool)
+					wkldIntMap := make(map[string]bool)
+					for _, w := range wkld.Interfaces {
+						cidrText := "nil"
+						if w.CidrBlock != nil {
+							cidrText = strconv.Itoa(*w.CidrBlock)
+						}
+						wkldIntMap[w.Address+cidrText+w.Name] = true
 					}
-					wkldIntMap[w.Address+cidrText+w.Name] = true
-				}
-				for _, u := range netInterfaces {
-					cidrText := "nil"
-					if u.CidrBlock != nil {
-						cidrText = strconv.Itoa(*u.CidrBlock)
+					for _, u := range netInterfaces {
+						cidrText := "nil"
+						if u.CidrBlock != nil {
+							cidrText = strconv.Itoa(*u.CidrBlock)
+						}
+						userMap[u.Address+cidrText+u.Name] = true
 					}
-					userMap[u.Address+cidrText+u.Name] = true
-				}
 
-				updateInterfaces := false
-				// Are all workload interfaces in spreadsheet?
-				for _, w := range wkld.Interfaces {
-					cidrText := "nil"
-					if w.CidrBlock != nil && *w.CidrBlock != 0 {
-						cidrText = strconv.Itoa(*w.CidrBlock)
+					updateInterfaces := false
+					// Are all workload interfaces in spreadsheet?
+					for _, w := range wkld.Interfaces {
+						cidrText := "nil"
+						if w.CidrBlock != nil && *w.CidrBlock != 0 {
+							cidrText = strconv.Itoa(*w.CidrBlock)
+						}
+						if !userMap[w.Address+cidrText+w.Name] {
+							updateInterfaces = true
+							change = true
+							utils.LogInfo(fmt.Sprintf("csv line %d - interface not in user provided data - ip: %s, cidr: %s, name: %s", csvLine, w.Address, cidrText, w.Name), false)
+						}
 					}
-					if !userMap[w.Address+cidrText+w.Name] {
-						updateInterfaces = true
+
+					// Are all user interfaces on workload?
+					for _, u := range netInterfaces {
+						cidrText := "nil"
+						if u.CidrBlock != nil && *u.CidrBlock != 0 {
+							cidrText = strconv.Itoa(*u.CidrBlock)
+						}
+						if !wkldIntMap[u.Address+cidrText+u.Name] {
+							updateInterfaces = true
+							change = true
+							utils.LogInfo(fmt.Sprintf("csv line %d - user provided interface not in workload - ip: %s, cidr: %s, name: %s", csvLine, u.Address, cidrText, u.Name), false)
+						}
+					}
+
+					if updateInterfaces {
+						wkld.Interfaces = netInterfaces
+					}
+				}
+				// Update the hostname if field provided and matching on Href
+				if index, ok := input.Headers[wkldexport.HeaderHostname]; ok && input.MatchString != wkldexport.HeaderHostname {
+					if wkld.Hostname != line[index] {
 						change = true
-						utils.LogInfo(fmt.Sprintf("csv line %d - interface not in user provided data - ip: %s, cidr: %s, name: %s", csvLine, w.Address, cidrText, w.Name), false)
+						utils.LogInfo(fmt.Sprintf("csv line %d - hostname to be changed from %s to %s", csvLine, wkld.Hostname, line[index]), false)
+						wkld.Hostname = line[index]
 					}
 				}
 
-				// Are all user interfaces on workload?
-				for _, u := range netInterfaces {
-					cidrText := "nil"
-					if u.CidrBlock != nil && *u.CidrBlock != 0 {
-						cidrText = strconv.Itoa(*u.CidrBlock)
-					}
-					if !wkldIntMap[u.Address+cidrText+u.Name] {
-						updateInterfaces = true
+				// Update the SPN
+				if index, ok := input.Headers[wkldexport.HeaderSPN]; ok {
+					if wkld.ServicePrincipalName != line[index] {
 						change = true
-						utils.LogInfo(fmt.Sprintf("csv line %d - user provided interface not in workload - ip: %s, cidr: %s, name: %s", csvLine, u.Address, cidrText, u.Name), false)
+						utils.LogInfo(fmt.Sprintf("csv line %d - spn to be changed from %s to %s", csvLine, wkld.ServicePrincipalName, line[index]), false)
+						wkld.ServicePrincipalName = line[index]
 					}
 				}
 
-				if updateInterfaces {
-					wkld.Interfaces = netInterfaces
-				}
-			}
-			// Update the hostname if field provided and matching on Href
-			if index, ok := input.Headers[wkldexport.HeaderHostname]; ok && input.MatchString != wkldexport.HeaderHostname {
-				if wkld.Hostname != line[index] {
-					change = true
-					utils.LogInfo(fmt.Sprintf("csv line %d - hostname to be changed from %s to %s", csvLine, wkld.Hostname, line[index]), false)
-					wkld.Hostname = line[index]
-				}
 			}
 
-			// Update the SPN
-			if index, ok := input.Headers[wkldexport.HeaderSPN]; ok {
-				if wkld.ServicePrincipalName != line[index] {
-					change = true
-					utils.LogInfo(fmt.Sprintf("csv line %d - spn to be changed from %s to %s", csvLine, wkld.ServicePrincipalName, line[index]), false)
-					wkld.ServicePrincipalName = line[index]
+			if input.AllowEnforcementChanges {
+				// Update the enforcement
+				if index, ok := input.Headers[wkldexport.HeaderPolicyState]; ok && strings.ToLower(line[index]) != "unmanaged" && line[index] != "" {
+					m := strings.ToLower(line[index])
+					if m != "visibility_only" && m != "full" && m != "selective" && m != "idle" && m != "" {
+						utils.LogWarning(fmt.Sprintf("csv line %d - invalid mode state for unmanaged workload %s. values must be blank, visibility_only, full, selective, or idle. skipping line.", csvLine, compareString), true)
+						continue CSVEntries
+					}
+					if wkld.EnforcementMode != m {
+						change = true
+						utils.LogInfo(fmt.Sprintf("csv line %d - %s enforcement to be changed from %s to %s", csvLine, wkld.Hostname, wkld.EnforcementMode, line[index]), false)
+						wkld.EnforcementMode = m
+					}
 				}
-			}
 
-		}
-
-		if input.AllowEnforcementChanges {
-			// Update the enforcement
-			if index, ok := input.Headers[wkldexport.HeaderPolicyState]; ok && strings.ToLower(line[index]) != "unmanaged" && line[index] != "" {
-				m := strings.ToLower(line[index])
-				if m != "visibility_only" && m != "full" && m != "selective" && m != "idle" && m != "" {
-					utils.LogWarning(fmt.Sprintf("csv line %d - invalid mode state for unmanaged workload %s. values must be blank, visibility_only, full, selective, or idle. skipping line.", csvLine, compareString), true)
-					continue CSVEntries
-				}
-				if wkld.EnforcementMode != m {
-					change = true
-					utils.LogInfo(fmt.Sprintf("csv line %d - %s enforcement to be changed from %s to %s", csvLine, wkld.Hostname, wkld.EnforcementMode, line[index]), false)
-					wkld.EnforcementMode = m
+				// Update the visibility
+				if index, ok := input.Headers[wkldexport.HeaderVisibilityState]; ok && strings.ToLower(line[index]) != "unmanaged" && line[index] != "" {
+					v := strings.ToLower(line[index])
+					if v != "blocked_allowed" && v != "blocked" && v != "off" && v != "" {
+						utils.LogWarning(fmt.Sprintf("csv line %d - invalid visibility state for unmanaged workload %s. values must be blank, blocked_allowed, blocked, or off. skipping line.", csvLine, compareString), true)
+						continue CSVEntries
+					}
+					if wkld.GetVisibilityLevel() != v {
+						change = true
+						utils.LogInfo(fmt.Sprintf("csv line %d - %s visibility to be changed from %s to %s", csvLine, wkld.Hostname, wkld.VisibilityLevel, line[index]), false)
+						wkld.SetVisibilityLevel(v)
+					}
 				}
 			}
 
-			// Update the visibility
-			if index, ok := input.Headers[wkldexport.HeaderVisibilityState]; ok && strings.ToLower(line[index]) != "unmanaged" && line[index] != "" {
-				v := strings.ToLower(line[index])
-				if v != "blocked_allowed" && v != "blocked" && v != "off" && v != "" {
-					utils.LogWarning(fmt.Sprintf("csv line %d - invalid visibility state for unmanaged workload %s. values must be blank, blocked_allowed, blocked, or off. skipping line.", csvLine, compareString), true)
-					continue CSVEntries
-				}
-				if wkld.GetVisibilityLevel() != v {
-					change = true
-					utils.LogInfo(fmt.Sprintf("csv line %d - %s visibility to be changed from %s to %s", csvLine, wkld.Hostname, wkld.VisibilityLevel, line[index]), false)
-					wkld.SetVisibilityLevel(v)
-				}
-			}
-		}
-
-		// Change the name if the name field is provided it doesn't match unless the name in the CSV is blank and PCE is reporting the name as the hostname
-		if index, ok := input.Headers[wkldexport.HeaderName]; ok && wkld.Name != line[index] && line[index] != "" {
-			change = true
-			utils.LogInfo(fmt.Sprintf("csv line %d - Name to be changed from %s to %s", csvLine, wkld.Name, line[index]), false)
-			wkld.Name = line[index]
-		}
-
-		// Update the Public Ip
-		if index, ok := input.Headers[wkldexport.HeaderPublicIP]; ok {
-			if line[index] != wkld.PublicIP {
-				// Validate it first
-				if !publicIPIsValid(line[index]) {
-					utils.LogError(fmt.Sprintf("csv line %d - invalid Public IP address format.", csvLine))
-				}
+			// Change the name if the name field is provided it doesn't match unless the name in the CSV is blank and PCE is reporting the name as the hostname
+			if index, ok := input.Headers[wkldexport.HeaderName]; ok && wkld.Name != line[index] && line[index] != "" {
 				change = true
-				utils.LogInfo(fmt.Sprintf("csv line %d - Public IP to be changed from %s to %s", csvLine, wkld.PublicIP, line[index]), false)
-				wkld.PublicIP = line[index]
+				utils.LogInfo(fmt.Sprintf("csv line %d - Name to be changed from %s to %s", csvLine, wkld.Name, line[index]), false)
+				wkld.Name = line[index]
 			}
-		}
 
-		// Update strings that don't need any manipulation
-		headerValues := []string{wkldexport.HeaderDescription, wkldexport.HeaderMachineAuthenticationID, wkldexport.HeaderExternalDataSet, wkldexport.HeaderExternalDataReference, wkldexport.HeaderOsID, wkldexport.HeaderOsDetail, wkldexport.HeaderDataCenter}
-		targetUpdates := []*string{&wkld.Description, &wkld.DistinguishedName, &wkld.ExternalDataSet, &wkld.ExternalDataReference, &wkld.OsID, &wkld.OsDetail, &wkld.DataCenter}
-		for i, header := range headerValues {
-			if index, ok := input.Headers[header]; ok {
-				if line[index] != *targetUpdates[i] {
-					utils.LogInfo(fmt.Sprintf("csv line %d - %s to be changed from %s to %s", csvLine, header, *targetUpdates[i], line[index]), false)
+			// Update the Public Ip
+			if index, ok := input.Headers[wkldexport.HeaderPublicIP]; ok {
+				if line[index] != wkld.PublicIP {
+					// Validate it first
+					if !publicIPIsValid(line[index]) {
+						utils.LogError(fmt.Sprintf("csv line %d - invalid Public IP address format.", csvLine))
+					}
 					change = true
-					*targetUpdates[i] = line[index]
-					*targetUpdates[i] = line[index]
+					utils.LogInfo(fmt.Sprintf("csv line %d - Public IP to be changed from %s to %s", csvLine, wkld.PublicIP, line[index]), false)
+					wkld.PublicIP = line[index]
 				}
 			}
-		}
 
-		// If change was flagged, get the workload, update the labels, append to updated slice.
-		if change {
-			updatedWklds = append(updatedWklds, wkld)
-		} else {
-			unchangedWLs++
-		}
+			// Update strings that don't need any manipulation
+			headerValues := []string{wkldexport.HeaderDescription, wkldexport.HeaderMachineAuthenticationID, wkldexport.HeaderExternalDataSet, wkldexport.HeaderExternalDataReference, wkldexport.HeaderOsID, wkldexport.HeaderOsDetail, wkldexport.HeaderDataCenter}
+			targetUpdates := []*string{&wkld.Description, &wkld.DistinguishedName, &wkld.ExternalDataSet, &wkld.ExternalDataReference, &wkld.OsID, &wkld.OsDetail, &wkld.DataCenter}
+			for i, header := range headerValues {
+				if index, ok := input.Headers[header]; ok {
+					if line[index] != *targetUpdates[i] {
+						utils.LogInfo(fmt.Sprintf("csv line %d - %s to be changed from %s to %s", csvLine, header, *targetUpdates[i], line[index]), false)
+						change = true
+						*targetUpdates[i] = line[index]
+						*targetUpdates[i] = line[index]
+					}
+				}
+			}
 
+			// If change was flagged, get the workload, update the labels, append to updated slice.
+			if change {
+				updatedWklds = append(updatedWklds, wkld)
+			} else {
+				unchangedWLs++
+			}
+
+		}
 	}
 
 	// End run if we have nothing to do
