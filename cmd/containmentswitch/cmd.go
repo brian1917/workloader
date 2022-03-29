@@ -172,7 +172,7 @@ func portLock(port int, protocol string) {
 				changes = append(changes, fmt.Sprintf("create the %s virtual service and bind %d workloads to it", objectName, len(targetWorkloads)))
 				changes = append(changes, fmt.Sprintf("create the %s ruleset allowing traffic to the created virtual service on %d %s", objectName, port, protocol))
 			}
-			changes = append(changes, fmt.Sprintf("create the %s enforcement boundary for any IP address to All Worklodas on %d %s", objectName, port, protocol))
+			changes = append(changes, fmt.Sprintf("create the %s enforcement boundary for any IP address to all workloads on %d %s", objectName, port, protocol))
 			if !skipModeChange {
 				wklds, api, err = pce.GetAllWorkloadsQP(map[string]string{"managed": "true", "enforcement_mode": "visibility_only"})
 				utils.LogAPIResp("GetAllWorkloadsQP", api)

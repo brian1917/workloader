@@ -188,7 +188,7 @@ func modeUpdate() {
 		fmt.Println()
 	} else {
 		var qp = (map[string]string{"managed": "true"})
-		utils.LogInfo("Getting all managed worklodas from the PCE. For large deployments and limited number of mode changes, it might be quicker to use the -i flag to run individual API calls to get just workloads that will be changed.", true)
+		utils.LogInfo("Getting all managed workloads from the PCE. For large deployments and limited number of mode changes, it might be quicker to use the -i flag to run individual API calls to get just workloads that will be changed.", true)
 		wklds, a, err = pce.GetAllWorkloadsQP(qp)
 		utils.LogAPIResp("GetAllWorkloadsQP", a)
 		if err != nil {
