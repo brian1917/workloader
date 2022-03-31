@@ -151,31 +151,33 @@ func wkldUpgrade() {
 			}
 		}
 
-		// We will only get here if we have need to run the upgrade
+		// We will only get here if we have need to run the upgrade. Start by creating the target VENs list
+		targetVENs := []illumioapi.VEN{}
 		for _, t := range targetWklds {
 			// Log the current version
 			utils.LogInfo(fmt.Sprintf("%s to be upgraded from %s to %s.", t.Hostname, t.Agent.Status.AgentVersion, targetVersion), false)
 
-			// Create VEN array
-			targetVENs := []illumioapi.VEN{}
+			// Populate VEN list
 			for _, w := range targetWklds {
 				targetVENs = append(targetVENs, *w.VEN)
 			}
-			resp, a, err := pce.UpgradeVENs(targetVENs, targetVersion)
-			utils.LogAPIResp("UpgradeVENs", a)
-			if err != nil {
-				utils.LogError(err.Error())
-			}
-
-			utils.LogInfo(fmt.Sprintf("bulk ven upgrade for %d hosts to %s received status code of %d with %d errors.", len(targetVENs), targetVersion, a.StatusCode, len(resp.VENUpgradeErrors)), true)
-			if err != nil {
-				utils.LogError(err.Error())
-			}
-			for i, e := range resp.VENUpgradeErrors {
-				utils.LogInfo(fmt.Sprintf("error %d - token: %s; message: %s; hrefs: %s", i+1, e.Token, e.Message, strings.Join(e.Hrefs, ", ")), true)
-			}
-
 		}
+
+		// Call the API
+		resp, a, err := pce.UpgradeVENs(targetVENs, targetVersion)
+		utils.LogAPIResp("UpgradeVENs", a)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+
+		utils.LogInfo(fmt.Sprintf("bulk ven upgrade for %d hosts to %s received status code of %d with %d errors.", len(targetVENs), targetVersion, a.StatusCode, len(resp.VENUpgradeErrors)), true)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		for i, e := range resp.VENUpgradeErrors {
+			utils.LogInfo(fmt.Sprintf("error %d - token: %s; message: %s; hrefs: %s", i+1, e.Token, e.Message, strings.Join(e.Hrefs, ", ")), true)
+		}
+
 	}
 
 	utils.LogEndCommand("upgrade")
