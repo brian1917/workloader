@@ -136,7 +136,7 @@ CSVEntries:
 			}
 		}
 
-		// // Check if we are matching on href or hostname
+		// Check if we are matching on href or hostname
 		if input.MatchString == "href" && input.Umwl {
 			utils.LogError("cannot match on hrefs and create unmanaged workloads")
 		}
