@@ -23,6 +23,7 @@ type Input struct {
 	Umwl, KeepAllPCEInterfaces, FQDNtoHostname, AllowEnforcementChanges, UpdateWorkloads, UpdatePCE, NoPrompt bool
 	ManagedOnly                                                                                               bool
 	UnmanagedOnly                                                                                             bool
+	IgnoreCase                                                                                                bool
 }
 
 // input is a global variable for the wkld-import command's isntance of Input
@@ -34,6 +35,7 @@ func init() {
 	WkldImportCmd.Flags().BoolVar(&input.UpdateWorkloads, "update", true, "update existing workloads. --update=false will only create unmanaged workloads")
 	WkldImportCmd.Flags().StringVar(&input.RemoveValue, "remove-value", "", "value in CSV used to remove existing labels. Blank values in the CSV will not change existing. for example, to delete a label an option would be --remove-value DELETE and use DELETE in CSV to indicate where to clear existing labels on a workload.")
 	WkldImportCmd.Flags().StringVar(&input.MatchString, "match", "", "match options. blank means to follow workloader default logic. Available options are href, hostname, name, and external_data. The default logic uses href if present, then hostname if present, then name if present. The external_data option uses the unique combinatio of external_data_set and external_data_reference.")
+	WkldImportCmd.Flags().BoolVar(&input.IgnoreCase, "ignore-case", false, "ignore case on the match string.")
 	WkldImportCmd.Flags().StringVar(&input.RolePrefix, "role-prefix", "", "prefix to add to role labels in CSV.")
 	WkldImportCmd.Flags().StringVar(&input.AppPrefix, "app-prefix", "", "prefix to add to app labels in CSV.")
 	WkldImportCmd.Flags().StringVar(&input.EnvPrefix, "env-prefix", "", "prefix to add to env labels in CSV.")

@@ -152,6 +152,17 @@ CSVEntries:
 		if input.MatchString == "external_data" {
 			compareString = line[input.Headers[wkldexport.HeaderExternalDataSet]] + line[input.Headers[wkldexport.HeaderExternalDataReference]]
 		}
+
+		// Case sensitity
+		if input.IgnoreCase {
+			newWorkloads := make(map[string]illumioapi.Workload)
+			for k, w := range input.PCE.Workloads {
+				newWorkloads[strings.ToLower(k)] = w
+			}
+			input.PCE.Workloads = newWorkloads
+			compareString = strings.ToLower(compareString)
+		}
+
 		if _, ok := input.PCE.Workloads[compareString]; !ok && input.Umwl {
 
 			// Create the workload
