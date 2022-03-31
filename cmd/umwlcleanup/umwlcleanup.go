@@ -9,16 +9,16 @@ import (
 
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // Declare local global variables
 var pce illumioapi.PCE
 var err error
-var debug bool
-var outFormat, outputFileName string
+var oneInterfaceMatch bool
+var outputFileName string
 
 func init() {
+	UMWLCleanUpCmd.Flags().BoolVar(&oneInterfaceMatch, "one-interface-match", false, "consider a match if at least one interface matches. default requires all interfaces to match.")
 	UMWLCleanUpCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 
 }
@@ -44,10 +44,6 @@ Additionally, the output can be passed into the delete command with the --header
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-
-		// Get the viper values
-		debug = viper.Get("debug").(bool)
-		outFormat = viper.Get("output_format").(string)
 
 		umwlCleanUp()
 	},
@@ -98,7 +94,7 @@ workloads:
 			// Get IP strings
 			umwlIPs, managedIPs := []string{}, []string{}
 			for _, i := range umwl.Interfaces {
-				if allManagedIPMap[i.Address].Href != managedWkld.Href {
+				if allManagedIPMap[i.Address].Href != managedWkld.Href && !oneInterfaceMatch {
 					umwlIdentifier := []string{}
 					if umwl.Hostname != "" {
 						umwlIdentifier = append(umwlIdentifier, fmt.Sprintf("hostname: %s", umwl.Hostname))
