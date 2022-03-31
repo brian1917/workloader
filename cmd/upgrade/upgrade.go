@@ -64,11 +64,19 @@ func wkldUpgrade() {
 	utils.LogStartCommand("upgrade")
 
 	// Get all managed workloads
+	utils.LogInfo("getting all workload an ven info", true)
 	wklds, a, err := pce.GetAllWorkloadsQP(map[string]string{"managed": "true"})
 	utils.LogAPIResp("GetAllWorkloads", a)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
+	_, a, err = pce.GetAllVens(nil)
+	utils.LogAPIResp("GetAllVens", a)
+	if err != nil {
+		utils.LogError(err.Error())
+	}
+
+	utils.LogInfo(fmt.Sprintf("get all managed workload and ven info complete (%d workloads)", len(wklds)), true)
 
 	// Create our target wkld slice
 	var targetWklds []illumioapi.Workload
@@ -88,9 +96,9 @@ func wkldUpgrade() {
 			if loc != "" && w.GetLoc(pce.Labels).Value != loc {
 				continue
 			}
-			// if w.VEN.Version == targetVersion {
-			// 	continue
-			// }
+			if pce.VENs[w.VEN.Href].Version == targetVersion {
+				continue
+			}
 			targetWklds = append(targetWklds, w)
 
 		}
@@ -107,9 +115,9 @@ func wkldUpgrade() {
 			if val, ok := pce.Workloads[row[0]]; !ok {
 				utils.LogWarning(fmt.Sprintf("line %d - %s is not a workload. skipping", i, row[0]), true)
 				continue
-				// } else if val.VEN.Version == targetVersion {
-				// 	utils.LogInfo(fmt.Sprintf("line %d - %s is already at %s. skipping", i, val.Hostname, targetVersion), true)
-				// 	continue
+			} else if pce.VENs[val.VEN.Href].Version == targetVersion {
+				utils.LogInfo(fmt.Sprintf("line %d - %s is already at %s. skipping", i, val.Hostname, targetVersion), true)
+				continue
 			} else {
 				targetWklds = append(targetWklds, val)
 			}
@@ -125,7 +133,7 @@ func wkldUpgrade() {
 	if len(targetWklds) > 0 {
 		outputData := [][]string{{"hostname", "href", "role", "app", "env", "loc", "current_ven_version", "targeted_ven_version"}}
 		for _, t := range targetWklds {
-			outputData = append(outputData, []string{t.Hostname, t.Href, t.GetRole(pce.Labels).Value, t.GetApp(pce.Labels).Value, t.GetEnv(pce.Labels).Value, t.GetLoc(pce.Labels).Value, t.VEN.Version, targetVersion})
+			outputData = append(outputData, []string{t.Hostname, t.Href, t.GetRole(pce.Labels).Value, t.GetApp(pce.Labels).Value, t.GetEnv(pce.Labels).Value, t.GetLoc(pce.Labels).Value, pce.VENs[t.VEN.Href].Version, targetVersion})
 		}
 		if outputFileName == "" {
 			outputFileName = "workloader-upgrade-" + time.Now().Format("20060102_150405") + ".csv"
