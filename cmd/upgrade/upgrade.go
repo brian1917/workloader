@@ -161,14 +161,10 @@ func wkldUpgrade() {
 
 		// We will only get here if we have need to run the upgrade. Start by creating the target VENs list
 		targetVENs := []illumioapi.VEN{}
-		for _, t := range targetWklds {
-			// Log the current version
-			utils.LogInfo(fmt.Sprintf("%s to be upgraded from %s to %s.", t.Hostname, t.Agent.Status.AgentVersion, targetVersion), false)
 
-			// Populate VEN list
-			for _, w := range targetWklds {
-				targetVENs = append(targetVENs, *w.VEN)
-			}
+		// Populate VEN list
+		for _, w := range targetWklds {
+			targetVENs = append(targetVENs, *w.VEN)
 		}
 
 		// Call the API
