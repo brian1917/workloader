@@ -64,7 +64,7 @@ func wkldUpgrade() {
 	utils.LogStartCommand("upgrade")
 
 	// Get all managed workloads
-	utils.LogInfo("getting all workload an ven info", true)
+	utils.LogInfo("getting all workload and ven info", true)
 	wklds, a, err := pce.GetAllWorkloadsQP(map[string]string{"managed": "true"})
 	utils.LogAPIResp("GetAllWorkloads", a)
 	if err != nil {
