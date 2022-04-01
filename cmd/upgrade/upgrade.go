@@ -174,7 +174,7 @@ func wkldUpgrade() {
 			utils.LogError(err.Error())
 		}
 
-		utils.LogInfo(fmt.Sprintf("bulk ven upgrade for %d hosts to %s received status code of %d with %d errors.", len(targetVENs), targetVersion, a.StatusCode, len(resp.VENUpgradeErrors)), true)
+		utils.LogInfo(fmt.Sprintf("bulk ven upgrade for %d workloads to %s received status code of %d with %d errors.", len(targetVENs), targetVersion, a.StatusCode, len(resp.VENUpgradeErrors)), true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
