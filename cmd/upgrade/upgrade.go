@@ -13,20 +13,21 @@ import (
 
 // Set global variables for flags
 var targetVersion, hostFile, loc, env, app, role, outputFileName string
-var updatePCE, noPrompt bool
+var singleAPI, updatePCE, noPrompt bool
 var pce illumioapi.PCE
 var err error
 
 // Init handles flags
 func init() {
 
-	UpgradeCmd.Flags().StringVar(&targetVersion, "version", "", "Target VEN version in format of \"19.1.0-5631\"")
+	UpgradeCmd.Flags().StringVar(&targetVersion, "version", "", "target ven version in format of \"19.1.0-5631\"")
 	UpgradeCmd.MarkFlagRequired("version")
-	UpgradeCmd.Flags().StringVarP(&hostFile, "hostFile", "i", "", "Input CSV file with hostname list. Hostnames in first column (other columns are ok). Header is optional. Using this ignore loc, env, app, and role label flags.")
-	UpgradeCmd.Flags().StringVarP(&loc, "loc", "l", "", "Location Label. Blank means all locations.")
-	UpgradeCmd.Flags().StringVarP(&env, "env", "e", "", "Environment Label. Blank means all environments.")
-	UpgradeCmd.Flags().StringVarP(&app, "app", "a", "", "Application Label. Blank means all applications.")
-	UpgradeCmd.Flags().StringVarP(&role, "role", "r", "", "Role Label. Blank means all roles.")
+	UpgradeCmd.Flags().StringVarP(&hostFile, "hostFile", "i", "", "input csv file with hostname list. hostnames in first column (other columns are ok). header is optional. label flags ignored with input file.")
+	UpgradeCmd.Flags().BoolVarP(&singleAPI, "sinlge-api", "s", false, "get each workload and ven info from the csv as a single api call instead of getting all managed workloads and vens in the pce. optimal for pces with a lot of workloads and a relatively small input file. flag ignored if no host file provided.")
+	UpgradeCmd.Flags().StringVarP(&loc, "loc", "l", "", "location label. blank means all locations.")
+	UpgradeCmd.Flags().StringVarP(&env, "env", "e", "", "environment label. blank means all environments.")
+	UpgradeCmd.Flags().StringVarP(&app, "app", "a", "", "application label. blank means all applications.")
+	UpgradeCmd.Flags().StringVarP(&role, "role", "r", "", "role Label. blank means all roles.")
 	UpgradeCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 
 	UpgradeCmd.Flags().SortFlags = false
