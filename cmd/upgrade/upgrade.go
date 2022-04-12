@@ -71,7 +71,11 @@ func GetWkldsByHostnameList(hostnames []string) (wklds []illumioapi.Workload, ve
 			utils.LogError(err.Error())
 		}
 		if w.Hostname == "" {
-			utils.LogInfo(fmt.Sprintf("getting %s - %d of %d workloads (%d%%). does not exist.", h, i+1, len(hostnames), (i+1)*100/len(hostnames)), true)
+			utils.LogInfo(fmt.Sprintf("getting %s - %d of %d workloads (%d%%). workload does not exist.", h, i+1, len(hostnames), (i+1)*100/len(hostnames)), true)
+		} else if w.GetMode() == "unmanaged" {
+			utils.LogInfo(fmt.Sprintf("getting %s - %d of %d workloads (%d%%). workload is not managed.", h, i+1, len(hostnames), (i+1)*100/len(hostnames)), true)
+		} else if w.VEN == nil {
+			utils.LogInfo(fmt.Sprintf("getting %s - %d of %d workloads (%d%%). ven does not exist.", h, i+1, len(hostnames), (i+1)*100/len(hostnames)), true)
 		} else {
 			wklds = append(wklds, w)
 			wkldMap[w.Href] = w
