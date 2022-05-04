@@ -14,7 +14,7 @@ import (
 
 var modeChangeInput, issuesOnly bool
 var pce illumioapi.PCE
-var outputFileName, role, app, env, loc, labelFile string
+var outputFileName, role, app, env, loc, labelFile, hostFile string
 var err error
 
 func init() {
@@ -25,7 +25,9 @@ func init() {
 	CompatibilityCmd.Flags().StringVarP(&env, "env", "e", "", "env label value. label flags are an \"and\" operator.")
 	CompatibilityCmd.Flags().StringVarP(&loc, "loc", "l", "", "loc label value. label flags are an \"and\" operator.")
 	CompatibilityCmd.Flags().StringVar(&labelFile, "label-file", "", "csv file with labels to filter query. the file should have 4 headers: role, app, env, and loc. The four columns in each row is an \"AND\" operation. Each row is an \"OR\" operation.")
+	CompatibilityCmd.Flags().StringVar(&hostFile, "host-file", "", "csv file with hrefs or hostnames. any labels or label files are ignored with this flag.")
 	CompatibilityCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+	CompatibilityCmd.Flags().SortFlags = false
 }
 
 // CompatibilityCmd runs the workload identifier
@@ -73,61 +75,99 @@ func compatibilityReport() {
 	// Get all idle  workloads - start query with just idle
 	qp := map[string]string{"mode": "idle"}
 
-	// Process the file if provided
-	if labelFile != "" {
-		// Parse the CSV
-		labelData, err := utils.ParseCSV(labelFile)
+	idleWklds := []illumioapi.Workload{}
+	if hostFile == "" {
+
+		// Process the file if provided
+		if labelFile != "" {
+			// Parse the CSV
+			labelData, err := utils.ParseCSV(labelFile)
+			if err != nil {
+				utils.LogError(err.Error())
+			}
+
+			// Get the labelQuery
+			qp["labels"], err = pce.WorkloadQueryLabelParameter(labelData)
+			if err != nil {
+				utils.LogError(err.Error())
+			}
+
+		} else {
+			providedValues := []string{role, app, env, loc}
+			keys := []string{"role", "app", "env", "loc"}
+			queryLabels := []string{}
+			for i, labelValue := range providedValues {
+				// Do nothing if the labelValue is blank
+				if labelValue == "" {
+					continue
+				}
+				// Confirm the label exists
+				if label, ok := pce.Labels[keys[i]+labelValue]; !ok {
+					utils.LogError(fmt.Sprintf("%s does not exist as a %s label", labelValue, keys[i]))
+				} else {
+					queryLabels = append(queryLabels, label.Href)
+				}
+
+			}
+
+			// If we have query labels add to the map
+			if len(queryLabels) > 0 {
+				qp["labels"] = fmt.Sprintf("[[\"%s\"]]", strings.Join(queryLabels, "\",\""))
+			}
+		}
+
+		if len(qp["labels"]) > 10000 {
+			utils.LogError(fmt.Sprintf("the query is too large. the total character count is %d and the limit for this command is 10,000", len(qp["labels"])))
+		}
+
+		// Get all workloads from the query
+		wklds, a, err := pce.GetAllWorkloadsQP(qp)
+		utils.LogAPIResp("GetAllWorkloadsQP", a)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
 
-		// Get the labelQuery
-		qp["labels"], err = pce.WorkloadQueryLabelParameter(labelData)
-		if err != nil {
-			utils.LogError(err.Error())
+		// Get Idle workload count
+		idleWklds = []illumioapi.Workload{}
+		for _, w := range wklds {
+			if w.Agent.Config.Mode == "idle" {
+				idleWklds = append(idleWklds, w)
+			}
 		}
-
 	} else {
-		providedValues := []string{role, app, env, loc}
-		keys := []string{"role", "app", "env", "loc"}
-		queryLabels := []string{}
-		for i, labelValue := range providedValues {
-			// Do nothing if the labelValue is blank
-			if labelValue == "" {
+		// If the hostfile is provided, parse it.
+		hostFileCsvData, err := utils.ParseCSV(hostFile)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		for i, row := range hostFileCsvData {
+			var w illumioapi.Workload
+			var a illumioapi.APIResponse
+			var err error
+			if strings.Contains(row[0], "/orgs/") {
+				w, a, err = pce.GetWkldByHref(row[0])
+				utils.LogAPIResp("GetWkldByHref", a)
+				if err != nil {
+					utils.LogError(err.Error())
+				}
+			} else {
+				w, a, err = pce.GetWkldByHostname(row[0])
+				utils.LogAPIResp("GetWkldByHostname", a)
+				if err != nil {
+					utils.LogError(err.Error())
+				}
+			}
+			if w.Hostname == "" {
+				utils.LogInfo(fmt.Sprintf("csv line %d - %s does not exist. skipping.", i+1, row[0]), true)
 				continue
 			}
-			// Confirm the label exists
-			if label, ok := pce.Labels[keys[i]+labelValue]; !ok {
-				utils.LogError(fmt.Sprintf("%s does not exist as a %s label", labelValue, keys[i]))
-			} else {
-				queryLabels = append(queryLabels, label.Href)
+			if w.GetMode() != "idle" {
+				utils.LogInfo(fmt.Sprintf("csv line %d - %s is not in idle mode. skipping.", i+1, row[0]), true)
+				continue
 			}
-
-		}
-
-		// If we have query labels add to the map
-		if len(queryLabels) > 0 {
-			qp["labels"] = fmt.Sprintf("[[\"%s\"]]", strings.Join(queryLabels, "\",\""))
-		}
-	}
-
-	if len(qp["labels"]) > 10000 {
-		utils.LogError(fmt.Sprintf("the query is too large. the total character count is %d and the limit for this command is 10,000", len(qp["labels"])))
-	}
-
-	// Get all workloads from the query
-	wklds, a, err := pce.GetAllWorkloadsQP(qp)
-	utils.LogAPIResp("GetAllWorkloadsQP", a)
-	if err != nil {
-		utils.LogError(err.Error())
-	}
-
-	// Get Idle workload count
-	idleWklds := []illumioapi.Workload{}
-	for _, w := range wklds {
-		if w.Agent.Config.Mode == "idle" {
 			idleWklds = append(idleWklds, w)
 		}
+
 	}
 
 	// Create a warning logs holder
@@ -215,7 +255,7 @@ func compatibilityReport() {
 		if i+1 == len(idleWklds) {
 			end = "\r\n"
 		}
-		fmt.Printf("\r%s [INFO] - reviewed compatibility report %d of %d (%d%%).%s", time.Now().Format("2006-01-02 15:04:05 "), i+1, len(wklds), (i+1)*100/len(wklds), end)
+		fmt.Printf("\r%s [INFO] - reviewed compatibility report %d of %d (%d%%).%s", time.Now().Format("2006-01-02 15:04:05 "), i+1, len(idleWklds), (i+1)*100/len(idleWklds), end)
 
 		if cr.QualifyStatus == "" {
 			warningLogs = append(warningLogs, fmt.Sprintf("%s is an idle workload but does not have a compatibility report", w.Hostname))
