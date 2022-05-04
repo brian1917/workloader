@@ -34,6 +34,7 @@ import (
 	"github.com/brian1917/workloader/cmd/nicexport"
 	"github.com/brian1917/workloader/cmd/nicmanage"
 	"github.com/brian1917/workloader/cmd/pcemgmt"
+	"github.com/brian1917/workloader/cmd/processexport"
 	"github.com/brian1917/workloader/cmd/ruleexport"
 	"github.com/brian1917/workloader/cmd/ruleimport"
 	"github.com/brian1917/workloader/cmd/rulesetexport"
@@ -166,6 +167,7 @@ func init() {
 	RootCmd.AddCommand(explorer.ExplorerCmd)
 	RootCmd.AddCommand(nicexport.NICExportCmd)
 	RootCmd.AddCommand(servicefinder.ServiceFinderCmd)
+	RootCmd.AddCommand(processexport.ProcessExportCmd)
 	RootCmd.AddCommand(wkldiplmapping.WkldIPLMappingCmd)
 	RootCmd.AddCommand(venhealth.VenHealthCmd)
 
