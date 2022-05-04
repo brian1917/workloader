@@ -53,14 +53,8 @@ github.com/armon/go-radix v0.0.0-20180808171621-7fddfc383310/go.mod h1:ufUuZ+zHj
 github.com/armon/go-radix v1.0.0/go.mod h1:ufUuZ+zHj4x4TnLV4JWEpy2hxWSpsRywHrMgIH9cCH8=
 github.com/bgentry/speakeasy v0.1.0/go.mod h1:+zsyZBPWlz7T6j88CTgSN5bM796AkVf0kBD4zp0CCIs=
 github.com/bketelsen/crypt v0.0.4/go.mod h1:aI6NrJ0pMGgvZKL1iVgXLnfIFJtfV+bKCoqOes/6LfM=
-github.com/brian1917/illumioapi v1.40.0 h1:hwB9aktJfDaw/ok2sjSoh5OuxIWEdGo367X/Wynpnng=
-github.com/brian1917/illumioapi v1.40.0/go.mod h1:bjIvUDUX41hxKaJ35ztNOkqUt6bQq5fGa1RPDI7d+S4=
-github.com/brian1917/illumioapi v1.41.0 h1:CIsCRKknARJryCia082v4oyh0TpgmxB7O5CBAq7cIa4=
-github.com/brian1917/illumioapi v1.41.0/go.mod h1:bjIvUDUX41hxKaJ35ztNOkqUt6bQq5fGa1RPDI7d+S4=
-github.com/brian1917/illumioapi v1.42.0 h1:hG1wsPrrIzDA5UBGEkMUFcqd/+n9omEN5MYHxlmTjCA=
-github.com/brian1917/illumioapi v1.42.0/go.mod h1:bjIvUDUX41hxKaJ35ztNOkqUt6bQq5fGa1RPDI7d+S4=
-github.com/brian1917/illumioapi v1.43.0 h1:OiJBT9IFWFLNsgGhnEAfj+n7jBfqhFU42Vq3ikerFco=
-github.com/brian1917/illumioapi v1.43.0/go.mod h1:bjIvUDUX41hxKaJ35ztNOkqUt6bQq5fGa1RPDI7d+S4=
+github.com/brian1917/illumioapi v1.44.0 h1:FBeVdTk4dABLcpL3R/5F+l84ktQEYdC5TCTTS1fUG9Y=
+github.com/brian1917/illumioapi v1.44.0/go.mod h1:bjIvUDUX41hxKaJ35ztNOkqUt6bQq5fGa1RPDI7d+S4=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/cespare/xxhash v1.1.0/go.mod h1:XrSqR1VqqWfGrhpAt58auRo0WTKS1nRRg3ghfAqPWnc=
 github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=

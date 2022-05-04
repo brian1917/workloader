@@ -13,7 +13,7 @@ import (
 
 // Set global variables for flags
 var targetVersion, hostFile, loc, env, app, role, outputFileName string
-var singleAPI, updatePCE, noPrompt bool
+var updatePCE, noPrompt bool
 var pce illumioapi.PCE
 var err error
 
@@ -22,8 +22,7 @@ func init() {
 
 	UpgradeCmd.Flags().StringVar(&targetVersion, "version", "", "target ven version in format of \"19.1.0-5631\"")
 	UpgradeCmd.MarkFlagRequired("version")
-	UpgradeCmd.Flags().StringVarP(&hostFile, "hostFile", "i", "", "input csv file with hostname list. hostnames in first column (other columns are ok). header is optional. label flags ignored with input file.")
-	UpgradeCmd.Flags().BoolVarP(&singleAPI, "single-api", "s", false, "get each workload and ven info from the csv as a single api call instead of getting all managed workloads and vens in the pce. optimal for pces with a lot of workloads and a relatively small input file. flag ignored if no host file provided.")
+	UpgradeCmd.Flags().StringVar(&hostFile, "host-file", "", "csv file with hrefs or hostnames. any labels are ignored with this flag.")
 	UpgradeCmd.Flags().StringVarP(&loc, "loc", "l", "", "location label. blank means all locations.")
 	UpgradeCmd.Flags().StringVarP(&env, "env", "e", "", "environment label. blank means all environments.")
 	UpgradeCmd.Flags().StringVarP(&app, "app", "a", "", "application label. blank means all applications.")
@@ -60,110 +59,64 @@ Default output is a CSV file with what would be upgraded. Use the --update-pce c
 	},
 }
 
-func GetWkldsByHostnameList(hostnames []string) (wklds []illumioapi.Workload, vens []illumioapi.VEN) {
-	venMap := make(map[string]illumioapi.VEN)
-	wkldMap := make(map[string]illumioapi.Workload)
-	utils.LogInfo("getting workloads individually from pce...", true)
-	for i, h := range hostnames {
-		w, a, err := pce.GetWkldByHostname(h)
-		utils.LogAPIResp("GetWkldByHostname", a)
-		if err != nil {
-			utils.LogError(err.Error())
-		}
-		if w.Hostname == "" {
-			utils.LogInfo(fmt.Sprintf("getting %s - %d of %d workloads (%d%%). workload does not exist.", h, i+1, len(hostnames), (i+1)*100/len(hostnames)), true)
-		} else if w.GetMode() == "unmanaged" {
-			utils.LogInfo(fmt.Sprintf("getting %s - %d of %d workloads (%d%%). workload is not managed.", h, i+1, len(hostnames), (i+1)*100/len(hostnames)), true)
-		} else if w.VEN == nil {
-			utils.LogInfo(fmt.Sprintf("getting %s - %d of %d workloads (%d%%). ven does not exist.", h, i+1, len(hostnames), (i+1)*100/len(hostnames)), true)
-		} else {
-			wklds = append(wklds, w)
-			wkldMap[w.Href] = w
-			if w.Hostname != "" {
-				wkldMap[w.Hostname] = w
-			}
-			if w.Name != "" {
-				wkldMap[w.Name] = w
-			}
-			if w.ExternalDataSet != "" && w.ExternalDataReference != "" {
-				wkldMap[w.ExternalDataSet+w.ExternalDataReference] = w
-			}
-			ven, a, err := pce.GetVenByHref(w.VEN.Href)
-			utils.LogAPIResp("GetVenByHref", a)
-			if err != nil {
-				utils.LogError(err.Error())
-			}
-			vens = append(vens, ven)
-			venMap[ven.Href] = ven
-			venMap[ven.Name] = ven
-		}
-		pce.Workloads = wkldMap
-		pce.VENs = venMap
-		if w.Hostname != "" {
-			utils.LogInfo(fmt.Sprintf("getting %s - %d of %d workloads (%d%%). success.", h, i+1, len(hostnames), (i+1)*100/len(hostnames)), true)
-		}
-
-	}
-	return wklds, vens
-}
-
 func wkldUpgrade() {
 
 	utils.LogStartCommand("upgrade")
 
-	var wklds []illumioapi.Workload
-	var err error
-	var a illumioapi.APIResponse
-	var csvData [][]string
-	var targetWklds []illumioapi.Workload
+	var targetVENs []illumioapi.VEN
+	var targetWorkloads []illumioapi.Workload
 
-	if hostFile == "" || !singleAPI {
-		// Get all managed workloads
-		utils.LogInfo("getting all workload and ven info...", true)
-		wklds, a, err = pce.GetAllWorkloadsQP(map[string]string{"managed": "true"})
-		utils.LogAPIResp("GetAllWorkloads", a)
+	if hostFile != "" {
+		// If the hostfile is provided, parse it.
+		hostFileCsvData, err := utils.ParseCSV(hostFile)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-		_, a, err = pce.GetAllVens(nil)
+		for i, row := range hostFileCsvData {
+			var ven illumioapi.VEN
+			var a illumioapi.APIResponse
+			var err error
+			if strings.Contains(row[0], "/orgs/") {
+				ven, a, err = pce.GetVenByHref(row[0])
+				utils.LogAPIResp("GetVenByHref", a)
+				if err != nil {
+					utils.LogError(err.Error())
+				}
+			} else {
+				ven, a, err = pce.GetVenByHostname(row[0])
+				utils.LogAPIResp("GetVenByHostname", a)
+				if err != nil {
+					utils.LogError(err.Error())
+				}
+			}
+			if ven.Hostname == "" {
+				utils.LogInfo(fmt.Sprintf("csv line %d - %s does not exist as a ven. skipping.", i+1, row[0]), true)
+				continue
+			}
+			wkld, a, err := pce.GetAllWorkloadsQP(map[string]string{"ven": ven.Href})
+			utils.LogAPIResp("GetAllWorkloadsQP", a)
+			if err != nil {
+				utils.LogError(err.Error())
+			}
+
+			targetWorkloads = append(targetWorkloads, wkld[0])
+			targetVENs = append(targetVENs, ven)
+
+		}
+	} else {
+		// Get all VENs
+		utils.LogInfo("getting all vens and workloads ...", true)
+		vens, a, err := pce.GetAllVens(nil)
 		utils.LogAPIResp("GetAllVens", a)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-		utils.LogInfo(fmt.Sprintf("get all managed workload and ven info complete (%d workloads)", len(wklds)), true)
-	}
-
-	// If we are given a hostfile, parse that.
-	if hostFile != "" {
-		// Parse CSV File
-		csvData, err = utils.ParseCSV(hostFile)
+		wklds, a, err := pce.GetAllWorkloadsQP(map[string]string{"managed": "true"})
+		utils.LogAPIResp("GetAllWorkloadsQP", a)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-		if singleAPI {
-			hostnameList := []string{}
-			for _, row := range csvData {
-				hostnameList = append(hostnameList, row[0])
-			}
-			wklds, _ = GetWkldsByHostnameList(hostnameList)
-		}
-		for i, row := range csvData {
-			if val, ok := pce.Workloads[row[0]]; !ok {
-				utils.LogWarning(fmt.Sprintf("line %d - %s is not a workload. skipping", i, row[0]), true)
-				continue
-			} else if pce.VENs[val.VEN.Href].Version == targetVersion {
-				utils.LogInfo(fmt.Sprintf("line %d - %s is already at %s. skipping", i, val.Hostname, targetVersion), true)
-				continue
-			} else if pce.VENs[val.VEN.Href].Status != "active" || !pce.Workloads[val.Href].Online {
-				utils.LogInfo(fmt.Sprintf("line %d - %s ven status is %s and workload online status is %t. skipping", i, val.Hostname, pce.VENs[val.VEN.Href].Status, pce.Workloads[val.Href].Online), true)
-			} else {
-				targetWklds = append(targetWklds, val)
-			}
-		}
-	}
-
-	// If we don't have a hostfile, check the labels to find our matches.
-	if hostFile == "" {
+		utils.LogInfo("getting all vens and workloads ...", true)
 		for _, w := range wklds {
 			if app != "" && w.GetApp(pce.Labels).Value != app {
 				continue
@@ -183,20 +136,29 @@ func wkldUpgrade() {
 			if pce.VENs[w.VEN.Href].Status != "active" || !pce.Workloads[w.Href].Online {
 				continue
 			}
-			targetWklds = append(targetWklds, w)
+			targetVENs = append(targetVENs, pce.VENs[w.VEN.Href])
+			targetWorkloads = append(targetWorkloads, w)
 		}
+		utils.LogInfo(fmt.Sprintf("get all vens and workloads complete (%d vens)", len(vens)), true)
+	}
+
+	// Build a workload lookup map
+	wkldByVenHrefMap := make(map[string]illumioapi.Workload)
+	for _, w := range targetWorkloads {
+		wkldByVenHrefMap[w.VEN.Href] = w
 	}
 
 	// Check length of target workloads
-	if len(targetWklds) > 25000 {
-		utils.LogError("target workloads exceed max length of 25,000")
+	if len(targetVENs) > 25000 {
+		utils.LogError("target vens exceed max length of 25,000")
 	}
 
 	// Build output data
-	if len(targetWklds) > 0 {
-		outputData := [][]string{{"hostname", "href", "role", "app", "env", "loc", "current_ven_version", "targeted_ven_version"}}
-		for _, t := range targetWklds {
-			outputData = append(outputData, []string{t.Hostname, t.Href, t.GetRole(pce.Labels).Value, t.GetApp(pce.Labels).Value, t.GetEnv(pce.Labels).Value, t.GetLoc(pce.Labels).Value, pce.VENs[t.VEN.Href].Version, targetVersion})
+	if len(targetVENs) > 0 {
+		outputData := [][]string{{"hostname", "ven_href", "wkld_href", "role", "app", "env", "loc", "current_ven_version", "targeted_ven_version"}}
+		for _, t := range targetVENs {
+			targetWkld := wkldByVenHrefMap[t.Href]
+			outputData = append(outputData, []string{t.Hostname, t.Href, targetWkld.Href, targetWkld.GetRole(pce.Labels).Value, targetWkld.GetApp(pce.Labels).Value, targetWkld.GetEnv(pce.Labels).Value, targetWkld.GetLoc(pce.Labels).Value, t.Version, targetVersion})
 		}
 		if outputFileName == "" {
 			outputFileName = "workloader-upgrade-" + time.Now().Format("20060102_150405") + ".csv"
@@ -205,7 +167,7 @@ func wkldUpgrade() {
 
 		// If updatePCE is disabled, we are just going to alert the user what will happen and log
 		if !updatePCE {
-			utils.LogInfo(fmt.Sprintf("workloader identified %d workloads requiring VEN upgrades. See %s for details. To do the upgrade, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.", len(targetWklds), outputFileName), true)
+			utils.LogInfo(fmt.Sprintf("workloader identified %d workloads requiring VEN upgrades. See %s for details. To do the upgrade, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.", len(targetVENs), outputFileName), true)
 			utils.LogEndCommand("upgrade")
 			return
 		}
@@ -213,21 +175,13 @@ func wkldUpgrade() {
 		// If updatePCE is set, but not noPrompt, we will prompt the user.
 		if updatePCE && !noPrompt {
 			var prompt string
-			fmt.Printf("[PROMPT] - workloader identified %d workloads in %s (%s) requiring VEN updates. See %s for details. Do you want to run the upgrade? (yes/no)? ", len(targetWklds), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string), outputFileName)
+			fmt.Printf("[PROMPT] - workloader identified %d workloads in %s (%s) requiring VEN updates. See %s for details. Do you want to run the upgrade? (yes/no)? ", len(targetVENs), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string), outputFileName)
 			fmt.Scanln(&prompt)
 			if strings.ToLower(prompt) != "yes" {
-				utils.LogInfo(fmt.Sprintf("prompt denied to upgrade %d workloads", len(targetWklds)), true)
+				utils.LogInfo(fmt.Sprintf("prompt denied to upgrade %d workloads", len(targetVENs)), true)
 				utils.LogEndCommand("upgrade")
 				return
 			}
-		}
-
-		// We will only get here if we have need to run the upgrade. Start by creating the target VENs list
-		targetVENs := []illumioapi.VEN{}
-
-		// Populate VEN list
-		for _, w := range targetWklds {
-			targetVENs = append(targetVENs, *w.VEN)
 		}
 
 		// Call the API

@@ -40,13 +40,13 @@ var ModeCmd = &cobra.Command{
 	Long: `
 Change a workload's state based on an input CSV with at least two columns: workload href and desired state.
 
-All VENs can accept the following values: idle, build, test, enforced-no, enforced-low, or enforced-high. The three enforced options include logging (no, low detail, or high).
+VENs can accept the following values: idle, build, test, enforced-no, enforced-low, or enforced-high. The three enforced options include logging (no, low detail, or high).
 
-20.2+ VENs can accept the following enforcement-state values: idle, visibility_only, selective, or full.
-
-20.2+ VENs accept accept the following visibility values: off, blocked, blocked_allowed. Older VENs will ignore the visibility column.
-
-The acceptable headers are ` + headerHref + `, ` + headerEnforcement + `, and ` + headerVisibility + `. Additional columns will be ignored.`,
+PCE versions 20.x or more recent can optionally leverage the new workload properties below.
+ 
+CSV input should have at least two columns: href and enforcement.  A third column for visibility is optional. Additional columns will be ignored
+ 
+VENs can accept the following enforcement values: idle, visibility_only, selective, or full.  When setting VEN enforcement to visibility_only the default condition is blocked_allowed. VENs accept the following optional visibility values: off, blocked, blocked_allowed.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 		pce, err = utils.GetTargetPCE(true)
