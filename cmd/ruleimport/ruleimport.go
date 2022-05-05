@@ -646,29 +646,31 @@ CSVEntries:
 				csvValues[r] = true
 			}
 			// Populate PCE values map
-			for _, r := range pceRuleResolveAs[z] {
-				pceValues[r] = true
-			}
-			// Log if we need to make changes
-			resolveAsChange := false
 			if rowRuleHref != "" {
-				// Check if all PCE are in CSV
-				for p := range pceValues {
-					if _, ok := csvValues[p]; !ok {
-						update = true
-						resolveAsChange = true
-						utils.LogInfo(fmt.Sprintf("csv line %d - %s needs to be updated from %s to %s", i+1, h, strings.Join(pceRuleResolveAs[z], ";"), csvResolveAs), false)
-						continue
-					}
+				for _, r := range pceRuleResolveAs[z] {
+					pceValues[r] = true
 				}
-
-				// Check if all CSV are in the PCE
-				if !resolveAsChange {
-					for c := range csvValues {
-						if _, ok := pceValues[c]; !ok {
+				// Log if we need to make changes
+				resolveAsChange := false
+				if rowRuleHref != "" {
+					// Check if all PCE are in CSV
+					for p := range pceValues {
+						if _, ok := csvValues[p]; !ok {
 							update = true
+							resolveAsChange = true
 							utils.LogInfo(fmt.Sprintf("csv line %d - %s needs to be updated from %s to %s", i+1, h, strings.Join(pceRuleResolveAs[z], ";"), csvResolveAs), false)
 							continue
+						}
+					}
+
+					// Check if all CSV are in the PCE
+					if !resolveAsChange {
+						for c := range csvValues {
+							if _, ok := pceValues[c]; !ok {
+								update = true
+								utils.LogInfo(fmt.Sprintf("csv line %d - %s needs to be updated from %s to %s", i+1, h, strings.Join(pceRuleResolveAs[z], ";"), csvResolveAs), false)
+								continue
+							}
 						}
 					}
 				}
