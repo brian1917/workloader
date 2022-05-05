@@ -27,6 +27,7 @@ const (
 	HeaderHoursSinceLastHeartbeat  = "hours_since_last_heartbeat"
 	HeaderOsID                     = "os_id"
 	HeaderOsDetail                 = "os_detail"
+	HeaderVenHref                  = "ven_href"
 	HeaderAgentVersion             = "agent_version"
 	HeaderAgentID                  = "agent_id"
 	HeaderActivePceFqdn            = "active_pce_fqdn"
