@@ -13,16 +13,17 @@ import (
 
 // Set global variables for flags
 var targetVersion, hostFile, loc, env, app, role, outputFileName string
-var updatePCE, noPrompt bool
+var singleAPI, updatePCE, noPrompt bool
 var pce illumioapi.PCE
 var err error
 
 // Init handles flags
 func init() {
 
-	UpgradeCmd.Flags().StringVar(&targetVersion, "version", "", "target ven version in format of \"19.1.0-5631\"")
+	UpgradeCmd.Flags().StringVar(&targetVersion, "version", "v", "target ven version in format of \"19.1.0-5631\"")
 	UpgradeCmd.MarkFlagRequired("version")
-	UpgradeCmd.Flags().StringVar(&hostFile, "host-file", "", "csv file with hrefs or hostnames. any labels are ignored with this flag.")
+	UpgradeCmd.Flags().StringVarP(&hostFile, "host-file", "i", "", "csv file with hrefs or hostnames. any labels are ignored with this flag.")
+	UpgradeCmd.Flags().BoolVarP(&singleAPI, "single-api", "s", false, "csv file with hrefs or hostnames. any labels are ignored with this flag.")
 	UpgradeCmd.Flags().StringVarP(&loc, "loc", "l", "", "location label. blank means all locations.")
 	UpgradeCmd.Flags().StringVarP(&env, "env", "e", "", "environment label. blank means all environments.")
 	UpgradeCmd.Flags().StringVarP(&app, "app", "a", "", "application label. blank means all applications.")
@@ -63,61 +64,91 @@ func wkldUpgrade() {
 
 	utils.LogStartCommand("upgrade")
 
+	// Set up the target slices
 	var targetVENs []illumioapi.VEN
 	var targetWorkloads []illumioapi.Workload
 
-	if hostFile != "" {
-		// If the hostfile is provided, parse it.
-		hostFileCsvData, err := utils.ParseCSV(hostFile)
-		if err != nil {
-			utils.LogError(err.Error())
-		}
-		for i, row := range hostFileCsvData {
-			var ven illumioapi.VEN
-			var a illumioapi.APIResponse
-			var err error
-			if strings.Contains(row[0], "/orgs/") {
-				ven, a, err = pce.GetVenByHref(row[0])
-				utils.LogAPIResp("GetVenByHref", a)
-				if err != nil {
-					utils.LogError(err.Error())
-				}
-			} else {
-				ven, a, err = pce.GetVenByHostname(row[0])
-				utils.LogAPIResp("GetVenByHostname", a)
-				if err != nil {
-					utils.LogError(err.Error())
-				}
-			}
-			if ven.Hostname == "" {
-				utils.LogInfo(fmt.Sprintf("csv line %d - %s does not exist as a ven. skipping.", i+1, row[0]), true)
-				continue
-			}
-			wkld, a, err := pce.GetAllWorkloadsQP(map[string]string{"ven": ven.Href})
-			utils.LogAPIResp("GetAllWorkloadsQP", a)
-			if err != nil {
-				utils.LogError(err.Error())
-			}
-
-			targetWorkloads = append(targetWorkloads, wkld[0])
-			targetVENs = append(targetVENs, ven)
-
-		}
-	} else {
+	// If the hostFile is blank or if singleAPI is set to false get all VENs and workloads
+	if hostFile == "" || !singleAPI {
 		// Get all VENs
 		utils.LogInfo("getting all vens and workloads ...", true)
-		vens, a, err := pce.GetAllVens(nil)
+		_, a, err := pce.GetAllVens(nil)
 		utils.LogAPIResp("GetAllVens", a)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-		wklds, a, err := pce.GetAllWorkloadsQP(map[string]string{"managed": "true"})
+		_, a, err = pce.GetAllWorkloadsQP(map[string]string{"managed": "true"})
 		utils.LogAPIResp("GetAllWorkloadsQP", a)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-		utils.LogInfo("getting all vens and workloads ...", true)
-		for _, w := range wklds {
+		utils.LogInfo(fmt.Sprintf("get all vens and workloads complete (%d vens)", len(pce.VENsSlice)), true)
+	}
+
+	// Parse the hostfile if it's provided
+	if hostFile != "" {
+
+		hostFileCsvData, err := utils.ParseCSV(hostFile)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		// Iterate through the hostfile
+		for i, row := range hostFileCsvData {
+			var ven illumioapi.VEN
+			var a illumioapi.APIResponse
+			var err error
+
+			// If singleAPI get the VEN and workload
+			if singleAPI {
+				// Get by href of /orgs/ is present
+				if strings.Contains(row[0], "/orgs/") {
+					ven, a, err = pce.GetVenByHref(row[0])
+					utils.LogAPIResp("GetVenByHref", a)
+					if err != nil {
+						utils.LogError(err.Error())
+					}
+					// Get by hostname if /orgs/ isn't present
+				} else {
+					ven, a, err = pce.GetVenByHostname(row[0])
+					utils.LogAPIResp("GetVenByHostname", a)
+					if err != nil {
+						utils.LogError(err.Error())
+					}
+				}
+				// If we aren't using singleAPI, the VEN is the value from the pce map
+			} else {
+				ven = pce.VENs[row[0]]
+			}
+			// If the VEN doesn't have a hostname, it doesn't exist
+			if ven.Hostname == "" {
+				utils.LogInfo(fmt.Sprintf("csv line %d - %s does not exist as a ven. skipping.", i+1, row[0]), true)
+				continue
+			}
+			// If the version is already correct, skip
+			if ven.Version == targetVersion {
+				utils.LogInfo(fmt.Sprintf("csv line %d - %s is already on %s. skipping.", i+1, row[0], targetVersion), true)
+				continue
+			}
+
+			// Add to the VEN slice
+			targetVENs = append(targetVENs, ven)
+
+			// Get the corresponding workload if the VEN is valid. If singleAPI is set, make the API call
+			if singleAPI {
+				wkld, a, err := pce.GetAllWorkloadsQP(map[string]string{"ven": ven.Href})
+				utils.LogAPIResp("GetAllWorkloadsQP", a)
+				if err != nil {
+					utils.LogError(err.Error())
+				}
+				targetWorkloads = append(targetWorkloads, wkld[0])
+			} else {
+				targetWorkloads = append(targetWorkloads, pce.Workloads[ven.Hostname])
+			}
+
+		}
+	} else {
+		// Not using a hostfile so iterate through all workloads
+		for _, w := range pce.WorkloadsSlice {
 			if app != "" && w.GetApp(pce.Labels).Value != app {
 				continue
 			}
@@ -139,7 +170,6 @@ func wkldUpgrade() {
 			targetVENs = append(targetVENs, pce.VENs[w.VEN.Href])
 			targetWorkloads = append(targetWorkloads, w)
 		}
-		utils.LogInfo(fmt.Sprintf("get all vens and workloads complete (%d vens)", len(vens)), true)
 	}
 
 	// Build a workload lookup map
@@ -157,7 +187,7 @@ func wkldUpgrade() {
 	if len(targetVENs) > 0 {
 		outputData := [][]string{{"hostname", "ven_href", "wkld_href", "role", "app", "env", "loc", "current_ven_version", "targeted_ven_version"}}
 		for _, t := range targetVENs {
-			targetWkld := wkldByVenHrefMap[t.Href]
+			targetWkld := pce.Workloads[t.Hostname]
 			outputData = append(outputData, []string{t.Hostname, t.Href, targetWkld.Href, targetWkld.GetRole(pce.Labels).Value, targetWkld.GetApp(pce.Labels).Value, targetWkld.GetEnv(pce.Labels).Value, targetWkld.GetLoc(pce.Labels).Value, t.Version, targetVersion})
 		}
 		if outputFileName == "" {
