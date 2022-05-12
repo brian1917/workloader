@@ -142,6 +142,7 @@ func wkldUpgrade() {
 				}
 				targetWorkloads = append(targetWorkloads, wkld[0])
 			} else {
+				// If singleAPI isn't set, we have it from the PCE map
 				targetWorkloads = append(targetWorkloads, pce.Workloads[ven.Hostname])
 			}
 
@@ -177,6 +178,12 @@ func wkldUpgrade() {
 	for _, w := range targetWorkloads {
 		wkldByVenHrefMap[w.VEN.Href] = w
 	}
+
+	// Ensure PCE Maps are loaded
+	pce.VENsSlice = targetVENs
+	pce.WorkloadsSlice = targetWorkloads
+	pce.LoadVenMap()
+	pce.LoadWorkloadMap()
 
 	// Check length of target workloads
 	if len(targetVENs) > 25000 {
