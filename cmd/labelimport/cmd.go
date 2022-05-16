@@ -38,12 +38,12 @@ var LabelImportCmd = &cobra.Command{
 	Long: `
 Create and update labels from a CSV file. 
 
-The input should have a header row as the first row will be skipped. The CSV can have any columns in any order. The processed headers are below:
-` + HeaderHref + `
-` + HeaderKey + `
-` + HeaderValue + `
-` + HeaderExtDataSet + `
-` + HeaderExtDataSetRef + `
+The input should have a header row as the first row will be skipped. The CSV can have columns in any order. The processed headers are below:
+- ` + HeaderHref + `
+- ` + HeaderKey + ` (required)
+- ` + HeaderValue + ` (required)
+- ` + HeaderExtDataSet + `
+- ` + HeaderExtDataSetRef + `
 
 If an href is provided, workloader will make sure the label is what's in the CSV. If no href is provided, workloader looks to create a new label.
 	
@@ -126,6 +126,12 @@ func ImportLabels(pce illumioapi.PCE, inputFile string, updatePCE, noPrompt bool
 			for c, l := range line {
 				x := c
 				headers[l] = &x
+			}
+			if _, ok := headers["key"]; !ok {
+				utils.LogError("csv requires a key header.")
+			}
+			if _, ok := headers["value"]; !ok {
+				utils.LogError("csv requires a value header.")
 			}
 			continue
 		}
