@@ -25,7 +25,7 @@ var iplCsvFile, fqdnCsvFile, iplName string
 
 func init() {
 	IplReplaceCmd.Flags().StringVarP(&iplCsvFile, "ip-file-name", "i", "", "name of file with ip entries")
-	IplReplaceCmd.Flags().StringVarP(&fqdnCsvFile, "fqdn-file-name", "f", "", "name of file with ip entries")
+	IplReplaceCmd.Flags().StringVarP(&fqdnCsvFile, "fqdn-file-name", "f", "", "name of file with fqdn entries")
 	IplReplaceCmd.MarkFlagRequired("name")
 	IplReplaceCmd.Flags().BoolVarP(&create, "create", "c", false, "create ip list if it does not exist")
 	IplReplaceCmd.Flags().IntVar(&ipCol, "ip-col", 1, "column with ip entries. first column is 1.")
