@@ -52,6 +52,7 @@ import (
 	"github.com/brian1917/workloader/cmd/umwlcleanup"
 	"github.com/brian1917/workloader/cmd/unpair"
 	"github.com/brian1917/workloader/cmd/unusedports"
+	"github.com/brian1917/workloader/cmd/unusedumwl"
 	"github.com/brian1917/workloader/cmd/upgrade"
 	"github.com/brian1917/workloader/cmd/venexport"
 	"github.com/brian1917/workloader/cmd/venhealth"
@@ -170,6 +171,7 @@ func init() {
 	RootCmd.AddCommand(processexport.ProcessExportCmd)
 	RootCmd.AddCommand(wkldiplmapping.WkldIPLMappingCmd)
 	RootCmd.AddCommand(venhealth.VenHealthCmd)
+	RootCmd.AddCommand(unusedumwl.UnusedUmwlCmd)
 
 	// Edge Commands
 	RootCmd.AddCommand(wkldtoipl.WorkloadToIPLCmd)
