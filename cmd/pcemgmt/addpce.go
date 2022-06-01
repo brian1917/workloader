@@ -44,7 +44,7 @@ By default, the command will create an API ID and Secret. The --session (-s) fla
 to generate a session token that is valid for 10 minutes after inactivity.
 
 The command can be automated (avoid prompt) by setting the following environment variables:
-PCE_NAME, PCE_FQDN, PCE_PORT, PCE_USER, PCE_PWD, PCE_DISABLET_TLS.
+PCE_NAME, PCE_FQDN, PCE_PORT, PCE_USER, PCE_PWD, PCE_DISABLE_TLS.
 
 The ILLUMIO_LOGIN_SERVER environment variable can be used to specify a login server (note - rarely needed).
 
