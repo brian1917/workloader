@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var appFlag, exclWkldFile, exclPortFile, exclAppFile, outFormat, outputFileName string
+var appFlag, exclWkldFile, exclPortFile, exclAppFile, outputFileName string
 var debug, ignoreLoc, inclUnmanagedAppGroups bool
 var pce illumioapi.PCE
 var err error
@@ -55,7 +55,6 @@ The --update-pce and --no-prompt flags are ignored for this command.`,
 
 		// Get the debug value from viper
 		debug = viper.Get("debug").(bool)
-		outFormat = viper.Get("output_format").(string)
 
 		misLabel()
 	},
@@ -122,7 +121,7 @@ func misLabel() {
 	utils.LogStartCommand("mislabel")
 
 	// Get ports we should ignore
-	exclPorts := [][2]int{[2]int{5355, 17}, [2]int{137, 17}, [2]int{138, 17}, [2]int{139, 17}}
+	exclPorts := [][2]int{{5355, 17}, {137, 17}, {138, 17}, {139, 17}}
 	if exclPortFile != "" {
 		exclPorts = getExclPorts(exclPortFile)
 	}
@@ -137,14 +136,14 @@ func misLabel() {
 
 	// If app flag is set, adjust tq struct
 	if appFlag != "" {
-		l, a, err := pce.GetLabelbyKeyValue("app", appFlag)
+		l, a, err := pce.GetLabelByKeyValue("app", appFlag)
 		if debug {
 			utils.LogAPIResp("GetLabelbyKeyValue", a)
 		}
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-		tq.SourcesInclude = [][]string{[]string{l.Href}}
+		tq.SourcesInclude = [][]string{{l.Href}}
 	}
 
 	// Get traffic
@@ -225,7 +224,7 @@ func misLabel() {
 	}
 
 	// Get all workloads.
-	wklds, a, err := pce.GetAllWorkloads()
+	wklds, a, err := pce.GetWklds(nil)
 	if debug {
 		utils.LogAPIResp("GetAllWorkloads", a)
 	}
@@ -261,7 +260,7 @@ func misLabel() {
 	}
 
 	// Create CSV output - start data slice with headers
-	data := [][]string{[]string{"hostname", "role", "app", "env", "loc"}}
+	data := [][]string{{"hostname", "role", "app", "env", "loc"}}
 	for _, w := range orphanWklds {
 		data = append(data, []string{w.Hostname, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value})
 	}

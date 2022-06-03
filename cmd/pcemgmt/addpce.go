@@ -35,10 +35,10 @@ var AddPCECmd = &cobra.Command{
 Adds a PCE to the pce.yaml file.
 
 The default file name is pce.yaml stored in the current directory.
-Set ILLUMIO_PCE environment variable for a custom file location, including file name.
-This envrionment variable must be set foor future use so Workloader knows where to look for it. Example:
+Set ILLUMIO_CONFIG environment variable for a custom file location, including file name.
+This envrionment variable must be set for future use so Workloader knows where to look for it. Example:
 
-export ILLUMIO_PCE="/Users/brian/Desktop/login.yaml"
+export ILLUMIO_CONFIG="/Users/brian/Desktop/login.yaml"
 
 By default, the command will create an API ID and Secret. The --session (-s) flag can be used
 to generate a session token that is valid for 10 minutes after inactivity.

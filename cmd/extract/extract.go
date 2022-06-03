@@ -36,7 +36,7 @@ var ExtractCmd = &cobra.Command{
 func labels() {
 
 	// Get all labels
-	labels, lablesAPI, err := pce.GetAllLabels()
+	labels, lablesAPI, err := pce.GetLabels(nil)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -65,7 +65,7 @@ func workloads() {
 	fmt.Println("Created temporary directory for extract.")
 
 	// Start by getting all workloads
-	wklds, _, err := pce.GetAllWorkloads()
+	wklds, _, err := pce.GetWklds(nil)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -100,7 +100,7 @@ func services() {
 	for _, p := range pStatus {
 		// Reset the services API and then call it for each provision status
 		servicesAPI := illumioapi.APIResponse{}
-		svcs, servicesAPI, err := pce.GetAllServices(p)
+		svcs, servicesAPI, err := pce.GetServices(nil, p)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -127,12 +127,12 @@ func ipLists() {
 		ipListAPI := illumioapi.APIResponse{}
 		var ipLists []illumioapi.IPList
 		if p == "draft" {
-			ipLists, ipListAPI, err = pce.GetAllDraftIPLists()
+			ipLists, ipListAPI, err = pce.GetIPLists(nil, "draft")
 			if err != nil {
 				utils.LogError(err.Error())
 			}
 		} else {
-			ipLists, ipListAPI, err = pce.GetAllActiveIPLists()
+			ipLists, ipListAPI, err = pce.GetIPLists(nil, "active")
 			if err != nil {
 				utils.LogError(err.Error())
 			}
@@ -192,7 +192,7 @@ func labelGroups() {
 	for _, p := range pStatus {
 		// Reset the services API and then call it for each provision status
 		lgAPI := illumioapi.APIResponse{}
-		lg, lgAPI, err := pce.GetAllLabelGroups(p)
+		lg, lgAPI, err := pce.GetLabelGroups(nil, p)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -222,7 +222,7 @@ func ruleSets() {
 	for _, p := range pStatus {
 		// Reset the services API and then call it for each provision status
 		rsAPI := illumioapi.APIResponse{}
-		rs, rsAPI, err := pce.GetAllRuleSets(p)
+		rs, rsAPI, err := pce.GetRulesets(nil, p)
 		if err != nil {
 			utils.LogError(err.Error())
 		}

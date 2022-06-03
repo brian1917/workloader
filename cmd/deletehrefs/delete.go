@@ -205,7 +205,7 @@ func DeleteHrefs(input Input) {
 				// If it's a rule, only provion the ruleset
 				if strings.Contains(href, "/sec_rules/") {
 					r := illumioapi.Rule{Href: href}
-					provisionMap[r.GetRuleSetHrefFromRuleHref()] = true
+					provisionMap[r.GetRulesetHref()] = true
 				} else {
 					provisionMap[href] = true
 				}

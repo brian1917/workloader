@@ -67,7 +67,7 @@ func nicManage() {
 	csvHeaders := findHeaders(csvData[0])
 
 	// Get all the workloads from the PCE
-	wklds, a, err := pce.GetAllWorkloadsQP(nil)
+	wklds, a, err := pce.GetWklds(nil)
 	utils.LogAPIResp("GetAllWorkloadsQP", a)
 	if err != nil {
 		utils.LogError(err.Error())

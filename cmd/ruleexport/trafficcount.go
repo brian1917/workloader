@@ -34,7 +34,7 @@ func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule) []str
 		}
 		// Add IP lists directly to the traffic query
 		if consumer.IPList != nil {
-			trafficReq.Sources.Include = append(trafficReq.Sources.Include, []illumioapi.Include{illumioapi.Include{IPList: &illumioapi.IPList{Href: consumer.IPList.Href}}})
+			trafficReq.Sources.Include = append(trafficReq.Sources.Include, []illumioapi.Include{{IPList: &illumioapi.IPList{Href: consumer.IPList.Href}}})
 		}
 	}
 
@@ -56,7 +56,7 @@ func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule) []str
 		}
 		// Add IP lists directly to the traffic query
 		if provider.IPList != nil {
-			trafficReq.Destinations.Include = append(trafficReq.Destinations.Include, []illumioapi.Include{illumioapi.Include{IPList: &illumioapi.IPList{Href: provider.IPList.Href}}})
+			trafficReq.Destinations.Include = append(trafficReq.Destinations.Include, []illumioapi.Include{{IPList: &illumioapi.IPList{Href: provider.IPList.Href}}})
 		}
 	}
 
@@ -155,7 +155,7 @@ func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule) []str
 
 	// Make the traffic request
 	utils.LogInfo(fmt.Sprintf("ruleset %s - executing explorer query for %s...", rs.Name, r.Href), true)
-	traffic, a, err := input.PCE.GetTrafficAnalysisAPI(trafficReq)
+	traffic, a, err := input.PCE.CreateTrafficRequest(trafficReq)
 	utils.LogAPIResp("GetTrafficAnalysisAPI", a)
 	if err != nil {
 		utils.LogError(err.Error())

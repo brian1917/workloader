@@ -169,7 +169,7 @@ func ImportRulesFromCSV(input Input) {
 	}
 	// Get all the rulesets and make a map
 	utils.LogInfo("Getting all rulesets...", true)
-	allRS, a, err := input.PCE.GetAllRuleSets("draft")
+	allRS, a, err := input.PCE.GetRulesets(nil, "draft")
 	utils.LogAPIResp("GetAllRuleSets", a)
 	if err != nil {
 		utils.LogError(err.Error())
@@ -726,7 +726,7 @@ CSVEntries:
 	provisionHrefs := make(map[string]bool)
 	if len(newRules) > 0 {
 		for _, newRule := range newRules {
-			rule, a, err := input.PCE.CreateRuleSetRule(newRule.ruleSetHref, newRule.rule)
+			rule, a, err := input.PCE.CreateRule(newRule.ruleSetHref, newRule.rule)
 			utils.LogAPIResp("CreateRuleSetRule", a)
 			if err != nil {
 				utils.LogError(err.Error())
@@ -739,7 +739,7 @@ CSVEntries:
 	// Update the new rules
 	if len(updatedRules) > 0 {
 		for _, updatedRule := range updatedRules {
-			a, err := input.PCE.UpdateRuleSetRules(updatedRule.rule)
+			a, err := input.PCE.UpdateRule(updatedRule.rule)
 			utils.LogAPIResp("UpdateRuleSetRules", a)
 			if err != nil {
 				utils.LogError(err.Error())

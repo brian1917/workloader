@@ -87,7 +87,7 @@ func edgeadmin() {
 	}
 
 	// Get all unmanaged workloads with the correct Admin Group label and that are managed
-	srcWklds, a, err := srcPCE.GetAllWorkloadsQP(map[string]string{"labels": fmt.Sprintf("[[\"%s\"]]", edgeRoleLabel.Href), "managed": "true"})
+	srcWklds, a, err := srcPCE.GetWklds(map[string]string{"labels": fmt.Sprintf("[[\"%s\"]]", edgeRoleLabel.Href), "managed": "true"})
 	utils.LogAPIResp("GetAllWorkloadsQP", a)
 	if err != nil {
 		utils.LogError(err.Error())
@@ -106,7 +106,7 @@ func edgeadmin() {
 		}
 
 		// Get all UMWL workloads from the destination PCE
-		destExistingWklds, a, err := input.PCE.GetAllWorkloadsQP(map[string]string{"managed": "false"})
+		destExistingWklds, a, err := input.PCE.GetWklds(map[string]string{"managed": "false"})
 		utils.LogAPIResp("GetAllWorkloadsQP", a)
 		if err != nil {
 			utils.LogError(err.Error())

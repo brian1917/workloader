@@ -107,7 +107,7 @@ func portLock(port int, protocol string) {
 
 	// Get the Any IP List for use in the rule and/or enfourcement boundary.
 	// Get it here so it's available in the traffic conditional as well as in the EB
-	anyIPList, api, err := pce.GetIPList("Any (0.0.0.0/0 and ::/0)", "active")
+	anyIPList, api, err := pce.GetIPListByName("Any (0.0.0.0/0 and ::/0)", "active")
 	utils.LogAPIResp("GetIPList", api)
 	if err != nil {
 		utils.LogError(err.Error())
@@ -118,7 +118,7 @@ func portLock(port int, protocol string) {
 		tq := illumioapi.TrafficQuery{
 			MaxFLows:         100000,
 			PolicyStatuses:   []string{"potentially_blocked", "unknown"},
-			PortProtoInclude: [][2]int{[2]int{port, protocolNum}},
+			PortProtoInclude: [][2]int{{port, protocolNum}},
 		}
 
 		// Get the start date
@@ -146,7 +146,7 @@ func portLock(port int, protocol string) {
 		// Get all the workloads with the inbound traffic
 		targetWorkloads := make(map[string]illumioapi.Workload)
 		for _, t := range traffic {
-			if t.Dst.Workload != nil && t.Dst.Workload.Href != "" {
+			if t.Dst.Workload != nil && t.Dst.Workload.Href != "" && !strings.Contains(t.Dst.Workload.Href, "/container_workloads/") {
 				targetWorkloads[t.Dst.Workload.Href] = *t.Dst.Workload
 			}
 		}
@@ -174,7 +174,7 @@ func portLock(port int, protocol string) {
 			}
 			changes = append(changes, fmt.Sprintf("create the %s enforcement boundary for any IP address to all workloads on %d %s", objectName, port, protocol))
 			if !skipModeChange {
-				wklds, api, err = pce.GetAllWorkloadsQP(map[string]string{"managed": "true", "enforcement_mode": "visibility_only"})
+				wklds, api, err = pce.GetWklds(map[string]string{"managed": "true", "enforcement_mode": "visibility_only"})
 				utils.LogAPIResp("GetAllWorkloadsQP", api)
 				if err != nil {
 					utils.LogError(err.Error())
@@ -204,7 +204,7 @@ func portLock(port int, protocol string) {
 			vs := illumioapi.VirtualService{
 				Description:  fmt.Sprintf("Created by workloader containment-switch for %d %s", port, protocol),
 				Name:         objectName,
-				ServicePorts: []*illumioapi.ServicePort{&illumioapi.ServicePort{Port: port, Protocol: protocolNum}}}
+				ServicePorts: []*illumioapi.ServicePort{{Port: port, Protocol: protocolNum}}}
 
 			vs, api, err = pce.CreateVirtualService(vs)
 			utils.LogAPIResp("CreateVirtualService", api)
@@ -226,7 +226,7 @@ func portLock(port int, protocol string) {
 			for _, w := range targetWorkloads {
 				serviceBindings = append(serviceBindings, illumioapi.ServiceBinding{VirtualService: vs, Workload: w})
 			}
-			_, api, err = pce.CreateServiceBinding(serviceBindings, vs)
+			_, api, err = pce.CreateServiceBinding(serviceBindings)
 			utils.LogAPIResp("CreateServiceBinding", api)
 			if err != nil {
 				utils.LogError(err.Error())
@@ -239,7 +239,7 @@ func portLock(port int, protocol string) {
 				Name:        objectName,
 			}
 			rs.Scopes = append(rs.Scopes, []*illumioapi.Scopes{})
-			rs, api, err = pce.CreateRuleSet(rs)
+			rs, api, err = pce.CreateRuleset(rs)
 			utils.LogAPIResp("CreateRuleSet", api)
 			if err != nil {
 				utils.LogError(err.Error())
@@ -249,13 +249,13 @@ func portLock(port int, protocol string) {
 			// Create a new rule
 			enabled := true
 			rule := illumioapi.Rule{
-				Providers:       []*illumioapi.Providers{&illumioapi.Providers{VirtualService: &illumioapi.VirtualService{Href: vs.Href}}},
-				Consumers:       []*illumioapi.Consumers{&illumioapi.Consumers{IPList: &illumioapi.IPList{Href: anyIPList.Href}}},
+				Providers:       []*illumioapi.Providers{{VirtualService: &illumioapi.VirtualService{Href: vs.Href}}},
+				Consumers:       []*illumioapi.Consumers{{IPList: &illumioapi.IPList{Href: anyIPList.Href}}},
 				Enabled:         &enabled,
 				ResolveLabelsAs: &illumioapi.ResolveLabelsAs{Consumers: []string{"workloads"}, Providers: []string{"virtual_services"}},
 				IngressServices: &[]*illumioapi.IngressServices{},
 			}
-			rule, api, err = pce.CreateRuleSetRule(rs.Href, rule)
+			rule, api, err = pce.CreateRule(rs.Href, rule)
 			utils.LogAPIResp("CreateRuleSetRule", api)
 			if err != nil {
 				utils.LogError(err.Error())
@@ -276,9 +276,9 @@ func portLock(port int, protocol string) {
 	// Create the enforcement boundary
 	eb := illumioapi.EnforcementBoundary{
 		Name:            objectName,
-		Consumers:       []illumioapi.Consumers{illumioapi.Consumers{IPList: &illumioapi.IPList{Href: anyIPList.Href}}},
-		Providers:       []illumioapi.Providers{illumioapi.Providers{Actors: "ams"}},
-		IngressServices: []illumioapi.IngressServices{illumioapi.IngressServices{Port: &port, Protocol: &protocolNum}},
+		Consumers:       []illumioapi.Consumers{{IPList: &illumioapi.IPList{Href: anyIPList.Href}}},
+		Providers:       []illumioapi.Providers{{Actors: "ams"}},
+		IngressServices: []illumioapi.IngressServices{{Port: &port, Protocol: &protocolNum}},
 	}
 	eb, api, err = pce.CreateEnforcementBoundary(eb)
 	utils.LogAPIResp("CreateEnforcementBoundary", api)

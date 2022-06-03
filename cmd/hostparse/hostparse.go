@@ -351,7 +351,7 @@ func hostnameParser() {
 
 	failedPCE := false
 	//Access PCE to get all Labels only if no_pce is not set to true in config file
-	labels, apiResp, err := pce.GetAllLabels()
+	labels, apiResp, err := pce.GetLabels(nil)
 	if debug {
 		utils.LogAPIResp("GetAllLabels", apiResp)
 	}
@@ -367,7 +367,7 @@ func hostnameParser() {
 	var workloads []illumioapi.Workload
 
 	if !failedPCE {
-		workloads, apiResp, err = pce.GetAllWorkloads()
+		workloads, apiResp, err = pce.GetWklds(nil)
 		if debug {
 			utils.LogAPIResp("GetAllWorkloads", apiResp)
 		}
@@ -407,7 +407,7 @@ func hostnameParser() {
 
 	var wkld []illumioapi.Workload
 	if hostFile != "" {
-		wkldsHN, a, err := pce.GetWkldHostMap()
+		_, a, err := pce.GetWklds(nil)
 		if debug {
 			utils.LogAPIResp("GetWkldHostMap", a)
 		}
@@ -418,7 +418,7 @@ func hostnameParser() {
 		var tmpwkld illumioapi.Workload
 		for c, row := range hostrec {
 			if c != 0 {
-				w, ok := wkldsHN[row[0]]
+				w, ok := pce.Workloads[row[0]]
 				if ok {
 					tmpwkld = w
 				} else {

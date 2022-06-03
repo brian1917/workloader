@@ -49,11 +49,11 @@ func exportLabels() {
 	utils.LogStartCommand("label-export")
 
 	// Start the data slice with headers
-	csvData := [][]string{[]string{labelimport.HeaderHref, labelimport.HeaderKey, labelimport.HeaderValue, labelimport.HeaderExtDataSet, labelimport.HeaderExtDataSetRef, "virtual_server_usage", "label_group_usage", "ruleset_usage", "static_policy_scopes_usage", "pairing_profile_usage", "permission_usage", "workload_usage", "container_workload_usage", "firewall_coexistence_scope_usage", "containers_inherit_host_policy_scopes_usage", "container_workload_profile_usage", "blocked_connection_reject_scope_usage", "enforcement_boundary_usage", "loopback_interfaces_in_policy_scopes_usage", "virtual_service_usage"}}
-	stdOutData := [][]string{[]string{"href", "key", "value"}}
+	csvData := [][]string{{labelimport.HeaderHref, labelimport.HeaderKey, labelimport.HeaderValue, labelimport.HeaderExtDataSet, labelimport.HeaderExtDataSetRef, "virtual_server_usage", "label_group_usage", "ruleset_usage", "static_policy_scopes_usage", "pairing_profile_usage", "permission_usage", "workload_usage", "container_workload_usage", "firewall_coexistence_scope_usage", "containers_inherit_host_policy_scopes_usage", "container_workload_profile_usage", "blocked_connection_reject_scope_usage", "enforcement_boundary_usage", "loopback_interfaces_in_policy_scopes_usage", "virtual_service_usage"}}
+	stdOutData := [][]string{{"href", "key", "value"}}
 
 	// Get all labels
-	labels, a, err := pce.GetAllLabelsQP(map[string]string{"usage": "true"})
+	labels, a, err := pce.GetLabels(map[string]string{"usage": "true"})
 	utils.LogAPIResp("GetAllLabels", a)
 	if err != nil {
 		utils.LogError(err.Error())

@@ -14,14 +14,13 @@ import (
 
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // Global variables
 var pce illumioapi.PCE
 var err error
 var csvFile string
-var hostnames, debug, noHeader bool
+var noHeader bool
 
 // FlowImportCmd runs the upload command
 var FlowImportCmd = &cobra.Command{
@@ -66,9 +65,6 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 		}
 		csvFile = args[0]
 
-		// Get the debug value from viper
-		debug = viper.Get("debug").(bool)
-
 		uploadFlows()
 	},
 }
@@ -78,14 +74,14 @@ func uploadFlows() {
 	utils.LogStartCommand("flow-import")
 
 	// Get all workloads in a map by hostname
-	wkldHostMap, a, err := pce.GetWkldHostMap()
+	_, a, err := pce.GetWklds(nil)
 	utils.LogAPIResp("GetWkldHostMap", a)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
 
 	// Set the header for the new csv file
-	newCSVData := [][]string{[]string{"src", "dst", "port", "protocol"}}
+	newCSVData := [][]string{{"src", "dst", "port", "protocol"}}
 
 	// Open CSV File
 	file, err := os.Open(csvFile)
@@ -119,13 +115,13 @@ func uploadFlows() {
 		// Process Source
 		src := line[0]
 		if net.ParseIP(line[0]) == nil {
-			if _, ok := wkldHostMap[line[0]]; !ok {
+			if _, ok := pce.Workloads[line[0]]; !ok {
 				utils.LogError(fmt.Sprintf("CSV line %d - %s is not valid IP or valid hostname", i, line[0]))
 			}
 
-			sWkld := wkldHostMap[line[0]]
+			sWkld := pce.Workloads[line[0]]
 			if sWkld.GetIPWithDefaultGW() == "NA" {
-				src = wkldHostMap[line[0]].Interfaces[0].Address
+				src = pce.Workloads[line[0]].Interfaces[0].Address
 			} else {
 				src = sWkld.GetIPWithDefaultGW()
 			}
@@ -138,12 +134,12 @@ func uploadFlows() {
 		// Process Destination
 		dst := line[1]
 		if net.ParseIP(line[1]) == nil {
-			if _, ok := wkldHostMap[line[1]]; !ok {
+			if _, ok := pce.Workloads[line[1]]; !ok {
 				utils.LogError(fmt.Sprintf("CSV line %d - %s is not valid IP or valid hostname", i, line[1]))
 			}
-			dWkld := wkldHostMap[line[1]]
+			dWkld := pce.Workloads[line[1]]
 			if dWkld.GetIPWithDefaultGW() == "NA" {
-				dst = wkldHostMap[line[1]].Interfaces[0].Address
+				dst = pce.Workloads[line[1]].Interfaces[0].Address
 			} else {
 				dst = dWkld.GetIPWithDefaultGW()
 			}

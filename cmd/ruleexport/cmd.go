@@ -91,7 +91,7 @@ func ExportRules(input Input) {
 
 	// GetAllRulesets
 	utils.LogInfo("getting all rulesets...", true)
-	allPCERulesets, a, err := input.PCE.GetAllRuleSets(input.PolicyVersion)
+	allPCERulesets, a, err := input.PCE.GetRulesets(nil, input.PolicyVersion)
 	utils.LogAPIResp("GetAllRuleSets", a)
 	if err != nil {
 		utils.LogError(err.Error())
@@ -254,7 +254,7 @@ func ExportRules(input Input) {
 		csvData = append(csvData, getCSVHeaders(input.TemplateFormat))
 	}
 
-	edgeCSVData := [][]string{[]string{"group", "consumer_iplist", "consumer_group", "consumer_user_group", "service", "provider_group", "provider_iplist", "rule_enabled", "machine_auth", "rule_href", "ruleset_href"}}
+	edgeCSVData := [][]string{{"group", "consumer_iplist", "consumer_group", "consumer_user_group", "service", "provider_group", "provider_iplist", "rule_enabled", "machine_auth", "rule_href", "ruleset_href"}}
 
 	// Iterate each ruleset
 	var i int

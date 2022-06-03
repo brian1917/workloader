@@ -121,7 +121,7 @@ func compatibilityReport() {
 		}
 
 		// Get all workloads from the query
-		wklds, a, err := pce.GetAllWorkloadsQP(qp)
+		wklds, a, err := pce.GetWklds(qp)
 		utils.LogAPIResp("GetAllWorkloadsQP", a)
 		if err != nil {
 			utils.LogError(err.Error())
@@ -224,7 +224,7 @@ func compatibilityReport() {
 				&ipv6ActiveConnCnt,
 				&iP6TablesRuleCnt,
 				&routingTableConflict}
-			checks := []*string{
+			checks := []interface{}{
 				c.RequiredPackagesInstalled,
 				c.IpsecServiceEnabled,
 				c.IPv6Enabled,
@@ -240,7 +240,7 @@ func compatibilityReport() {
 
 			for i, variable := range variables {
 				if checks[i] != nil {
-					*variable = *c.Status
+					*variable = c.Status
 				}
 			}
 

@@ -9,14 +9,13 @@ import (
 
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // Declare local global variables
 var pce illumioapi.PCE
 var err error
-var debug, useActive bool
-var search, outFormat, outputFileName string
+var useActive bool
+var outputFileName string
 
 func init() {
 	LabelGroupExportCmd.Flags().BoolVar(&useActive, "active", false, "Use active policy versus draft. Draft is default.")
@@ -40,10 +39,6 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 			utils.LogError(err.Error())
 		}
 
-		// Get the viper values
-		debug = viper.Get("debug").(bool)
-		outFormat = viper.Get("output_format").(string)
-
 		exportLabels()
 	},
 }
@@ -61,7 +56,7 @@ func exportLabels() {
 	utils.LogInfo(fmt.Sprintf("provision status: %s", provisionStatus), false)
 
 	// Start the data slice with headers
-	csvData := [][]string{[]string{HeaderName, HeaderKey, HeaderDescription, HeaderMemberLabels, HeaderMemberLabelGroups, HeaderFullyExpandedMembers, HeaderHref}}
+	csvData := [][]string{{HeaderName, HeaderKey, HeaderDescription, HeaderMemberLabels, HeaderMemberLabelGroups, HeaderFullyExpandedMembers, HeaderHref}}
 
 	// GetAllLabelGroups
 	apiResps, err := pce.Load(illumioapi.LoadInput{LabelGroups: true, ProvisionStatus: provisionStatus})

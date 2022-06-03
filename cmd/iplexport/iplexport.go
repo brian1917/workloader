@@ -63,10 +63,10 @@ func ExportIPL(pce illumioapi.PCE, iplName, outputFileName string) {
 	if iplName == "" {
 
 		// Start the data slice with headers
-		csvData := [][]string{[]string{iplimport.HeaderName, iplimport.HeaderDescription, iplimport.HeaderInclude, iplimport.HeaderExclude, iplimport.HeaderFqdns, iplimport.HeaderExternalDataSet, iplimport.HeaderExternalDataRef, iplimport.HeaderHref}}
+		csvData := [][]string{{iplimport.HeaderName, iplimport.HeaderDescription, iplimport.HeaderInclude, iplimport.HeaderExclude, iplimport.HeaderFqdns, iplimport.HeaderExternalDataSet, iplimport.HeaderExternalDataRef, iplimport.HeaderHref}}
 
 		// Get all IPLists
-		ipls, a, err := pce.GetAllDraftIPLists()
+		ipls, a, err := pce.GetIPLists(nil, "draft")
 		utils.LogAPIResp("GetAllDraftIPLists", a)
 		if err != nil {
 			utils.LogError(err.Error())
@@ -114,7 +114,7 @@ func ExportIPL(pce illumioapi.PCE, iplName, outputFileName string) {
 	// Get here if we are given a name
 
 	// Get the IP list by name
-	ipl, a, err := pce.GetIPList(iplName, "draft")
+	ipl, a, err := pce.GetIPListByName(iplName, "draft")
 	utils.LogAPIResp("GetIPList", a)
 	if err != nil {
 		utils.LogError(err.Error())

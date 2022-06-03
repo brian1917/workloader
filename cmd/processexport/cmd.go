@@ -46,7 +46,7 @@ func ExportProcesses(pce illumioapi.PCE, outputFileName string) {
 	utils.LogStartCommand("process-export")
 
 	// Get all managed workloads
-	managedWklds, a, err := pce.GetAllWorkloadsQP(map[string]string{"managed": "true"})
+	managedWklds, a, err := pce.GetWklds(map[string]string{"managed": "true"})
 	utils.LogAPIResp("GetAllWorklaodsQP", a)
 	if err != nil {
 		utils.LogError(err.Error())

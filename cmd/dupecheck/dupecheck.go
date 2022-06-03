@@ -8,11 +8,10 @@ import (
 	"github.com/brian1917/illumioapi"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var pce illumioapi.PCE
-var caseSensitive, debug bool
+var caseSensitive bool
 var outputFileName string
 var err error
 
@@ -40,9 +39,6 @@ The --update-pce and --no-prompt flags are ignored for this command.`,
 			utils.LogError(err.Error())
 		}
 
-		// Get the debug value from viper
-		debug = viper.Get("debug").(bool)
-
 		dupeCheck()
 	},
 }
@@ -51,7 +47,7 @@ func dupeCheck() {
 	utils.LogStartCommand("dupecheck")
 
 	// Get all workloads
-	wklds, a, err := pce.GetAllWorkloads()
+	wklds, a, err := pce.GetWklds(nil)
 	utils.LogAPIResp("GetAllWorkloads", a)
 	if err != nil {
 		utils.LogError(err.Error())
@@ -75,7 +71,7 @@ func dupeCheck() {
 	}
 
 	// Start the header
-	data := [][]string{[]string{"href", "hostname", "name", "interfaces", "role", "app", "env", "loc", "reason"}}
+	data := [][]string{{"href", "hostname", "name", "interfaces", "role", "app", "env", "loc", "reason"}}
 
 	// Iterate through unmanaged workloads
 	for _, umwl := range unmanagedWklds {

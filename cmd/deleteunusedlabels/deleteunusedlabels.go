@@ -6,12 +6,9 @@ import (
 	"github.com/brian1917/illumioapi"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // Set global variables for flags
-var hrefFile string
-var debug, updatePCE, noPrompt bool
 var pce illumioapi.PCE
 var err error
 
@@ -29,11 +26,6 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 			utils.LogError(err.Error())
 		}
 
-		// Get persistent flags from Viper
-		debug = viper.Get("debug").(bool)
-		updatePCE = viper.Get("update_pce").(bool)
-		noPrompt = viper.Get("no_prompt").(bool)
-
 		labelsDeleteUnused()
 	},
 }
@@ -43,7 +35,7 @@ func labelsDeleteUnused() {
 	utils.LogStartCommand("labels-delete-unused")
 
 	// Get all labels
-	labels, a, err := pce.GetAllLabels()
+	labels, a, err := pce.GetLabels(nil)
 	utils.LogAPIResp("GetAllLabels", a)
 	if err != nil {
 		utils.LogError(err.Error())

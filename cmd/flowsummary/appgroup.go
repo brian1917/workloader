@@ -112,14 +112,14 @@ func flowSummary() {
 	utils.LogInfo(fmt.Sprintf("policy state: %s", pStatus), false)
 
 	// Get the state and end date
-	startDate, err := time.Parse(fmt.Sprintf("2006-01-02 MST"), fmt.Sprintf("%s %s", start, "UTC"))
+	startDate, err := time.Parse("2006-01-02 MST", fmt.Sprintf("%s %s", start, "UTC"))
 	if err != nil {
 		utils.LogError(err.Error())
 	}
 	startDate = startDate.In(time.UTC)
 	utils.LogInfo(fmt.Sprintf("Start date: %s", startDate.String()), false)
 
-	endDate, err := time.Parse(fmt.Sprintf("2006-01-02 MST"), fmt.Sprintf("%s %s", end, "UTC"))
+	endDate, err := time.Parse("2006-01-02 MST", fmt.Sprintf("%s %s", end, "UTC"))
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -136,7 +136,7 @@ func flowSummary() {
 	// If an app is provided, adjust query to include it
 	if app != "" {
 		utils.LogInfo(fmt.Sprintf("Provided app label value: %s", app), false)
-		label, a, err := pce.GetLabelbyKeyValue("app", app)
+		label, a, err := pce.GetLabelByKeyValue("app", app)
 		utils.LogAPIResp("GetLabelbyKeyValue", a)
 		if err != nil {
 			utils.LogError(fmt.Sprintf("getting label HREF - %s", err))
@@ -145,7 +145,7 @@ func flowSummary() {
 			utils.LogError(fmt.Sprintf("%s does not exist as an app label.", app))
 		}
 		utils.LogInfo(fmt.Sprintf("Provided app label href: %s", label.Href), false)
-		tq.SourcesInclude = [][]string{[]string{label.Href}}
+		tq.SourcesInclude = [][]string{{label.Href}}
 	}
 
 	// Run traffic query
@@ -222,9 +222,9 @@ func flowSummary() {
 	}
 
 	// Build the data slices
-	data := [][]string{[]string{"src_app_group", "dst_app_group", "service", "allowed_flows", "potentially_blocked_flows", "blocked_flows"}}
+	data := [][]string{{"src_app_group", "dst_app_group", "service", "allowed_flows", "potentially_blocked_flows", "blocked_flows"}}
 	if consolidate {
-		data = [][]string{[]string{"src_app_group", "dst_app_group", "allowed_flow_summary", "potentially_blocked_flow_summary", "blocked_flow_summary"}}
+		data = [][]string{{"src_app_group", "dst_app_group", "allowed_flow_summary", "potentially_blocked_flow_summary", "blocked_flow_summary"}}
 	}
 
 	// Cylce through our entry map, add flows to struct, sort, create dataEntry if consolidate is set, append to data

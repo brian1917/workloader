@@ -111,11 +111,12 @@ func edgerulescopy() {
 	}
 
 	// Get all rulesets
-	rulesets, a, err := pce.GetRuleSetMapName("draft")
+	_, a, err := pce.GetRulesets(nil, "draft")
 	utils.LogAPIResp("GetAllRuleSets", a)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
+	rulesets := pce.RuleSets
 
 	// Check matches for provided from and to groups
 	var fromRuleSet, toRuleSet illumioapi.RuleSet
@@ -197,7 +198,7 @@ func edgerulescopy() {
 		}
 
 		// Get href to replace every copied rule provider with. Edge ruleset names are based on the group (role label).
-		toLabel, a, err := pce.GetLabelbyKeyValue("role", t)
+		toLabel, a, err := pce.GetLabelByKeyValue("role", t)
 		utils.LogAPIResp("GetLabelbyKeyValue", a)
 		if err != nil {
 			utils.LogError(err.Error())
@@ -214,7 +215,7 @@ func edgerulescopy() {
 				Enabled:                     fromRule.Enabled,
 				IngressServices:             fromRule.IngressServices,
 				ResolveLabelsAs:             fromRule.ResolveLabelsAs,
-				Providers:                   []*illumioapi.Providers{&illumioapi.Providers{Label: &illumioapi.Label{Href: toLabel.Href}}},
+				Providers:                   []*illumioapi.Providers{{Label: &illumioapi.Label{Href: toLabel.Href}}},
 				SecConnect:                  fromRule.SecConnect,
 				Stateless:                   fromRule.Stateless,
 				MachineAuth:                 fromRule.MachineAuth,
@@ -279,7 +280,7 @@ func edgerulescopy() {
 
 	// Create rules
 	for _, nr := range newRules {
-		newRule, a, err := pce.CreateRuleSetRule(nr.rulesetHref, nr.rule)
+		newRule, a, err := pce.CreateRule(nr.rulesetHref, nr.rule)
 		utils.LogAPIResp("CreateRuleSetRule", a)
 		if err != nil {
 			utils.LogError(err.Error())
@@ -290,7 +291,7 @@ func edgerulescopy() {
 
 	// Updated rules
 	for _, ur := range updatedRules {
-		a, err := pce.UpdateRuleSetRules(ur)
+		a, err := pce.UpdateRule(ur)
 		utils.LogAPIResp("UpdateRuleSetRules", a)
 		if err != nil {
 			utils.LogError(err.Error())

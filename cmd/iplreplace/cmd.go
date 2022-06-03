@@ -103,7 +103,7 @@ func iplReplace() {
 	}
 
 	// Get the IPL
-	pceIPL, api, err := pce.GetIPList(iplName, "draft")
+	pceIPL, api, err := pce.GetIPListByName(iplName, "draft")
 	utils.LogAPIResp("GetIPList", api)
 	if err != nil {
 		utils.LogError(err.Error())

@@ -189,7 +189,7 @@ func modeUpdate() {
 	} else {
 		var qp = (map[string]string{"managed": "true"})
 		utils.LogInfo("Getting all managed workloads from the PCE. For large deployments and limited number of mode changes, it might be quicker to use the -i flag to run individual API calls to get just workloads that will be changed.", true)
-		wklds, a, err = pce.GetAllWorkloadsQP(qp)
+		wklds, a, err = pce.GetWklds(qp)
 		utils.LogAPIResp("GetAllWorkloadsQP", a)
 		if err != nil {
 			utils.LogError(err.Error())
@@ -207,7 +207,7 @@ func modeUpdate() {
 	workloadUpdates := []illumioapi.Workload{}
 
 	// Build data slice for writing
-	data := [][]string{[]string{"hostname", "href", "role", "app", "env", "loc", "current_enforcement", "target_enforcement", "current_visibility", "target_visibility"}}
+	data := [][]string{{"hostname", "href", "role", "app", "env", "loc", "current_enforcement", "target_enforcement", "current_visibility", "target_visibility"}}
 
 	// Enforcement switch is false unless we are moving a workload into enforcement
 	enforceCount := 0

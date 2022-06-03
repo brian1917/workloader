@@ -54,7 +54,7 @@ func ExportRuleSets(pce illumioapi.PCE, outputFileName string, templateFormat bo
 	csvData := [][]string{headers}
 
 	// Get all rulesets
-	allPCERuleSets, a, err := pce.GetAllRuleSets("draft")
+	allPCERuleSets, a, err := pce.GetRulesets(nil, "draft")
 	utils.LogAPIResp("GetAllRuleSets", a)
 	if err != nil {
 		utils.LogError(err.Error())
@@ -78,7 +78,7 @@ func ExportRuleSets(pce illumioapi.PCE, outputFileName string, templateFormat bo
 	}
 
 	// Get all label groups
-	allLabelGroups, a, err := pce.GetAllLabelGroups("draft")
+	allLabelGroups, a, err := pce.GetLabelGroups(nil, "draft")
 	utils.LogAPIResp("GetAllLabelGroups", a)
 	if err != nil {
 		utils.LogError(err.Error())

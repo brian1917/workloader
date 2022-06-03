@@ -86,7 +86,7 @@ func ImportRuleSetsFromCSV(input Input) {
 	utils.LogStartCommand("ruleset-import")
 
 	// Get all rulesets
-	pceRuleSets, a, err := input.PCE.GetAllRuleSets("draft")
+	pceRuleSets, a, err := input.PCE.GetRulesets(nil, "draft")
 	utils.LogAPIResp("GetAllRuleSets", a)
 	if err != nil {
 		utils.LogError(err.Error())
@@ -100,7 +100,7 @@ func ImportRuleSetsFromCSV(input Input) {
 	}
 
 	// Get the Label Groups
-	allLabelGroups, a, err := input.PCE.GetAllLabelGroups("draft")
+	allLabelGroups, a, err := input.PCE.GetLabelGroups(nil, "draft")
 	utils.LogAPIResp("GetAllLabelGroups", a)
 	if err != nil {
 		utils.LogError(err.Error())
@@ -300,7 +300,7 @@ csvEntries:
 
 	if len(updateRuleSets) > 0 {
 		for _, updateRuleSet := range updateRuleSets {
-			a, err := input.PCE.UpdateRuleSet(updateRuleSet.ruleSet)
+			a, err := input.PCE.UpdateRuleset(updateRuleSet.ruleSet)
 			utils.LogAPIResp("UpateRuleSet", a)
 			if err != nil {
 				utils.LogError(err.Error())

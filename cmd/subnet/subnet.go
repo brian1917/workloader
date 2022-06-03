@@ -152,7 +152,7 @@ func subnetParser() {
 	subnetLabels := locParser(csvFile, netCol, envCol, locCol)
 
 	// GetAllWorkloads
-	allWklds, a, err := pce.GetAllWorkloads()
+	allWklds, a, err := pce.GetWklds(nil)
 	utils.LogAPIResp("GetAllWorkloads", a)
 	if err != nil {
 		utils.LogError(err.Error())
@@ -231,7 +231,7 @@ func subnetParser() {
 	if len(updatedWklds) > 0 {
 
 		// Create our data slice
-		data := [][]string{[]string{"hostname", "name", "role", "app", "updated_env", "updated_loc", "interfaces", "original_env", "original_loc", "href"}}
+		data := [][]string{{"hostname", "name", "role", "app", "updated_env", "updated_loc", "interfaces", "original_env", "original_loc", "href"}}
 		for _, m := range matches {
 			// Get interfaces
 			interfaceSlice := []string{}

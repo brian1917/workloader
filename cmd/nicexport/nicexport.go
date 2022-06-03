@@ -9,10 +9,9 @@ import (
 	"github.com/brian1917/illumioapi"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
-var debug, consolidate bool
+var consolidate bool
 var pce illumioapi.PCE
 var err error
 var outputFileName string
@@ -37,9 +36,6 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 			utils.LogError(err.Error())
 		}
 
-		// Get the debug value from viper
-		debug = viper.Get("debug").(bool)
-
 		nicExport()
 	},
 }
@@ -54,7 +50,7 @@ func nicExport() {
 	data := [][]string{headerRow}
 
 	// Get all workloads
-	wklds, a, err := pce.GetAllWorkloads()
+	wklds, a, err := pce.GetWklds(nil)
 	utils.LogAPIResp("GetAllWorkloads", a)
 	if err != nil {
 		utils.LogError(err.Error())

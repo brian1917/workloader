@@ -9,13 +9,11 @@ import (
 
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // Declare local global variables
 var pce illumioapi.PCE
 var err error
-var debug bool
 var profile, pkFile string
 
 // Init handles flags
@@ -41,9 +39,6 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 			utils.LogError(err.Error())
 		}
 
-		// Get the viper values
-		debug = viper.Get("debug").(bool)
-
 		getPK()
 	},
 }
@@ -54,7 +49,7 @@ func getPK() {
 	utils.LogStartCommand("get-pk")
 
 	// Get all pairing profiles
-	pps, a, err := pce.GetAllPairingProfiles()
+	pps, a, err := pce.GetPairingProfiles(nil)
 	utils.LogAPIResp("GetAllPairingProfiles", a)
 	if err != nil {
 		utils.LogError(err.Error())

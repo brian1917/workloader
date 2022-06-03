@@ -10,12 +10,11 @@ import (
 
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // Global variables
 var ports, processes, outputFileName string
-var idleOnly, orOperator, debug, updatePCE, noPrompt bool
+var idleOnly bool
 var pce illumioapi.PCE
 var err error
 
@@ -51,9 +50,6 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for csv command - %s", err)
 		}
-
-		// Get the debug value from viper
-		debug = viper.Get("debug").(bool)
 
 		serviceFinder()
 	},
@@ -100,7 +96,7 @@ func serviceFinder() {
 		qp = nil
 	}
 
-	wklds, a, err := pce.GetAllWorkloadsQP(qp)
+	wklds, a, err := pce.GetWklds(qp)
 	utils.LogAPIResp("GetAllWorkloadsQP", a)
 	if err != nil {
 		utils.LogError(err.Error())
@@ -110,7 +106,7 @@ func serviceFinder() {
 	utils.LogInfo(fmt.Sprintf("identified %d target workloads to check processes.", len(wklds)), true)
 
 	// Start our data struct
-	data := [][]string{[]string{"href", "hostname", "port", "process", "role", "app", "env", "loc", "ip"}}
+	data := [][]string{{"href", "hostname", "port", "process", "role", "app", "env", "loc", "ip"}}
 
 	// For each workload in our target list, make a single workload API call to get services
 	for i, w := range wklds {
