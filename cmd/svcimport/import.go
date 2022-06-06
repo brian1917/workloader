@@ -74,7 +74,7 @@ func ImportServices(input Input) {
 		if col, ok := input.Headers[svcexport.HeaderWinService]; ok {
 			isWinSvc, err = strconv.ParseBool(data[col])
 			if err != nil {
-				utils.LogError(fmt.Sprintf("CSV line %d - invalid boolean value for %s", csvLine, svcexport.HeaderWinService))
+				utils.LogError(fmt.Sprintf("csv line %d - invalid boolean value for %s", csvLine, svcexport.HeaderWinService))
 			}
 		}
 
@@ -84,7 +84,7 @@ func ImportServices(input Input) {
 		} else {
 			// If the name column is blank, error
 			if data[nameCol] == "" {
-				utils.LogError(fmt.Sprintf("CSV line %d - name required", csvLine))
+				utils.LogError(fmt.Sprintf("csv line %d - name required", csvLine))
 			}
 			// If the service exists already, add to it
 			if csvSvc, ok := csvSvcMap[data[nameCol]]; ok {
@@ -131,12 +131,16 @@ func ImportServices(input Input) {
 	updatedServices := []csvService{}
 	for _, csvSvc := range csvSvcMap {
 		if csvSvc.service.Href == "" {
+			// Check if the service exists in the PCE.
+			if _, ok := svcNameMap[csvSvc.service.Name]; ok {
+				utils.LogError(fmt.Sprintf("csv line %s - %s already exists in the PCE. add an href to update it.", strings.Join(intSliceToStrSlice(csvSvc.csvLines), ", "), csvSvc.service.Name))
+			}
 			newServices = append(newServices, csvSvc)
-			utils.LogInfo(fmt.Sprintf("CSV line(s) %s - %s to be created", strings.Join(intSliceToStrSlice(csvSvc.csvLines), ", "), csvSvc.service.Name), false)
+			utils.LogInfo(fmt.Sprintf("csv line(s) %s - %s to be created", strings.Join(intSliceToStrSlice(csvSvc.csvLines), ", "), csvSvc.service.Name), false)
 		} else {
 			// Href is provided so we need to check if we need to update
 			if pceSvc, ok := input.PCE.Services[csvSvc.service.Href]; !ok {
-				utils.LogError(fmt.Sprintf("CSV line(s) %s - %s does not exist in the PCE", strings.Join(intSliceToStrSlice(csvSvc.csvLines), ", "), csvSvc.service.Href))
+				utils.LogError(fmt.Sprintf("csv line(s) %s - %s does not exist in the PCE", strings.Join(intSliceToStrSlice(csvSvc.csvLines), ", "), csvSvc.service.Href))
 			} else {
 
 				// Create a map of the pceSvc. The key is going to be name-port-toport-protocol-process-svc-icmpcode-icmptype
@@ -162,14 +166,14 @@ func ImportServices(input Input) {
 				for s := range csvSvcMapSvcs {
 					if _, ok := pceSvcMapSvcs[s]; !ok {
 						update = true
-						utils.LogInfo(fmt.Sprintf("CSV line(s) %s - %s exists in the CSV but not the PCE. It will be added", strings.Join(intSliceToStrSlice(csvSvc.csvLines), ", "), csvSvcMapSvcs[s]), true)
+						utils.LogInfo(fmt.Sprintf("csv line(s) %s - %s exists in the CSV but not the PCE. It will be added", strings.Join(intSliceToStrSlice(csvSvc.csvLines), ", "), csvSvcMapSvcs[s]), true)
 					}
 				}
 
 				for s := range pceSvcMapSvcs {
 					if _, ok := csvSvcMapSvcs[s]; !ok {
 						update = true
-						utils.LogInfo(fmt.Sprintf("CSV line(s) %s - %s exists in the PCE but not the CSV. It will be removed", strings.Join(intSliceToStrSlice(csvSvc.csvLines), ", "), pceSvcMapSvcs[s]), true)
+						utils.LogInfo(fmt.Sprintf("csv line(s) %s - %s exists in the PCE but not the CSV. It will be removed", strings.Join(intSliceToStrSlice(csvSvc.csvLines), ", "), pceSvcMapSvcs[s]), true)
 					}
 				}
 
@@ -188,7 +192,7 @@ func ImportServices(input Input) {
 	}
 
 	if !input.UpdatePCE {
-		utils.LogInfo(fmt.Sprintf("workloader identified %d services to create and %d services to update. See workloader.log for all identified changes. To do the import, run agai using --update-pce flag", len(newServices), len(updatedServices)), true)
+		utils.LogInfo(fmt.Sprintf("workloader identified %d services to create and %d services to update. See workloader.log for all identified changes. To do the import, run again using --update-pce flag", len(newServices), len(updatedServices)), true)
 		return
 	}
 
@@ -216,12 +220,12 @@ func ImportServices(input Input) {
 			utils.LogError(err.Error())
 		}
 		if a.StatusCode == 406 {
-			utils.LogWarning(fmt.Sprintf("CSV line(s) %s - %s - 406 Not Acceptable - See workloader.log for more details", strings.Join(intSliceToStrSlice(newSvc.csvLines), ", "), newSvc.service.Name), true)
+			utils.LogWarning(fmt.Sprintf("csv line(s) %s - %s - 406 Not Acceptable - See workloader.log for more details", strings.Join(intSliceToStrSlice(newSvc.csvLines), ", "), newSvc.service.Name), true)
 			utils.LogWarning(a.RespBody, false)
 			skippedCount++
 		}
 		if err == nil {
-			utils.LogInfo(fmt.Sprintf("CSV line(s) %s - %s created - status code %d", strings.Join(intSliceToStrSlice(newSvc.csvLines), ", "), svc.Name, a.StatusCode), true)
+			utils.LogInfo(fmt.Sprintf("csv line(s) %s - %s created - status code %d", strings.Join(intSliceToStrSlice(newSvc.csvLines), ", "), svc.Name, a.StatusCode), true)
 			createdCount++
 			provisionableSvcs = append(provisionableSvcs, svc.Href)
 		}
@@ -236,12 +240,12 @@ func ImportServices(input Input) {
 			utils.LogError(err.Error())
 		}
 		if a.StatusCode == 406 {
-			utils.LogWarning(fmt.Sprintf("CSV line(s) %s - %s - 406 Not Acceptable - See workloader.log for more details", strings.Join(intSliceToStrSlice(updateSvc.csvLines), ", "), updateSvc.service.Name), true)
+			utils.LogWarning(fmt.Sprintf("csv line(s) %s - %s - 406 Not Acceptable - See workloader.log for more details", strings.Join(intSliceToStrSlice(updateSvc.csvLines), ", "), updateSvc.service.Name), true)
 			utils.LogWarning(a.RespBody, false)
 			skippedCount++
 		}
 		if err == nil {
-			utils.LogInfo(fmt.Sprintf("CSV line(s) %s - %s updated - status code %d", strings.Join(intSliceToStrSlice(updateSvc.csvLines), ", "), updateSvc.service.Name, a.StatusCode), true)
+			utils.LogInfo(fmt.Sprintf("csv line(s) %s - %s updated - status code %d", strings.Join(intSliceToStrSlice(updateSvc.csvLines), ", "), updateSvc.service.Name, a.StatusCode), true)
 			updatedCount++
 			provisionableSvcs = append(provisionableSvcs, updateSvc.service.Href)
 		}
