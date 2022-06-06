@@ -15,9 +15,13 @@ import (
 var pce illumioapi.PCE
 var err error
 var outputFileName string
+var noHref bool
 
 func init() {
+	RuleSetExportCmd.Flags().BoolVar(&noHref, "no-href", false, "do not export href column. use this when exporting data to import into different pce.")
 	RuleSetExportCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+	RuleSetExportCmd.Flags().SortFlags = false
+
 }
 
 // RuleSetExportCmd runs the export command
@@ -38,7 +42,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 			utils.LogError(err.Error())
 		}
 
-		ExportRuleSets(pce, outputFileName, false, []string{})
+		ExportRuleSets(pce, outputFileName, noHref, []string{})
 	},
 }
 

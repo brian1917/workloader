@@ -14,12 +14,15 @@ import (
 // Declare local global variables
 var pce illumioapi.PCE
 var err error
-var useActive bool
+var useActive, noHref bool
 var outputFileName string
 
 func init() {
 	LabelGroupExportCmd.Flags().BoolVar(&useActive, "active", false, "Use active policy versus draft. Draft is default.")
+	LabelGroupExportCmd.Flags().BoolVar(&noHref, "no-href", false, "do not export href column. use this when exporting data to import into different pce.")
 	LabelGroupExportCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+
+	LabelGroupExportCmd.Flags().SortFlags = false
 
 }
 
@@ -57,7 +60,10 @@ func exportLabels() {
 
 	// Start the data slice with headers
 	csvData := [][]string{{HeaderName, HeaderKey, HeaderDescription, HeaderMemberLabels, HeaderMemberLabelGroups, HeaderFullyExpandedMembers, HeaderHref}}
+	if noHref {
+		csvData = [][]string{{HeaderName, HeaderKey, HeaderDescription, HeaderMemberLabels, HeaderMemberLabelGroups, HeaderFullyExpandedMembers}}
 
+	}
 	// GetAllLabelGroups
 	apiResps, err := pce.Load(illumioapi.LoadInput{LabelGroups: true, ProvisionStatus: provisionStatus})
 	utils.LogMultiAPIResp(apiResps)
@@ -87,7 +93,11 @@ func exportLabels() {
 		}
 
 		// Append to data slice
-		csvData = append(csvData, []string{lg.Name, lg.Key, lg.Description, strings.Join(labels, "; "), strings.Join(sgs, ";"), strings.Join(fullLabels, "; "), lg.Href})
+		if noHref {
+			csvData = append(csvData, []string{lg.Name, lg.Key, lg.Description, strings.Join(labels, "; "), strings.Join(sgs, ";"), strings.Join(fullLabels, "; ")})
+		} else {
+			csvData = append(csvData, []string{lg.Name, lg.Key, lg.Description, strings.Join(labels, "; "), strings.Join(sgs, ";"), strings.Join(fullLabels, "; "), lg.Href})
+		}
 	}
 
 	if len(csvData) > 1 {

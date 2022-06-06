@@ -15,11 +15,15 @@ import (
 
 // Declare local global variables
 var pce illumioapi.PCE
+var noHref bool
 var err error
 var iplName, outputFileName string
 
 func init() {
+	IplExportCmd.Flags().BoolVar(&noHref, "no-href", false, "do not export href column. use this when exporting data to import into different pce.")
 	IplExportCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+
+	IplExportCmd.Flags().SortFlags = false
 }
 
 // IplExportCmd runs the workload identifier
@@ -64,6 +68,9 @@ func ExportIPL(pce illumioapi.PCE, iplName, outputFileName string) {
 
 		// Start the data slice with headers
 		csvData := [][]string{{iplimport.HeaderName, iplimport.HeaderDescription, iplimport.HeaderInclude, iplimport.HeaderExclude, iplimport.HeaderFqdns, iplimport.HeaderExternalDataSet, iplimport.HeaderExternalDataRef, iplimport.HeaderHref}}
+		if noHref {
+			csvData = [][]string{{iplimport.HeaderName, iplimport.HeaderDescription, iplimport.HeaderInclude, iplimport.HeaderExclude, iplimport.HeaderFqdns, iplimport.HeaderExternalDataSet, iplimport.HeaderExternalDataRef}}
+		}
 
 		// Get all IPLists
 		ipls, a, err := pce.GetIPLists(nil, "draft")
@@ -94,7 +101,12 @@ func ExportIPL(pce illumioapi.PCE, iplName, outputFileName string) {
 				fqdns = append(fqdns, f.FQDN)
 
 			}
-			csvData = append(csvData, []string{i.Name, i.Description, strings.Join(include, ";"), strings.Join(exclude, ";"), strings.Join(fqdns, ";"), i.ExternalDataSet, i.ExternalDataReference, i.Href})
+			if noHref {
+				csvData = append(csvData, []string{i.Name, i.Description, strings.Join(include, ";"), strings.Join(exclude, ";"), strings.Join(fqdns, ";"), i.ExternalDataSet, i.ExternalDataReference})
+
+			} else {
+				csvData = append(csvData, []string{i.Name, i.Description, strings.Join(include, ";"), strings.Join(exclude, ";"), strings.Join(fqdns, ";"), i.ExternalDataSet, i.ExternalDataReference, i.Href})
+			}
 		}
 
 		if len(csvData) > 1 {

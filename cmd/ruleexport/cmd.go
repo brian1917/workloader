@@ -36,6 +36,7 @@ var input Input
 func init() {
 
 	RuleExportCmd.Flags().StringVar(&input.PolicyVersion, "policy-version", "draft", "Policy version. Must be active or draft.")
+	RuleExportCmd.Flags().BoolVar(&input.TemplateFormat, "no-href", false, "do not export href column. use this when exporting data to import into different pce.")
 	RuleExportCmd.Flags().BoolVar(&input.ExpandServices, "expand-svcs", false, "Expand service objects to show ports/protocols (not compatible in rule-import format).")
 	RuleExportCmd.Flags().StringVarP(&input.App, "app", "a", "", "Only include rules with app label (directly or via a label group) in the rule or scope.")
 	RuleExportCmd.Flags().StringVarP(&input.Env, "env", "e", "", "Only include rules with env label (directly or via a label group) in the rule or scope.")

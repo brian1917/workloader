@@ -16,9 +16,10 @@ import (
 var pce illumioapi.PCE
 var err error
 var outputFileName string
-var compressed bool
+var noHref, compressed bool
 
 func init() {
+	SvcExportCmd.Flags().BoolVar(&noHref, "no-href", false, "do not export href column. use this when exporting data to import into different pce. ignored with compressed flag.")
 	SvcExportCmd.Flags().BoolVar(&compressed, "compressed", false, "compress the output to one service per line. this output is not compatible with the svc-import command.")
 	SvcExportCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 
@@ -40,7 +41,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 			utils.LogError(err.Error())
 		}
 
-		ExportServices(pce, false, outputFileName, []string{})
+		ExportServices(pce, noHref, outputFileName, []string{})
 	},
 }
 
@@ -52,7 +53,7 @@ func ExportServices(pce illumioapi.PCE, templateFormat bool, outputFileName stri
 	utils.LogStartCommand("svc-export")
 
 	// GetAllServices
-	allSvcs, a, err := pce.GetAllServices("draft")
+	allSvcs, a, err := pce.GetServices(nil, "draft")
 	utils.LogAPIResp("GetAllSvcs", a)
 	if err != nil {
 		utils.LogError(err.Error())
@@ -81,7 +82,7 @@ func ExportServices(pce illumioapi.PCE, templateFormat bool, outputFileName stri
 	if compressed {
 
 		// Start the data slice with headers
-		csvData = [][]string{[]string{"name", "description", "service_ports", "window_services", "href"}}
+		csvData = [][]string{{"name", "description", "service_ports", "window_services", "href"}}
 
 		for _, s := range targetSvcs {
 
