@@ -36,7 +36,7 @@ Create or update rulesets in the PCE from a CSV file.
 
 If the app_scope, env_scope, or loc_scope is a label group, the name bust be appended with "-lg" in the CSV. The PCE object does not need any modification; it's just a tag in the CSV to tell workloader to look up the object as a label group.
 
-To use the "All" construct, you must use all_apps, all_envs, or all_locs.
+To use the "All" construct, you must use all apps, all envs, or all locs.
 
 Multiple scopes can be separated by semi-colons. For example, the input below would create a ruleset with two scopes: App1 | Prod | All Locations and App 1 | Dev | All Locations.
 +--------------+-----------------+---------------------+-----------+-----------+------------------+
@@ -288,7 +288,7 @@ csvEntries:
 	provisionHrefs := []string{}
 	if len(newRuleSets) > 0 {
 		for _, newRuleSet := range newRuleSets {
-			ruleset, a, err := input.PCE.CreateRuleSet(newRuleSet.ruleSet)
+			ruleset, a, err := input.PCE.CreateRuleset(newRuleSet.ruleSet)
 			utils.LogAPIResp("CreateRuleSetRule", a)
 			if err != nil {
 				utils.LogError(err.Error())
