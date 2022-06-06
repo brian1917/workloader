@@ -16,12 +16,13 @@ import (
 // Declare local global variables
 var pce illumioapi.PCE
 var err error
-var managedOnly, unmanagedOnly, includeVuln, removeDescNewLines bool
+var managedOnly, unmanagedOnly, onlineOnly, includeVuln, removeDescNewLines bool
 var outputFileName string
 
 func init() {
 	WkldExportCmd.Flags().BoolVarP(&managedOnly, "managed-only", "m", false, "only export managed workloads.")
 	WkldExportCmd.Flags().BoolVarP(&unmanagedOnly, "unmanaged-only", "u", false, "only export unmanaged workloads.")
+	WkldExportCmd.Flags().BoolVarP(&onlineOnly, "online-only", "o", false, "only export online workloads.")
 	WkldExportCmd.Flags().BoolVarP(&includeVuln, "incude-vuln-data", "v", false, "include vulnerability data.")
 	WkldExportCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 	WkldExportCmd.Flags().BoolVar(&removeDescNewLines, "remove-desc-newline", false, "will remove new line characters in description field.")
@@ -69,9 +70,14 @@ func exportWorkloads() {
 	if managedOnly {
 		qp["managed"] = "true"
 	}
-	qp["representation"] = "workload_labels_vulnerabilities"
-	wklds, a, err := pce.GetAllWorkloadsQP(qp)
-	utils.LogAPIResp("GetAllWorkloads", a)
+	if includeVuln {
+		qp["representation"] = "workload_labels_vulnerabilities"
+	}
+	if onlineOnly {
+		qp["online"] = "true"
+	}
+	wklds, a, err := pce.GetWklds(qp)
+	utils.LogAPIResp("GetWklds", a)
 	if err != nil {
 		utils.LogError(fmt.Sprintf("getting all workloads - %s", err))
 	}
