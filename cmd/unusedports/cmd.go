@@ -92,7 +92,7 @@ func unusedPorts() {
 
 	// Process each workload
 	for i, w := range wklds {
-		fmt.Printf("\r%s [INFO] - querying open ports and trafifc for %d of %d workloads", time.Now().Format("2006-01-02 15:04:05 "), i+1, len(wklds))
+		fmt.Printf("\r%s [INFO] - querying open ports and trafic for %d of %d workloads", time.Now().Format("2006-01-02 15:04:05 "), i+1, len(wklds))
 		unusedPorts := []string{}
 
 		// Get the individual workload so we can see the services (not available in bulk GET)
