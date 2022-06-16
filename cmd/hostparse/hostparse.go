@@ -124,9 +124,8 @@ func (r *regex) RelabelFromHostname(failedPCE bool, wkld illumioapi.Workload, lb
 
 	//var templabels []string
 	var match bool
-
 	// Copy the workload struct to save to new updated workload struct if needed.
-	tmpwkld := wkld
+	var tmpwkld = wkld
 
 	searchname := wkld.Hostname
 
@@ -206,7 +205,7 @@ func (r *regex) RelabelFromHostname(failedPCE bool, wkld illumioapi.Workload, lb
 				}
 				tmplabels = append(tmplabels, &tmplabel)
 				//Add Label array to the workload.
-				*tmpwkld.Labels = tmplabels
+				tmpwkld.Labels = &tmplabels
 			}
 
 			//Get the original labels and new labels to show the changes.
@@ -449,9 +448,9 @@ func hostnameParser() {
 					alllabeledwrkld = append(alllabeledwrkld, labeledwrkld)
 				} else if labeledwrkld.Href == "" && !updatePCE {
 					matchtable.Append([]string{labeledwrkld.Hostname, role, app, env, loc, orgRole, orgApp, orgEnv, orgLoc})
-					utils.LogInfo(fmt.Sprintf("SKIPING UPDATE - %s - No Workload on the PCE", labeledwrkld.Hostname), false)
+					utils.LogInfo(fmt.Sprintf("SKIPPING UPDATE - %s - No Workload on the PCE", labeledwrkld.Hostname), false)
 				} else {
-					utils.LogInfo(fmt.Sprintf("SKIPING UPDATE - %s - No Label Change Required", labeledwrkld.Hostname), false)
+					utils.LogInfo(fmt.Sprintf("SKIPPING UPDATE - %s - No Label Change Required", labeledwrkld.Hostname), false)
 
 				}
 			}
@@ -492,7 +491,7 @@ func hostnameParser() {
 			fmt.Printf("Do you want to update Workloads and potentially create new labels in %s (%s) (yes/no)? ", pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
 			fmt.Scanln(&response)
 		} else {
-			fmt.Println("List of ALL Regex Matched Hostnames even if no Workloada exist on the PCE. ")
+			fmt.Println("List of ALL Regex Matched Hostnames even if no Workload exist on the PCE. ")
 		}
 
 		//If updating is selected and the NOPCE option has not been invoked then update labels and workloads.
