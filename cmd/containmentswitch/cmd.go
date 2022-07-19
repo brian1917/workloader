@@ -82,8 +82,12 @@ func portLock(port int, protocol string) {
 	// Log the start of the command
 	utils.LogStartCommand("containment-switch")
 
-	// Declare the workloads variable so it's available globally in the portLock() scope
-	var wklds []illumioapi.Workload
+	// Get visibility only workloads
+	visOnlywklds, api, err := pce.GetWklds(map[string]string{"managed": "true", "enforcement_mode": "visibility_only"})
+	utils.LogAPIResp("GetAllWorkloadsQP", api)
+	if err != nil {
+		utils.LogError(err.Error())
+	}
 
 	if port < 0 || port > 65535 {
 		utils.LogError(fmt.Sprintf("invalid input - %d is not a valid port.", port))
@@ -174,12 +178,7 @@ func portLock(port int, protocol string) {
 			}
 			changes = append(changes, fmt.Sprintf("create the %s enforcement boundary for any IP address to all workloads on %d %s", objectName, port, protocol))
 			if !skipModeChange {
-				wklds, api, err = pce.GetWklds(map[string]string{"managed": "true", "enforcement_mode": "visibility_only"})
-				utils.LogAPIResp("GetAllWorkloadsQP", api)
-				if err != nil {
-					utils.LogError(err.Error())
-				}
-				changes = append(changes, fmt.Sprintf("move %d workloads from visibility-only to selective-enforcement to enforce created boundary", len(wklds)))
+				changes = append(changes, fmt.Sprintf("move %d workloads from visibility-only to selective-enforcement to enforce created boundary", len(visOnlywklds)))
 			}
 
 			var prompt string
@@ -298,7 +297,7 @@ func portLock(port int, protocol string) {
 	// Move all visibility-only workloads into selective enforcement
 	if !skipModeChange {
 		updateWklds := []illumioapi.Workload{}
-		for _, w := range wklds {
+		for _, w := range visOnlywklds {
 			w.EnforcementMode = "selective"
 			updateWklds = append(updateWklds, w)
 		}
