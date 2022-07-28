@@ -44,7 +44,7 @@ func exportVens() {
 	utils.LogStartCommand("ven-export")
 
 	// Start the data slice with headers
-	csvData := [][]string{{HeaderName, HeaderHostname, HeaderDescription, HeaderStatus, HeaderVersion, HeaderActivationType, HeaderActivePceFqdn, HeaderTargetPceFqdn, HeaderWorkloads, HeaderContainerCluster, HeaderHref, HeaderUID}}
+	csvData := [][]string{{HeaderName, HeaderHostname, HeaderDescription, HeaderVenType, HeaderStatus, HeaderVersion, HeaderActivationType, HeaderActivePceFqdn, HeaderTargetPceFqdn, HeaderWorkloads, HeaderContainerCluster, HeaderHref, HeaderUID}}
 
 	// Load the PCE
 	apiResps, err := pce.Load(illumioapi.LoadInput{Workloads: true, WorkloadsQueryParameters: map[string]string{"managed": "true"}, VENs: true, ContainerClusters: true, ContainerWorkloads: true})
@@ -77,7 +77,7 @@ func exportVens() {
 			}
 		}
 
-		csvData = append(csvData, []string{v.Name, v.Hostname, v.Description, v.Status, v.Version, v.ActivationType, v.ActivePceFqdn, v.TargetPceFqdn, strings.Join(workloadHostnames, ";"), ccName, v.Href, v.UID})
+		csvData = append(csvData, []string{v.Name, v.Hostname, v.Description, v.VenType, v.Status, v.Version, v.ActivationType, v.ActivePceFqdn, v.TargetPceFqdn, strings.Join(workloadHostnames, ";"), ccName, v.Href, v.UID})
 	}
 
 	if len(csvData) > 1 {
