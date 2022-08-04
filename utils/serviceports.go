@@ -19,7 +19,7 @@ func GetServicePortsPCE(pce illumioapi.PCE, serviceName string) ([][2]int, [][3]
 	portRangeProtoExcl := [][3]int{}
 
 	// Get all services
-	svcs, _, err := pce.GetAllServices("draft")
+	svcs, _, err := pce.GetServices(nil, "draft")
 	if err != nil {
 		LogError(err.Error())
 	}
