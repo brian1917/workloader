@@ -1,4 +1,4 @@
-package dag
+package dagsync
 
 import (
 	"bytes"
@@ -126,40 +126,35 @@ var panURL, panKey, panVsys, filterFile, timeout string
 func init() {
 	DAGSyncCmd.Flags().StringVarP(&panURL, "url", "u", "", "URL required to reach Panorama or PAN FW(requires https://).")
 	DAGSyncCmd.Flags().StringVarP(&panKey, "key", "k", "", "Key used to authenticate with Panorama or PAN FW.")
-	DAGSyncCmd.Flags().StringVarP(&panVsys, "vsys", "v", "vsys1", "Vsys used to progam registered IPs and tags. Default =\"vsys1\"")
+	DAGSyncCmd.Flags().StringVarP(&panVsys, "vsys", "v", "vsys1", "Vsys used to progam registered IPs and tags.")
 	DAGSyncCmd.Flags().BoolVarP(&addIPv6, "ipv6", "6", false, "Include IPv6 addresses in the syncing of PCE IP and labels/tags with PAN DAGs")
 	DAGSyncCmd.Flags().BoolVarP(&insecure, "insecure", "i", false, "Ignore SSL certificate validation when communicating with PAN.")
-	DAGSyncCmd.Flags().BoolVarP(&update, "update-panos", "", false, "By default do not Sync Illumio PCE IP address and labels/tags to PAN DAGs but provide output and log what would have synced.")
-	DAGSyncCmd.Flags().StringVarP(&filterFile, "file", "f", "", "Enter filename for CSV that has labels to filter on")
-	DAGSyncCmd.Flags().StringVarP(&timeout, "timeout", "t", "0", "Enter filename for CSV that has labels to filter on")
-	DAGSyncCmd.Flags().BoolVarP(&removeOld, "remove-stale", "r", false, "Remove all Registered IPs that don't have IP on the PCE")
-	DAGSyncCmd.Flags().BoolVarP(&changePersistent, "persistent", "p", false, "RegisterIPs are persistent by default.")
+	DAGSyncCmd.Flags().BoolVarP(&update, "update-panos", "", false, "Implement identified changes on PanOS (versus just logging by default).")
+	DAGSyncCmd.Flags().StringVarP(&filterFile, "file", "f", "", "Optional CSV file with labels to filter PCE workloads. CSV requires role, app, env, and loc headers on row. Each subsequent row is a unique combination of labels to filter on. Blank values = all.")
+	DAGSyncCmd.Flags().StringVarP(&timeout, "timeout", "t", "0", "Timeout value")
+	DAGSyncCmd.Flags().BoolVarP(&removeOld, "remove-stale", "r", false, "Remove all Registered IPs that don't have IP on the PCE.")
+	DAGSyncCmd.Flags().BoolVar(&changePersistent, "non-persistent", false, "RegisterIPs are persistent by default.")
 	DAGSyncCmd.Flags().BoolVarP(&clean, "clean", "c", false, "Remove all Registered IPs from PanOS")
 	DAGSyncCmd.Flags().MarkHidden("clean")
-	DAGSyncCmd.Flags().BoolVarP(&noHref, "no-href", "", false, "Dont add workload HREF as a TAG")
-	//DAGSyncCmd.Flags().StringVarP(&illumioTag, "mark", "", "%#ILLUMIO-ADDED#%", "Ignore adding and looking for ILLLUMIO tag - %#ILLUMIO-ADDED#% ")
+	DAGSyncCmd.Flags().BoolVarP(&noHref, "no-href", "", false, "Do not add workload HREF as a tag")
 	DAGSyncCmd.Flags().MarkHidden("no-href")
-
+	DAGSyncCmd.Flags().SortFlags = false
 }
 
 // DAGSyncCmd runs the DAG register/unregister PAN API Sync
 var DAGSyncCmd = &cobra.Command{
-	Use:   "dagsync",
-	Short: "Syncs IPs and Labels for Workloads between PCE and Dynamic Access Group on Palo Alto Devices",
+	Use:   "dag-sync",
+	Short: "Syncs IPs and labels from PCE workloads to Dynamic Address Groups on Palo Alto Devices.",
 	Long: `
-Collects from the workloader default PCE all workload IPs and labels. Workloader will push the IPs and Labels/Tag into a PanOS device's RegisteredIP objects to be used by Dynamic Access Groups.  
+Syncs IPs and labels from PCE workloads to Dynamic Address Groups on Palo Alto Devices.
 
-To be able to access the PanOS device you must pass the URL, and API Key of the PanOS device.  You can configure environment variables (PANOS_URL and  PANOS_KEY) or enter ("-u" or "--url") for PanOS URL and  ("-k" or "--key") for PanOS API Key.  Workloader also requires a "vsys" value to be sent with each message to the PanOS device.  By default the value will use "vsys1".  To change that to another value use ("-v" or "vsys") or configure the environment variable PANOS_VSYS.  Failure to configure PANOS_URL and/or PANOS_KEY will cause workloader with exit. 
+The PANOS_URL, PANOS_KEY, and PANOS_VSYS environment variables can be used instead of the --url (-u), --key (-k), and --vsys (-v) flags, respectively.
 
-To filter only workloads with certain labels you can include a CSV file via "-f" or "--file. The CSV file must have a header of role,app,env,loc.  Every row after that should have the labels you want to include.  Any row will match all 4 of the labels if present.  If any row has a blank entry any label on a workload for that label type will match." 
+All ipv4 or ipv6 link local addresses will always be ignored (169.254.0.0/16 or FE80::/10).
 
-Workloader will add the PCE workload HREF as a tag ro RegisteredIPs being added to the. PanOS.  The extra tag is used to help uniquely match PanOS and PCE IPs.  If you dont want to add the label add ("--no-href").  
+The PCE workload HREF will be added as a tag to the PanOS RegisteredIPs to indicate it's a PCE managed IP. This can be disabled with the --no-href flag.
 
-Workloader will ignore any IPv6 address on any PCE workload and add IPv4 addresses only.  To add IPv6 addresses as well enter "-6" or "--ipv6".  *Note All ipv4 or ipv6 link local addresses will always be ignored (169.254.0.0/16 or FE80::/10).
-
-Workloader can remove stale objects on the PanOS that are not on the PCE anymore.  By default workloader does not do that.  You can remove these objects by entering "-r" or "--remove-stale".
-
-The update-pce flag is ignored for this command.`,
+The --update-pce flag is ignored for this command. The --update-panos flag is used instead.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
@@ -293,8 +288,8 @@ func ipCheck(ip string) string {
 func workloadIPMap(filterList []map[string]string) map[string]IPTags {
 	var pceIpMap = make(map[string]IPTags)
 
-	wklds, a, err := pce.GetAllWorkloads()
-	utils.LogAPIResp("GetAllWorkloads", a)
+	wklds, a, err := pce.GetWklds(nil)
+	utils.LogAPIResp("GetWklds", a)
 	if err != nil {
 		utils.LogError(fmt.Sprintf("getting all workloads - %s", err))
 	}

@@ -9,7 +9,12 @@ import (
 
 	"github.com/brian1917/workloader/cmd/checkversion"
 	"github.com/brian1917/workloader/cmd/compatibility"
+
+	// "github.com/brian1917/workloader/cmd/containerprofileexport"
+
+	// "github.com/brian1917/workloader/cmd/containerprofileexport"
 	"github.com/brian1917/workloader/cmd/containmentswitch"
+	"github.com/brian1917/workloader/cmd/dagsync"
 	"github.com/brian1917/workloader/cmd/deletehrefs"
 	"github.com/brian1917/workloader/cmd/deleteunusedlabels"
 	"github.com/brian1917/workloader/cmd/dupecheck"
@@ -44,7 +49,6 @@ import (
 	"github.com/brian1917/workloader/cmd/subnet"
 	"github.com/brian1917/workloader/cmd/svcexport"
 	"github.com/brian1917/workloader/cmd/svcimport"
-	"github.com/brian1917/workloader/cmd/sync/dag"
 	"github.com/brian1917/workloader/cmd/templatecreate"
 	"github.com/brian1917/workloader/cmd/templateimport"
 	"github.com/brian1917/workloader/cmd/templatelist"
@@ -134,16 +138,18 @@ func init() {
 	RootCmd.AddCommand(rulesetimport.RuleSetImportCmd)
 	RootCmd.AddCommand(ruleexport.RuleExportCmd)
 	RootCmd.AddCommand(ruleimport.RuleImportCmd)
+	// RootCmd.AddCommand(containerprofileexport.ContainerProfileExportCmd)
 	RootCmd.AddCommand(flowimport.FlowImportCmd)
 	RootCmd.AddCommand(templateimport.TemplateImportCmd)
 	RootCmd.AddCommand(templatelist.TemplateListCmd)
 	RootCmd.AddCommand(templatecreate.TemplateCreateCmd)
 
-	// Automated Labeling
+	// Automation
 	RootCmd.AddCommand(traffic.TrafficCmd)
 	RootCmd.AddCommand(subnet.SubnetCmd)
 	RootCmd.AddCommand(hostparse.HostnameCmd)
 	RootCmd.AddCommand(snowsync.SnowSyncCmd)
+	RootCmd.AddCommand(dagsync.DAGSyncCmd)
 
 	// Workload management
 	RootCmd.AddCommand(compatibility.CompatibilityCmd)
@@ -184,7 +190,6 @@ func init() {
 
 	// Undocumented
 	RootCmd.AddCommand(extract.ExtractCmd)
-	RootCmd.AddCommand(dag.DAGSyncCmd)
 
 	// Set the usage templates
 	for _, c := range RootCmd.Commands() {
