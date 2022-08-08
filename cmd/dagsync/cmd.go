@@ -152,8 +152,6 @@ The PANOS_URL, PANOS_KEY, and PANOS_VSYS environment variables can be used inste
 
 All ipv4 or ipv6 link local addresses will always be ignored (169.254.0.0/16 or FE80::/10).
 
-The PCE workload HREF will be added as a tag to the PanOS RegisteredIPs to indicate it's a PCE managed IP. This can be disabled with the --no-href flag.
-
 The --update-pce flag is ignored for this command. The --update-panos flag is used instead.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
