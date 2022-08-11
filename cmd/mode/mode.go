@@ -78,7 +78,8 @@ type target struct {
 func parseCsv(filename string) []target {
 
 	// Get PCE Version
-	version, err := pce.GetVersion()
+	version, api, err := pce.GetVersion()
+	utils.LogAPIResp("GetVersion", api)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
