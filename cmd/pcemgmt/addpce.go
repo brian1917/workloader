@@ -18,13 +18,16 @@ import (
 )
 
 // Set global variables for flags
-var session bool
+var session, useAPIKey bool
 var debug bool
 var configFilePath string
 var err error
 
 func init() {
-	AddPCECmd.Flags().BoolVarP(&session, "session", "s", false, "Authentication will be temporary session token. No API Key will be generated.")
+	AddPCECmd.Flags().BoolVarP(&session, "session", "s", false, "authentication will be temporary session token. No API Key will be generated.")
+	AddPCECmd.Flags().BoolVarP(&useAPIKey, "api-key", "a", false, "use pre-generated api credentials from an api key or a service account.")
+
+	AddPCECmd.Flags().SortFlags = false
 }
 
 // AddPCECmd generates the pce.yaml file
@@ -128,19 +131,37 @@ func addPCE() {
 		}
 	}
 
-	user = os.Getenv("PCE_USER")
-	if user == "" {
-		fmt.Print("Email: ")
-		fmt.Scanln(&user)
-	}
-	user = strings.ToLower(user)
+	var apiUser, apiKey, orgStr string
+	var org int
+	if useAPIKey {
+		fmt.Print("API Authentication Username: ")
+		fmt.Scanln(&apiUser)
 
-	pwd = os.Getenv("PCE_PWD")
-	if pwd == "" {
-		fmt.Print("Password: ")
-		bytePassword, _ := term.ReadPassword(int(syscall.Stdin))
-		pwd = string(bytePassword)
-		fmt.Println("")
+		fmt.Print("API Secret: ")
+		fmt.Scanln(&apiKey)
+
+		fmt.Print("Org: ")
+		fmt.Scanln(&orgStr)
+		org, err = strconv.Atoi(orgStr)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+
+	} else {
+		user = os.Getenv("PCE_USER")
+		if user == "" {
+			fmt.Print("Email: ")
+			fmt.Scanln(&user)
+		}
+		user = strings.ToLower(user)
+
+		pwd = os.Getenv("PCE_PWD")
+		if pwd == "" {
+			fmt.Print("Password: ")
+			bytePassword, _ := term.ReadPassword(int(syscall.Stdin))
+			pwd = string(bytePassword)
+			fmt.Println("")
+		}
 	}
 
 	disableTLS := false
@@ -155,37 +176,52 @@ func addPCE() {
 		}
 	}
 
-	// If session flag is set, create a PCE struct with session token
 	var userLogin illumioapi.UserLogin
-	var api []illumioapi.APIResponse
-	if session {
-		fmt.Println("\r\nAuthenticating ...")
-		pce = illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS}
-		userLogin, api, err = pce.Login(user, pwd)
-		if debug {
-			for _, a := range api {
+
+	if useAPIKey {
+		// Build the PCE
+		pce.FQDN = fqdn
+		pce.Port = port
+		pce.Org = org
+		pce.User = apiUser
+		pce.Key = apiKey
+		pce.DisableTLSChecking = disableTLS
+		_, api, _ := pce.GetVersion()
+		if api.StatusCode != 200 {
+			utils.LogError(fmt.Sprintf("checking credentials by getting PCE version returned a status code of %d.", api.StatusCode))
+		}
+
+	} else {
+
+		// If session flag is set, create a PCE struct with session token
+		var apiResponses []illumioapi.APIResponse
+		if session {
+			fmt.Println("\r\nAuthenticating ...")
+			pce = illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS}
+			userLogin, apiResponses, err = pce.Login(user, pwd)
+			for _, a := range apiResponses {
 				utils.LogAPIResp("Login", a)
 			}
-		}
-		if err != nil {
-			utils.LogError(fmt.Sprintf("logging into PCE - %s", err))
-		}
-	} else {
-		// If session flag is not set, generate API credentials and create PCE struct
-		if auto {
-			fmt.Println("Authenticating and generating API Credentials...")
-		} else {
-			fmt.Println("\r\nAuthenticating and generating API Credentials...")
-		}
-		pce = illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS}
-		userLogin, api, err = pce.LoginAPIKey(user, pwd, "Workloader", "Created by Workloader")
-		if debug {
-			for _, a := range api {
-				utils.LogAPIResp("LoginAPIKey", a)
+			if err != nil {
+				utils.LogError(fmt.Sprintf("logging into PCE - %s", err))
 			}
-		}
-		if err != nil {
-			utils.LogError(fmt.Sprintf("error generating API key - %s", err))
+		} else {
+			// If session flag is not set, generate API credentials and create PCE struct
+			if auto {
+				fmt.Println("Authenticating and generating API Credentials...")
+			} else {
+				fmt.Println("\r\nAuthenticating and generating API Credentials...")
+			}
+			pce = illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS}
+			userLogin, apiResponses, err = pce.LoginAPIKey(user, pwd, "Workloader", "Created by Workloader")
+			if debug {
+				for _, a := range apiResponses {
+					utils.LogAPIResp("LoginAPIKey", a)
+				}
+			}
+			if err != nil {
+				utils.LogError(fmt.Sprintf("error generating API key - %s", err))
+			}
 		}
 	}
 
@@ -210,9 +246,9 @@ func addPCE() {
 
 	// Log
 	if auto {
-		fmt.Printf("Added PCE information to %s\r\n", configFilePath)
+		fmt.Printf("Added PCE information to %s\r\n\r\n", configFilePath)
 	} else {
-		fmt.Printf("\r\nAdded PCE information to %s\r\n", configFilePath)
+		fmt.Printf("\r\nAdded PCE information to %s\r\n\r\n", configFilePath)
 	}
 	utils.LogEndCommand("pce-add")
 }
