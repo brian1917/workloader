@@ -16,8 +16,6 @@ var pce illumioapi.PCE
 var err error
 var outputFileName string
 
-func init() {}
-
 // WkldExportCmd runs the workload identifier
 var VenExportCmd = &cobra.Command{
 	Use:   "ven-export",
@@ -44,7 +42,7 @@ func exportVens() {
 	utils.LogStartCommand("ven-export")
 
 	// Start the data slice with headers
-	csvData := [][]string{{HeaderName, HeaderHostname, HeaderDescription, HeaderVenType, HeaderStatus, HeaderVersion, HeaderActivationType, HeaderActivePceFqdn, HeaderTargetPceFqdn, HeaderWorkloads, HeaderContainerCluster, HeaderHref, HeaderUID}}
+	csvData := [][]string{{HeaderName, HeaderHostname, HeaderDescription, HeaderVenType, HeaderStatus, HeaderHealth, HeaderVersion, HeaderActivationType, HeaderActivePceFqdn, HeaderTargetPceFqdn, HeaderWorkloads, HeaderContainerCluster, HeaderHref, HeaderUID}}
 
 	// Load the PCE
 	apiResps, err := pce.Load(illumioapi.LoadInput{Workloads: true, WorkloadsQueryParameters: map[string]string{"managed": "true"}, VENs: true, ContainerClusters: true, ContainerWorkloads: true})
@@ -77,7 +75,17 @@ func exportVens() {
 			}
 		}
 
-		csvData = append(csvData, []string{v.Name, v.Hostname, v.Description, v.VenType, v.Status, v.Version, v.ActivationType, v.ActivePceFqdn, v.TargetPceFqdn, strings.Join(workloadHostnames, ";"), ccName, v.Href, v.UID})
+		// Get the VEN health
+		health := "healthy"
+		healthMessages := []string{}
+		if len(v.Conditions) > 0 {
+			for _, c := range v.Conditions {
+				healthMessages = append(healthMessages, c.LatestEvent.NotificationType)
+			}
+			health = strings.Join(healthMessages, "; ")
+		}
+
+		csvData = append(csvData, []string{v.Name, v.Hostname, v.Description, v.VenType, v.Status, health, v.Version, v.ActivationType, v.ActivePceFqdn, v.TargetPceFqdn, strings.Join(workloadHostnames, ";"), ccName, v.Href, v.UID})
 	}
 
 	if len(csvData) > 1 {

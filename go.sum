@@ -42,6 +42,8 @@ github.com/brian1917/illumioapi v1.57.0 h1:I7z7UP1U4mZXkmdYRfD0strINo40crOOTZtgz
 github.com/brian1917/illumioapi v1.57.0/go.mod h1:bjIvUDUX41hxKaJ35ztNOkqUt6bQq5fGa1RPDI7d+S4=
 github.com/brian1917/illumioapi v1.58.0 h1:SVjj9TfdaL+AaICQZHG3Yw+e8zktIOZaEjWL5XADOFM=
 github.com/brian1917/illumioapi v1.58.0/go.mod h1:bjIvUDUX41hxKaJ35ztNOkqUt6bQq5fGa1RPDI7d+S4=
+github.com/brian1917/illumioapi v1.59.0 h1:fW2ZmT29Mx3TEssWh6UBWu+28DKC+vIFoZBfBo60LSY=
+github.com/brian1917/illumioapi v1.59.0/go.mod h1:bjIvUDUX41hxKaJ35ztNOkqUt6bQq5fGa1RPDI7d+S4=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
 github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=

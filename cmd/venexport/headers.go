@@ -14,4 +14,5 @@ const (
 	HeaderTargetPceFqdn    = "target_pce_fqdn"
 	HeaderWorkloads        = "workloads"
 	HeaderContainerCluster = "container_cluster"
+	HeaderHealth           = "ven_health"
 )
