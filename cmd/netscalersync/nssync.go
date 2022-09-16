@@ -82,7 +82,8 @@ func nsSync(pce illumioapi.PCE, netscaler ns.NetScaler) {
 			// Log the pending update, edit the virtual service, and append to the update list
 			if update {
 				utils.LogInfo(fmt.Sprintf("%s exists but requires updates - %s", nsvs.Name, strings.Join(msgSlice, ". ")), true)
-				virtualService.ServicePorts = []*illumioapi.ServicePort{{Port: nsvs.Port, Protocol: 6}}
+				virtualService.Service = getService(nsvs.Port, nsvs.Servicetype)
+				virtualService.ServicePorts = getServicePorts(nsvs.Port, nsvs.Servicetype)
 				virtualService.IPOverrides = []string{nsvs.Ipv46}
 				updateVirtualServices = append(updateVirtualServices, virtualService)
 			} else {
@@ -96,7 +97,7 @@ func nsSync(pce illumioapi.PCE, netscaler ns.NetScaler) {
 			}
 			// Log the pending create and append
 			utils.LogInfo(fmt.Sprintf("%s to be created - port: %d - ip: %s", nsvs.Name, nsvs.Port, nsvs.Ipv46), true)
-			createVirtualServices = append(createVirtualServices, illumioapi.VirtualService{Name: nsvs.Name, IPOverrides: []string{nsvs.Ipv46}, ServicePorts: []*illumioapi.ServicePort{{Port: nsvs.Port, Protocol: 6}}, ExternalDataSet: "workloader-netscaler-sync", ExternalDataReference: uuid.New().String()})
+			createVirtualServices = append(createVirtualServices, illumioapi.VirtualService{Name: nsvs.Name, IPOverrides: []string{nsvs.Ipv46}, Service: getService(nsvs.Port, nsvs.Servicetype), ServicePorts: getServicePorts(nsvs.Port, nsvs.Servicetype), ExternalDataSet: "workloader-netscaler-sync", ExternalDataReference: uuid.New().String()})
 		}
 	}
 
@@ -268,4 +269,38 @@ func snipName(ip, mask string) string {
 	}
 
 	return ipNet.String()
+}
+
+// getServices takes the port and serviceType reported by Netscaler
+// and returns the Service that should be attached to the PCE's virtual service
+func getService(port int, serviceType string) *illumioapi.Service {
+	// Use All Services if the port is 65535 or service type is "any"
+	if port == 65535 || serviceType == "any" {
+		services, api, err := pce.GetServices(map[string]string{"name": "All Services"}, "draft")
+		utils.LogAPIResp("GetServices", api)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		return &illumioapi.Service{Href: services[0].Href}
+	}
+
+	// Service will be nil if not using Any Service
+	return nil
+
+}
+
+// getServicePorts takes the port and serviceType reported by Netscaler
+// and returns the ServicePorts that should be attached to the PCE's virtual service
+func getServicePorts(port int, serviceType string) []*illumioapi.ServicePort {
+	// No service ports defined if port is 65535 or serviceType is any since using All Services object
+	if port == 65535 || serviceType == "any" {
+		return nil
+	}
+
+	// Otherwise, use the port and protocol
+	proto := 6
+	if strings.ToLower(serviceType) == "udp" {
+		proto = 17
+	}
+	return []*illumioapi.ServicePort{{Port: port, Protocol: proto}}
 }

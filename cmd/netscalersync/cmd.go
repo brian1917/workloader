@@ -33,6 +33,8 @@ var NetScalerSyncCmd = &cobra.Command{
 	Long: `
 Create an Illumio Virtual Service for each Citrix virtual server and an unmanaged workload for each SNAT IP.
 
+This version only supports single IP VIPs.
+
 Recommended to run without --update-pce first to log of what will change.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
