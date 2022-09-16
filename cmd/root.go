@@ -9,6 +9,7 @@ import (
 
 	"github.com/brian1917/workloader/cmd/checkversion"
 	"github.com/brian1917/workloader/cmd/compatibility"
+	"github.com/brian1917/workloader/cmd/netscalersync"
 
 	// "github.com/brian1917/workloader/cmd/containerprofileexport"
 
@@ -187,6 +188,9 @@ func init() {
 	// Version Commands
 	RootCmd.AddCommand(versionCmd)
 	RootCmd.AddCommand(checkversion.CheckVersionCmd)
+
+	// NetScaler Sync
+	RootCmd.AddCommand(netscalersync.NetScalerSyncCmd)
 
 	// Undocumented
 	RootCmd.AddCommand(extract.ExtractCmd)

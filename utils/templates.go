@@ -29,7 +29,7 @@ func RootTemplate() string {
   Template Commands:{{range .Commands}}{{if (or (eq .Name "template-list") (eq .Name "template-import") (eq .Name "template-create"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
-  Other Commands:{{range .Commands}}{{if (or (eq .Name "delete"))}}
+  Other Commands:{{range .Commands}}{{if (or (eq .Name "delete") (eq .Name "netscaler-sync"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
   Version Command:{{range .Commands}}{{if (or (eq .Name "version") (eq .Name "check-version"))}}
