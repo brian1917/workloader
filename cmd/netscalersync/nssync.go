@@ -275,7 +275,7 @@ func snipName(ip, mask string) string {
 // and returns the Service that should be attached to the PCE's virtual service
 func getService(port int, serviceType string) *illumioapi.Service {
 	// Use All Services if the port is 65535 or service type is "any"
-	if port == 65535 || serviceType == "any" {
+	if port == 65535 && serviceType == "any" {
 		services, api, err := pce.GetServices(map[string]string{"name": "All Services"}, "draft")
 		utils.LogAPIResp("GetServices", api)
 		if err != nil {
@@ -293,7 +293,7 @@ func getService(port int, serviceType string) *illumioapi.Service {
 // and returns the ServicePorts that should be attached to the PCE's virtual service
 func getServicePorts(port int, serviceType string) []*illumioapi.ServicePort {
 	// No service ports defined if port is 65535 or serviceType is any since using All Services object
-	if port == 65535 || serviceType == "any" {
+	if port == 65535 && serviceType == "any" {
 		return nil
 	}
 
