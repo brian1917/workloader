@@ -23,7 +23,7 @@ func init() {
 	UpgradeCmd.Flags().StringVar(&targetVersion, "version", "v", "target ven version in format of \"19.1.0-5631\"")
 	UpgradeCmd.MarkFlagRequired("version")
 	UpgradeCmd.Flags().StringVarP(&hostFile, "host-file", "i", "", "csv file with ven hrefs or hostnames. any labels are ignored with this flag.")
-	UpgradeCmd.Flags().BoolVarP(&singleAPI, "single-api", "s", false, "csv file with hrefs or hostnames. any labels are ignored with this flag.")
+	UpgradeCmd.Flags().BoolVarP(&singleAPI, "single-api", "s", false, "get workloads in a host file by a single API call vs. an input file.")
 	UpgradeCmd.Flags().StringVarP(&loc, "loc", "l", "", "location label. blank means all locations.")
 	UpgradeCmd.Flags().StringVarP(&env, "env", "e", "", "environment label. blank means all environments.")
 	UpgradeCmd.Flags().StringVarP(&app, "app", "a", "", "application label. blank means all applications.")
