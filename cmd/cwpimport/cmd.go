@@ -132,16 +132,54 @@ func importContainerProfiles(pce illumioapi.PCE, importFile, removeValue string,
 				logMsgs := []string{}
 
 				// Enforcement
-				if cwp.EnforcementMode != row[headers[cwpexport.Enforcement]] {
-					logMsgs = append(logMsgs, fmt.Sprintf("enforcement to be updated from %s to %s", cwp.EnforcementMode, row[headers[cwpexport.Enforcement]]))
-					cwp.EnforcementMode = row[headers[cwpexport.Enforcement]]
+				e := row[headers[cwpexport.Enforcement]]
+				if e != "idle" && e != "visibility_only" && e != "full" && e != "selective" {
+					utils.LogError(fmt.Sprintf("csv line %d - %s is an invalid enforcement value. acceptable values are idle, visibility_only, or full.", index+1, e))
+				}
+				if cwp.EnforcementMode != e {
+					logMsgs = append(logMsgs, fmt.Sprintf("enforcement to be updated from %s to %s", cwp.EnforcementMode, e))
+					cwp.EnforcementMode = e
 					update = true
 				}
 
 				// Visibility
-				if cwp.VisibilityLevel != row[headers[cwpexport.Visibility]] {
-					logMsgs = append(logMsgs, fmt.Sprintf("visibility to be updated from %s to %s", cwp.VisibilityLevel, row[headers[cwpexport.Visibility]]))
-					cwp.VisibilityLevel = row[headers[cwpexport.Visibility]]
+
+				// Get PCE vis level in UI terms
+				pceVisLevel := ""
+				switch cwp.VisibilityLevel {
+				case "flow_summary":
+					pceVisLevel = "blocked_allowed"
+				case "flow_drops":
+					pceVisLevel = "blocked"
+				case "flow_off":
+					pceVisLevel = "off"
+				case "enhanced_data_collection":
+					pceVisLevel = "enhanced_data_collection"
+				}
+				csvVisLevel := ""
+
+				// Validate acceptable value
+				c := strings.ToLower(row[headers[cwpexport.Visibility]])
+				if c != "blocked_allowed" && c != "blocked" && c != "off" && c != "enhanced_data_collection" {
+					utils.LogError(fmt.Sprintf("csv line %d - %s is an invalid visibility value. acceptable values are blocked_allowed, blocked, off, or enhanced_data_collection.", index+1, c))
+				}
+
+				// Put the CSV value into API terms
+				switch c {
+				case "blocked_allowed":
+					csvVisLevel = "flow_summary"
+				case "blocked":
+					csvVisLevel = "flow_drops"
+				case "off":
+					csvVisLevel = "flow_off"
+				case "enhanced_data_collection":
+					csvVisLevel = "enhanced_data_collection"
+				}
+
+				// Compare the converted PCE level to the provided CSV level
+				if pceVisLevel != c {
+					logMsgs = append(logMsgs, fmt.Sprintf("visibility to be updated from %s to %s", pceVisLevel, c))
+					cwp.VisibilityLevel = csvVisLevel
 					update = true
 				}
 
@@ -201,7 +239,7 @@ func importContainerProfiles(pce illumioapi.PCE, importFile, removeValue string,
 	}
 
 	// Log findings
-	utils.LogInfo(fmt.Sprintf("%d labels to create and %d container workload profiles to update.\r\n", len(labelsToBeCreated), len(updatedCWPs)), true)
+	utils.LogInfo(fmt.Sprintf("%d labels to create and %d container workload profiles to update.", len(labelsToBeCreated), len(updatedCWPs)), true)
 
 	// Stop if not updating pce
 	if !updatePCE {

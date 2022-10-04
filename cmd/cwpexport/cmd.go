@@ -72,7 +72,20 @@ func exportContainerProfiles(pce illumioapi.PCE) {
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-		data = append(data, []string{cp.ClusterName, cp.Name, cp.Namespace, cp.EnforcementMode, cp.VisibilityLevel, strconv.FormatBool(*cp.Managed), cp.GetLabelByKey("role"), cp.GetLabelByKey("app"), cp.GetLabelByKey("env"), cp.GetLabelByKey("loc"), cp.Href})
+		// Switch visibility levels
+		visLevel := ""
+		switch cp.VisibilityLevel {
+		case "flow_summary":
+			visLevel = "blocked_allowed"
+		case "flow_drops":
+			visLevel = "blocked"
+		case "flow_off":
+			visLevel = "off"
+		case "enhanced_data_collection":
+			visLevel = "enhanced_data_collection"
+		}
+
+		data = append(data, []string{cp.ClusterName, cp.Name, cp.Namespace, cp.EnforcementMode, visLevel, strconv.FormatBool(*cp.Managed), cp.GetLabelByKey("role"), cp.GetLabelByKey("app"), cp.GetLabelByKey("env"), cp.GetLabelByKey("loc"), cp.Href})
 	}
 
 	// Write the csv
