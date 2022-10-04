@@ -9,12 +9,9 @@ import (
 
 	"github.com/brian1917/workloader/cmd/checkversion"
 	"github.com/brian1917/workloader/cmd/compatibility"
-	"github.com/brian1917/workloader/cmd/netscalersync"
-
-	// "github.com/brian1917/workloader/cmd/containerprofileexport"
-
-	// "github.com/brian1917/workloader/cmd/containerprofileexport"
 	"github.com/brian1917/workloader/cmd/containmentswitch"
+	"github.com/brian1917/workloader/cmd/cwpexport"
+	"github.com/brian1917/workloader/cmd/cwpimport"
 	"github.com/brian1917/workloader/cmd/dagsync"
 	"github.com/brian1917/workloader/cmd/deletehrefs"
 	"github.com/brian1917/workloader/cmd/deleteunusedlabels"
@@ -37,6 +34,7 @@ import (
 	"github.com/brian1917/workloader/cmd/labelimport"
 	"github.com/brian1917/workloader/cmd/mislabel"
 	"github.com/brian1917/workloader/cmd/mode"
+	"github.com/brian1917/workloader/cmd/netscalersync"
 	"github.com/brian1917/workloader/cmd/nicexport"
 	"github.com/brian1917/workloader/cmd/nicmanage"
 	"github.com/brian1917/workloader/cmd/pcemgmt"
@@ -139,7 +137,8 @@ func init() {
 	RootCmd.AddCommand(rulesetimport.RuleSetImportCmd)
 	RootCmd.AddCommand(ruleexport.RuleExportCmd)
 	RootCmd.AddCommand(ruleimport.RuleImportCmd)
-	// RootCmd.AddCommand(containerprofileexport.ContainerProfileExportCmd)
+	RootCmd.AddCommand(cwpexport.ContainerProfileExportCmd)
+	RootCmd.AddCommand(cwpimport.ContainerProfileImportCmd)
 	RootCmd.AddCommand(flowimport.FlowImportCmd)
 	RootCmd.AddCommand(templateimport.TemplateImportCmd)
 	RootCmd.AddCommand(templatelist.TemplateListCmd)
