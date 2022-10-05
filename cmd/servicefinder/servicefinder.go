@@ -127,12 +127,16 @@ func serviceFinder() {
 	data := [][]string{{"href", "hostname", "port", "process", "role", "app", "env", "loc", "ip"}}
 
 	// For each workload in our target list, make a single workload API call to get services
+	warningMsgs := []string{}
 	for i, w := range wklds {
-		fmt.Printf("\r[INFO] - Checking %d of %d workloads", i+1, len(wklds))
+		fmt.Printf("\r%s [INFO] - checking %d of %d workloads", time.Now().Format("2006-01-02 15:04:05 "), i+1, len(wklds))
 		wkld, a, err := pce.GetWkldByHref(w.Href)
-		utils.LogAPIResp("GetAllWorkloads", a)
-		if err != nil {
+		utils.LogAPIResp("GetWkldByHref", a)
+		if err != nil && a.StatusCode == 0 {
 			utils.LogError(err.Error())
+		} else if err != nil {
+			warningMsgs = append(warningMsgs, fmt.Sprintf("get %s failed - status code %d", w.Href, a.StatusCode))
+			continue
 		}
 
 		// Iterate through each open port
@@ -158,6 +162,11 @@ func serviceFinder() {
 	}
 	// Print a blank line for closing out progress
 	fmt.Println()
+
+	// Print warnings
+	for _, msg := range warningMsgs {
+		utils.LogWarning(msg, true)
+	}
 
 	if len(data) > 1 {
 		if outputFileName == "" {
