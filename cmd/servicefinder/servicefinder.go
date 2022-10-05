@@ -13,13 +13,14 @@ import (
 )
 
 // Global variables
-var ports, processes, outputFileName string
+var ports, processes, hrefFile, outputFileName string
 var idleOnly bool
 var pce illumioapi.PCE
 var err error
 
 func init() {
 
+	ServiceFinderCmd.Flags().StringVarP(&hrefFile, "href", "f", "", "Location of file with HREFs to be used instead of starting with all workloads.")
 	ServiceFinderCmd.Flags().BoolVarP(&idleOnly, "idle-only", "i", false, "Only look at idle workloads.")
 	ServiceFinderCmd.Flags().StringVarP(&ports, "ports", "p", "", "Comma-separated list of ports.")
 	ServiceFinderCmd.Flags().StringVarP(&processes, "process-key-words", "k", "", "Comma-separated list of processes. Matching is partial (e.g., a \"python\" will find \"/usr/bin/python2.7\").")
@@ -90,16 +91,33 @@ func serviceFinder() {
 		portMap[p] = true
 	}
 
-	// Get all workloads
-	qp := map[string]string{"mode": "idle"}
-	if !idleOnly {
-		qp = nil
-	}
+	// Start the workload slice
+	wklds := []illumioapi.Workload{}
+	var a illumioapi.APIResponse
 
-	wklds, a, err := pce.GetWklds(qp)
-	utils.LogAPIResp("GetAllWorkloadsQP", a)
-	if err != nil {
-		utils.LogError(err.Error())
+	// Process the href file
+	if hrefFile != "" {
+		csvData, err := utils.ParseCSV(hrefFile)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		for _, row := range csvData {
+			if strings.Contains(row[0], "/orgs/") {
+				wklds = append(wklds, illumioapi.Workload{Href: row[0]})
+			}
+		}
+	} else {
+		// Get all workloads
+		qp := map[string]string{"mode": "idle"}
+		if !idleOnly {
+			qp = nil
+		}
+
+		wklds, a, err = pce.GetWklds(qp)
+		utils.LogAPIResp("GetWklds", a)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
 	}
 
 	// Log our target list
