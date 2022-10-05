@@ -201,9 +201,13 @@ func importContainerProfiles(pce illumioapi.PCE, importFile, removeValue string,
 					// If the value is blank, skip it
 					if values[i] == "" {
 						continue
-						// If the value is the remove value, remove it
+					} else if values[0] == removeValue && values[1] == removeValue && values[2] == removeValue && values[3] == removeValue {
+						update = true
+						cwp.Labels = &[]illumioapi.ContainerWorkloadProfileLabel{}
+						logMsgs = append(logMsgs, "all labels to be removed")
+						break
 					} else if values[i] == removeValue {
-						logMsgs = append(logMsgs, fmt.Sprintf("%s %s label to be removed.", key, cwp.GetLabelByKey(key)))
+						logMsgs = append(logMsgs, fmt.Sprintf("%s label %s to be removed", key, cwp.GetLabelByKey(key)))
 						cwp.RemoveLabel(key)
 						update = true
 						// Process everything else
@@ -212,10 +216,10 @@ func importContainerProfiles(pce illumioapi.PCE, importFile, removeValue string,
 						csvLabel := checkLabel(pce, illumioapi.Label{Key: key, Value: values[i]})
 						// If there is no HREF, log that the label needs to be created
 						if csvLabel.Href == "" {
-							logMsgs = append(logMsgs, fmt.Sprintf("%s %s label to be created", csvLabel.Value, csvLabel.Key))
+							logMsgs = append(logMsgs, fmt.Sprintf("%s label %s to be created", csvLabel.Key, csvLabel.Value))
 						}
 						if cwp.GetLabelByKey(key) != csvLabel.Value {
-							logMsgs = append(logMsgs, fmt.Sprintf("%s to be updated from %s to %s", key, cwp.GetLabelByKey(key), csvLabel.Value))
+							logMsgs = append(logMsgs, fmt.Sprintf("%s label to be updated from %s to %s", key, cwp.GetLabelByKey(key), csvLabel.Value))
 							cwp.SetLabel(csvLabel, &pce)
 							update = true
 						}
@@ -273,7 +277,7 @@ func importContainerProfiles(pce illumioapi.PCE, importFile, removeValue string,
 
 	// Update CWPs that have place holder labels
 	for i, update := range updatedCWPs {
-		for _, label := range update.cwp.Labels {
+		for _, label := range *update.cwp.Labels {
 			if label.Assignment.Value != "" && label.Assignment.Href == "" {
 				update.cwp.SetLabel(pce.Labels[label.Key+label.Assignment.Value], &pce)
 			}
