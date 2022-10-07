@@ -130,7 +130,7 @@ func serviceFinder() {
 	warningMsgs := []string{}
 	for i, w := range wklds {
 		fmt.Printf("\r%s [INFO] - checking %d of %d workloads", time.Now().Format("2006-01-02 15:04:05 "), i+1, len(wklds))
-		wkld, a, err := pce.GetWkldByHref(w.Href)
+		w, a, err = pce.GetWkldByHref(w.Href)
 		utils.LogAPIResp("GetWkldByHref", a)
 		if err != nil && a.StatusCode == 0 {
 			utils.LogError(err.Error())
@@ -141,7 +141,7 @@ func serviceFinder() {
 
 		// Iterate through each open port
 		if len(portMap) > 0 {
-			for _, o := range wkld.Services.OpenServicePorts {
+			for _, o := range w.Services.OpenServicePorts {
 				if _, ok := portMap[o.Port]; ok {
 					data = append(data, []string{w.Href, w.Hostname, strconv.Itoa(o.Port), o.ProcessName, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, w.GetIPWithDefaultGW()})
 				}
@@ -150,7 +150,7 @@ func serviceFinder() {
 
 		// Iterate through each running process
 		if len(processSlice) > 0 {
-			for _, wkldProcess := range wkld.Services.OpenServicePorts {
+			for _, wkldProcess := range w.Services.OpenServicePorts {
 				for _, providedProcess := range processSlice {
 					if strings.Contains(wkldProcess.ProcessName, providedProcess) {
 						data = append(data, []string{w.Href, w.Hostname, strconv.Itoa(wkldProcess.Port), wkldProcess.ProcessName, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, w.GetIPWithDefaultGW()})
