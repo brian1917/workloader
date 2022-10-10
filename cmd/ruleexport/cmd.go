@@ -569,7 +569,11 @@ func ExportRules(input Input) {
 					// Get the hostname
 					pceHostname := ""
 					if pceWorkload, ok := input.PCE.Workloads[p.Workload.Href]; ok {
-						pceHostname = pceWorkload.Hostname
+						if pceWorkload.Hostname != "" {
+							pceHostname = pceWorkload.Hostname
+						} else {
+							pceHostname = pceWorkload.Name
+						}
 					} else {
 						pceHostname = "DELETED-WORKLOAD"
 					}
