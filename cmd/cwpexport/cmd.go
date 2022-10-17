@@ -56,7 +56,7 @@ func exportContainerProfiles(pce illumioapi.PCE) {
 			utils.LogError(err.Error())
 		}
 		for _, p := range cp {
-			if p.Name == "Default Profile" {
+			if p.Name != nil && *p.Name == "Default Profile" {
 				continue
 			}
 			p.ClusterName = cc.Name
@@ -66,7 +66,7 @@ func exportContainerProfiles(pce illumioapi.PCE) {
 	}
 
 	// Start the export with headers
-	data := [][]string{{ContainerCluster, Name, Namespace, Enforcement, Visibility, Managed, Role, App, Env, Loc, Href}}
+	data := [][]string{{ContainerCluster, Name, Description, Namespace, Enforcement, Visibility, Managed, Role, App, Env, Loc, Href}}
 
 	for _, cp := range containerWkldProfiles {
 		if err != nil {
@@ -85,7 +85,17 @@ func exportContainerProfiles(pce illumioapi.PCE) {
 			visLevel = "enhanced_data_collection"
 		}
 
-		data = append(data, []string{cp.ClusterName, cp.Name, cp.Namespace, cp.EnforcementMode, visLevel, strconv.FormatBool(*cp.Managed), cp.GetLabelByKey("role"), cp.GetLabelByKey("app"), cp.GetLabelByKey("env"), cp.GetLabelByKey("loc"), cp.Href})
+		// Ensure we don't try to print nil pointers
+		var name, desc string
+		if cp.Name != nil {
+			name = *cp.Name
+		}
+		if cp.Description != nil {
+			desc = *cp.Description
+		}
+
+		// Write output
+		data = append(data, []string{cp.ClusterName, name, desc, cp.Namespace, cp.EnforcementMode, visLevel, strconv.FormatBool(*cp.Managed), cp.GetLabelByKey("role"), cp.GetLabelByKey("app"), cp.GetLabelByKey("env"), cp.GetLabelByKey("loc"), cp.Href})
 	}
 
 	// Write the csv

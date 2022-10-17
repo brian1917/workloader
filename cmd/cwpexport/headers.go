@@ -3,6 +3,7 @@ package cwpexport
 const (
 	ContainerCluster = "container_cluster"
 	Name             = "name"
+	Description      = "description"
 	Namespace        = "namespace"
 	Enforcement      = "enforcement"
 	Visibility       = "visibility"

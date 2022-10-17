@@ -24,7 +24,7 @@ var updatePCE, noPrompt bool
 var labelsToBeCreated []illumioapi.Label
 
 func init() {
-	ContainerProfileImportCmd.Flags().StringVar(&removeValue, "remove-value", "workloader-remove", "value in csv used to remove existing labels. blank values in the csv will not change existing.")
+	ContainerProfileImportCmd.Flags().StringVar(&removeValue, "remove-value", "workloader-remove", "value in csv used to tell workloader to replace existing value with a blank value. empty values in csv are ignored by default. to process empty values use --remove-value \"\" ")
 }
 
 // WkldExportCmd runs the workload identifier
@@ -101,7 +101,7 @@ func importContainerProfiles(pce illumioapi.PCE, importFile, removeValue string,
 			utils.LogError(err.Error())
 		}
 		for _, p := range cp {
-			if p.Name == "Default Profile" {
+			if p.Name != nil && *p.Name == "Default Profile" {
 				continue
 			}
 			p.ClusterName = cc.Name
@@ -130,6 +130,48 @@ func importContainerProfiles(pce illumioapi.PCE, importFile, removeValue string,
 				utils.LogWarning(fmt.Sprintf("csv row %d - %s does not exist. skipping.", index+1, row[headers[cwpexport.Href]]), true)
 			} else {
 				logMsgs := []string{}
+
+				// Name - Blank to a value
+				if cwp.Name == nil && row[headers[cwpexport.Name]] != "" && row[headers[cwpexport.Name]] != removeValue {
+					logMsgs = append(logMsgs, fmt.Sprintf("blank name value to be changed to %s", row[headers[cwpexport.Name]]))
+					cwp.Name = &row[headers[cwpexport.Name]]
+					update = true
+				}
+
+				// Name - Remove a value
+				if cwp.Name != nil && *cwp.Name != "" && row[headers[cwpexport.Name]] == removeValue {
+					logMsgs = append(logMsgs, fmt.Sprintf("name of %s to be removed", *cwp.Name))
+					cwp.Name = nil
+					update = true
+				}
+
+				// Name - Update a value
+				if cwp.Name != nil && row[headers[cwpexport.Name]] != "" && *cwp.Name != row[headers[cwpexport.Name]] && row[headers[cwpexport.Name]] != removeValue {
+					logMsgs = append(logMsgs, fmt.Sprintf("name to be changed from %s to %s", *cwp.Name, row[headers[cwpexport.Name]]))
+					*cwp.Name = row[headers[cwpexport.Name]]
+					update = true
+				}
+
+				// Description - Blank to a value
+				if (*cwp.Description == "" || cwp.Description == nil) && row[headers[cwpexport.Description]] != "" && row[headers[cwpexport.Description]] != removeValue {
+					logMsgs = append(logMsgs, fmt.Sprintf("blank description value to be changed to %s", row[headers[cwpexport.Description]]))
+					*cwp.Description = row[headers[cwpexport.Description]]
+					update = true
+				}
+
+				// Description - Remove a value
+				if cwp.Description != nil && *cwp.Description != "" && row[headers[cwpexport.Description]] == removeValue {
+					logMsgs = append(logMsgs, fmt.Sprintf("description of %s to be removed", *cwp.Description))
+					*cwp.Description = ""
+					update = true
+				}
+
+				// Description - Update a value
+				if cwp.Description != nil && row[headers[cwpexport.Description]] != "" && *cwp.Description != row[headers[cwpexport.Description]] && row[headers[cwpexport.Description]] != removeValue {
+					logMsgs = append(logMsgs, fmt.Sprintf("description to be changed from %s to %s", *cwp.Description, row[headers[cwpexport.Description]]))
+					*cwp.Description = row[headers[cwpexport.Description]]
+					update = true
+				}
 
 				// Enforcement
 				e := row[headers[cwpexport.Enforcement]]
