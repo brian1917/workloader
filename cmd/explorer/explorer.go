@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var inclHrefDstFile, exclHrefDstFile, inclHrefSrcFile, exclHrefSrcFile, inclServiceCSV, exclServiceCSV, start, end, loopFile, outputFileName string
+var inclHrefDstFile, exclHrefDstFile, inclHrefSrcFile, exclHrefSrcFile, inclServiceCSV, exclServiceCSV, inclProcessCSV, exclProcessCSV, start, end, loopFile, outputFileName string
 var exclAllowed, exclPotentiallyBlocked, exclBlocked, exclUnknown, appGroupLoc, consolidate, nonUni, legacyOutput, consAndProvierOnLoop bool
 var maxResults, iterativeThreshold int
 var pce illumioapi.PCE
@@ -27,8 +27,10 @@ func init() {
 	ExplorerCmd.Flags().StringVarP(&exclHrefDstFile, "excl-dst-file", "b", "", "file with hrefs on separate lines to be used in as a provider exclude. Can be a csv with hrefs in first column. Headers optional")
 	ExplorerCmd.Flags().StringVarP(&inclHrefSrcFile, "incl-src-file", "c", "", "file with hrefs on separate lines to be used in as a consumer include. Each line is treated as OR logic. On same line, combine hrefs of same object type for an AND logic. Headers optional")
 	ExplorerCmd.Flags().StringVarP(&exclHrefSrcFile, "excl-src-file", "d", "", "file with hrefs on separate lines to be used in as a consumer exclude. Can be a csv with hrefs in first column. Headers optional")
-	ExplorerCmd.Flags().StringVarP(&inclServiceCSV, "incl-svc-file", "i", "", "file location of csv with port/protocols to exclude. Port number in column 1 and IANA numeric protocol in Col 2. Headers optional.")
+	ExplorerCmd.Flags().StringVarP(&inclServiceCSV, "incl-svc-file", "i", "", "file location of csv with port/protocols to include. Port number in column 1 and IANA numeric protocol in Col 2. Headers optional.")
 	ExplorerCmd.Flags().StringVarP(&exclServiceCSV, "excl-svc-file", "j", "", "file location of csv with port/protocols to exclude. Port number in column 1 and IANA numeric protocol in Col 2. Headers optional.")
+	ExplorerCmd.Flags().StringVarP(&inclProcessCSV, "incl-proc-file", "k", "", "file location of csv with single column of processes to include. No headers.")
+	ExplorerCmd.Flags().StringVarP(&exclProcessCSV, "excl-proc-file", "n", "", "file location of csv with single column of processes to exclude. No headers.")
 	ExplorerCmd.Flags().StringVarP(&start, "start", "s", time.Now().AddDate(0, 0, -88).In(time.UTC).Format("2006-01-02"), "start date in the format of yyyy-mm-dd.")
 	ExplorerCmd.Flags().StringVarP(&end, "end", "e", time.Now().Add(time.Hour*24).Format("2006-01-02"), "end date in the format of yyyy-mm-dd.")
 	ExplorerCmd.Flags().BoolVar(&exclAllowed, "excl-allowed", false, "excludes allowed traffic flows.")
@@ -143,6 +145,20 @@ func explorerExport() {
 	}
 	if inclServiceCSV != "" {
 		tq.PortProtoInclude, err = utils.GetServicePortsCSV(inclServiceCSV)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+	}
+
+	// Get the processes
+	if inclProcessCSV != "" {
+		tq.ProcessInclude, err = utils.GetProcesses(inclProcessCSV)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+	}
+	if exclProcessCSV != "" {
+		tq.ProcessExclude, err = utils.GetProcesses(exclProcessCSV)
 		if err != nil {
 			utils.LogError(err.Error())
 		}

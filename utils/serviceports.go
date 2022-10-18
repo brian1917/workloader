@@ -101,3 +101,18 @@ func GetServicePortsCSV(filename string) ([][2]int, error) {
 
 	return svcList, nil
 }
+
+// GetProcesses returns a list of processes from an inputfile
+func GetProcesses(file string) ([]string, error) {
+	csvData, err := ParseCSV(file)
+	if err != nil {
+		return nil, err
+	}
+
+	var processes []string
+	for _, row := range csvData {
+		processes = append(processes, row[0])
+	}
+
+	return processes, nil
+}
