@@ -18,7 +18,7 @@ var err error
 var hrefFile, enforcementMode, outputFileName string
 
 func init() {
-	ProcessExportCmd.Flags().StringVarP(&hrefFile, "href", "f", "", "location of file with hrefs to be used instead of starting with all workloads. header optional")
+	ProcessExportCmd.Flags().StringVarP(&hrefFile, "href", "f", "", "optionally specify the location of a file with hrefs to be used instead of starting with all workloads. header optional")
 	ProcessExportCmd.Flags().StringVar(&enforcementMode, "enforcement-mode", "", "optionally specify an enforcement mode filter. acceptable values are idle, visibility_only, selective, and full. ignored if href file is provided")
 	ProcessExportCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 	ProcessExportCmd.Flags().SortFlags = false
