@@ -96,14 +96,7 @@ func exportWorkloads() {
 		}
 
 		// Get interfaces
-		interfaces := []string{}
-		for _, i := range w.Interfaces {
-			ipAddress := fmt.Sprintf("%s:%s", i.Name, i.Address)
-			if i.CidrBlock != nil && *i.CidrBlock != 0 {
-				ipAddress = fmt.Sprintf("%s:%s/%s", i.Name, i.Address, strconv.Itoa(*i.CidrBlock))
-			}
-			interfaces = append(interfaces, ipAddress)
-		}
+		interfaces := InterfaceToString(w, false)
 
 		// Get Managed Status
 		managedStatus := false
@@ -207,4 +200,18 @@ func exportWorkloads() {
 
 	utils.LogEndCommand("wkld-export")
 
+}
+
+func InterfaceToString(w illumioapi.Workload, replaceDots bool) (interfaces []string) {
+	for _, i := range w.Interfaces {
+		if replaceDots {
+			i.Name = strings.Replace(i.Name, ".", "-", -1)
+		}
+		ipAddress := fmt.Sprintf("%s:%s", i.Name, i.Address)
+		if i.CidrBlock != nil && *i.CidrBlock != 0 {
+			ipAddress = fmt.Sprintf("%s:%s/%s", i.Name, i.Address, strconv.Itoa(*i.CidrBlock))
+		}
+		interfaces = append(interfaces, ipAddress)
+	}
+	return interfaces
 }
