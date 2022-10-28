@@ -38,14 +38,6 @@ cloud.google.com/go/storage v1.14.0/go.mod h1:GrKmX003DSIwi9o29oFT7YDnHYwZoctc3f
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
-github.com/brian1917/illumioapi v1.61.0 h1:HN3uFzlzJFwCagXVPQzgLwucInGEuH1qrVqVROEVwDo=
-github.com/brian1917/illumioapi v1.61.0/go.mod h1:bjIvUDUX41hxKaJ35ztNOkqUt6bQq5fGa1RPDI7d+S4=
-github.com/brian1917/illumioapi v1.62.0 h1:cW6iw8c529ifTtG+yiBtWuwWnKRGdlJ+rLPzyo5BKfo=
-github.com/brian1917/illumioapi v1.62.0/go.mod h1:bjIvUDUX41hxKaJ35ztNOkqUt6bQq5fGa1RPDI7d+S4=
-github.com/brian1917/illumioapi v1.63.0 h1:/pYYX1tz21Oy7C0NJ0r37lzCBEczCgLlUkvrCB3sgZA=
-github.com/brian1917/illumioapi v1.63.0/go.mod h1:bjIvUDUX41hxKaJ35ztNOkqUt6bQq5fGa1RPDI7d+S4=
-github.com/brian1917/illumioapi v1.64.0 h1:HJYh/7PvrLWvGSUjCtPFdW8DFQD5FeH0UH+Fs5xHtc8=
-github.com/brian1917/illumioapi v1.64.0/go.mod h1:bjIvUDUX41hxKaJ35ztNOkqUt6bQq5fGa1RPDI7d+S4=
 github.com/brian1917/illumioapi v1.65.0 h1:3VKPKJF2UoG61Ej4RlW2k7rvnLXjPk/J6oyjWSxko8g=
 github.com/brian1917/illumioapi v1.65.0/go.mod h1:bjIvUDUX41hxKaJ35ztNOkqUt6bQq5fGa1RPDI7d+S4=
 github.com/brian1917/ns v1.2.0 h1:8z9dR8WhaqJPTi8Ygyf6VHrYGoP8dbNV8hoD30/k/8c=
