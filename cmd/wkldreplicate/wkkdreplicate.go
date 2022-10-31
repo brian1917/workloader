@@ -13,11 +13,12 @@ import (
 	"github.com/spf13/viper"
 )
 
-var pceList, outputFileName string
+var pceList, skipSources, outputFileName string
 var updatePCE, noPrompt bool
 
 func init() {
-	WkldReplicate.Flags().StringVarP(&pceList, "pce-list", "p", "", "comma-separated list of pce names.")
+	WkldReplicate.Flags().StringVarP(&pceList, "pce-list", "p", "", "comma-separated list of pce names (not fqdns). see workloader pce-list for options.")
+	WkldReplicate.Flags().StringVarP(&skipSources, "skip-source", "s", "", "comma-separated list of pce names (not fqdns) to skip as a source. the pces still received workloads from other pces.")
 	WkldReplicate.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename. there will be a prefix added to each provided filename.")
 }
 
@@ -65,6 +66,14 @@ func wkldReplicate() {
 		pces = append(pces, p)
 	}
 
+	skipPCENameMap := make(map[string]bool)
+	for _, pce := range strings.Split(strings.Replace(skipSources, " ", "", -1), ",") {
+		p, err := utils.GetPCEbyName(pce, true)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		skipPCENameMap[p.FriendlyName] = true
+	}
 	// Create maps for workloads
 	managedWkldMap := make(map[string]replicateWkld)
 	unmanagedWkldMap := make(map[string]replicateWkld)
@@ -76,6 +85,11 @@ func wkldReplicate() {
 
 	// Iterate through the PCEs and do initial processing of workloads
 	for _, p := range pces {
+		// If it's  a skip source, skip it
+		if skipPCENameMap[p.FriendlyName] {
+			continue
+		}
+
 		// Start the delete slice
 		deleteHrefMap[p.FQDN] = []string{}
 
