@@ -67,12 +67,14 @@ func wkldReplicate() {
 	}
 
 	skipPCENameMap := make(map[string]bool)
-	for _, pce := range strings.Split(strings.Replace(skipSources, " ", "", -1), ",") {
-		p, err := utils.GetPCEbyName(pce, true)
-		if err != nil {
-			utils.LogError(err.Error())
+	if skipSources != "" {
+		for _, pce := range strings.Split(strings.Replace(skipSources, " ", "", -1), ",") {
+			p, err := utils.GetPCEbyName(pce, true)
+			if err != nil {
+				utils.LogError(err.Error())
+			}
+			skipPCENameMap[p.FriendlyName] = true
 		}
-		skipPCENameMap[p.FriendlyName] = true
 	}
 	// Create maps for workloads
 	managedWkldMap := make(map[string]replicateWkld)
