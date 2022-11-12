@@ -18,7 +18,7 @@ import (
 )
 
 // Set global variables for flags
-var session, useAPIKey bool
+var session, useAPIKey, noAuth bool
 var debug bool
 var configFilePath string
 var err error
@@ -26,7 +26,7 @@ var err error
 func init() {
 	AddPCECmd.Flags().BoolVarP(&session, "session", "s", false, "authentication will be temporary session token. No API Key will be generated.")
 	AddPCECmd.Flags().BoolVarP(&useAPIKey, "api-key", "a", false, "use pre-generated api credentials from an api key or a service account.")
-
+	AddPCECmd.Flags().BoolVarP(&noAuth, "no-auth", "n", false, "do not authenticate to the pce. subsequent commands will require WORKLOADER_API_USER, WORKLOADER_API_KEY, WORKLOADER_ORG environment variables to be set.")
 	AddPCECmd.Flags().SortFlags = false
 }
 
@@ -133,34 +133,36 @@ func addPCE() {
 
 	var apiUser, apiKey, orgStr string
 	var org int
-	if useAPIKey {
-		fmt.Print("API Authentication Username: ")
-		fmt.Scanln(&apiUser)
+	if !noAuth {
+		if useAPIKey {
+			fmt.Print("API Authentication Username: ")
+			fmt.Scanln(&apiUser)
 
-		fmt.Print("API Secret: ")
-		fmt.Scanln(&apiKey)
+			fmt.Print("API Secret: ")
+			fmt.Scanln(&apiKey)
 
-		fmt.Print("Org: ")
-		fmt.Scanln(&orgStr)
-		org, err = strconv.Atoi(orgStr)
-		if err != nil {
-			utils.LogError(err.Error())
-		}
+			fmt.Print("Org: ")
+			fmt.Scanln(&orgStr)
+			org, err = strconv.Atoi(orgStr)
+			if err != nil {
+				utils.LogError(err.Error())
+			}
 
-	} else {
-		user = os.Getenv("PCE_USER")
-		if user == "" {
-			fmt.Print("Email: ")
-			fmt.Scanln(&user)
-		}
-		user = strings.ToLower(user)
+		} else {
+			user = os.Getenv("PCE_USER")
+			if user == "" {
+				fmt.Print("Email: ")
+				fmt.Scanln(&user)
+			}
+			user = strings.ToLower(user)
 
-		pwd = os.Getenv("PCE_PWD")
-		if pwd == "" {
-			fmt.Print("Password: ")
-			bytePassword, _ := term.ReadPassword(int(syscall.Stdin))
-			pwd = string(bytePassword)
-			fmt.Println("")
+			pwd = os.Getenv("PCE_PWD")
+			if pwd == "" {
+				fmt.Print("Password: ")
+				bytePassword, _ := term.ReadPassword(int(syscall.Stdin))
+				pwd = string(bytePassword)
+				fmt.Println("")
+			}
 		}
 	}
 
@@ -205,7 +207,7 @@ func addPCE() {
 			if err != nil {
 				utils.LogError(fmt.Sprintf("logging into PCE - %s", err))
 			}
-		} else {
+		} else if !noAuth {
 			// If session flag is not set, generate API credentials and create PCE struct
 			if auto {
 				fmt.Println("Authenticating and generating API Credentials...")
@@ -222,6 +224,8 @@ func addPCE() {
 			if err != nil {
 				utils.LogError(fmt.Sprintf("error generating API key - %s", err))
 			}
+		} else {
+			pce = illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS}
 		}
 	}
 

@@ -2,6 +2,8 @@ package utils
 
 import (
 	"fmt"
+	"os"
+	"strconv"
 
 	"github.com/brian1917/illumioapi"
 	"github.com/spf13/viper"
@@ -25,6 +27,33 @@ func GetTargetPCE(GetLabelMaps bool) (illumioapi.PCE, error) {
 	if err != nil {
 		return illumioapi.PCE{}, err
 	}
+
+	// Adjust PCE for when no auth
+
+	if pce.User == "" {
+		if os.Getenv("WORKLOADER_API_USER") == "" {
+			return pce, fmt.Errorf("%s does not have an api user and the WORKLOADER_API_USER env variable is not set", name)
+		}
+		pce.User = os.Getenv("WORKLOADER_API_USER")
+	}
+
+	if pce.Key == "" {
+		if os.Getenv("WORKLOADER_API_KEY") == "" {
+			return pce, fmt.Errorf("%s does not have an api key and the WORKLOADER_API_KEY env variable is not set", name)
+		}
+		pce.Key = os.Getenv("WORKLOADER_API_KEY")
+	}
+
+	if pce.Org == 0 {
+		if os.Getenv("WORKLOADER_ORG") == "" {
+			return pce, fmt.Errorf("%s does not have an org and the WORKLOADER_ORG env variable is not set", name)
+		}
+		pce.Org, err = strconv.Atoi(os.Getenv("WORKLOADER_ORG"))
+		if err != nil {
+			return pce, fmt.Errorf("%s is not valid org for WORKLOADER_ORG env variable", os.Getenv("WORKLOADER_ORG"))
+		}
+	}
+
 	return pce, nil
 }
 
