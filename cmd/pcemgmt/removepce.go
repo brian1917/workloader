@@ -40,8 +40,6 @@ var RemovePCECmd = &cobra.Command{
 			os.Exit(0)
 		}
 		pceName = args[0]
-		// Get the debug value from viper
-		debug = viper.Get("debug").(bool)
 
 		removePce()
 	},

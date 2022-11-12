@@ -19,7 +19,6 @@ import (
 
 // Set global variables for flags
 var session, useAPIKey, noAuth bool
-var debug bool
 var configFilePath string
 var err error
 
@@ -60,9 +59,6 @@ The --update-pce and --no-prompt flags are ignored for this command.
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-
-		// Get the debug value from viper
-		debug = viper.Get("debug").(bool)
 
 		addPCE()
 	},
@@ -133,39 +129,46 @@ func addPCE() {
 
 	var apiUser, apiKey, orgStr string
 	var org int
-	if !noAuth {
-		if useAPIKey {
-			fmt.Print("API Authentication Username: ")
-			fmt.Scanln(&apiUser)
 
-			fmt.Print("API Secret: ")
-			fmt.Scanln(&apiKey)
+	// Get api key information if flag is set
+	if useAPIKey {
+		fmt.Print("API Authentication Username: ")
+		fmt.Scanln(&apiUser)
 
-			fmt.Print("Org: ")
-			fmt.Scanln(&orgStr)
-			org, err = strconv.Atoi(orgStr)
-			if err != nil {
-				utils.LogError(err.Error())
-			}
+		fmt.Print("API Secret: ")
+		fmt.Scanln(&apiKey)
 
-		} else {
-			user = os.Getenv("PCE_USER")
-			if user == "" {
-				fmt.Print("Email: ")
-				fmt.Scanln(&user)
-			}
-			user = strings.ToLower(user)
+	}
 
-			pwd = os.Getenv("PCE_PWD")
-			if pwd == "" {
-				fmt.Print("Password: ")
-				bytePassword, _ := term.ReadPassword(int(syscall.Stdin))
-				pwd = string(bytePassword)
-				fmt.Println("")
-			}
+	// Get the org if using an api key or not authenticating
+	if useAPIKey || noAuth {
+		fmt.Print("Org: ")
+		fmt.Scanln(&orgStr)
+		org, err = strconv.Atoi(orgStr)
+		if err != nil {
+			utils.LogError(err.Error())
 		}
 	}
 
+	// If not using an API key or skipping auth, get the email and password
+	if !noAuth && !useAPIKey {
+		user = os.Getenv("PCE_USER")
+		if user == "" {
+			fmt.Print("Email: ")
+			fmt.Scanln(&user)
+		}
+		user = strings.ToLower(user)
+
+		pwd = os.Getenv("PCE_PWD")
+		if pwd == "" {
+			fmt.Print("Password: ")
+			bytePassword, _ := term.ReadPassword(int(syscall.Stdin))
+			pwd = string(bytePassword)
+			fmt.Println("")
+		}
+	}
+
+	// Get the disable tls
 	disableTLS := false
 	disableTLSEnv := os.Getenv("PCE_DISABLE_TLS")
 	if strings.ToLower(disableTLSEnv) == "true" {
@@ -178,10 +181,12 @@ func addPCE() {
 		}
 	}
 
+	//
+
 	var userLogin illumioapi.UserLogin
 
+	// If using an API key, build the PCE and check authentication
 	if useAPIKey {
-		// Build the PCE
 		pce.FQDN = fqdn
 		pce.Port = port
 		pce.Org = org
@@ -192,11 +197,12 @@ func addPCE() {
 		if api.StatusCode != 200 {
 			utils.LogError(fmt.Sprintf("checking credentials by getting PCE version returned a status code of %d.", api.StatusCode))
 		}
+	}
 
-	} else {
-
-		// If session flag is set, create a PCE struct with session token
-		var apiResponses []illumioapi.APIResponse
+	// Process session if set
+	var apiResponses []illumioapi.APIResponse
+	if !noAuth {
+		// Generate session credentials if session flag set
 		if session {
 			fmt.Println("\r\nAuthenticating ...")
 			pce = illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS}
@@ -207,8 +213,8 @@ func addPCE() {
 			if err != nil {
 				utils.LogError(fmt.Sprintf("logging into PCE - %s", err))
 			}
-		} else if !noAuth {
-			// If session flag is not set, generate API credentials and create PCE struct
+		} else {
+			// Generate API keys
 			if auto {
 				fmt.Println("Authenticating and generating API Credentials...")
 			} else {
@@ -216,17 +222,16 @@ func addPCE() {
 			}
 			pce = illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS}
 			userLogin, apiResponses, err = pce.LoginAPIKey(user, pwd, "Workloader", "Created by Workloader")
-			if debug {
-				for _, a := range apiResponses {
-					utils.LogAPIResp("LoginAPIKey", a)
-				}
+			for _, a := range apiResponses {
+				utils.LogAPIResp("LoginAPIKey", a)
 			}
 			if err != nil {
 				utils.LogError(fmt.Sprintf("error generating API key - %s", err))
 			}
-		} else {
-			pce = illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS}
 		}
+	} else {
+		// Generate PCE if no auth set
+		pce = illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS, Org: org}
 	}
 
 	// Write the login configuration
