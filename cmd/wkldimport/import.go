@@ -187,7 +187,7 @@ CSVEntries:
 			for i, header := range []string{wkldexport.HeaderRole, wkldexport.HeaderApp, wkldexport.HeaderEnv, wkldexport.HeaderLoc} {
 				if index, ok := input.Headers[header]; ok {
 					// If the value is blank, do nothing
-					if line[index] == "" {
+					if line[index] == "" || line[index] == input.RemoveValue {
 						continue
 					}
 					// Add that label to the new labels slice
@@ -325,6 +325,15 @@ CSVEntries:
 				} else if wkldCurrentLabels[i].Href != "" {
 					*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: wkldCurrentLabels[i].Href})
 				}
+			}
+
+			// Additional Labels
+			if index, ok := input.Headers[wkldexport.HeaderAdditionalLabelHrefs]; ok && len(line[index]) > 0 {
+				hrefs := strings.Split(strings.Replace(line[index], " ", "", -1), ";")
+				for _, h := range hrefs {
+					*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: h})
+				}
+				change = true
 			}
 
 			// Check interfaces

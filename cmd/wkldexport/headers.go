@@ -49,6 +49,7 @@ const (
 	HeaderVulnPortExposure         = "vuln_port_exposure"
 	HeaderAnyVulnExposure          = "any_ip_vuln_exposure"
 	HeaderIpListVulnExposure       = "ip_list_vuln_exposure"
+	HeaderAdditionalLabelHrefs     = "additional_label_hrefs"
 )
 
 func AllHeaders() []string {
@@ -99,7 +100,8 @@ func AllHeaders() []string {
 		HeaderVulnScore,
 		HeaderVulnPortExposure,
 		HeaderAnyVulnExposure,
-		HeaderIpListVulnExposure}
+		HeaderIpListVulnExposure,
+		HeaderAdditionalLabelHrefs}
 }
 
 func ImportHeaders() []string {
@@ -110,6 +112,7 @@ func ImportHeaders() []string {
 		HeaderApp,
 		HeaderEnv,
 		HeaderLoc,
+		HeaderAdditionalLabelHrefs,
 		HeaderInterfaces,
 		HeaderPublicIP,
 		HeaderMachineAuthenticationID,
