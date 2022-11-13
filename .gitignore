@@ -1,16 +1,10 @@
 *.code-workspace
 *.DS_store
-test-files/*
 *.log
 *.csv
 !illumio-templates/*.csv
 !workloader-identifier-default.csv
-!default-import-csv.csv
 !*parser-table.csv*
-_playground/*
 .vscode/*
 *.yaml
 *.zip
-*support-portal*
-deploy.sh
-.VSCodeCounter
