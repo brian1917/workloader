@@ -13,12 +13,13 @@ import (
 
 // Input is the input object for the ImportServices Command
 type Input struct {
-	PCE       illumioapi.PCE
-	Data      [][]string
-	UpdatePCE bool
-	NoPrompt  bool
-	Provision bool
-	Headers   map[string]int
+	PCE          illumioapi.PCE
+	Data         [][]string
+	UpdatePCE    bool
+	NoPrompt     bool
+	Provision    bool
+	UpdateOnName bool
+	Headers      map[string]int
 }
 
 type csvService struct {
@@ -111,6 +112,8 @@ func ImportServices(input Input) {
 				// Add the href
 				if col, ok := input.Headers[svcexport.HeaderHref]; ok {
 					svc.Href = data[col]
+				} else if input.UpdateOnName {
+					svc.Href = input.PCE.Services[data[nameCol]].Href
 				}
 
 				// Add the description
@@ -133,7 +136,7 @@ func ImportServices(input Input) {
 		if csvSvc.service.Href == "" {
 			// Check if the service exists in the PCE.
 			if _, ok := svcNameMap[csvSvc.service.Name]; ok {
-				utils.LogError(fmt.Sprintf("csv line %s - %s already exists in the PCE. add an href to update it.", strings.Join(intSliceToStrSlice(csvSvc.csvLines), ", "), csvSvc.service.Name))
+				utils.LogError(fmt.Sprintf("csv line %s - %s already exists in the PCE. add an href to update it or use the --update-on-name flag.", strings.Join(intSliceToStrSlice(csvSvc.csvLines), ", "), csvSvc.service.Name))
 			}
 			newServices = append(newServices, csvSvc)
 			utils.LogInfo(fmt.Sprintf("csv line(s) %s - %s to be created", strings.Join(intSliceToStrSlice(csvSvc.csvLines), ", "), csvSvc.service.Name), false)
