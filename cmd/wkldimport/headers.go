@@ -24,9 +24,15 @@ func (i *Input) processHeaders(headers []string) {
 	// Initiate the map
 	i.Headers = make(map[string]int)
 
-	// Update the header map
+	// Look to see if we have alternatve values for the provided header
 	for header, col := range csvHeaderMap {
-		i.Headers[fieldMap[header]] = col
+		if _, ok := fieldMap[header]; ok {
+			i.Headers[fieldMap[header]] = col
+		} else {
+			// If there is no alternative value, use the provided value
+			i.Headers[header] = col
+		}
+
 	}
 
 	if i.MatchString != "" {
