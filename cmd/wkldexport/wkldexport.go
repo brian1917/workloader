@@ -3,6 +3,7 @@ package wkldexport
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -57,17 +58,6 @@ func exportWorkloads() {
 	// Log command execution
 	utils.LogStartCommand("wkld-export")
 
-	// Start the data slice with headers
-	headers := []string{HeaderHostname, HeaderName, HeaderManaged, HeaderRole, HeaderApp, HeaderEnv, HeaderLoc, HeaderInterfaces, HeaderPublicIP, HeaderMachineAuthenticationID, HeaderIPWithDefaultGw, HeaderNetmaskOfIPWithDefGw, HeaderDefaultGw, HeaderDefaultGwNetwork, HeaderSPN, HeaderHref, HeaderDescription, HeaderPolicyState, HeaderVisibilityState, HeaderOnline, HeaderAgentStatus, HeaderAgentHealth, HeaderSecurityPolicySyncState, HeaderSecurityPolicyAppliedAt, HeaderSecurityPolicyReceivedAt, HeaderSecurityPolicyRefreshAt, HeaderLastHeartbeatOn, HeaderHoursSinceLastHeartbeat, HeaderCreatedAt, HeaderOsID, HeaderOsDetail, HeaderVenHref, HeaderAgentVersion, HeaderAgentID, HeaderActivePceFqdn, HeaderServiceProvider, HeaderDataCenter, HeaderDataCenterZone, HeaderCloudInstanceID}
-	if noHref {
-		headers = []string{HeaderHostname, HeaderName, HeaderManaged, HeaderRole, HeaderApp, HeaderEnv, HeaderLoc, HeaderInterfaces, HeaderPublicIP, HeaderMachineAuthenticationID, HeaderIPWithDefaultGw, HeaderNetmaskOfIPWithDefGw, HeaderDefaultGw, HeaderDefaultGwNetwork, HeaderSPN, HeaderDescription, HeaderPolicyState, HeaderVisibilityState, HeaderOnline, HeaderAgentStatus, HeaderAgentHealth, HeaderSecurityPolicySyncState, HeaderSecurityPolicyAppliedAt, HeaderSecurityPolicyReceivedAt, HeaderSecurityPolicyRefreshAt, HeaderLastHeartbeatOn, HeaderHoursSinceLastHeartbeat, HeaderCreatedAt, HeaderOsID, HeaderOsDetail, HeaderVenHref, HeaderAgentVersion, HeaderAgentID, HeaderActivePceFqdn, HeaderServiceProvider, HeaderDataCenter, HeaderDataCenterZone, HeaderCloudInstanceID}
-	}
-	if includeVuln {
-		headers = append(headers, HeaderVulnExposureScore, HeaderNumVulns, HeaderMaxVulnScore, HeaderVulnScore, HeaderVulnPortExposure, HeaderAnyVulnExposure, HeaderIpListVulnExposure)
-	}
-	csvData := [][]string{append(headers, HeaderExternalDataSet, HeaderExternalDataReference)}
-	stdOutData := [][]string{{HeaderHostname, HeaderRole, HeaderApp, HeaderEnv, HeaderLoc, HeaderPolicyState}}
-
 	// GetAllWorkloads
 	qp := make(map[string]string)
 	if unmanagedOnly {
@@ -87,6 +77,33 @@ func exportWorkloads() {
 	if err != nil {
 		utils.LogError(fmt.Sprintf("getting all workloads - %s", err))
 	}
+
+	// Get the labels that are in use by the workloads
+	labelsKeyMap := make(map[string]bool)
+	for _, w := range wklds {
+		for _, label := range *w.Labels {
+			labelsKeyMap[pce.Labels[label.Href].Key] = true
+		}
+	}
+	labelsKeySlice := []string{}
+	for labelKey := range labelsKeyMap {
+		labelsKeySlice = append(labelsKeySlice, labelKey)
+	}
+	// Sort the slice of label keys
+	sort.Strings(labelsKeySlice)
+
+	// Start the data slice with headers
+	headers := []string{HeaderHostname, HeaderName}
+	if !noHref {
+		headers = append(headers, HeaderHref)
+	}
+	headers = append(append(headers, labelsKeySlice...), HeaderManaged, HeaderInterfaces, HeaderPublicIP, HeaderMachineAuthenticationID, HeaderIPWithDefaultGw, HeaderNetmaskOfIPWithDefGw, HeaderDefaultGw, HeaderDefaultGwNetwork, HeaderSPN, HeaderDescription, HeaderPolicyState, HeaderVisibilityState, HeaderOnline, HeaderAgentStatus, HeaderAgentHealth, HeaderSecurityPolicySyncState, HeaderSecurityPolicyAppliedAt, HeaderSecurityPolicyReceivedAt, HeaderSecurityPolicyRefreshAt, HeaderLastHeartbeatOn, HeaderHoursSinceLastHeartbeat, HeaderCreatedAt, HeaderOsID, HeaderOsDetail, HeaderVenHref, HeaderAgentVersion, HeaderAgentID, HeaderActivePceFqdn, HeaderServiceProvider, HeaderDataCenter, HeaderDataCenterZone, HeaderCloudInstanceID)
+	if includeVuln {
+		headers = append(headers, HeaderVulnExposureScore, HeaderNumVulns, HeaderMaxVulnScore, HeaderVulnScore, HeaderVulnPortExposure, HeaderAnyVulnExposure, HeaderIpListVulnExposure)
+	}
+	// Start the csv and stdout data sets
+	csvData := [][]string{append(headers, HeaderExternalDataSet, HeaderExternalDataReference)}
+	stdOutData := [][]string{{HeaderHostname, HeaderRole, HeaderApp, HeaderEnv, HeaderLoc, HeaderPolicyState}}
 
 	for _, w := range wklds {
 
@@ -158,12 +175,19 @@ func exportWorkloads() {
 			w.Description = utils.ReplaceNewLine(w.Description)
 		}
 
-		// Append to data slice
-		data := []string{w.Hostname, w.Name, strconv.FormatBool(managedStatus), w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, strings.Join(interfaces, ";"), w.PublicIP, w.DistinguishedName, w.GetIPWithDefaultGW(), w.GetNetMaskWithDefaultGW(), w.GetDefaultGW(), w.GetNetworkWithDefaultGateway(), w.ServicePrincipalName, w.Href, w.Description, w.GetMode(), w.GetVisibilityLevel(), strconv.FormatBool(w.Online), agentStatus, agentHealth, policySyncStatus, policyAppliedAt, poicyReceivedAt, policyRefreshAt, lastHeartBeat, hoursSinceLastHB, w.CreatedAt, w.OsID, w.OsDetail, venHref, venVersion, venID, pairedPCE, w.ServiceProvider, w.DataCenter, w.DataCenterZone, instanceID}
-		if noHref {
-			data = []string{w.Hostname, w.Name, strconv.FormatBool(managedStatus), w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, strings.Join(interfaces, ";"), w.PublicIP, w.DistinguishedName, w.GetIPWithDefaultGW(), w.GetNetMaskWithDefaultGW(), w.GetDefaultGW(), w.GetNetworkWithDefaultGateway(), w.ServicePrincipalName, w.Description, w.GetMode(), w.GetVisibilityLevel(), strconv.FormatBool(w.Online), agentStatus, agentHealth, policySyncStatus, policyAppliedAt, poicyReceivedAt, policyRefreshAt, lastHeartBeat, hoursSinceLastHB, w.CreatedAt, w.OsID, w.OsDetail, venHref, venVersion, venID, pairedPCE, w.ServiceProvider, w.DataCenter, w.DataCenterZone, instanceID}
-
+		// Get the labels
+		labelValueSlice := []string{}
+		for _, labelKey := range labelsKeySlice {
+			labelValueSlice = append(labelValueSlice, w.GetLabelByKey(labelKey, pce.Labels).Value)
 		}
+
+		// Append to data slice
+		data := []string{w.Hostname, w.Name}
+		if !noHref {
+			data = append(data, w.Href)
+		}
+		data = append(data, labelValueSlice...)
+		data = append(data, strconv.FormatBool(managedStatus), strings.Join(interfaces, ";"), w.PublicIP, w.DistinguishedName, w.GetIPWithDefaultGW(), w.GetNetMaskWithDefaultGW(), w.GetDefaultGW(), w.GetNetworkWithDefaultGateway(), w.ServicePrincipalName, w.Description, w.GetMode(), w.GetVisibilityLevel(), strconv.FormatBool(w.Online), agentStatus, agentHealth, policySyncStatus, policyAppliedAt, poicyReceivedAt, policyRefreshAt, lastHeartBeat, hoursSinceLastHB, w.CreatedAt, w.OsID, w.OsDetail, venHref, venVersion, venID, pairedPCE, w.ServiceProvider, w.DataCenter, w.DataCenterZone, instanceID)
 
 		if includeVuln {
 			var numVulns, maxVulnScore, vulnScore, vulnPortExposure, anyExposure, iplExposure, vulnExposureScore string

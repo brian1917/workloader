@@ -14,48 +14,26 @@ import (
 	"github.com/spf13/viper"
 )
 
-// createdLabels is a global variable to count created labels
-var createdLabels int
-
 // newLabels is a global variable to hold the slice of newly created labels
 var newLabels []illumioapi.Label
 
 // checkLabels validates if a label exists.
 // If the label exists it returns the label.
-// If the label does not exist and updatePCE is set, it creates the label.
-// If the label does not exist and updatePCE is not set, it creates a placeholder label in pce map.
-func checkLabel(pce illumioapi.PCE, updatePCE bool, label illumioapi.Label, csvLine int) illumioapi.Label {
+// If the label does not exist it creates a temporary label for later
+func checkLabel(pce illumioapi.PCE, label illumioapi.Label) illumioapi.Label {
 
 	// Check if it exists or not
 	if _, ok := pce.Labels[label.Key+label.Value]; ok {
 		return pce.Labels[label.Key+label.Value]
 	}
 
-	// Create the label if it doesn't exist
-	if updatePCE {
-		l, a, err := pce.CreateLabel(illumioapi.Label{Key: label.Key, Value: label.Value})
-		utils.LogAPIResp("CreateLabel", a)
-		if err != nil {
-			utils.LogError(err.Error())
-		}
-		utils.LogInfo(fmt.Sprintf("csv line %d - created label - %s (%s) - %s", csvLine, l.Value, l.Key, l.Href), true)
+	// If the label doesn't exist, create a placeholder for it
+	label.Href = fmt.Sprintf("wkld-import-temp-%s-%s", label.Key, label.Value)
+	newLabels = append(newLabels, label)
 
-		// Append the label back to the map
-		pce.Labels[l.Key+l.Value] = l
-		pce.Labels[l.Href] = l
-
-		// Increment counter
-		createdLabels++
-
-		return l
-	}
-
-	// If updatePCE is not set, create a placeholder href for provided label, and add it back to the maps
-	utils.LogInfo(fmt.Sprintf("csv line %d - new label required - %s (%s)", csvLine, label.Value, label.Key), false)
-	label.Href = fmt.Sprintf("place-holder-href-%s-%s", label.Key, label.Value)
+	// Append the label back to the map
 	pce.Labels[label.Key+label.Value] = label
 	pce.Labels[label.Href] = label
-	newLabels = append(newLabels, illumioapi.Label{Key: label.Key, Value: label.Value})
 
 	return label
 }
@@ -105,15 +83,18 @@ func ImportWkldsFromCSV(input Input) {
 		}
 	}
 
+	// Create a map of label keys
+	labelKeysMap := make(map[string]bool)
+	for _, l := range input.PCE.LabelsSlice {
+		labelKeysMap[l.Key] = true
+	}
+
 	// Create slices to hold the workloads we will update and create
 	updatedWklds := []illumioapi.Workload{}
 	newUMWLs := []illumioapi.Workload{}
 
 	// Start the counters
 	unchangedWLs := 0
-
-	// Populate the labelKeys
-	labelKeys := []string{"role", "app", "env", "loc"}
 
 	// Iterate through CSV entries
 CSVEntries:
@@ -184,17 +165,19 @@ CSVEntries:
 			}
 
 			// Process the labels
-			for i, header := range []string{wkldexport.HeaderRole, wkldexport.HeaderApp, wkldexport.HeaderEnv, wkldexport.HeaderLoc} {
-				if index, ok := input.Headers[header]; ok {
+			// Iterate over all headers and process the ones that are label keys
+			for headerValue, index := range input.Headers {
+				// Check if the header is a label key
+				if labelKeysMap[headerValue] {
 					// If the value is blank, do nothing
-					if line[index] == "" {
+					if line[index] == "" || line[index] == input.RemoveValue {
 						continue
 					}
-					// Add that label to the new labels slice
+					// Add the label to the new labels slice
 					if newWkld.Labels == nil {
 						newWkld.Labels = &[]*illumioapi.Label{}
 					}
-					*newWkld.Labels = append(*newWkld.Labels, &illumioapi.Label{Href: checkLabel(input.PCE, input.UpdatePCE, illumioapi.Label{Key: labelKeys[i], Value: line[index]}, csvLine).Href})
+					*newWkld.Labels = append(*newWkld.Labels, &illumioapi.Label{Href: checkLabel(input.PCE, illumioapi.Label{Key: headerValue, Value: line[index]}).Href})
 				}
 			}
 
@@ -277,54 +260,53 @@ CSVEntries:
 			// Initialize the change variable
 			change := false
 
-			// Check labels
-			wkld := input.PCE.Workloads[compareString] // Need this since can't perform pointer method on map element
-			wkldCurrentLabels := []illumioapi.Label{wkld.GetRole(input.PCE.Labels), wkld.GetApp(input.PCE.Labels), wkld.GetEnv(input.PCE.Labels), wkld.GetLoc(input.PCE.Labels)}
+			// Need this since can't perform pointer method on map element
+			wkld := input.PCE.Workloads[compareString]
 
-			// Clear the existing labels
+			// Make a copy of the original workload for comparing labels and then clear labels for rebuilding
+			oldWkld := wkld
 			wkld.Labels = nil
 			wkld.Labels = &[]*illumioapi.Label{}
 
-			// Process the new label headers
-			for i, header := range []string{wkldexport.HeaderRole, wkldexport.HeaderApp, wkldexport.HeaderEnv, wkldexport.HeaderLoc} {
-				if index, ok := input.Headers[header]; ok {
-					// If the value is blank and the current label exists, keep the current label.
-					if line[index] == "" && wkldCurrentLabels[i].Href != "" {
-						*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: wkldCurrentLabels[i].Href})
-						continue
-					}
+			// Process all headers to see if they are labels
+			for headerValue, index := range input.Headers {
 
-					// If the value is the delete value, the delete value is not blank, and the current label is not already blank, log a change without putting any label in.
-					if line[index] == input.RemoveValue && line[index] != "" && wkldCurrentLabels[i].Href != "" {
-						change = true
-						// Log change required
-						utils.LogInfo(fmt.Sprintf("%s requiring removal of %s label.", compareString, labelKeys[i]), false)
-						continue
-					}
-
-					// If the value does not equal the current value and it does not equal the remove value, add the new label.
-					if line[index] != wkldCurrentLabels[i].Value && line[index] != input.RemoveValue {
-						// Change the change flag
-						change = true
-						// Log change required
-						currentlLabel := wkldCurrentLabels[i].Value
-						if wkldCurrentLabels[i].Value == "" {
-							currentlLabel = "<empty>"
-						}
-						utils.LogInfo(fmt.Sprintf("csv line %d - %s %s label to be changed from %s to %s.", csvLine, compareString, labelKeys[i], currentlLabel, line[index]), false)
-						// Add that label to the new labels slice
-						*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: checkLabel(input.PCE, input.UpdatePCE, illumioapi.Label{Key: labelKeys[i], Value: line[index]}, csvLine).Href})
-						continue
-					}
-
-					// If the labels match keep existing and don't mark a change
-					if line[index] == wkldCurrentLabels[i].Value && line[index] != "" {
-						*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: wkldCurrentLabels[i].Href})
-					}
-					// If the column is not present and the workload has a current label, reapply it
-				} else if wkldCurrentLabels[i].Href != "" {
-					*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: wkldCurrentLabels[i].Href})
+				// Skip if the header is not a label
+				if !labelKeysMap[headerValue] {
+					continue
 				}
+
+				// Get the current label
+				currentLabel := oldWkld.GetLabelByKey(headerValue, input.PCE.Labels)
+
+				// If the value is blank and the current label exists, keep the current label.
+				// Or, if the CSV entry equals the current value, keep it
+				if (line[index] == "" && currentLabel.Href != "") || (line[index] == currentLabel.Value) {
+					*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: currentLabel.Href})
+					continue
+				}
+
+				// If the value is the delete value, the value is not blank, and the current label is not already blank, log a change without putting any label in.
+				if line[index] == input.RemoveValue && line[index] != "" && currentLabel.Href != "" {
+					change = true
+					utils.LogInfo(fmt.Sprintf("csv line %d - %s requiring removal of %s label.", csvLine, compareString, currentLabel.Key), false)
+					continue
+				}
+
+				// If the value does not equal the current value and it does not equal the remove value, add the new label.
+				if line[index] != currentLabel.Value && line[index] != input.RemoveValue {
+					change = true
+					// Log change required
+					currentlLabelLogValue := currentLabel.Value
+					if currentLabel.Value == "" {
+						currentlLabelLogValue = "<empty>"
+					}
+					utils.LogInfo(fmt.Sprintf("csv line %d - %s %s label to be changed from %s to %s.", csvLine, compareString, headerValue, currentlLabelLogValue, line[index]), false)
+					// Add that label to the new labels slice]
+					*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: checkLabel(input.PCE, illumioapi.Label{Key: headerValue, Value: line[index]}).Href})
+					continue
+				}
+
 			}
 
 			// Check interfaces
@@ -510,11 +492,7 @@ CSVEntries:
 	}
 
 	// Log findings
-	if !input.UpdatePCE {
-		utils.LogInfo(fmt.Sprintf("workloader identified %d labels to create.", len(newLabels)), true)
-	} else {
-		utils.LogInfo(fmt.Sprintf("workloader created %d labels.", createdLabels), true)
-	}
+	utils.LogInfo(fmt.Sprintf("workloader identified %d labels to create.", len(newLabels)), true)
 	utils.LogInfo(fmt.Sprintf("workloader identified %d workloads requiring updates.", len(updatedWklds)), true)
 	utils.LogInfo(fmt.Sprintf("workloader identified %d unmanaged workloads to create.", len(newUMWLs)), true)
 	utils.LogInfo(fmt.Sprintf("%d entries in CSV require no changes", unchangedWLs), true)
@@ -529,16 +507,58 @@ CSVEntries:
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if input.UpdatePCE && !input.NoPrompt {
 		var prompt string
-		fmt.Printf("\r\n%s [PROMPT] - workloader created %d labels in %s (%s) in preparation of updating %d workloads and creating %d unmanaged workloads. Do you want to run the import (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), createdLabels, input.PCE.FriendlyName, viper.Get(input.PCE.FriendlyName+".fqdn").(string), len(updatedWklds), len(newUMWLs))
+		fmt.Printf("\r\n%s [PROMPT] - Do you want to run the import to %s (%s) (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), input.PCE.FriendlyName, viper.Get(input.PCE.FriendlyName+".fqdn").(string))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
-			utils.LogInfo(fmt.Sprintf("prompt denied to update %d workloads and create %d unmanaged workloads.", len(updatedWklds), len(newUMWLs)), true)
+			utils.LogInfo("prompt denied", true)
 			utils.LogEndCommand("wkld-import")
 			return
 		}
 	}
 
 	// We will only get here if updatePCE and noPrompt is set OR the user accepted the prompt
+
+	// Process the labels first
+	labelReplacementMap := make(map[string]string)
+	if len(newLabels) > 0 {
+		for _, label := range newLabels {
+			createdLabel, api, err := input.PCE.CreateLabel(illumioapi.Label{Key: label.Key, Value: label.Value})
+			utils.LogAPIResp("CreateLabel", api)
+			if err != nil {
+				utils.LogError(err.Error())
+			}
+			labelReplacementMap[label.Href] = createdLabel.Href
+			utils.LogInfo(fmt.Sprintf("created new %s label - %s - %d", createdLabel.Key, createdLabel.Value, api.StatusCode), true)
+		}
+	}
+
+	// Replace the labels that need to
+	for i, wkld := range updatedWklds {
+		newLabels := []*illumioapi.Label{}
+		for _, l := range *wkld.Labels {
+			if strings.Contains(l.Href, "wkld-import-temp") {
+				newLabels = append(newLabels, &illumioapi.Label{Href: labelReplacementMap[l.Href]})
+			} else {
+				newLabels = append(newLabels, &illumioapi.Label{Href: l.Href})
+			}
+		}
+		wkld.Labels = &newLabels
+		updatedWklds[i] = wkld
+	}
+
+	for i, wkld := range newUMWLs {
+		newLabels := []*illumioapi.Label{}
+		for _, l := range *wkld.Labels {
+			if strings.Contains(l.Href, "wkld-import-temp") {
+				newLabels = append(newLabels, &illumioapi.Label{Href: labelReplacementMap[l.Href]})
+			} else {
+				newLabels = append(newLabels, &illumioapi.Label{Href: l.Href})
+			}
+		}
+		wkld.Labels = &newLabels
+		newUMWLs[i] = wkld
+	}
+
 	if len(updatedWklds) > 0 {
 		api, err := input.PCE.BulkWorkload(updatedWklds, "update", true)
 		for _, a := range api {
