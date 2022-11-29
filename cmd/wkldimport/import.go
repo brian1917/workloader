@@ -14,17 +14,14 @@ import (
 	"github.com/spf13/viper"
 )
 
-// newLabels is a global variable to hold the slice of newly created labels
-var newLabels []illumioapi.Label
-
 // checkLabels validates if a label exists.
 // If the label exists it returns the label.
 // If the label does not exist it creates a temporary label for later
-func checkLabel(pce illumioapi.PCE, label illumioapi.Label) illumioapi.Label {
+func checkLabel(pce illumioapi.PCE, label illumioapi.Label, newLabels []illumioapi.Label) (illumioapi.Label, []illumioapi.Label) {
 
 	// Check if it exists or not
 	if _, ok := pce.Labels[label.Key+label.Value]; ok {
-		return pce.Labels[label.Key+label.Value]
+		return pce.Labels[label.Key+label.Value], newLabels
 	}
 
 	// If the label doesn't exist, create a placeholder for it
@@ -35,7 +32,7 @@ func checkLabel(pce illumioapi.PCE, label illumioapi.Label) illumioapi.Label {
 	pce.Labels[label.Key+label.Value] = label
 	pce.Labels[label.Href] = label
 
-	return label
+	return label, newLabels
 }
 
 // ImportWkldsFromCSV imports a CSV to label unmanaged workloads and create unmanaged workloads
@@ -43,6 +40,9 @@ func ImportWkldsFromCSV(input Input) {
 
 	// Log start of the command
 	utils.LogStartCommand("wkld-import")
+
+	// Create a newLabels slice
+	var newLabels []illumioapi.Label
 
 	// Parse the CSV File
 	data, err := utils.ParseCSV(input.ImportFile)
@@ -59,6 +59,15 @@ func ImportWkldsFromCSV(input Input) {
 	// Check if we have the workload map populate
 	if input.PCE.Workloads == nil || len(input.PCE.WorkloadsSlice) == 0 {
 		apiResps, err := input.PCE.Load(illumioapi.LoadInput{Workloads: true})
+		utils.LogMultiAPIResp(apiResps)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+	}
+
+	// Check if we have the labels maps
+	if input.PCE.Labels == nil || len(input.PCE.Labels) == 0 {
+		apiResps, err := input.PCE.Load(illumioapi.LoadInput{Labels: true})
 		utils.LogMultiAPIResp(apiResps)
 		if err != nil {
 			utils.LogError(err.Error())
@@ -128,7 +137,7 @@ CSVEntries:
 			continue
 		}
 
-		// If the workload does not exist and umwl is set to true, create the unmanaged workload
+		// Set the compare string
 		compareString := line[input.Headers[input.MatchString]]
 		if input.MatchString == "external_data" {
 			compareString = line[input.Headers[wkldexport.HeaderExternalDataSet]] + line[input.Headers[wkldexport.HeaderExternalDataReference]]
@@ -144,6 +153,7 @@ CSVEntries:
 			compareString = strings.ToLower(compareString)
 		}
 
+		// If the workloads does not exist and we are set to create unmanaged workloads, create it
 		if _, ok := input.PCE.Workloads[compareString]; !ok && input.Umwl {
 
 			// Create the workload
@@ -177,7 +187,9 @@ CSVEntries:
 					if newWkld.Labels == nil {
 						newWkld.Labels = &[]*illumioapi.Label{}
 					}
-					*newWkld.Labels = append(*newWkld.Labels, &illumioapi.Label{Href: checkLabel(input.PCE, illumioapi.Label{Key: headerValue, Value: line[index]}).Href})
+					var retrievedLabel illumioapi.Label
+					retrievedLabel, newLabels = checkLabel(input.PCE, illumioapi.Label{Key: headerValue, Value: line[index]}, newLabels)
+					*newWkld.Labels = append(*newWkld.Labels, &illumioapi.Label{Href: retrievedLabel.Href})
 				}
 			}
 
@@ -303,7 +315,9 @@ CSVEntries:
 					}
 					utils.LogInfo(fmt.Sprintf("csv line %d - %s %s label to be changed from %s to %s.", csvLine, compareString, headerValue, currentlLabelLogValue, line[index]), false)
 					// Add that label to the new labels slice]
-					*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: checkLabel(input.PCE, illumioapi.Label{Key: headerValue, Value: line[index]}).Href})
+					var retrievedLabel illumioapi.Label
+					retrievedLabel, newLabels = checkLabel(input.PCE, illumioapi.Label{Key: headerValue, Value: line[index]}, newLabels)
+					*wkld.Labels = append(*wkld.Labels, &illumioapi.Label{Href: retrievedLabel.Href})
 					continue
 				}
 
@@ -535,14 +549,16 @@ CSVEntries:
 	// Replace the labels that need to
 	for i, wkld := range updatedWklds {
 		newLabels := []*illumioapi.Label{}
-		for _, l := range *wkld.Labels {
-			if strings.Contains(l.Href, "wkld-import-temp") {
-				newLabels = append(newLabels, &illumioapi.Label{Href: labelReplacementMap[l.Href]})
-			} else {
-				newLabels = append(newLabels, &illumioapi.Label{Href: l.Href})
+		if wkld.Labels != nil {
+			for _, l := range *wkld.Labels {
+				if strings.Contains(l.Href, "wkld-import-temp") {
+					newLabels = append(newLabels, &illumioapi.Label{Href: labelReplacementMap[l.Href]})
+				} else {
+					newLabels = append(newLabels, &illumioapi.Label{Href: l.Href})
+				}
 			}
+			wkld.Labels = &newLabels
 		}
-		wkld.Labels = &newLabels
 		updatedWklds[i] = wkld
 	}
 
