@@ -13,7 +13,7 @@ import (
 
 func main() {
 	// Process target-pces and all-pces
-	if os.Args[1] == "target-pces" {
+	if os.Args[1] == "target-pces" && os.Args[2] != "-h" && os.Args[2] != "--help" {
 
 		// Parse CSV data
 		csvData, err := utils.ParseCSV(os.Args[2])
@@ -43,7 +43,7 @@ func main() {
 	}
 
 	// Process all-pces
-	if os.Args[1] == "all-pces" {
+	if os.Args[1] == "all-pces" && os.Args[2] != "-h" && os.Args[2] != "--help" {
 		for _, pce := range pcemgmt.GetAllPCENames() {
 			utils.LogInfo(fmt.Sprintf("running %s", strings.Join(append(os.Args[2:], "--pce", pce), " ")), true)
 			command := exec.Command(os.Args[0], append(os.Args[2:], "--pce", pce)...)
