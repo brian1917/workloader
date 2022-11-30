@@ -107,3 +107,14 @@ var PCEListCmd = &cobra.Command{
 
 	},
 }
+
+// GetAllPCEnames returns PCE names in the pce.yaml file
+func GetAllPCENames() (pceNames []string) {
+	allSettings := viper.AllSettings()
+	for k := range allSettings {
+		if viper.Get(k+".fqdn") != nil {
+			pceNames = append(pceNames, k)
+		}
+	}
+	return pceNames
+}

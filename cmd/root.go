@@ -7,6 +7,7 @@ import (
 
 	"github.com/brian1917/workloader/utils"
 
+	"github.com/brian1917/workloader/cmd/allpce"
 	"github.com/brian1917/workloader/cmd/checkversion"
 	"github.com/brian1917/workloader/cmd/compatibility"
 	"github.com/brian1917/workloader/cmd/containmentswitch"
@@ -119,6 +120,8 @@ func init() {
 	RootCmd.AddCommand(pcemgmt.PCEListCmd)
 	RootCmd.AddCommand(pcemgmt.GetDefaultPCECmd)
 	RootCmd.AddCommand(pcemgmt.SetDefaultPCECmd)
+	RootCmd.AddCommand(allpce.AllPceCmd)
+	RootCmd.AddCommand(allpce.TargetPcesCmd)
 
 	// Import/Export
 	RootCmd.AddCommand(wkldexport.WkldExportCmd)
