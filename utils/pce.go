@@ -62,6 +62,9 @@ func GetPCEbyName(name string, GetLabelMaps bool) (illumioapi.PCE, error) {
 	var pce illumioapi.PCE
 	if viper.IsSet(name + ".fqdn") {
 		pce = illumioapi.PCE{FriendlyName: name, FQDN: viper.Get(name + ".fqdn").(string), Port: viper.Get(name + ".port").(int), Org: viper.Get(name + ".org").(int), User: viper.Get(name + ".user").(string), Key: viper.Get(name + ".key").(string), DisableTLSChecking: viper.Get(name + ".disableTLSChecking").(bool)}
+		if viper.Get(name+".proxy") != nil {
+			pce.Proxy = viper.Get(name + ".proxy").(string)
+		}
 		if GetLabelMaps {
 			apiResps, err := pce.Load(illumioapi.LoadInput{Labels: true})
 			LogMultiAPIResp(apiResps)
