@@ -18,12 +18,13 @@ import (
 )
 
 // Set global variables for flags
-var session, useAPIKey, noAuth bool
+var session, useAPIKey, noAuth, proxy bool
 var configFilePath string
 var err error
 
 func init() {
 	AddPCECmd.Flags().BoolVarP(&session, "session", "s", false, "authentication will be temporary session token. No API Key will be generated.")
+	AddPCECmd.Flags().BoolVarP(&proxy, "proxy", "p", false, "set a proxy. can be changed later with clear-proxy and set-proxy commands.")
 	AddPCECmd.Flags().BoolVarP(&useAPIKey, "api-key", "a", false, "use pre-generated api credentials from an api key or a service account.")
 	AddPCECmd.Flags().BoolVarP(&noAuth, "no-auth", "n", false, "do not authenticate to the pce. subsequent commands will require WORKLOADER_API_USER, WORKLOADER_API_KEY, WORKLOADER_ORG environment variables to be set.")
 	AddPCECmd.Flags().SortFlags = false
@@ -46,7 +47,7 @@ By default, the command will create an API ID and Secret. The --session (-s) fla
 to generate a session token that is valid for 10 minutes after inactivity.
 
 The command can be automated (avoid prompt) by setting the following environment variables:
-PCE_NAME, PCE_FQDN, PCE_PORT, PCE_USER, PCE_PWD, PCE_DISABLE_TLS.
+PCE_NAME, PCE_FQDN, PCE_PORT, PCE_USER, PCE_PWD, PCE_DISABLE_TLS, PCE_PROXY.
 
 The ILLUMIO_LOGIN_SERVER environment variable can be used to specify a login server (note - rarely needed).
 
@@ -72,11 +73,11 @@ func addPCE() {
 
 	var err error
 	var pce illumioapi.PCE
-	var pceName, fqdn, user, pwd, disableTLSStr string
+	var pceName, fqdn, user, pwd, disableTLSStr, proxyServer string
 	var port int
 
 	// Check if all our env variables are set
-	envVars := []string{"PCE_NAME", "PCE_FQDN", "PCE_PORT", "PCE_USER", "PCE_PWD", "PCE_DISABLE_TLS"}
+	envVars := []string{"PCE_NAME", "PCE_FQDN", "PCE_PORT", "PCE_USER", "PCE_PWD", "PCE_DISABLE_TLS", "PCE_PROXY"}
 	auto := true
 	for _, e := range envVars {
 		if os.Getenv(e) == "" {
@@ -124,6 +125,14 @@ func addPCE() {
 		port, err = strconv.Atoi(portStr)
 		if err != nil {
 			utils.LogError(err.Error())
+		}
+	}
+
+	if proxy {
+		proxyServer = os.Getenv("PCE_PROXY")
+		if proxyServer == "" {
+			fmt.Print("Proxy Server (http://server:port): ")
+			fmt.Scanln(&proxyServer)
 		}
 	}
 
@@ -189,6 +198,7 @@ func addPCE() {
 	if useAPIKey {
 		pce.FQDN = fqdn
 		pce.Port = port
+		pce.Proxy = proxyServer
 		pce.Org = org
 		pce.User = apiUser
 		pce.Key = apiKey
@@ -242,6 +252,7 @@ func addPCE() {
 	viper.Set(pceName+".key", pce.Key)
 	viper.Set(pceName+".disableTLSChecking", pce.DisableTLSChecking)
 	viper.Set(pceName+".userHref", userLogin.Href)
+	viper.Set(pceName+".proxy", pce.Proxy)
 	if !viper.IsSet("max_entries_for_stdout") {
 		viper.Set("max_entries_for_stdout", 100)
 	}
