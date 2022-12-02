@@ -255,6 +255,24 @@ func ExportRules(input Input) {
 		csvData = append(csvData, getCSVHeaders(input.TemplateFormat))
 	}
 
+	// Remove workloadsubnets from headers based on PCE version
+	version, api, err := input.PCE.GetVersion()
+	utils.LogAPIResp("GetVersion", api)
+	if err != nil {
+		utils.LogError(err.Error())
+	}
+	if version.Major < 22 || (version.Major == 22 && version.Minor < 2) {
+		tempHeaders := []string{}
+		for _, header := range csvData[0] {
+			if header == HeaderConsumerUseWorkloadSubnets || header == HeaderProviderUseWorkloadSubnets {
+				continue
+			}
+			tempHeaders = append(tempHeaders, header)
+		}
+		csvData = nil
+		csvData = append(csvData, tempHeaders)
+	}
+
 	edgeCSVData := [][]string{{"group", "consumer_iplist", "consumer_group", "consumer_user_group", "service", "provider_group", "provider_iplist", "rule_enabled", "machine_auth", "rule_href", "ruleset_href"}}
 
 	// Iterate each ruleset
@@ -655,6 +673,18 @@ func ExportRules(input Input) {
 			// Resolve As
 			csvEntryMap[HeaderConsumerResolveLabelsAs] = strings.Join(r.ResolveLabelsAs.Consumers, ";")
 			csvEntryMap[HeaderProviderResolveLabelsAs] = strings.Join(r.ResolveLabelsAs.Providers, ";")
+
+			// Use Workload Subnets
+			csvEntryMap[HeaderConsumerUseWorkloadSubnets] = "false"
+			csvEntryMap[HeaderProviderUseWorkloadSubnets] = "false"
+			for _, u := range r.UseWorkloadSubnets {
+				if u == "consumers" {
+					csvEntryMap[HeaderConsumerUseWorkloadSubnets] = "true"
+				}
+				if u == "providers" {
+					csvEntryMap[HeaderProviderUseWorkloadSubnets] = "true"
+				}
+			}
 
 			// Append to output if there are no filters or if we pass the filter checks
 			skip := false

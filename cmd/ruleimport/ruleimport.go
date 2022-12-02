@@ -679,8 +679,51 @@ CSVEntries:
 			*targets[z] = csvResolveAsSlc
 		}
 
+		// ******************** Use Subnet only ********************/
+		// Build the target slice
+		useWkldSubnets := []string{}
+
+		// Set up some slices
+		target := []string{"consumers", "providers"}
+		targetHeaders := []string{ruleexport.HeaderConsumerUseWorkloadSubnets, ruleexport.HeaderProviderUseWorkloadSubnets}
+
+		// Iterate through the slices
+		for a := range target {
+			// Check if the header is provided
+			if c, ok := input.Headers[targetHeaders[a]]; ok {
+				// Get the CSV value
+				csvValue, err := strconv.ParseBool(l[c])
+				if err != nil {
+					utils.LogError(fmt.Sprintf("csv line %d - %s is not a valid boolean", i+1, l[c]))
+				}
+				// Check if the rule exists
+				if existingRule, ok := rHrefMap[rowRuleHref]; ok {
+					// Set a variable for existingStatus
+					existingStatus := false
+					for _, x := range existingRule.UseWorkloadSubnets {
+						if x == target[a] {
+							existingStatus = true
+						}
+					}
+					// If the existing status doesn't match the CSV provided, update
+					if existingStatus != csvValue {
+						update = true
+						utils.LogInfo(fmt.Sprintf("csv line %d - %s to be updated from %t to %t", i+1, targetHeaders[a], existingStatus, csvValue), true)
+					}
+					if csvValue {
+						useWkldSubnets = append(useWkldSubnets, target[a])
+					}
+				} else {
+					// The rule doesn't excist
+					if csvValue {
+						useWkldSubnets = append(useWkldSubnets, target[a])
+					}
+				}
+			}
+		}
+
 		// Create the rule
-		csvRule := illumioapi.Rule{Description: description, UnscopedConsumers: &unscopedConsumers, Consumers: consumers, ConsumingSecurityPrincipals: consumingSecPrincipals, Providers: providers, IngressServices: &ingressSvc, Enabled: &enabled, MachineAuth: &machineAuth, SecConnect: &secConnect, Stateless: &stateless, ResolveLabelsAs: &illumioapi.ResolveLabelsAs{Consumers: consResolveAs, Providers: provResolveAs}}
+		csvRule := illumioapi.Rule{Description: description, UnscopedConsumers: &unscopedConsumers, Consumers: consumers, ConsumingSecurityPrincipals: consumingSecPrincipals, Providers: providers, IngressServices: &ingressSvc, Enabled: &enabled, MachineAuth: &machineAuth, SecConnect: &secConnect, Stateless: &stateless, ResolveLabelsAs: &illumioapi.ResolveLabelsAs{Consumers: consResolveAs, Providers: provResolveAs}, UseWorkloadSubnets: useWkldSubnets}
 
 		// Add to our array
 		// Option 1 - No rule HREF provided, so it's a new rule
