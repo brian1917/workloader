@@ -21,7 +21,6 @@ func serviceComparison(csvServices []string, rule illumioapi.Rule, pceServiceMap
 
 		// Check if last three letters are TCP or UDP
 		if _, err := strconv.Atoi(string(c[0])); err == nil && (strings.ToLower(c[len(c)-3:]) == "tcp" || strings.ToLower(c[len(c)-3:]) == "udp") && strings.Count(c, " ") == 1 {
-
 			protocol, port, toPort, err := parseCSVPortEntry(c)
 			if err != nil {
 				utils.LogError(err.Error())
@@ -32,7 +31,7 @@ func serviceComparison(csvServices []string, rule illumioapi.Rule, pceServiceMap
 			if protocol == "udp" {
 				proto = 17
 			}
-			csvServiceEntries[fmt.Sprintf("%s-%d-%d", protocol, port, toPort)] = illumioapi.IngressServices{Protocol: &proto, Port: port, ToPort: toPort}
+			csvServiceEntries[fmt.Sprintf("%s-%d-%d", protocol, port, toPort)] = illumioapi.IngressServices{Protocol: &proto, Port: &port, ToPort: &toPort}
 
 			// Check if it's a service
 		} else if service, exists := pceServiceMap[c]; exists {
@@ -52,7 +51,14 @@ func serviceComparison(csvServices []string, rule illumioapi.Rule, pceServiceMap
 				if *ruleService.Protocol == 17 {
 					protocol = "udp"
 				}
-				ruleServiceEntries[fmt.Sprintf("%s-%d-%d", protocol, ruleService.Port, ruleService.ToPort)] = *ruleService
+				var port, toPort int
+				if ruleService.Port != nil {
+					port = *ruleService.Port
+				}
+				if ruleService.ToPort != nil {
+					toPort = *ruleService.ToPort
+				}
+				ruleServiceEntries[fmt.Sprintf("%s-%d-%d", protocol, port, toPort)] = *ruleService
 			} else {
 				ruleServiceEntries[pceServiceMap[*ruleService.Href].Name] = *ruleService
 			}
@@ -63,10 +69,9 @@ func serviceComparison(csvServices []string, rule illumioapi.Rule, pceServiceMap
 	change := false
 
 	// Check to see if what's in the CSV is in the PCE rule
-
 	for s := range csvServiceEntries {
 		if _, check := ruleServiceEntries[s]; !check && rule.Href != "" {
-			utils.LogInfo(fmt.Sprintf("CSV line %d - %s is a service in the CSV rule but is not in the PCE rule. It will be added.", csvLine, s), false)
+			utils.LogInfo(fmt.Sprintf("csv line %d - %s is a service in the csv rule but is not in the pce rule. it will be added.", csvLine, s), false)
 			change = true
 		}
 	}
@@ -74,7 +79,7 @@ func serviceComparison(csvServices []string, rule illumioapi.Rule, pceServiceMap
 	// Check to see if what's in the PCE rule is in the CSV
 	for s := range ruleServiceEntries {
 		if _, check := csvServiceEntries[s]; !check && rule.Href != "" {
-			utils.LogInfo(fmt.Sprintf("CSV line %d - %s is a service in the PCE rule but is not in the CSV rule. It will be removed.", csvLine, s), false)
+			utils.LogInfo(fmt.Sprintf("csv line %d - %s is a service in the pce rule but is not in the csv rule. it will be removed.", csvLine, s), false)
 			change = true
 		}
 	}
@@ -89,7 +94,7 @@ func serviceComparison(csvServices []string, rule illumioapi.Rule, pceServiceMap
 	return false, *rule.IngressServices
 }
 
-func parseCSVPortEntry(entry string) (protocol string, port *int, toPort *int, err error) {
+func parseCSVPortEntry(entry string) (protocol string, port int, toPort int, err error) {
 
 	// Get the protocol
 	protocol = strings.ToLower(entry[len(entry)-3:])
@@ -100,26 +105,14 @@ func parseCSVPortEntry(entry string) (protocol string, port *int, toPort *int, e
 	// Split the ports on the dash
 	s := strings.Split(entry, "-")
 	if len(s) == 1 {
-		p, err := strconv.Atoi(s[0][:len(s[0])-3])
-		port = &p
-		if err != nil {
-			return protocol, port, toPort, err
-		}
-	} else {
-
-		a, err := strconv.Atoi(s[0])
-		port = &a
-		if err != nil {
-			return protocol, port, toPort, err
-		}
-		b, err := strconv.Atoi(s[1][:len(s[1])-3])
-		toPort = &b
-		if err != nil {
-			return protocol, port, toPort, err
-
-		}
+		port, err := strconv.Atoi(s[0][:len(s[0])-3])
+		return protocol, port, toPort, err
 	}
+	port, err = strconv.Atoi(s[0])
+	if err != nil {
+		return protocol, port, toPort, err
+	}
+	toPort, err = strconv.Atoi(s[1][:len(s[1])-3])
 
-	return protocol, port, toPort, nil
-
+	return protocol, port, toPort, err
 }
