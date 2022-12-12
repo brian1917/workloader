@@ -17,8 +17,6 @@ import (
 	"github.com/brian1917/workloader/cmd/deletehrefs"
 	"github.com/brian1917/workloader/cmd/deleteunusedlabels"
 	"github.com/brian1917/workloader/cmd/dupecheck"
-	"github.com/brian1917/workloader/cmd/edgeadmin"
-	"github.com/brian1917/workloader/cmd/edgerulecopy"
 	"github.com/brian1917/workloader/cmd/explorer"
 	"github.com/brian1917/workloader/cmd/extract"
 	"github.com/brian1917/workloader/cmd/flowimport"
@@ -65,7 +63,6 @@ import (
 	"github.com/brian1917/workloader/cmd/wkldimport"
 	"github.com/brian1917/workloader/cmd/wkldiplmapping"
 	"github.com/brian1917/workloader/cmd/wkldreplicate"
-	"github.com/brian1917/workloader/cmd/wkldtoipl"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -183,11 +180,6 @@ func init() {
 	RootCmd.AddCommand(wkldiplmapping.WkldIPLMappingCmd)
 	RootCmd.AddCommand(venhealth.VenHealthCmd)
 	RootCmd.AddCommand(unusedumwl.UnusedUmwlCmd)
-
-	// Edge Commands
-	RootCmd.AddCommand(wkldtoipl.WorkloadToIPLCmd)
-	RootCmd.AddCommand(edgerulecopy.EdgeRuleCopyCmd)
-	RootCmd.AddCommand(edgeadmin.EdgeAdminCmd)
 
 	// Version Commands
 	RootCmd.AddCommand(versionCmd)
