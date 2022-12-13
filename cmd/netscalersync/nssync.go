@@ -121,7 +121,7 @@ func nsSync(pce illumioapi.PCE, netscaler ns.NetScaler) {
 		} else {
 			// If it does not exist, create the workload
 			utils.LogInfo(fmt.Sprintf("%s to be created - ip: %s", hostname, nsSnatIP.Ipaddress), true)
-			createUMWLs = append(createUMWLs, illumioapi.Workload{Hostname: hostname, Interfaces: []*illumioapi.Interface{{Address: nsSnatIP.Ipaddress, Name: "umwl0"}}, ExternalDataSet: "workloader-netscaler-sync", ExternalDataReference: uuid.New().String()})
+			createUMWLs = append(createUMWLs, illumioapi.Workload{Hostname: hostname, Interfaces: []*illumioapi.Interface{{Address: nsSnatIP.Ipaddress, Name: "umwl0"}}, ExternalDataSet: utils.StrToPtr("workloader-netscaler-sync"), ExternalDataReference: utils.StrToPtr(uuid.New().String())})
 		}
 	}
 
@@ -146,7 +146,7 @@ func nsSync(pce illumioapi.PCE, netscaler ns.NetScaler) {
 	utils.LogInfo("processing pce unmanaged workloads that should be removed because SNIP no longer exists...", true)
 	for _, pceUMWL := range pceUMWLs {
 		// Only process if it's in the external dataset
-		if pceUMWL.ExternalDataSet != externalDataSet {
+		if utils.PtrToStr(pceUMWL.ExternalDataSet) != externalDataSet {
 			continue
 		}
 		// If the UMWL name doesn't exist in the PCE, get it ready for removal.

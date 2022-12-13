@@ -171,8 +171,8 @@ func exportWorkloads() {
 		}
 
 		// Remove newlines in description
-		if removeDescNewLines {
-			w.Description = utils.ReplaceNewLine(w.Description)
+		if removeDescNewLines && w.Description != nil {
+			*w.Description = utils.ReplaceNewLine(*w.Description)
 		}
 
 		// Get the labels
@@ -187,7 +187,7 @@ func exportWorkloads() {
 			data = append(data, w.Href)
 		}
 		data = append(data, labelValueSlice...)
-		data = append(data, strconv.FormatBool(managedStatus), strings.Join(interfaces, ";"), w.PublicIP, w.DistinguishedName, w.GetIPWithDefaultGW(), w.GetNetMaskWithDefaultGW(), w.GetDefaultGW(), w.GetNetworkWithDefaultGateway(), w.ServicePrincipalName, w.Description, w.GetMode(), w.GetVisibilityLevel(), strconv.FormatBool(w.Online), agentStatus, agentHealth, policySyncStatus, policyAppliedAt, poicyReceivedAt, policyRefreshAt, lastHeartBeat, hoursSinceLastHB, w.CreatedAt, w.OsID, w.OsDetail, venHref, venVersion, venID, pairedPCE, w.ServiceProvider, w.DataCenter, w.DataCenterZone, instanceID)
+		data = append(data, strconv.FormatBool(managedStatus), strings.Join(interfaces, ";"), w.PublicIP, utils.PtrToStr(w.DistinguishedName), w.GetIPWithDefaultGW(), w.GetNetMaskWithDefaultGW(), w.GetDefaultGW(), w.GetNetworkWithDefaultGateway(), utils.PtrToStr(w.ServicePrincipalName), utils.PtrToStr(w.Description), w.GetMode(), w.GetVisibilityLevel(), strconv.FormatBool(w.Online), agentStatus, agentHealth, policySyncStatus, policyAppliedAt, poicyReceivedAt, policyRefreshAt, lastHeartBeat, hoursSinceLastHB, w.CreatedAt, utils.PtrToStr(w.OsID), utils.PtrToStr(w.OsDetail), venHref, venVersion, venID, pairedPCE, w.ServiceProvider, utils.PtrToStr(w.DataCenter), w.DataCenterZone, instanceID)
 
 		if includeVuln {
 			var numVulns, maxVulnScore, vulnScore, vulnPortExposure, anyExposure, iplExposure, vulnExposureScore string
@@ -203,9 +203,9 @@ func exportWorkloads() {
 				anyExposure = strconv.FormatBool(w.VulnerabilitySummary.VulnerablePortWideExposure.Any)
 				iplExposure = strconv.FormatBool(w.VulnerabilitySummary.VulnerablePortWideExposure.IPList)
 			}
-			data = append(data, vulnExposureScore, numVulns, maxVulnScore, vulnScore, vulnPortExposure, anyExposure, iplExposure, w.ExternalDataSet, w.ExternalDataReference)
+			data = append(data, vulnExposureScore, numVulns, maxVulnScore, vulnScore, vulnPortExposure, anyExposure, iplExposure, utils.PtrToStr(w.ExternalDataSet), utils.PtrToStr(w.ExternalDataReference))
 		}
-		data = append(data, w.ExternalDataSet, w.ExternalDataReference)
+		data = append(data, utils.PtrToStr(w.ExternalDataSet), utils.PtrToStr(w.ExternalDataReference))
 		csvData = append(csvData, data)
 
 		stdOutData = append(stdOutData, []string{w.Hostname, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, w.GetMode()})

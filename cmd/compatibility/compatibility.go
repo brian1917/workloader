@@ -197,7 +197,7 @@ func compatibilityReport() {
 		ipv6ActiveConnCnt := "green"
 		iP6TablesRuleCnt := "green"
 		routingTableConflict := "green"
-		if strings.Contains(w.OsID, "win") {
+		if strings.Contains(utils.PtrToStr(w.OsID), "win") {
 			iPv6Enabled = "green"
 			unwantedNics = "green"
 			groupPolicy = "green"
@@ -264,7 +264,7 @@ func compatibilityReport() {
 
 		// Put into slice if it's NOT green and issuesOnly is true
 		if (cr.QualifyStatus != "green" && issuesOnly) || !issuesOnly {
-			csvData = append(csvData, []string{w.Hostname, w.Href, cr.QualifyStatus, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, w.OsID, w.OsDetail, requiredPackagesInstalled, requiredPackagesMissing, ipsecServiceEnabled, ipv4ForwardingEnabled, ipv4ForwardingPktCnt, iptablesRuleCnt, ipv6GlobalScope, ipv6ActiveConnCnt, iP6TablesRuleCnt, routingTableConflict, iPv6Enabled, unwantedNics, groupPolicy, a.RespBody})
+			csvData = append(csvData, []string{w.Hostname, w.Href, cr.QualifyStatus, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, utils.PtrToStr(w.OsID), utils.PtrToStr(w.OsDetail), requiredPackagesInstalled, requiredPackagesMissing, ipsecServiceEnabled, ipv4ForwardingEnabled, ipv4ForwardingPktCnt, iptablesRuleCnt, ipv6GlobalScope, ipv6ActiveConnCnt, iP6TablesRuleCnt, routingTableConflict, iPv6Enabled, unwantedNics, groupPolicy, a.RespBody})
 			stdOutData = append(stdOutData, []string{w.Hostname, w.Href, cr.QualifyStatus})
 		}
 
