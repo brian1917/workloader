@@ -44,8 +44,10 @@ github.com/brian1917/illumioapi v1.67.0 h1:AZOns58I6N6ry95Nx1X5h7i1/oIR2Vm+zzHYE
 github.com/brian1917/illumioapi v1.67.0/go.mod h1:bjIvUDUX41hxKaJ35ztNOkqUt6bQq5fGa1RPDI7d+S4=
 github.com/brian1917/illumioapi v1.68.0 h1:WOqvkU2jm1ZQRsx3Jp4HymFB4MNLbWaBLBQhROr0CPk=
 github.com/brian1917/illumioapi v1.68.0/go.mod h1:bjIvUDUX41hxKaJ35ztNOkqUt6bQq5fGa1RPDI7d+S4=
-github.com/brian1917/illumioapi v1.71.0 h1:N7PbTasvrkg2GCQIFYjVicGbrQPSq3OCvIXWVBcj2+A=
-github.com/brian1917/illumioapi v1.71.0/go.mod h1:bjIvUDUX41hxKaJ35ztNOkqUt6bQq5fGa1RPDI7d+S4=
+github.com/brian1917/illumioapi v1.72.0 h1:sAXEApCT51DN1W4Y/e9XuD346JuChK5fDnPqdMzmXgs=
+github.com/brian1917/illumioapi v1.72.0/go.mod h1:bjIvUDUX41hxKaJ35ztNOkqUt6bQq5fGa1RPDI7d+S4=
+github.com/brian1917/illumioapi v1.73.0 h1:xd/KZoWsrqpEJ7CTzQ4ryjD3FbRRynnWq6wiNqR1Ggk=
+github.com/brian1917/illumioapi v1.73.0/go.mod h1:bjIvUDUX41hxKaJ35ztNOkqUt6bQq5fGa1RPDI7d+S4=
 github.com/brian1917/ns v1.2.0 h1:8z9dR8WhaqJPTi8Ygyf6VHrYGoP8dbNV8hoD30/k/8c=
 github.com/brian1917/ns v1.2.0/go.mod h1:2MohDxeuiUsV/vtkLkdnU6q0z5yByOK9c2vGPGbCkKo=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=

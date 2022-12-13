@@ -3,7 +3,7 @@ module github.com/brian1917/workloader
 go 1.18
 
 require (
-	github.com/brian1917/illumioapi v1.71.0
+	github.com/brian1917/illumioapi v1.72.0
 	github.com/brian1917/ns v1.2.0
 	github.com/google/uuid v1.1.2
 	github.com/olekukonko/tablewriter v0.0.5
