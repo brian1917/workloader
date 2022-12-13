@@ -26,7 +26,16 @@ type Input struct {
 	IgnoreCase                                                                                                bool
 }
 
-// input is a global variable for the wkld-import command's isntance of Input
+// Create a wrapper workload to add methods
+type importWkld struct {
+	wkld          *illumioapi.Workload
+	compareString string
+	csvLine       []string
+	csvLineNum    int
+	change        bool
+}
+
+// input is a global variable for the wkld-import command's instance of Input
 var input Input
 
 func init() {
