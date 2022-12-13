@@ -3,7 +3,7 @@ module github.com/brian1917/workloader
 go 1.18
 
 require (
-	github.com/brian1917/illumioapi v1.71.0
+	github.com/brian1917/illumioapi v1.72.0
 	github.com/brian1917/ns v1.2.0
 	github.com/google/uuid v1.1.2
 	github.com/olekukonko/tablewriter v0.0.5
@@ -11,6 +11,8 @@ require (
 	github.com/spf13/viper v1.12.0
 	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035
 )
+
+replace github.com/brian1917/illumioapi v1.71.0 => /Users/brian.pitta/go/src/github.com/brian1917/illumioapi
 
 require (
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
