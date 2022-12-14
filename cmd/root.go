@@ -122,6 +122,8 @@ func init() {
 	RootCmd.AddCommand(pcemgmt.SetDefaultPCECmd)
 	RootCmd.AddCommand(allpce.AllPceCmd)
 	RootCmd.AddCommand(allpce.TargetPcesCmd)
+	RootCmd.AddCommand(pcemgmt.SetProxyCmd)
+	RootCmd.AddCommand(pcemgmt.ClearProxyCmd)
 
 	// Import/Export
 	RootCmd.AddCommand(wkldexport.WkldExportCmd)
