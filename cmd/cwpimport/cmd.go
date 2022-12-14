@@ -148,14 +148,14 @@ func importContainerProfiles(pce illumioapi.PCE, importFile, removeValue string,
 				// Name - Update a value
 				if cwp.Name != nil && row[headers[cwpexport.Name]] != "" && *cwp.Name != row[headers[cwpexport.Name]] && row[headers[cwpexport.Name]] != removeValue {
 					logMsgs = append(logMsgs, fmt.Sprintf("name to be changed from %s to %s", *cwp.Name, row[headers[cwpexport.Name]]))
-					*cwp.Name = row[headers[cwpexport.Name]]
+					cwp.Name = &row[headers[cwpexport.Name]]
 					update = true
 				}
 
 				// Description - Blank to a value
-				if (*cwp.Description == "" || cwp.Description == nil) && row[headers[cwpexport.Description]] != "" && row[headers[cwpexport.Description]] != removeValue {
+				if (cwp.Description == nil || *cwp.Description == "") && row[headers[cwpexport.Description]] != "" && row[headers[cwpexport.Description]] != removeValue {
 					logMsgs = append(logMsgs, fmt.Sprintf("blank description value to be changed to %s", row[headers[cwpexport.Description]]))
-					*cwp.Description = row[headers[cwpexport.Description]]
+					cwp.Description = &row[headers[cwpexport.Description]]
 					update = true
 				}
 
@@ -169,7 +169,7 @@ func importContainerProfiles(pce illumioapi.PCE, importFile, removeValue string,
 				// Description - Update a value
 				if cwp.Description != nil && row[headers[cwpexport.Description]] != "" && *cwp.Description != row[headers[cwpexport.Description]] && row[headers[cwpexport.Description]] != removeValue {
 					logMsgs = append(logMsgs, fmt.Sprintf("description to be changed from %s to %s", *cwp.Description, row[headers[cwpexport.Description]]))
-					*cwp.Description = row[headers[cwpexport.Description]]
+					cwp.Description = &row[headers[cwpexport.Description]]
 					update = true
 				}
 
