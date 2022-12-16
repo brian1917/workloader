@@ -102,3 +102,11 @@ func LogStartCommand(commandName string) {
 func LogEndCommand(commandName string) {
 	LogInfo(fmt.Sprintf("%s completed", commandName), true)
 }
+
+// Replaces a blank string with <empty>
+func LogBlankValue(val string) string {
+	if val == "" {
+		return "<empty>"
+	}
+	return val
+}
