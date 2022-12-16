@@ -33,8 +33,18 @@ func (w *importWkld) labels(input Input, newLabels []illumioapi.Label, labelKeys
 	// Create a copy of the workload before editing it
 	originalWkld := *w.wkld
 
-	// Clear the labels
-	w.wkld.Labels = &[]*illumioapi.Label{}
+	// Initialize a variable to clear the labels only if we are processing them
+	labelsCleared := false
+
+	// Put all labels that don't have a header back in
+	nonProcessedLabels := []*illumioapi.Label{}
+	if w.wkld.Labels != nil {
+		for _, l := range *w.wkld.Labels {
+			if _, ok := input.Headers[input.PCE.Labels[l.Href].Key]; !ok {
+				nonProcessedLabels = append(nonProcessedLabels, l)
+			}
+		}
+	}
 
 	// Process all headers to see if they are labels
 	for headerValue, index := range input.Headers {
@@ -44,10 +54,17 @@ func (w *importWkld) labels(input Input, newLabels []illumioapi.Label, labelKeys
 			continue
 		}
 
+		// If the input has a label header, we clear the original labels.
+		if !labelsCleared {
+			// Clear the labels
+			w.wkld.Labels = &[]*illumioapi.Label{}
+			labelsCleared = true
+		}
+
 		// Get the current label
 		currentLabel := originalWkld.GetLabelByKey(headerValue, input.PCE.Labels)
 
-		// If the value is blank and the current label exists, keep the current label.
+		// If the value is blank and the current label exists keep the current label.
 		// Or, if the CSV entry equals the current value, keep it
 		if (w.csvLine[index] == "" && currentLabel.Href != "") || (w.csvLine[index] == currentLabel.Value && w.csvLine[index] != "") {
 			*w.wkld.Labels = append(*w.wkld.Labels, &illumioapi.Label{Href: currentLabel.Href})
@@ -59,7 +76,7 @@ func (w *importWkld) labels(input Input, newLabels []illumioapi.Label, labelKeys
 			// Log if updating
 			if w.wkld.Href != "" && input.UpdateWorkloads {
 				w.change = true
-				utils.LogInfo(fmt.Sprintf("csv line %d - %s requiring removal of %s label.", w.csvLineNum, w.compareString, currentLabel.Key), false)
+				utils.LogInfo(fmt.Sprintf("csv line %d - %-s - %s label of %s to be removed.", w.csvLineNum, w.compareString, currentLabel.Key, currentLabel.Value), false)
 			}
 			// Stop processing this label
 			continue
@@ -80,10 +97,14 @@ func (w *importWkld) labels(input Input, newLabels []illumioapi.Label, labelKeys
 				if currentLabel.Value == "" {
 					currentlLabelLogValue = "<empty>"
 				}
-				utils.LogInfo(fmt.Sprintf("csv line %d - %s %s label to be changed from %s to %s.", w.csvLineNum, w.compareString, headerValue, currentlLabelLogValue, w.csvLine[index]), false)
+				utils.LogInfo(fmt.Sprintf("csv line %d - %s - %s label to be changed from %s to %s.", w.csvLineNum, w.compareString, headerValue, currentlLabelLogValue, w.csvLine[index]), false)
 			}
 		}
-
 	}
+	// Add the unprocessed labels if they were cleared
+	if labelsCleared {
+		*w.wkld.Labels = append(*w.wkld.Labels, nonProcessedLabels...)
+	}
+
 	return newLabels
 }
