@@ -12,8 +12,6 @@ require (
 	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035
 )
 
-replace github.com/brian1917/illumioapi v1.71.0 => /Users/brian.pitta/go/src/github.com/brian1917/illumioapi
-
 require (
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
