@@ -16,7 +16,7 @@ func (w *importWkld) publcIP(input Input) {
 			}
 			if w.wkld.Href != "" && input.UpdateWorkloads {
 				w.change = true
-				utils.LogInfo(fmt.Sprintf("csv line %d - Public IP to be changed from %s to %s", w.csvLineNum, w.wkld.PublicIP, w.csvLine[index]), false)
+				utils.LogInfo(fmt.Sprintf("csv line %d - %s- public ip to be changed from %s to %s", w.csvLineNum, w.compareString, utils.LogBlankValue(w.wkld.PublicIP), w.csvLine[index]), false)
 			}
 			w.wkld.PublicIP = w.csvLine[index]
 		}

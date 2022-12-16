@@ -14,7 +14,7 @@ func (w *importWkld) name(input Input) {
 			if w.wkld.Name != w.csvLine[index] {
 				if w.wkld.Href != "" && input.UpdateWorkloads {
 					w.change = true
-					utils.LogInfo(fmt.Sprintf("csv line %d - name to be changed from %s to %s", w.csvLineNum, w.wkld.Name, w.csvLine[index]), false)
+					utils.LogInfo(fmt.Sprintf("csv line %d - %s - name to be changed from %s to %s", w.csvLineNum, w.compareString, utils.LogBlankValue(w.wkld.Name), w.csvLine[index]), false)
 				}
 				w.wkld.Name = w.csvLine[index]
 			}

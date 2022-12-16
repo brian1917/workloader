@@ -147,7 +147,7 @@ func (w *importWkld) interfaces(input Input) {
 				updateInterfaces = true
 				if w.wkld.Href != "" && input.UpdateWorkloads {
 					w.change = true
-					utils.LogInfo(fmt.Sprintf("csv line %d - interface not in user provided data - ip: %s, cidr: %s, name: %s", w.csvLineNum, iFace.Address, cidrText, iFace.Name), false)
+					utils.LogInfo(fmt.Sprintf("csv line %d - %s - interface not in csv and will be removed - ip: %s, cidr: %s, name: %s", w.csvLineNum, w.compareString, iFace.Address, cidrText, iFace.Name), false)
 				}
 			}
 		}
@@ -162,7 +162,7 @@ func (w *importWkld) interfaces(input Input) {
 				updateInterfaces = true
 				if w.wkld.Href != "" && input.UpdateWorkloads {
 					w.change = true
-					utils.LogInfo(fmt.Sprintf("csv line %d - user provided interface not in workload - ip: %s, cidr: %s, name: %s", w.csvLineNum, u.Address, cidrText, u.Name), false)
+					utils.LogInfo(fmt.Sprintf("csv line %d - %s - interface not in pce and will be added - ip: %s, cidr: %s, name: %s", w.csvLineNum, w.compareString, u.Address, cidrText, u.Name), false)
 				}
 			}
 		}
