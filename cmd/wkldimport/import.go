@@ -156,34 +156,29 @@ func ImportWkldsFromCSV(input Input) {
 		newLabels = w.labels(input, newLabels, labelKeysMap)
 
 		// Process fields that don't require logic
-		//headerValues := []string{wkldexport.HeaderDescription, wkldexport.HeaderMachineAuthenticationID, wkldexport.HeaderSPN, wkldexport.HeaderExternalDataSet, wkldexport.HeaderExternalDataReference, wkldexport.HeaderOsID, wkldexport.HeaderOsDetail, wkldexport.HeaderDataCenter}
-		headerValues := []string{wkldexport.HeaderDescription}
-		targetUpdates := []*string{w.wkld.Description, w.wkld.DistinguishedName, w.wkld.ServicePrincipalName, w.wkld.ExternalDataSet, w.wkld.ExternalDataReference, w.wkld.OsID, w.wkld.OsDetail, w.wkld.DataCenter}
-		// targetUpdates := []*string{w.wkld.Description}
+		headerValues := []string{wkldexport.HeaderDescription, wkldexport.HeaderMachineAuthenticationID, wkldexport.HeaderSPN, wkldexport.HeaderExternalDataSet, wkldexport.HeaderExternalDataReference, wkldexport.HeaderOsID, wkldexport.HeaderOsDetail, wkldexport.HeaderDataCenter}
+		targetUpdates := []**string{&w.wkld.Description, &w.wkld.DistinguishedName, &w.wkld.ServicePrincipalName, &w.wkld.ExternalDataSet, &w.wkld.ExternalDataReference, &w.wkld.OsID, &w.wkld.OsDetail, &w.wkld.DataCenter}
 
 		for i, header := range headerValues {
 			if index, ok := input.Headers[header]; ok {
-				if w.csvLine[index] == input.RemoveValue && (targetUpdates[i] == nil || *targetUpdates[i] != "") {
-					x := ""
-					fmt.Println("here")
-					*targetUpdates[i] = x
-					fmt.Println(*w.wkld.Description)
+				//&& utils.PtrToStr(*targetUpdates[i]) != ""
+				if w.csvLine[index] == input.RemoveValue && targetUpdates[i] != nil && utils.PtrToStr(*targetUpdates[i]) != "" {
 					if w.wkld.Href != "" {
-						utils.LogInfo(fmt.Sprintf("csv line %d - %s to be removed", w.csvLineNum, header), false)
+						utils.LogInfo(fmt.Sprintf("csv line %d - %s - %s to be removed", w.csvLineNum, w.compareString, header), false)
 						w.change = true
 					}
-					continue
-				}
-				if targetUpdates[i] == nil {
-					x := ""
-					targetUpdates[i] = &x
-				}
-				if w.csvLine[index] != *targetUpdates[i] {
+					**targetUpdates[i] = ""
+				} else if w.csvLine[index] != utils.PtrToStr(*targetUpdates[i]) && w.csvLine[index] != "" {
+					// The values don't equal each other and not using the remove value
 					if w.wkld.Href != "" {
-						utils.LogInfo(fmt.Sprintf("csv line %d - %s to be changed from %s to %s", w.csvLineNum, header, *targetUpdates[i], w.csvLine[index]), false)
+						logValue := utils.PtrToStr(*targetUpdates[i])
+						if logValue == "" {
+							logValue = "<empty>"
+						}
+						utils.LogInfo(fmt.Sprintf("csv line %d - %s - %s - %s to be changed from \"%s\" to \"%s\"", w.csvLineNum, w.wkld.Hostname, w.wkld.Href, header, logValue, w.csvLine[index]), false)
 						w.change = true
 					}
-					*targetUpdates[i] = line[index]
+					*targetUpdates[i] = &w.csvLine[index]
 				}
 
 			}
@@ -192,6 +187,7 @@ func ImportWkldsFromCSV(input Input) {
 		// Put into right slices
 		if w.wkld.Href == "" && input.Umwl {
 			newUMWLs = append(newUMWLs, *w.wkld)
+			utils.LogInfo(fmt.Sprintf("csv line %d - %s to be created", w.csvLineNum, w.compareString), false)
 		}
 		if w.wkld.Href != "" && w.change && input.UpdateWorkloads {
 			updatedWklds = append(updatedWklds, *w.wkld)
