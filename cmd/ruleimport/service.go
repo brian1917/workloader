@@ -31,7 +31,11 @@ func serviceComparison(csvServices []string, rule illumioapi.Rule, pceServiceMap
 			if protocol == "udp" {
 				proto = 17
 			}
-			csvServiceEntries[fmt.Sprintf("%s-%d-%d", protocol, port, toPort)] = illumioapi.IngressServices{Protocol: &proto, Port: &port, ToPort: &toPort}
+			toPortPtr := &toPort
+			if toPort == 0 {
+				toPortPtr = nil
+			}
+			csvServiceEntries[fmt.Sprintf("%s-%d-%d", protocol, port, toPort)] = illumioapi.IngressServices{Protocol: &proto, Port: &port, ToPort: toPortPtr}
 
 			// Check if it's a service
 		} else if service, exists := pceServiceMap[c]; exists {
