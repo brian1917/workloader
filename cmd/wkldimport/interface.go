@@ -3,9 +3,12 @@ package wkldimport
 import (
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 
 	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/workloader/cmd/wkldexport"
+	"github.com/brian1917/workloader/utils"
 )
 
 // userInputConvert takes an ip address in the format of eth0:192.168.20.21 and returns an illumio interface struct
@@ -76,4 +79,96 @@ func publicIPIsValid(ip string) bool {
 	i := net.ParseIP(ip)
 	return i != nil
 
+}
+
+func (w *importWkld) interfaces(input Input) {
+
+	// If the workload is no unmanaged
+	if w.wkld.GetMode() != "unmanaged" {
+		return
+	}
+
+	// If IP field is there and  IP address is provided, check it out
+	if index, ok := input.Headers[wkldexport.HeaderInterfaces]; ok && len(w.csvLine[index]) > 0 {
+		// Build out the netInterfaces slice provided by the user
+		netInterfaces := []*illumioapi.Interface{}
+		nics := strings.Split(strings.Replace(w.csvLine[index], " ", "", -1), ";")
+		for _, n := range nics {
+			ipInterface, err := userInputConvert(n)
+			if err != nil {
+				utils.LogWarning(fmt.Sprintf("csv line %d - %s - skipping processing interfaces - ", w.csvLineNum, err.Error()), true)
+				return
+			}
+			netInterfaces = append(netInterfaces, &ipInterface)
+		}
+
+		// If instructed by flag, make sure we keep all PCE interfaces
+		if input.KeepAllPCEInterfaces {
+			// Build a map of the interfaces provided by the user with the address as the key
+			interfaceMap := make(map[string]illumioapi.Interface)
+			for _, i := range netInterfaces {
+				interfaceMap[i.Address] = *i
+			}
+			// For each interface on the PCE, check if the address is in the map
+			for _, i := range w.wkld.Interfaces {
+				// If it's not in them map, append it to the user provdided netInterfaces so we keep it
+				if _, ok := interfaceMap[i.Address]; !ok {
+					netInterfaces = append(netInterfaces, i)
+				}
+			}
+		}
+
+		// Build some maps
+		userMap := make(map[string]bool)
+		wkldIntMap := make(map[string]bool)
+		for _, w := range w.wkld.Interfaces {
+			cidrText := "nil"
+			if w.CidrBlock != nil {
+				cidrText = strconv.Itoa(*w.CidrBlock)
+			}
+			wkldIntMap[w.Address+cidrText+w.Name] = true
+		}
+		for _, u := range netInterfaces {
+			cidrText := "nil"
+			if u.CidrBlock != nil {
+				cidrText = strconv.Itoa(*u.CidrBlock)
+			}
+			userMap[u.Address+cidrText+u.Name] = true
+		}
+
+		updateInterfaces := false
+		// Are all workload interfaces in spreadsheet?
+		for _, iFace := range w.wkld.Interfaces {
+			cidrText := "nil"
+			if iFace.CidrBlock != nil && *iFace.CidrBlock != 0 {
+				cidrText = strconv.Itoa(*iFace.CidrBlock)
+			}
+			if !userMap[iFace.Address+cidrText+iFace.Name] {
+				updateInterfaces = true
+				if w.wkld.Href != "" && input.UpdateWorkloads {
+					w.change = true
+					utils.LogInfo(fmt.Sprintf("csv line %d - %s - interface not in csv and will be removed - ip: %s, cidr: %s, name: %s", w.csvLineNum, w.compareString, iFace.Address, cidrText, iFace.Name), false)
+				}
+			}
+		}
+
+		// Are all user interfaces on workload?
+		for _, u := range netInterfaces {
+			cidrText := "nil"
+			if u.CidrBlock != nil && *u.CidrBlock != 0 {
+				cidrText = strconv.Itoa(*u.CidrBlock)
+			}
+			if !wkldIntMap[u.Address+cidrText+u.Name] {
+				updateInterfaces = true
+				if w.wkld.Href != "" && input.UpdateWorkloads {
+					w.change = true
+					utils.LogInfo(fmt.Sprintf("csv line %d - %s - interface not in pce and will be added - ip: %s, cidr: %s, name: %s", w.csvLineNum, w.compareString, u.Address, cidrText, u.Name), false)
+				}
+			}
+		}
+
+		if updateInterfaces {
+			w.wkld.Interfaces = netInterfaces
+		}
+	}
 }

@@ -113,10 +113,10 @@ func wkldReplicate() {
 				// Put it in the map
 				managedWkldMap[p.FQDN+w.Hostname] = replicateWkld{pce: p, workload: w}
 				// Edit the external data reference section
-				w.ExternalDataSet = "wkld-replicate"
-				w.ExternalDataReference = p.FQDN + "-managed-wkld-" + w.Href
+				w.ExternalDataSet = utils.StrToPtr("wkld-replicate")
+				w.ExternalDataReference = utils.StrToPtr(p.FQDN + "-managed-wkld-" + w.Href)
 				// Add to the CSV output
-				wkldImportCsvData = append(wkldImportCsvData, []string{w.Hostname, fmt.Sprintf("managed ven on %s", p.FQDN), processLabel(w.GetRole(p.Labels)), processLabel(w.GetApp(p.Labels)), processLabel(w.GetEnv(p.Labels)), processLabel(w.GetLoc(p.Labels)), strings.Join(wkldexport.InterfaceToString(w, true), ";"), w.ExternalDataSet, w.ExternalDataReference})
+				wkldImportCsvData = append(wkldImportCsvData, []string{w.Hostname, fmt.Sprintf("managed ven on %s", p.FQDN), processLabel(w.GetRole(p.Labels)), processLabel(w.GetApp(p.Labels)), processLabel(w.GetEnv(p.Labels)), processLabel(w.GetLoc(p.Labels)), strings.Join(wkldexport.InterfaceToString(w, true), ";"), utils.PtrToStr(w.ExternalDataSet), utils.PtrToStr(w.ExternalDataReference)})
 			}
 
 			// Unmanaged - just put in the map. Needs to be processed after maps are complete.
@@ -129,22 +129,22 @@ func wkldReplicate() {
 	// Iterate through all the unmanaged workloads
 	for _, wkld := range unmanagedWkldMap {
 		// If it's not in the dataset yet, update the external data reference and add it to the csv
-		if wkld.workload.ExternalDataSet != "wkld-replicate" {
-			wkld.workload.ExternalDataSet = "wkld-replicate"
-			wkld.workload.ExternalDataReference = wkld.pce.FQDN + "-unmanaged-wkld-" + wkld.workload.Href
-			wkldImportCsvData = append(wkldImportCsvData, []string{wkld.workload.Hostname, fmt.Sprintf("unmanaged workload on %s", wkld.pce.FQDN), processLabel(wkld.workload.GetRole(wkld.pce.Labels)), processLabel(wkld.workload.GetApp(wkld.pce.Labels)), processLabel(wkld.workload.GetEnv(wkld.pce.Labels)), processLabel(wkld.workload.GetLoc(wkld.pce.Labels)), strings.Join(wkldexport.InterfaceToString(wkld.workload, true), ";"), wkld.workload.ExternalDataSet, wkld.workload.ExternalDataReference})
+		if utils.PtrToStr(wkld.workload.ExternalDataSet) != "wkld-replicate" {
+			wkld.workload.ExternalDataSet = utils.StrToPtr("wkld-replicate")
+			wkld.workload.ExternalDataReference = utils.StrToPtr(wkld.pce.FQDN + "-unmanaged-wkld-" + wkld.workload.Href)
+			wkldImportCsvData = append(wkldImportCsvData, []string{wkld.workload.Hostname, fmt.Sprintf("unmanaged workload on %s", wkld.pce.FQDN), processLabel(wkld.workload.GetRole(wkld.pce.Labels)), processLabel(wkld.workload.GetApp(wkld.pce.Labels)), processLabel(wkld.workload.GetEnv(wkld.pce.Labels)), processLabel(wkld.workload.GetLoc(wkld.pce.Labels)), strings.Join(wkldexport.InterfaceToString(wkld.workload, true), ";"), utils.PtrToStr(wkld.workload.ExternalDataSet), utils.PtrToStr(wkld.workload.ExternalDataReference)})
 			continue
 		}
 
 		// If it's from the origin PCE, add it to the CSV
-		if wkld.pce.FQDN == strings.Split(wkld.workload.ExternalDataReference, "-unmanaged-wkld-")[0] {
-			wkldImportCsvData = append(wkldImportCsvData, []string{wkld.workload.Hostname, fmt.Sprintf("unmanaged workload on %s", wkld.pce.FQDN), processLabel(wkld.workload.GetRole(wkld.pce.Labels)), processLabel(wkld.workload.GetApp(wkld.pce.Labels)), processLabel(wkld.workload.GetEnv(wkld.pce.Labels)), processLabel(wkld.workload.GetLoc(wkld.pce.Labels)), strings.Join(wkldexport.InterfaceToString(wkld.workload, true), ";"), wkld.workload.ExternalDataSet, wkld.workload.ExternalDataReference})
+		if wkld.pce.FQDN == strings.Split(utils.PtrToStr(wkld.workload.ExternalDataReference), "-unmanaged-wkld-")[0] {
+			wkldImportCsvData = append(wkldImportCsvData, []string{wkld.workload.Hostname, fmt.Sprintf("unmanaged workload on %s", wkld.pce.FQDN), processLabel(wkld.workload.GetRole(wkld.pce.Labels)), processLabel(wkld.workload.GetApp(wkld.pce.Labels)), processLabel(wkld.workload.GetEnv(wkld.pce.Labels)), processLabel(wkld.workload.GetLoc(wkld.pce.Labels)), strings.Join(wkldexport.InterfaceToString(wkld.workload, true), ";"), utils.PtrToStr(wkld.workload.ExternalDataSet), utils.PtrToStr(wkld.workload.ExternalDataReference)})
 
 		}
 
 		// If in the dataset and from a managed workload and it doesn't exist in the managed workload map, set it to be deleted
-		if wkld.workload.ExternalDataSet == "wkld-replicate" && strings.Contains(wkld.workload.ExternalDataReference, "-managed-wkld-") {
-			if _, exists := managedWkldMap[strings.Split(wkld.workload.ExternalDataReference, "-managed-wkld-")[0]+wkld.workload.Hostname]; !exists {
+		if utils.PtrToStr(wkld.workload.ExternalDataSet) == "wkld-replicate" && strings.Contains(utils.PtrToStr(wkld.workload.ExternalDataReference), "-managed-wkld-") {
+			if _, exists := managedWkldMap[strings.Split(utils.PtrToStr(wkld.workload.ExternalDataReference), "-managed-wkld-")[0]+wkld.workload.Hostname]; !exists {
 				wkldDeleteCsvdata = append(wkldDeleteCsvdata, []string{wkld.workload.Href, wkld.pce.FQDN, wkld.pce.FriendlyName})
 				deleteHrefMap[wkld.pce.FQDN] = append(deleteHrefMap[wkld.pce.FQDN], wkld.workload.Href)
 			}
@@ -152,8 +152,8 @@ func wkldReplicate() {
 		}
 
 		// Clean up UMWLs
-		if wkld.workload.ExternalDataSet == "wkld-replicate" && strings.Contains(wkld.workload.ExternalDataReference, "-unmanaged-wkld-") {
-			if _, exists := unmanagedWkldMap[strings.Split(wkld.workload.ExternalDataReference, "-unmanaged-wkld-")[0]+wkld.workload.Hostname]; !exists {
+		if utils.PtrToStr(wkld.workload.ExternalDataSet) == "wkld-replicate" && strings.Contains(utils.PtrToStr(wkld.workload.ExternalDataReference), "-unmanaged-wkld-") {
+			if _, exists := unmanagedWkldMap[strings.Split(utils.PtrToStr(wkld.workload.ExternalDataReference), "-unmanaged-wkld-")[0]+wkld.workload.Hostname]; !exists {
 				wkldDeleteCsvdata = append(wkldDeleteCsvdata, []string{wkld.workload.Href, wkld.pce.FQDN, wkld.pce.FriendlyName})
 				deleteHrefMap[wkld.pce.FQDN] = append(deleteHrefMap[wkld.pce.FQDN], wkld.workload.Href)
 			}
