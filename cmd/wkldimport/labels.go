@@ -20,6 +20,7 @@ func checkLabel(pce illumioapi.PCE, label illumioapi.Label, newLabels []illumioa
 	// If the label doesn't exist, create a placeholder for it
 	label.Href = fmt.Sprintf("wkld-import-temp-%s-%s", label.Key, label.Value)
 	newLabels = append(newLabels, label)
+	utils.LogInfo(fmt.Sprintf("%s label %s needs to be created", label.Key, label.Value), false)
 
 	// Append the label back to the map
 	pce.Labels[label.Key+label.Value] = label
