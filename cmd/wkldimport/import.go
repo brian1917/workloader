@@ -70,9 +70,15 @@ func ImportWkldsFromCSV(input Input) {
 
 	// Create a map of label keys
 	labelKeysMap := make(map[string]bool)
-	for _, l := range input.PCE.LabelsSlice {
-		labelKeysMap[l.Key] = true
+	labelDimensions, api, err := input.PCE.GetLabelDimensions(nil)
+	utils.LogAPIResp("GetLabelDimensions", api)
+	if err != nil {
+		utils.LogError(err.Error())
 	}
+	for _, l := range labelDimensions {
+		labelKeysMap[strings.ToLower(l.Key)] = true
+	}
+	utils.LogInfo(fmt.Sprintf("label keys map: %v", labelKeysMap), false)
 
 	// Create slices to hold the workloads we will update and create
 	updatedWklds := []illumioapi.Workload{}
