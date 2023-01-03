@@ -42,7 +42,7 @@ Changes the default PCE to be used for all commands targeting a single PCE (i.e.
 			utils.LogError(err.Error())
 		}
 
-		fmt.Printf("%s is default PCE.\r\n", newDefaultPCE)
+		utils.LogInfo(fmt.Sprintf("%s is default PCE", newDefaultPCE), true)
 
 	},
 }
