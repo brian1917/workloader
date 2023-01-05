@@ -96,6 +96,11 @@ func LogMultiAPIResp(APIResps map[string]illumioapi.APIResponse) {
 func LogStartCommand(commandName string) {
 	Logger.Println("-----------------------------------------------------------------------------")
 	LogInfo(fmt.Sprintf("workloader version %s - started %s", GetVersion(), commandName), false)
+	if viper.IsSet("target_pce") && viper.Get("target_pce") != nil && viper.Get("target_pce").(string) != "" {
+		LogInfo(fmt.Sprintf("using %s pce - %s", viper.Get("target_pce").(string), viper.Get(viper.Get("target_pce").(string)+".pce_version")), false)
+	} else {
+		LogInfo(fmt.Sprintf("using default pce - %s - %s", viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".pce_version")), false)
+	}
 }
 
 // LogEndCommand is used at the end of each command
