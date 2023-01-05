@@ -45,6 +45,6 @@ func WriteOutput(csvData, stdOutData [][]string, csvFileName string) {
 			LogError(fmt.Sprintf("writing CSV - %s\n", err))
 		}
 		// Log
-		LogInfo(fmt.Sprintf("Output file: %s", outFile.Name()), true)
+		LogInfo(fmt.Sprintf("output file: %s", outFile.Name()), true)
 	}
 }
