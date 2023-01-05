@@ -183,7 +183,7 @@ func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule) []str
 	entries := []entry{}
 	for _, t := range traffic {
 		flows = flows + t.NumConnections
-		ports[fmt.Sprintf("%d-%d", t.ExpSrv.Port, t.ExpSrv.Proto)] = ports[fmt.Sprintf("%d-%d", t.ExpSrv.Port, t.ExpSrv.Proto)] + flows
+		ports[fmt.Sprintf("%d-%d", t.ExpSrv.Port, t.ExpSrv.Proto)] = ports[fmt.Sprintf("%d-%d", t.ExpSrv.Port, t.ExpSrv.Proto)] + t.NumConnections
 	}
 	for a, p := range ports {
 		portProtoString := strings.Split(a, "-")
