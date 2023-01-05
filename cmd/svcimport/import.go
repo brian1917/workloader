@@ -87,6 +87,10 @@ func ImportServices(input Input) {
 			if data[nameCol] == "" {
 				utils.LogError(fmt.Sprintf("csv line %d - name required", csvLine))
 			}
+			if data[nameCol] == "All Services" {
+				utils.LogInfo(fmt.Sprintf("csv line %d - skipping All Services", csvLine), true)
+				continue
+			}
 			// If the service exists already, add to it
 			if csvSvc, ok := csvSvcMap[data[nameCol]]; ok {
 				winSvc, svcPort := processServices(input, data, csvLine)
