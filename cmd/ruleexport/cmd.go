@@ -675,14 +675,16 @@ func ExportRules(input Input) {
 			csvEntryMap[HeaderProviderResolveLabelsAs] = strings.Join(r.ResolveLabelsAs.Providers, ";")
 
 			// Use Workload Subnets
-			csvEntryMap[HeaderConsumerUseWorkloadSubnets] = "false"
-			csvEntryMap[HeaderProviderUseWorkloadSubnets] = "false"
-			for _, u := range r.UseWorkloadSubnets {
-				if u == "consumers" {
-					csvEntryMap[HeaderConsumerUseWorkloadSubnets] = "true"
-				}
-				if u == "providers" {
-					csvEntryMap[HeaderProviderUseWorkloadSubnets] = "true"
+			if version.Major > 22 || (version.Major == 22 && version.Minor >= 2) {
+				csvEntryMap[HeaderConsumerUseWorkloadSubnets] = "false"
+				csvEntryMap[HeaderProviderUseWorkloadSubnets] = "false"
+				for _, u := range r.UseWorkloadSubnets {
+					if u == "consumers" {
+						csvEntryMap[HeaderConsumerUseWorkloadSubnets] = "true"
+					}
+					if u == "providers" {
+						csvEntryMap[HeaderProviderUseWorkloadSubnets] = "true"
+					}
 				}
 			}
 
