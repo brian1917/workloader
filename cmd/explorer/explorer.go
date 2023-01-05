@@ -39,7 +39,7 @@ func init() {
 	ExplorerCmd.Flags().BoolVar(&exclBlocked, "excl-blocked", false, "excludes blocked traffic flows.")
 	ExplorerCmd.Flags().BoolVar(&exclUnknown, "excl-unknown", false, "excludes unkown policy decision traffic flows.")
 	ExplorerCmd.Flags().BoolVar(&nonUni, "incl-non-unicast", false, "includes non-unicast (broadcast and multicast) flows in the output. Default is unicast only.")
-	ExplorerCmd.Flags().IntVarP(&maxResults, "max-results", "m", 100000, "max results in explorer. Maximum value is 100000")
+	ExplorerCmd.Flags().IntVarP(&maxResults, "max-results", "m", 100000, "max results in explorer. Maximum value is 200000.")
 	ExplorerCmd.Flags().BoolVar(&consolidate, "consolidate", false, "consolidate flows that have same source IP, destination IP, port, and protocol.")
 	ExplorerCmd.Flags().BoolVar(&appGroupLoc, "loc-in-ag", false, "includes the location in the app group in CSV output.")
 	ExplorerCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename. If iterating through labels, the labels will be appended to the provided name before the provided file extension. To name the files for the labels, use just an extension (--output-file .csv).")
@@ -94,8 +94,8 @@ func explorerExport() {
 	tq := illumioapi.TrafficQuery{ExcludeWorkloadsFromIPListQuery: exclWorkloadsFromIPListQuery}
 
 	// Check max results for valid value
-	if maxResults < 1 || maxResults > 100000 {
-		utils.LogError("max-results must be between 1 and 100000")
+	if maxResults < 1 || maxResults > 200000 {
+		utils.LogError("max-results must be between 1 and 200000")
 	}
 	tq.MaxFLows = maxResults
 
