@@ -76,7 +76,9 @@ var WkldImportCmd = &cobra.Command{
 	Long: `
 Create and assign labels to existing workloads and/or create unmanaged workloads (using --umwl) from a CSV file.
 
-The input file requires headers and matches fields to header values. Any label key can be used as a header. The headers in the list below are also processed:
+The input file requires headers and matches fields to header values.
+
+Label keys must already exist in the PCE. wkld-import will not create label keys. Workloader will match any header that is a label key. Column headers that are not label keys or in the list below will be ignored:
 ` + "\r\n- " + wkldexport.HeaderHostname + "\r\n" +
 		"- " + wkldexport.HeaderName + "\r\n" +
 		"- " + wkldexport.HeaderInterfaces + "\r\n" +
@@ -93,12 +95,10 @@ The input file requires headers and matches fields to header values. Any label k
 		"- " + wkldexport.HeaderExternalDataReference + "\r\n" + `
 Besides either href, hostname, or name for matching, no field is required.
 
-Other columns are allowed but will be ignored.
-
 Interfaces should be in the format of "192.168.200.20", "192.168.200.20/24", "eth0:192.168.200.20", or "eth0:192.168.200.20/24".
 If no interface name is provided with a colon (e.g., "eth0:"), then "umwl:" is used. Multiple interfaces should be separated by a semicolon.
 
-Recommended to run without --update-pce first to log of what will change.`,
+Recommended to run without --update-pce first to log what will change.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 
