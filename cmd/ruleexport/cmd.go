@@ -43,7 +43,7 @@ func init() {
 	RuleExportCmd.Flags().StringVarP(&input.Loc, "loc", "l", "", "Only include rules with loc label (directly or via a label group) in the rule or scope.")
 	RuleExportCmd.Flags().BoolVar(&input.TrafficCount, "traffic-count", false, "Include the traffic summaries for flows that meet the rule criteria. An explorer query is executed per rule, which will take some time.")
 	RuleExportCmd.Flags().IntVar(&input.ExplorerMax, "explorer-max-results", 10000, "Maximum results on an explorer query. Only applicable if used with traffic-count flag.")
-	RuleExportCmd.Flags().StringVar(&input.ExplorerStart, "explorer-start", time.Date(time.Now().Year()-5, time.Now().Month(), time.Now().Day(), 0, 0, 0, 0, time.UTC).Format("2006-01-02"), "Start date in the format of yyyy-mm-dd.")
+	RuleExportCmd.Flags().StringVar(&input.ExplorerStart, "explorer-start", time.Now().AddDate(0, 0, -88).In(time.UTC).Format("2006-01-02"), "Start date in the format of yyyy-mm-dd.")
 	RuleExportCmd.Flags().StringVar(&input.ExplorerEnd, "explorer-end", time.Now().Add(time.Hour*24).Format("2006-01-02"), "End date in the format of yyyy-mm-dd.")
 	RuleExportCmd.Flags().StringVar(&input.ExclServiceCSV, "explorer-excl-svc-file", "", "File location of csv with port/protocols to exclude. Port number in column 1 and IANA numeric protocol in Col 2. Headers optional.")
 	RuleExportCmd.Flags().BoolVarP(&input.SkipWkldDetailCheck, "skip-wkld-detail-check", "s", false, "Do not check for enforced workloads with low detail or no logging, which can skew traffic results since allowed (low detail) or all (no detail) flows are not reported. This can save time by not checking each workload enforcement state.")
