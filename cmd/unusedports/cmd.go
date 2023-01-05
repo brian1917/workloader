@@ -110,13 +110,14 @@ func unusedPorts() {
 		for _, servicePort := range wkld.Services.OpenServicePorts {
 			// Create the explorer query
 			tq := illumioapi.TrafficQuery{
-				DestinationsInclude:  [][]string{{wkld.Href}},
-				MaxFLows:             100000,
-				PortProtoInclude:     [][2]int{{servicePort.Port, servicePort.Protocol}},
-				TransmissionExcludes: []string{"broadcast", "multicast"},
-				StartTime:            time.Now().AddDate(0, 0, -89).In(time.UTC),
-				EndTime:              time.Now().AddDate(0, 0, 1).In(time.UTC),
-				PolicyStatuses:       []string{"allowed", "blocked", "potentially_blocked", "unknown"},
+				DestinationsInclude:             [][]string{{wkld.Href}},
+				MaxFLows:                        100000,
+				PortProtoInclude:                [][2]int{{servicePort.Port, servicePort.Protocol}},
+				TransmissionExcludes:            []string{"broadcast", "multicast"},
+				StartTime:                       time.Now().AddDate(0, 0, -89).In(time.UTC),
+				EndTime:                         time.Now().AddDate(0, 0, 1).In(time.UTC),
+				PolicyStatuses:                  []string{"allowed", "blocked", "potentially_blocked", "unknown"},
+				ExcludeWorkloadsFromIPListQuery: true,
 			}
 
 			// Run the query

@@ -170,7 +170,7 @@ func workloadIdentifier() {
 	}
 
 	// Create the default query struct
-	tq := illumioapi.TrafficQuery{}
+	tq := illumioapi.TrafficQuery{ExcludeWorkloadsFromIPListQuery: true}
 
 	// Check max results for valid value
 	if maxResults < 1 || maxResults > 100000 {

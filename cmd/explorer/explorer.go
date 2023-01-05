@@ -13,7 +13,7 @@ import (
 )
 
 var inclHrefDstFile, exclHrefDstFile, inclHrefSrcFile, exclHrefSrcFile, inclServiceCSV, exclServiceCSV, inclProcessCSV, exclProcessCSV, start, end, loopFile, outputFileName string
-var exclAllowed, exclPotentiallyBlocked, exclBlocked, exclUnknown, appGroupLoc, consolidate, nonUni, legacyOutput, consAndProvierOnLoop bool
+var exclAllowed, exclPotentiallyBlocked, exclBlocked, exclUnknown, appGroupLoc, consolidate, nonUni, legacyOutput, consAndProvierOnLoop, exclWorkloadsFromIPListQuery bool
 var maxResults, iterativeThreshold int
 var pce illumioapi.PCE
 var err error
@@ -33,6 +33,7 @@ func init() {
 	ExplorerCmd.Flags().StringVarP(&exclProcessCSV, "excl-proc-file", "n", "", "file location of csv with single column of processes to exclude. No headers.")
 	ExplorerCmd.Flags().StringVarP(&start, "start", "s", time.Now().AddDate(0, 0, -88).In(time.UTC).Format("2006-01-02"), "start date in the format of yyyy-mm-dd.")
 	ExplorerCmd.Flags().StringVarP(&end, "end", "e", time.Now().Add(time.Hour*24).Format("2006-01-02"), "end date in the format of yyyy-mm-dd.")
+	ExplorerCmd.Flags().BoolVar(&exclWorkloadsFromIPListQuery, "excl-wkld-from-iplist-query", true, "exclude workload traffic when ip list is provided either in consumer or provider part of the traffic query. default of true matches UI")
 	ExplorerCmd.Flags().BoolVar(&exclAllowed, "excl-allowed", false, "excludes allowed traffic flows.")
 	ExplorerCmd.Flags().BoolVar(&exclPotentiallyBlocked, "excl-potentially-blocked", false, "excludes potentially blocked traffic flows.")
 	ExplorerCmd.Flags().BoolVar(&exclBlocked, "excl-blocked", false, "excludes blocked traffic flows.")
@@ -90,7 +91,7 @@ func explorerExport() {
 	}
 
 	// Create the default query struct
-	tq := illumioapi.TrafficQuery{}
+	tq := illumioapi.TrafficQuery{ExcludeWorkloadsFromIPListQuery: exclWorkloadsFromIPListQuery}
 
 	// Check max results for valid value
 	if maxResults < 1 || maxResults > 100000 {

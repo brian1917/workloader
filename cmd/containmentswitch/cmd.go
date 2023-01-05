@@ -120,9 +120,10 @@ func portLock(port int, protocol string) {
 	if !skipAllow {
 		// Build the explorer query
 		tq := illumioapi.TrafficQuery{
-			MaxFLows:         100000,
-			PolicyStatuses:   []string{"potentially_blocked", "unknown"},
-			PortProtoInclude: [][2]int{{port, protocolNum}},
+			MaxFLows:                        100000,
+			PolicyStatuses:                  []string{"potentially_blocked", "unknown"},
+			PortProtoInclude:                [][2]int{{port, protocolNum}},
+			ExcludeWorkloadsFromIPListQuery: true,
 		}
 
 		// Get the start date

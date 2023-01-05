@@ -139,6 +139,16 @@ func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule) []str
 	trafficReq.Destinations.Exclude = make([]illumioapi.Exclude, 0)
 	trafficReq.ExplorerServices.Exclude = make([]illumioapi.Exclude, 0)
 	trafficReq.PolicyDecisions = []string{}
+	_, api, err := input.PCE.GetVersion()
+	utils.LogAPIResp("GetVersion", api)
+	if err != nil {
+		utils.LogError(err.Error())
+	}
+	input.PCE.GetVersion()
+	if input.PCE.Version.Major > 19 {
+		x := true
+		trafficReq.ExcludeWorkloadsFromIPListQuery = &x
+	}
 
 	// Get the start date
 	t, err := time.Parse("2006-01-02 MST", input.ExplorerStart+" UTC")

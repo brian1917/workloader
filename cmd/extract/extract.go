@@ -250,10 +250,11 @@ func ruleSets() {
 
 func traffic() {
 	tq := illumioapi.TrafficQuery{
-		StartTime:      time.Now().AddDate(0, 0, -88).In(time.UTC),
-		EndTime:        time.Now().Add(time.Hour * 24).In(time.UTC),
-		PolicyStatuses: []string{"allowed", "potentially_blocked", "blocked"},
-		MaxFLows:       100000}
+		StartTime:                       time.Now().AddDate(0, 0, -88).In(time.UTC),
+		EndTime:                         time.Now().Add(time.Hour * 24).In(time.UTC),
+		PolicyStatuses:                  []string{"allowed", "potentially_blocked", "blocked"},
+		MaxFLows:                        100000,
+		ExcludeWorkloadsFromIPListQuery: true}
 
 	t, err := pce.IterateTrafficJString(tq, true)
 	if err != nil {

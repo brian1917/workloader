@@ -15,14 +15,14 @@ func unusedUmwl() {
 	utils.LogStartCommand("unused-umwl")
 
 	// Get the unmanaged workloads
-	umwls, a, err := pce.GetAllWorkloadsQP(map[string]string{"managed": "false"})
+	umwls, a, err := pce.GetWklds(map[string]string{"managed": "false"})
 	utils.LogAPIResp("GetAllWorkloadsQP", a)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
 
 	// Create the default query struct and an "or" operator
-	tq := illumioapi.TrafficQuery{QueryOperator: "or", PolicyStatuses: []string{}}
+	tq := illumioapi.TrafficQuery{QueryOperator: "or", PolicyStatuses: []string{}, ExcludeWorkloadsFromIPListQuery: true}
 
 	// Check max results for valid value
 	if maxResults < 1 || maxResults > 100000 {

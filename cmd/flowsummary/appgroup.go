@@ -128,10 +128,11 @@ func flowSummary() {
 
 	// Create the default query struct
 	tq := illumioapi.TrafficQuery{
-		StartTime:      startDate,
-		EndTime:        endDate,
-		PolicyStatuses: pStatus,
-		MaxFLows:       100000}
+		StartTime:                       startDate,
+		EndTime:                         endDate,
+		PolicyStatuses:                  pStatus,
+		MaxFLows:                        100000,
+		ExcludeWorkloadsFromIPListQuery: true}
 
 	// If an app is provided, adjust query to include it
 	if app != "" {

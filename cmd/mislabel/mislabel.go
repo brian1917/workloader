@@ -128,11 +128,12 @@ func misLabel() {
 
 	// Build the traffic query struct
 	tq := illumioapi.TrafficQuery{
-		StartTime:        time.Date(2013, 1, 1, 0, 0, 0, 0, time.UTC),
-		EndTime:          time.Now(),
-		PolicyStatuses:   []string{"allowed", "potentially_blocked", "blocked"},
-		PortProtoExclude: exclPorts,
-		MaxFLows:         100000}
+		StartTime:                       time.Date(2013, 1, 1, 0, 0, 0, 0, time.UTC),
+		EndTime:                         time.Now(),
+		PolicyStatuses:                  []string{"allowed", "potentially_blocked", "blocked"},
+		PortProtoExclude:                exclPorts,
+		MaxFLows:                        100000,
+		ExcludeWorkloadsFromIPListQuery: true}
 
 	// If app flag is set, adjust tq struct
 	if appFlag != "" {
