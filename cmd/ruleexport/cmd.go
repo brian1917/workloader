@@ -90,6 +90,17 @@ func ExportRules(input Input) {
 		utils.LogStartCommand("rule-export")
 	}
 
+	// Get version
+	version, api, err := input.PCE.GetVersion()
+	utils.LogAPIResp("GetVersion", api)
+	if err != nil {
+		utils.LogError(err.Error())
+	}
+	pceVersionIncludesUseSubnets := false
+	if version.Major > 22 || (version.Major == 22 && version.Minor >= 2) {
+		pceVersionIncludesUseSubnets = true
+	}
+
 	// GetAllRulesets
 	utils.LogInfo("getting all rulesets...", true)
 	allPCERulesets, a, err := input.PCE.GetRulesets(nil, input.PolicyVersion)
@@ -256,12 +267,8 @@ func ExportRules(input Input) {
 	}
 
 	// Remove workloadsubnets from headers based on PCE version
-	version, api, err := input.PCE.GetVersion()
-	utils.LogAPIResp("GetVersion", api)
-	if err != nil {
-		utils.LogError(err.Error())
-	}
-	if version.Major < 22 || (version.Major == 22 && version.Minor < 2) {
+
+	if !pceVersionIncludesUseSubnets {
 		tempHeaders := []string{}
 		for _, header := range csvData[0] {
 			if header == HeaderConsumerUseWorkloadSubnets || header == HeaderProviderUseWorkloadSubnets {
@@ -675,7 +682,7 @@ func ExportRules(input Input) {
 			csvEntryMap[HeaderProviderResolveLabelsAs] = strings.Join(r.ResolveLabelsAs.Providers, ";")
 
 			// Use Workload Subnets
-			if version.Major > 22 || (version.Major == 22 && version.Minor >= 2) {
+			if pceVersionIncludesUseSubnets {
 				csvEntryMap[HeaderConsumerUseWorkloadSubnets] = "false"
 				csvEntryMap[HeaderProviderUseWorkloadSubnets] = "false"
 				for _, u := range r.UseWorkloadSubnets {
@@ -705,9 +712,9 @@ func ExportRules(input Input) {
 
 			if len(filter) == 0 || !skip {
 				if input.TrafficCount {
-					csvData = append(csvData, append(createEntrySlice(csvEntryMap, input.TemplateFormat), trafficCounter(input, rs, *r)...))
+					csvData = append(csvData, append(createEntrySlice(csvEntryMap, input.TemplateFormat, pceVersionIncludesUseSubnets), trafficCounter(input, rs, *r)...))
 				} else {
-					csvData = append(csvData, createEntrySlice(csvEntryMap, input.TemplateFormat))
+					csvData = append(csvData, createEntrySlice(csvEntryMap, input.TemplateFormat, pceVersionIncludesUseSubnets))
 				}
 
 				matchedRules++

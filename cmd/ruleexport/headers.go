@@ -88,9 +88,12 @@ func getCSVHeaders(templateFormat bool) []string {
 	return headers
 }
 
-func createEntrySlice(csvEntryMap map[string]string, templateFormat bool) []string {
+func createEntrySlice(csvEntryMap map[string]string, templateFormat bool, useSubnets bool) []string {
 	entry := []string{}
 	for _, h := range getCSVHeaders(templateFormat) {
+		if !useSubnets && (h == HeaderConsumerUseWorkloadSubnets || h == HeaderProviderUseWorkloadSubnets) {
+			continue
+		}
 		entry = append(entry, csvEntryMap[h])
 	}
 	return entry
