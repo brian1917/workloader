@@ -231,7 +231,7 @@ func addPCE() {
 				fmt.Println("\r\nAuthenticating and generating API Credentials...")
 			}
 			pce = illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS}
-			userLogin, apiResponses, err = pce.LoginAPIKey(user, pwd, "Workloader", "Created by Workloader")
+			userLogin, apiResponses, err = pce.LoginAPIKey(user, pwd, "workloader", "created by workloader")
 			for _, a := range apiResponses {
 				utils.LogAPIResp("LoginAPIKey", a)
 			}

@@ -202,7 +202,7 @@ func portLock(port int, protocol string) {
 
 			// Create the virtual service
 			vs := illumioapi.VirtualService{
-				Description:  fmt.Sprintf("Created by workloader containment-switch for %d %s", port, protocol),
+				Description:  fmt.Sprintf("created by workloader containment-switch for %d %s", port, protocol),
 				Name:         objectName,
 				ServicePorts: []*illumioapi.ServicePort{{Port: port, Protocol: protocolNum}}}
 
