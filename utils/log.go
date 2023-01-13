@@ -99,7 +99,9 @@ func LogStartCommand(commandName string) {
 	if viper.IsSet("target_pce") && viper.Get("target_pce") != nil && viper.Get("target_pce").(string) != "" {
 		LogInfo(fmt.Sprintf("using %s pce - %s", viper.Get("target_pce").(string), viper.Get(viper.Get("target_pce").(string)+".pce_version")), false)
 	} else {
-		LogInfo(fmt.Sprintf("using default pce - %s - %s", viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".pce_version")), false)
+		if viper.Get("default_pce_name") != nil {
+			LogInfo(fmt.Sprintf("using default pce - %s - %s", viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".pce_version")), false)
+		}
 	}
 }
 
