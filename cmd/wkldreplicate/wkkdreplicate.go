@@ -119,6 +119,9 @@ func wkldReplicate() {
 
 		// Iterate over all managed and unmanaged workloads separately
 		for _, w := range p.WorkloadsSlice {
+			if w.Hostname == "" {
+				utils.LogError(fmt.Sprintf("%s - href: %s - name: %s - wkld-replicate requires hostnames on all workloads. one option to quickly fix is to use wkld-export, edit the csv to have unique hostnames, and use wkld-import to apply.", p.FQDN, w.Href, w.Name))
+			}
 
 			// Start with managed worklodas
 			if w.GetMode() != "unmanaged" {
