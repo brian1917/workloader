@@ -2,6 +2,7 @@ package increasevenupdaterate
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -122,16 +123,32 @@ func increaseVENUpdateRate() {
 	iterations := 0
 	requiredIterations := forMinutes / 10
 	for iterations <= requiredIterations {
-		a, err := pce.IncreaseTrafficUpdateRate(pce.WorkloadsSlice)
-		utils.LogAPIResp("IncreaseTrafficUpdateRate", a)
-		if err != nil {
-			utils.LogError(err.Error())
+		numAPICalls := int(math.Ceil(float64(len(pce.WorkloadsSlice)) / 50))
+		utils.LogInfo(fmt.Sprintf("increase traffic update rate accepts 50 VENs at a time. %d api calls required.", numAPICalls), true)
+
+		apiArrays := [][]illumioapi.Workload{}
+		for i := 0; i < numAPICalls; i++ {
+			if (i + 1) != numAPICalls {
+				// Get 50 elements if this is not the last array
+				apiArrays = append(apiArrays, pce.WorkloadsSlice[i*50:(1+i)*50])
+			} else {
+				apiArrays = append(apiArrays, pce.WorkloadsSlice[i*50:])
+			}
 		}
-		utils.LogInfo(fmt.Sprintf("Increase VEN update rate status: %d", a.StatusCode), true)
+
+		for i, apiArray := range apiArrays {
+			a, err := pce.IncreaseTrafficUpdateRate(apiArray)
+			utils.LogAPIResp("IncreaseTrafficUpdateRate", a)
+			if err != nil {
+				utils.LogError(err.Error())
+			}
+			utils.LogInfo(fmt.Sprintf("increase ven update rate %d of %d (%d workloads) status: %d", i+1, numAPICalls, len(apiArray), a.StatusCode), true)
+		}
+
 		iterations++
 
 		if iterations <= requiredIterations {
-			utils.LogInfo(fmt.Sprintf("%d iterations remaining. Running another in 10 minutes", requiredIterations-iterations+1), true)
+			utils.LogInfo(fmt.Sprintf("%d iterations remaining. running another in 10 minutes", requiredIterations-iterations+1), true)
 			time.Sleep(600 * time.Second)
 		}
 	}
