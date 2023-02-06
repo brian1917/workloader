@@ -170,7 +170,7 @@ func unusedPorts() {
 
 		for serviceCounter, servicePort := range wkld.Services.OpenServicePorts {
 
-			utils.LogInfo(fmt.Sprintf("querying port %d of %d for workload %d of %d", serviceCounter+1, len(wkld.Services.OpenServicePorts), i+1, len(wklds)), true)
+			utils.LogInfo(fmt.Sprintf("querying port %d of %d for workload %d of %d - port %d %s on %s", serviceCounter+1, len(wkld.Services.OpenServicePorts), i+1, len(wklds), servicePort.Port, illumioapi.ProtocolList()[servicePort.Protocol], w.Href), true)
 
 			tq := illumioapi.TrafficQuery{
 				DestinationsInclude:             [][]string{{wkld.Href}},
