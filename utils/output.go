@@ -48,3 +48,34 @@ func WriteOutput(csvData, stdOutData [][]string, csvFileName string) {
 		LogInfo(fmt.Sprintf("output file: %s", outFile.Name()), true)
 	}
 }
+
+// WriteLineOutput will write the CSV one line at a time
+func WriteLineOutput(csvLine []string, csvFileName string) {
+
+	var outFile *os.File
+
+	// Create CSV if it doesn't exist
+	if _, err := os.Stat(csvFileName); err != nil {
+		outFile, err = os.Create(csvFileName)
+		if err != nil {
+			LogError(fmt.Sprintf("creating csv - %s\n", err))
+		}
+		LogInfo(fmt.Sprintf("output file started: %s", outFile.Name()), true)
+
+	} else {
+		outFile, err = os.OpenFile(csvFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+		if err != nil {
+			LogError(fmt.Sprintf("opening csv - %s\n", err))
+		}
+
+	}
+	defer outFile.Close()
+
+	// Write CSV data
+	writer := csv.NewWriter(outFile)
+	defer writer.Flush()
+
+	if err := writer.Write(csvLine); err != nil {
+		LogError(fmt.Sprintf("error writing csv line - %s", err))
+	}
+}
