@@ -23,12 +23,12 @@ func init() {
 	UnusedPortsCmd.Flags().StringVarP(&inputFile, "input-file", "i", "", "optional input file with list of hrefs for target workloads. recommended to use wkld-export to get href file.")
 	UnusedPortsCmd.Flags().IntVarP(&maxFlows, "max-flows", "m", 100, "max flows returned from explorer query. set to 100 by default to keep queries small since presence of flows is all that matters.")
 	UnusedPortsCmd.Flags().StringVarP(&firstQueryDuration, "first-query-duration", "f", "24h", "time for initial query. format must be in xh or xd where x is a number and h specifies hours or d specifies days. for example, 24h is 24 hours and 30d is 30 days.")
-	UnusedPortsCmd.Flags().IntVarP(&secondQueryDays, "second-query-days", "s", 89, "each port is checked for a 24 hour period. any flows show it's an actively used port. when there is no flows for 24 hours, workloader checks for a longer period. the default is 90 days. this paramenter can be shrunk if that query is too long.")
+	UnusedPortsCmd.Flags().IntVarP(&secondQueryDays, "second-query-days", "s", 30, "number of days to check back if the initial query yields 0 results.")
 	UnusedPortsCmd.Flags().StringVarP(&role, "role", "r", "", "optional role label for target workloads. if an input file is provided the labels are ignored. multiple label flags are an AND operator.")
 	UnusedPortsCmd.Flags().StringVarP(&app, "app", "a", "", "optional app label for target workloads. if an input file is provided the labels are ignored. multiple label flags are an AND operator.")
 	UnusedPortsCmd.Flags().StringVarP(&env, "env", "e", "", "optional env label for target workloads. if an input file is provided the labels are ignored. multiple label flags are an AND operator.")
 	UnusedPortsCmd.Flags().StringVarP(&loc, "loc", "l", "", "optional role label for target workloads. if an input file is provided the labels are ignored. multiple label flags are an AND operator.")
-	UnusedPortsCmd.Flags().StringVarP(&exclHrefSrcFile, "excl-src-file", "d", "", "file with hrefs on separate lines to be used in as a consumer exclude. Can be a csv with hrefs in first column. Headers optional")
+	UnusedPortsCmd.Flags().StringVarP(&exclHrefSrcFile, "excl-src-file", "d", "", "file with hrefs on separate lines to be used in as a consumer exclude. can be a csv with hrefs in first column. no headers")
 	UnusedPortsCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 
 	UnusedPortsCmd.Flags().SortFlags = false
