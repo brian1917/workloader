@@ -83,10 +83,10 @@ Label keys must already exist in the PCE. wkld-import will not create label keys
 		"- " + wkldexport.HeaderName + "\r\n" +
 		"- " + wkldexport.HeaderInterfaces + "\r\n" +
 		"- " + wkldexport.HeaderPublicIP + "\r\n" +
-		"- " + wkldexport.HeaderMachineAuthenticationID + "\r\n" +
+		"- " + wkldexport.HeaderDistinguishedName + "\r\n" +
 		"- " + wkldexport.HeaderSPN + " (unmanaged workloads for Kerberos only)\r\n" +
-		"- " + wkldexport.HeaderPolicyState + " (only with --allow-enforcement-changes flag)\r\n" +
-		"- " + wkldexport.HeaderVisibilityState + " (only with --allow-enforcement-changes flag)\r\n" +
+		"- " + wkldexport.HeaderEnforcement + " (only with --allow-enforcement-changes flag)\r\n" +
+		"- " + wkldexport.HeaderVisibility + " (only with --allow-enforcement-changes flag)\r\n" +
 		"- " + wkldexport.HeaderDescription + "\r\n" +
 		"- " + wkldexport.HeaderOsID + "\r\n" +
 		"- " + wkldexport.HeaderOsDetail + "\r\n" +

@@ -18,9 +18,10 @@ import (
 var pce illumioapi.PCE
 var err error
 var managedOnly, unmanagedOnly, onlineOnly, includeVuln, noHref, removeDescNewLines bool
-var outputFileName string
+var exportHeaders, outputFileName string
 
 func init() {
+	WkldExportCmd.Flags().StringVar(&exportHeaders, "headers", "", "comma-separated list of headers for export. default is all headers.")
 	WkldExportCmd.Flags().BoolVarP(&managedOnly, "managed-only", "m", false, "only export managed workloads.")
 	WkldExportCmd.Flags().BoolVarP(&unmanagedOnly, "unmanaged-only", "u", false, "only export unmanaged workloads.")
 	WkldExportCmd.Flags().BoolVarP(&onlineOnly, "online-only", "o", false, "only export online workloads.")
@@ -92,82 +93,87 @@ func exportWorkloads() {
 	// Sort the slice of label keys
 	sort.Strings(labelsKeySlice)
 
-	// Start the data slice with headers
-	headers := []string{HeaderHostname, HeaderName}
-	if !noHref {
-		headers = append(headers, HeaderHref)
+	// Start the outputdata
+	outputData := [][]string{}
+	headerRow := []string{}
+	// If no user headers provided, get all the headers
+	if exportHeaders == "" {
+		for _, header := range AllHeaders(includeVuln, !noHref) {
+			headerRow = append(headerRow, header)
+			// Insert the labels either after href or hostname
+			if (!noHref && header == "href") || (noHref && header == "name") {
+				headerRow = append(headerRow, labelsKeySlice...)
+			}
+		}
+		outputData = append(outputData, headerRow)
+	} else {
+		outputData = append(outputData, strings.Split(strings.Replace(exportHeaders, " ", "", -1), ","))
 	}
-	headers = append(append(headers, labelsKeySlice...), HeaderManaged, HeaderInterfaces, HeaderPublicIP, HeaderMachineAuthenticationID, HeaderIPWithDefaultGw, HeaderNetmaskOfIPWithDefGw, HeaderDefaultGw, HeaderDefaultGwNetwork, HeaderSPN, HeaderDescription, HeaderPolicyState, HeaderVisibilityState, HeaderOnline, HeaderAgentStatus, HeaderAgentHealth, HeaderSecurityPolicySyncState, HeaderSecurityPolicyAppliedAt, HeaderSecurityPolicyReceivedAt, HeaderSecurityPolicyRefreshAt, HeaderLastHeartbeatOn, HeaderHoursSinceLastHeartbeat, HeaderCreatedAt, HeaderOsID, HeaderOsDetail, HeaderVenHref, HeaderAgentVersion, HeaderAgentID, HeaderActivePceFqdn, HeaderServiceProvider, HeaderDataCenter, HeaderDataCenterZone, HeaderCloudInstanceID)
-	if includeVuln {
-		headers = append(headers, HeaderVulnExposureScore, HeaderNumVulns, HeaderMaxVulnScore, HeaderVulnScore, HeaderVulnPortExposure, HeaderAnyVulnExposure, HeaderIpListVulnExposure)
-	}
-	// Start the csv and stdout data sets
-	csvData := [][]string{append(headers, HeaderExternalDataSet, HeaderExternalDataReference)}
-	stdOutData := [][]string{{HeaderHostname, HeaderRole, HeaderApp, HeaderEnv, HeaderLoc, HeaderPolicyState}}
 
+	// Iterate through each workload
 	for _, w := range wklds {
-
+		csvRow := make(map[string]string)
 		// Skip deleted workloads
 		if *w.Deleted {
 			continue
 		}
 
 		// Get interfaces
-		interfaces := InterfaceToString(w, false)
+		csvRow[HeaderInterfaces] = strings.Join(InterfaceToString(w, false), ";")
 
 		// Get Managed Status
-		managedStatus := false
+		csvRow[HeaderManaged] = "false"
 		if (w.Agent != nil && w.Agent.Href != "") || (w.VEN != nil && w.VEN.Href != "") {
-			managedStatus = true
+			csvRow[HeaderManaged] = "true"
 		}
 
 		// Assume the VEN-dependent fields are unmanaged
-		policySyncStatus := "unmanaged"
-		policyAppliedAt := "unmanaged"
-		poicyReceivedAt := "unmanaged"
-		policyRefreshAt := "unmanaged"
-		venVersion := "unmanaged"
-		lastHeartBeat := "unmanaged"
-		hoursSinceLastHB := "unmanaged"
-		venID := "unmanaged"
-		pairedPCE := "unmanaged"
-		agentStatus := "unmanaged"
-		instanceID := "unmanaged"
-		agentHealth := "unmanaged"
-		venHref := "unmanaged"
+		csvRow[HeaderSecurityPolicySyncState] = "unmanaged"
+		csvRow[HeaderSecurityPolicyAppliedAt] = "unmanaged"
+		csvRow[HeaderSecurityPolicyReceivedAt] = "unmanaged"
+		csvRow[HeaderSecurityPolicyRefreshAt] = "unmanaged"
+		csvRow[HeaderAgentVersion] = "unmanaged"
+		csvRow[HeaderLastHeartbeatOn] = "unmanaged"
+		csvRow[HeaderHoursSinceLastHeartbeat] = "unmanaged"
+		csvRow[HeaderAgentID] = "unmanaged"
+		csvRow[HeaderActivePceFqdn] = "unmanaged"
+		csvRow[HeaderAgentStatus] = "unmanaged"
+		csvRow[HeaderCloudInstanceID] = "unmanaged"
+		csvRow[HeaderAgentHealth] = "unmanaged"
+		csvRow[HeaderVenHref] = "unmanaged"
 		// If it is managed, get that information
 		if w.Agent != nil && w.Agent.Href != "" {
-			policySyncStatus = w.Agent.Status.SecurityPolicySyncState
-			policyAppliedAt = w.Agent.Status.SecurityPolicyAppliedAt
-			poicyReceivedAt = w.Agent.Status.SecurityPolicyReceivedAt
-			policyRefreshAt = w.Agent.Status.SecurityPolicyRefreshAt
-			venVersion = w.Agent.Status.AgentVersion
-			lastHeartBeat = w.Agent.Status.LastHeartbeatOn
-			hoursSinceLastHB = fmt.Sprintf("%f", w.HoursSinceLastHeartBeat())
-			venID = w.Agent.GetID()
-			pairedPCE = w.Agent.ActivePceFqdn
-			if pairedPCE == "" {
-				pairedPCE = pce.FQDN
+			csvRow[HeaderSecurityPolicySyncState] = w.Agent.Status.SecurityPolicySyncState
+			csvRow[HeaderSecurityPolicyAppliedAt] = w.Agent.Status.SecurityPolicyAppliedAt
+			csvRow[HeaderSecurityPolicyReceivedAt] = w.Agent.Status.SecurityPolicyReceivedAt
+			csvRow[HeaderSecurityPolicyRefreshAt] = w.Agent.Status.SecurityPolicyRefreshAt
+			csvRow[HeaderAgentVersion] = w.Agent.Status.AgentVersion
+			csvRow[HeaderLastHeartbeatOn] = w.Agent.Status.LastHeartbeatOn
+			csvRow[HeaderHoursSinceLastHeartbeat] = fmt.Sprintf("%f", w.HoursSinceLastHeartBeat())
+			csvRow[HeaderAgentID] = w.Agent.GetID()
+			csvRow[HeaderActivePceFqdn] = w.Agent.ActivePceFqdn
+			if csvRow[HeaderActivePceFqdn] == "" {
+				csvRow[HeaderActivePceFqdn] = pce.FQDN
 			}
-			agentStatus = w.Agent.Status.Status
-			instanceID = w.Agent.Status.InstanceID
-			if instanceID == "" {
-				instanceID = "NA"
+			csvRow[HeaderAgentStatus] = w.Agent.Status.Status
+			csvRow[HeaderCloudInstanceID] = w.Agent.Status.InstanceID
+			if csvRow[HeaderCloudInstanceID] == "" {
+				csvRow[HeaderCloudInstanceID] = "NA"
 			}
 			if w.Agent.Status.AgentHealth != nil && len(w.Agent.Status.AgentHealth) > 0 {
 				healthSlice := []string{}
 				for _, a := range w.Agent.Status.AgentHealth {
 					healthSlice = append(healthSlice, fmt.Sprintf("%s (%s)", a.Type, a.Severity))
 				}
-				agentHealth = strings.Join(healthSlice, "; ")
+				csvRow[HeaderAgentHealth] = strings.Join(healthSlice, "; ")
 			} else {
-				agentHealth = "NA"
+				csvRow[HeaderAgentHealth] = "NA"
 			}
 		}
 
 		// Start using VEN properties
 		if w.VEN != nil {
-			venHref = w.VEN.Href
+			csvRow[HeaderVenHref] = w.VEN.Href
 		}
 
 		// Remove newlines in description
@@ -176,21 +182,37 @@ func exportWorkloads() {
 		}
 
 		// Get the labels
-		labelValueSlice := []string{}
 		for _, labelKey := range labelsKeySlice {
-			labelValueSlice = append(labelValueSlice, w.GetLabelByKey(labelKey, pce.Labels).Value)
+			csvRow[labelKey] = w.GetLabelByKey(labelKey, pce.Labels).Value
 		}
 
-		// Append to data slice
-		data := []string{w.Hostname, w.Name}
-		if !noHref {
-			data = append(data, w.Href)
-		}
-		data = append(data, labelValueSlice...)
-		data = append(data, strconv.FormatBool(managedStatus), strings.Join(interfaces, ";"), w.PublicIP, utils.PtrToStr(w.DistinguishedName), w.GetIPWithDefaultGW(), w.GetNetMaskWithDefaultGW(), w.GetDefaultGW(), w.GetNetworkWithDefaultGateway(), utils.PtrToStr(w.ServicePrincipalName), utils.PtrToStr(w.Description), w.GetMode(), w.GetVisibilityLevel(), strconv.FormatBool(w.Online), agentStatus, agentHealth, policySyncStatus, policyAppliedAt, poicyReceivedAt, policyRefreshAt, lastHeartBeat, hoursSinceLastHB, w.CreatedAt, utils.PtrToStr(w.OsID), utils.PtrToStr(w.OsDetail), venHref, venVersion, venID, pairedPCE, w.ServiceProvider, utils.PtrToStr(w.DataCenter), w.DataCenterZone, instanceID)
+		// Fill csv row with other data
+		csvRow[HeaderHostname] = w.Hostname
+		csvRow[HeaderName] = w.Name
+		csvRow[HeaderHref] = w.Href
+
+		csvRow[HeaderPublicIP] = w.PublicIP
+		csvRow[HeaderDistinguishedName] = utils.PtrToStr(w.DistinguishedName)
+		csvRow[HeaderIPWithDefaultGw] = w.GetIPWithDefaultGW()
+		csvRow[HeaderNetmaskOfIPWithDefGw] = w.GetNetMaskWithDefaultGW()
+		csvRow[HeaderDefaultGw] = w.GetDefaultGW()
+		csvRow[HeaderDefaultGwNetwork] = w.GetNetworkWithDefaultGateway()
+		csvRow[HeaderSPN] = utils.PtrToStr(w.ServicePrincipalName)
+		csvRow[HeaderDescription] = utils.PtrToStr(w.Description)
+		csvRow[HeaderEnforcement] = w.GetMode()
+		csvRow[HeaderVisibility] = w.GetVisibilityLevel()
+		csvRow[HeaderOnline] = strconv.FormatBool(w.Online)
+		csvRow[HeaderCreatedAt] = w.CreatedAt
+		csvRow[HeaderOsID] = utils.PtrToStr(w.OsID)
+		csvRow[HeaderOsDetail] = utils.PtrToStr(w.OsDetail)
+		csvRow[HeaderServiceProvider] = w.ServiceProvider
+		csvRow[HeaderDataCenter] = utils.PtrToStr(w.DataCenter)
+		csvRow[HeaderDataCenterZone] = w.DataCenterZone
+		csvRow[HeaderExternalDataReference] = utils.PtrToStr(w.ExternalDataReference)
+		csvRow[HeaderExternalDataSet] = utils.PtrToStr(w.ExternalDataSet)
 
 		if includeVuln {
-			var numVulns, maxVulnScore, vulnScore, vulnPortExposure, anyExposure, iplExposure, vulnExposureScore string
+			var maxVulnScore, vulnScore, vulnExposureScore string
 			targets := []*string{&maxVulnScore, &vulnScore, &vulnExposureScore}
 			if w.VulnerabilitySummary != nil {
 				values := []int{w.VulnerabilitySummary.MaxVulnerabilityScore, w.VulnerabilitySummary.VulnerabilityScore, w.VulnerabilitySummary.VulnerabilityExposureScore}
@@ -198,25 +220,29 @@ func exportWorkloads() {
 					*t = strconv.Itoa(int((math.Round((float64(values[i]) / float64(10))))))
 				}
 
-				numVulns = strconv.Itoa(w.VulnerabilitySummary.NumVulnerabilities)
-				vulnPortExposure = strconv.Itoa(w.VulnerabilitySummary.VulnerablePortExposure)
-				anyExposure = strconv.FormatBool(w.VulnerabilitySummary.VulnerablePortWideExposure.Any)
-				iplExposure = strconv.FormatBool(w.VulnerabilitySummary.VulnerablePortWideExposure.IPList)
+				csvRow[HeaderNumVulns] = strconv.Itoa(w.VulnerabilitySummary.NumVulnerabilities)
+				csvRow[HeaderVulnPortExposure] = strconv.Itoa(w.VulnerabilitySummary.VulnerablePortExposure)
+				csvRow[HeaderAnyVulnExposure] = strconv.FormatBool(w.VulnerabilitySummary.VulnerablePortWideExposure.Any)
+				csvRow[HeaderIpListVulnExposure] = strconv.FormatBool(w.VulnerabilitySummary.VulnerablePortWideExposure.IPList)
+				csvRow[HeaderMaxVulnScore] = maxVulnScore
+				csvRow[HeaderVulnScore] = vulnScore
+				csvRow[HeaderVulnExposureScore] = vulnExposureScore
 			}
-			data = append(data, vulnExposureScore, numVulns, maxVulnScore, vulnScore, vulnPortExposure, anyExposure, iplExposure, utils.PtrToStr(w.ExternalDataSet), utils.PtrToStr(w.ExternalDataReference))
 		}
-		data = append(data, utils.PtrToStr(w.ExternalDataSet), utils.PtrToStr(w.ExternalDataReference))
-		csvData = append(csvData, data)
 
-		stdOutData = append(stdOutData, []string{w.Hostname, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, w.GetMode()})
+		newRow := []string{}
+		for _, header := range outputData[0] {
+			newRow = append(newRow, csvRow[header])
+		}
+		outputData = append(outputData, newRow)
 	}
 
-	if len(csvData) > 1 {
+	if len(outputData) > 1 {
 		if outputFileName == "" {
 			outputFileName = fmt.Sprintf("workloader-wkld-export-%s.csv", time.Now().Format("20060102_150405"))
 		}
-		utils.WriteOutput(csvData, stdOutData, outputFileName)
-		utils.LogInfo(fmt.Sprintf("%d workloads exported", len(csvData)-1), true)
+		utils.WriteOutput(outputData, outputData, outputFileName)
+		utils.LogInfo(fmt.Sprintf("%d workloads exported", len(outputData)-1), true)
 	} else {
 		// Log command execution for 0 results
 		utils.LogInfo("no workloads in PCE.", true)
