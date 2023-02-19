@@ -43,7 +43,6 @@ import (
 	"github.com/brian1917/workloader/cmd/rulesetexport"
 	"github.com/brian1917/workloader/cmd/rulesetimport"
 	"github.com/brian1917/workloader/cmd/servicefinder"
-	"github.com/brian1917/workloader/cmd/snowsync"
 	"github.com/brian1917/workloader/cmd/subnet"
 	"github.com/brian1917/workloader/cmd/svcexport"
 	"github.com/brian1917/workloader/cmd/svcimport"
@@ -151,7 +150,6 @@ func init() {
 	RootCmd.AddCommand(traffic.TrafficCmd)
 	RootCmd.AddCommand(subnet.SubnetCmd)
 	RootCmd.AddCommand(hostparse.HostnameCmd)
-	RootCmd.AddCommand(snowsync.SnowSyncCmd)
 	RootCmd.AddCommand(dagsync.DAGSyncCmd)
 
 	// Workload management
