@@ -11,7 +11,7 @@ import (
 func (w *importWkld) enforcement(input Input) {
 	if input.AllowEnforcementChanges {
 		// Update the enforcement
-		if index, ok := input.Headers[wkldexport.HeaderPolicyState]; ok && strings.ToLower(w.csvLine[index]) != "unmanaged" && w.csvLine[index] != "" {
+		if index, ok := input.Headers[wkldexport.HeaderEnforcement]; ok && strings.ToLower(w.csvLine[index]) != "unmanaged" && w.csvLine[index] != "" {
 			m := strings.ToLower(w.csvLine[index])
 			if m != "visibility_only" && m != "full" && m != "selective" && m != "idle" && m != "" {
 				utils.LogWarning(fmt.Sprintf("csv line %d - %s - invalid mode state. values must be blank, visibility_only, full, selective, or idle. skipping line.", w.csvLineNum, w.compareString), true)
@@ -30,7 +30,7 @@ func (w *importWkld) enforcement(input Input) {
 
 func (w *importWkld) visibility(input Input) {
 	if input.AllowEnforcementChanges {
-		if index, ok := input.Headers[wkldexport.HeaderVisibilityState]; ok && strings.ToLower(w.csvLine[index]) != "unmanaged" && w.csvLine[index] != "" {
+		if index, ok := input.Headers[wkldexport.HeaderVisibility]; ok && strings.ToLower(w.csvLine[index]) != "unmanaged" && w.csvLine[index] != "" {
 			v := strings.ToLower(w.csvLine[index])
 			if v != "blocked_allowed" && v != "blocked" && v != "off" && v != "" {
 				utils.LogWarning(fmt.Sprintf("csv line %d - %s - invalid visibility state. values must be blank, blocked_allowed, blocked, or off. skipping line.", w.csvLineNum, w.compareString), true)

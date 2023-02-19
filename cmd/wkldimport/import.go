@@ -111,7 +111,7 @@ func ImportWkldsFromCSV(input Input) {
 
 		// SHOULD BE REMOVED WHEN PREFIX FLAGS ARE REMOVED - Process the prefixes to labels
 		prefixes := []string{input.RolePrefix, input.AppPrefix, input.EnvPrefix, input.LocPrefix}
-		for i, header := range []string{wkldexport.HeaderRole, wkldexport.HeaderApp, wkldexport.HeaderEnv, wkldexport.HeaderLoc} {
+		for i, header := range []string{"role", "app", "env", "loc"} {
 			if index, ok := input.Headers[header]; ok {
 				// If the value is blank, do nothing
 				line[index] = prefixes[i] + line[index]
@@ -176,7 +176,7 @@ func ImportWkldsFromCSV(input Input) {
 		newLabels = w.labels(input, newLabels, labelKeysMap)
 
 		// Process fields that don't require logic
-		headerValues := []string{wkldexport.HeaderDescription, wkldexport.HeaderMachineAuthenticationID, wkldexport.HeaderSPN, wkldexport.HeaderExternalDataSet, wkldexport.HeaderExternalDataReference, wkldexport.HeaderOsID, wkldexport.HeaderOsDetail, wkldexport.HeaderDataCenter}
+		headerValues := []string{wkldexport.HeaderDescription, wkldexport.HeaderDistinguishedName, wkldexport.HeaderSPN, wkldexport.HeaderExternalDataSet, wkldexport.HeaderExternalDataReference, wkldexport.HeaderOsID, wkldexport.HeaderOsDetail, wkldexport.HeaderDataCenter}
 		targetUpdates := []**string{&w.wkld.Description, &w.wkld.DistinguishedName, &w.wkld.ServicePrincipalName, &w.wkld.ExternalDataSet, &w.wkld.ExternalDataReference, &w.wkld.OsID, &w.wkld.OsDetail, &w.wkld.DataCenter}
 
 		for i, header := range headerValues {

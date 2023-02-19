@@ -88,7 +88,7 @@ func wkldReplicate() {
 	unmanagedWkldMap := make(map[string]replicateWkld)
 
 	// Start the csv data
-	wkldImportCsvData := [][]string{{"source", wkldexport.HeaderHostname, wkldexport.HeaderDescription, wkldexport.HeaderRole, wkldexport.HeaderApp, wkldexport.HeaderEnv, wkldexport.HeaderLoc, wkldexport.HeaderInterfaces, wkldexport.HeaderExternalDataSet, wkldexport.HeaderExternalDataReference}}
+	wkldImportCsvData := [][]string{{"source", wkldexport.HeaderHostname, wkldexport.HeaderDescription, "role", "app", "env", "loc", wkldexport.HeaderInterfaces, wkldexport.HeaderExternalDataSet, wkldexport.HeaderExternalDataReference}}
 	wkldDeleteCsvdata := [][]string{{"href", "pce_fqdn", "pce_name"}}
 	deleteHrefMap := make(map[string][]string)
 

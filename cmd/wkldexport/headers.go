@@ -3,20 +3,17 @@ package wkldexport
 const (
 	HeaderHostname                 = "hostname"
 	HeaderName                     = "name"
-	HeaderRole                     = "role"
-	HeaderApp                      = "app"
-	HeaderEnv                      = "env"
-	HeaderLoc                      = "loc"
 	HeaderInterfaces               = "interfaces"
 	HeaderPublicIP                 = "public_ip"
-	HeaderMachineAuthenticationID  = "machine_authentication_id"
+	HeaderDistinguishedName        = "distinguished_name"
 	HeaderIPWithDefaultGw          = "ip_with_default_gw"
 	HeaderNetmaskOfIPWithDefGw     = "netmask_of_ip_with_def_gw"
 	HeaderDefaultGw                = "default_gw"
 	HeaderDefaultGwNetwork         = "default_gw_network"
 	HeaderHref                     = "href"
 	HeaderDescription              = "description"
-	HeaderPolicyState              = "enforcement"
+	HeaderEnforcement              = "enforcement"
+	HeaderVisibility               = "visibility"
 	HeaderOnline                   = "online"
 	HeaderAgentStatus              = "agent_status"
 	HeaderSecurityPolicySyncState  = "security_policy_sync_state"
@@ -39,7 +36,6 @@ const (
 	HeaderExternalDataReference    = "external_data_reference"
 	HeaderCreatedAt                = "created_at"
 	HeaderAgentHealth              = "agent_health"
-	HeaderVisibilityState          = "visibility"
 	HeaderSPN                      = "spn"
 	HeaderManaged                  = "managed"
 	HeaderVulnExposureScore        = "vuln_exposure_score"
@@ -49,27 +45,26 @@ const (
 	HeaderVulnPortExposure         = "vuln_port_exposure"
 	HeaderAnyVulnExposure          = "any_ip_vuln_exposure"
 	HeaderIpListVulnExposure       = "ip_list_vuln_exposure"
-	HeaderAdditionalLabelHrefs     = "additional_label_hrefs"
 )
 
-func AllHeaders() []string {
-	return []string{
+func AllHeaders(inclVuln bool, inclHref bool) []string {
+	headers := []string{
 		HeaderHostname,
 		HeaderName,
-		HeaderRole,
-		HeaderApp,
-		HeaderEnv,
-		HeaderLoc,
 		HeaderInterfaces,
 		HeaderPublicIP,
-		HeaderMachineAuthenticationID,
+		HeaderDistinguishedName,
 		HeaderIPWithDefaultGw,
 		HeaderNetmaskOfIPWithDefGw,
 		HeaderDefaultGw,
 		HeaderDefaultGwNetwork,
-		HeaderHref,
+	}
+	if inclHref {
+		headers = append(headers, HeaderHref)
+	}
+	headers = append(headers,
 		HeaderDescription,
-		HeaderPolicyState,
+		HeaderEnforcement,
 		HeaderOnline,
 		HeaderAgentStatus,
 		HeaderSecurityPolicySyncState,
@@ -80,6 +75,7 @@ func AllHeaders() []string {
 		HeaderHoursSinceLastHeartbeat,
 		HeaderOsID,
 		HeaderOsDetail,
+		HeaderVenHref,
 		HeaderAgentVersion,
 		HeaderAgentID,
 		HeaderActivePceFqdn,
@@ -87,38 +83,36 @@ func AllHeaders() []string {
 		HeaderDataCenter,
 		HeaderDataCenterZone,
 		HeaderCloudInstanceID,
-		HeaderExternalDataSet,
-		HeaderExternalDataReference,
 		HeaderCreatedAt,
 		HeaderAgentHealth,
-		HeaderVisibilityState,
+		HeaderVisibility,
 		HeaderSPN,
-		HeaderManaged,
-		HeaderVulnExposureScore,
-		HeaderNumVulns,
-		HeaderMaxVulnScore,
-		HeaderVulnScore,
-		HeaderVulnPortExposure,
-		HeaderAnyVulnExposure,
-		HeaderIpListVulnExposure,
-		HeaderAdditionalLabelHrefs}
+		HeaderManaged)
+	if inclVuln {
+		headers = append(headers,
+			HeaderVulnExposureScore,
+			HeaderNumVulns,
+			HeaderMaxVulnScore,
+			HeaderVulnScore,
+			HeaderVulnPortExposure,
+			HeaderAnyVulnExposure,
+			HeaderIpListVulnExposure)
+	}
+	headers = append(headers, HeaderExternalDataSet, HeaderExternalDataReference)
+
+	return headers
 }
 
 func ImportHeaders() []string {
 	return []string{
 		HeaderHostname,
 		HeaderName,
-		HeaderRole,
-		HeaderApp,
-		HeaderEnv,
-		HeaderLoc,
-		HeaderAdditionalLabelHrefs,
 		HeaderInterfaces,
 		HeaderPublicIP,
-		HeaderMachineAuthenticationID,
+		HeaderDistinguishedName,
 		HeaderSPN,
-		HeaderPolicyState,
-		HeaderVisibilityState,
+		HeaderEnforcement,
+		HeaderVisibility,
 		HeaderDescription,
 		HeaderOsID,
 		HeaderOsDetail,

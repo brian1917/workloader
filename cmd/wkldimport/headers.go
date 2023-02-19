@@ -69,7 +69,7 @@ func (i *Input) processHeaders(headers []string) {
 func fieldMapping() map[string]string {
 
 	// Get all the headers
-	allHeaders := wkldexport.AllHeaders()
+	allHeaders := wkldexport.AllHeaders(true, true)
 
 	// Check for the existing of the headers
 	fieldMapping := make(map[string]string)
