@@ -27,7 +27,7 @@ type Input struct {
 	Provision, UpdatePCE, NoPrompt, CreateLabels bool
 }
 
-// Decluare a global iput and debug variable
+// Decluare a global input and debug variable
 var globalInput Input
 
 func init() {
@@ -53,6 +53,7 @@ The order of the CSV columns do not matter. The input format accepts the followi
 - rule_description
 - unscoped_consumers (required. true/false. true is extra-scope and false is intra-scope.)
 - consumer_all_workloads (true/false)
+- consumer_labels (semi-colon separated list in format of key:value. e.g., app:erp;role:db)
 - consumer_roles (label value. multiple separated by ";")
 - consumer_apps (label value. multiple separated by ";")
 - consumer_envs (label value. multiple separated by ";")
@@ -64,10 +65,7 @@ The order of the CSV columns do not matter. The input format accepts the followi
 - consumer_virtual_services
 - consumer_resolve_labels_as (required. valid options are "workloads", "virtual_services", or "workloads;virtual_services")
 - provider_all_workloads (true/false)
-- provider_roles (label value. multiple separated by ";")
-- provider_apps (label value. multiple separated by ";")
-- provider_envs (label value. multiple separated by ";")
-- provider_locs (label value. multiple separated by ";")
+- provider_labels (semi-colon separated list in format of key:value. e.g., app:erp;role:db)
 - provider_iplists (names of IP lists. multiple separated by ";")
 - provider_workloads (names of workloads. multiple separated by ";")
 - provider_virtual_services (names of virtual services separated by ";")
@@ -381,26 +379,25 @@ CSVEntries:
 			}
 		}
 
-		// Labels - iterate through the role, app, env and loc.
-		labelIndeces := []string{ruleexport.HeaderConsumerRole, ruleexport.HeaderConsumerApp, ruleexport.HeaderConsumerEnv, ruleexport.HeaderConsumerLoc}
-		labelKeys := []string{"role", "app", "env", "loc"}
-		for e, li := range labelIndeces {
-			if c, ok := input.Headers[li]; ok {
-				csvLabels := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
-				if l[c] == "" {
-					csvLabels = nil
-				}
-
-				// Labels - run comparison
-				labelUpdate, labels := labelComparison(labelKeys[e], csvLabels, input.PCE, rHrefMap[rowRuleHref], i+1, false)
-				if labelUpdate {
-					update = true
-				}
-				for _, l := range labels {
-					consumers = append(consumers, &illumioapi.Consumers{Label: &illumioapi.Label{Href: l.Href}})
-				}
+		// Labels
+		if l[input.Headers[ruleexport.HeaderConsumerLabels]] != "" {
+			csvLabels := []illumioapi.Label{}
+			// Split at the semi-colons
+			userProvidedLabels := strings.Split(strings.Replace(l[input.Headers[ruleexport.HeaderConsumerLabels]], "; ", ";", -1), ";")
+			for _, label := range userProvidedLabels {
+				key := strings.Split(label, ":")[0]
+				value := strings.TrimPrefix(label, key+":")
+				csvLabels = append(csvLabels, illumioapi.Label{Key: key, Value: value})
+			}
+			labelUpdate, labels := labelComparison(csvLabels, input.PCE, rHrefMap[rowRuleHref], i+1, false)
+			if labelUpdate {
+				update = true
+			}
+			for _, l := range labels {
+				consumers = append(consumers, &illumioapi.Consumers{Label: &illumioapi.Label{Href: l.Href}})
 			}
 		}
+
 		// User Groups - parse and run comparison
 		var consumingSecPrincipals []*illumioapi.ConsumingSecurityPrincipals
 		if c, ok := input.Headers[ruleexport.HeaderConsumerUserGroups]; ok {
@@ -442,23 +439,22 @@ CSVEntries:
 			}
 		}
 
-		// Labels - parse the CSV entry to split by semicolon and remove spaces
-		provLabelIndeces := []string{ruleexport.HeaderProviderRole, ruleexport.HeaderProviderApp, ruleexport.HeaderProviderEnv, ruleexport.HeaderProviderLoc}
-		for e, li := range provLabelIndeces {
-			if c, ok := input.Headers[li]; ok {
-				csvLabels := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
-				if l[c] == "" {
-					csvLabels = nil
-				}
-
-				// Labels - run comparison
-				labelUpdate, labels := labelComparison(labelKeys[e], csvLabels, input.PCE, rHrefMap[rowRuleHref], i+1, true)
-				if labelUpdate {
-					update = true
-				}
-				for _, l := range labels {
-					providers = append(providers, &illumioapi.Providers{Label: &illumioapi.Label{Href: l.Href}})
-				}
+		// Labels
+		if l[input.Headers[ruleexport.HeaderProviderAllWorkloads]] != "" {
+			csvLabels := []illumioapi.Label{}
+			// Split at the semi-colons
+			userProvidedLabels := strings.Split(strings.Replace(l[input.Headers[ruleexport.HeaderProviderLabels]], "; ", ";", -1), ";")
+			for _, label := range userProvidedLabels {
+				key := strings.Split(label, ":")[0]
+				value := strings.TrimPrefix(label, key+":")
+				csvLabels = append(csvLabels, illumioapi.Label{Key: key, Value: value})
+			}
+			labelUpdate, labels := labelComparison(csvLabels, input.PCE, rHrefMap[rowRuleHref], i+1, true)
+			if labelUpdate {
+				update = true
+			}
+			for _, l := range labels {
+				providers = append(providers, &illumioapi.Providers{Label: &illumioapi.Label{Href: l.Href}})
 			}
 		}
 

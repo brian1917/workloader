@@ -113,7 +113,7 @@ func importTemplate() {
 
 	// Export the Rules
 	fmt.Println("\r\n------------------------------------------- RULES ---------------------------------------------")
-	ruleexport.ExportRules(ruleexport.Input{PCE: pce, SkipWkldDetailCheck: true, OutputFileName: fmt.Sprintf("%s%s.rules.csv", directory, templateName), PolicyVersion: "draft", TemplateFormat: true, RulesetHrefs: targetRuleSetsHrefs})
+	ruleexport.ExportRules(ruleexport.Input{PCE: pce, SkipWkldDetailCheck: true, OutputFileName: fmt.Sprintf("%s%s.rules.csv", directory, templateName), PolicyVersion: "draft", NoHref: true, RulesetHrefs: targetRuleSetsHrefs})
 
 	// Export the services
 	fmt.Println("\r\n------------------------------------------ SERVICES -------------------------------------------")

@@ -9,10 +9,7 @@ const (
 	HeaderRuleEnabled                   = "rule_enabled"
 	HeaderUnscopedConsumers             = "unscoped_consumers"
 	HeaderConsumerAllWorkloads          = "consumer_all_workloads"
-	HeaderConsumerRole                  = "consumer_roles"
-	HeaderConsumerApp                   = "consumer_apps"
-	HeaderConsumerEnv                   = "consumer_envs"
-	HeaderConsumerLoc                   = "consumer_locs"
+	HeaderConsumerLabels                = "consumer_labels"
 	HeaderConsumerLabelGroup            = "consumer_label_groups"
 	HeaderConsumerIplists               = "consumer_iplists"
 	HeaderConsumerUserGroups            = "consumer_user_groups"
@@ -20,10 +17,7 @@ const (
 	HeaderConsumerVirtualServices       = "consumer_virtual_services"
 	HeaderConsumerUseWorkloadSubnets    = "consumer_use_workload_subnets"
 	HeaderProviderAllWorkloads          = "provider_all_workloads"
-	HeaderProviderRole                  = "provider_roles"
-	HeaderProviderApp                   = "provider_apps"
-	HeaderProviderEnv                   = "provider_envs"
-	HeaderProviderLoc                   = "provider_locs"
+	HeaderProviderLabels                = "provider_labels"
 	HeaderProviderLabelGroups           = "provider_label_groups"
 	HeaderProviderIplists               = "provider_iplists"
 	HeaderProviderWorkloads             = "provider_workloads"
@@ -53,10 +47,7 @@ func getCSVHeaders(templateFormat bool) []string {
 		HeaderRuleEnabled,
 		HeaderUnscopedConsumers,
 		HeaderConsumerAllWorkloads,
-		HeaderConsumerRole,
-		HeaderConsumerApp,
-		HeaderConsumerEnv,
-		HeaderConsumerLoc,
+		HeaderConsumerLabels,
 		HeaderConsumerLabelGroup,
 		HeaderConsumerIplists,
 		HeaderConsumerUserGroups,
@@ -64,10 +55,7 @@ func getCSVHeaders(templateFormat bool) []string {
 		HeaderConsumerVirtualServices,
 		HeaderConsumerUseWorkloadSubnets,
 		HeaderProviderAllWorkloads,
-		HeaderProviderRole,
-		HeaderProviderApp,
-		HeaderProviderEnv,
-		HeaderProviderLoc,
+		HeaderProviderLabels,
 		HeaderProviderLabelGroups,
 		HeaderProviderIplists,
 		HeaderProviderWorkloads,
