@@ -2,9 +2,6 @@ package ruleexport
 
 import (
 	"fmt"
-	"sort"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/brian1917/illumioapi"
@@ -165,41 +162,12 @@ func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule) []str
 
 	// Make the traffic request
 	utils.LogInfo(fmt.Sprintf("ruleset %s - executing explorer query for %s...", rs.Name, r.Href), true)
-	traffic, a, err := input.PCE.CreateTrafficRequest(trafficReq)
+	asyncTrafficQuery, a, err := input.PCE.CreateAsyncTrafficRequest(trafficReq)
 	utils.LogAPIResp("GetTrafficAnalysisAPI", a)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
 
-	// Get flow count
-	flows := 0
-	ports := make(map[string]int)
-	protocols := illumioapi.ProtocolList()
-	type entry struct {
-		flows int
-		port  string
-		proto string
-	}
-	entries := []entry{}
-	for _, t := range traffic {
-		flows = flows + t.NumConnections
-		ports[fmt.Sprintf("%d-%d", t.ExpSrv.Port, t.ExpSrv.Proto)] = ports[fmt.Sprintf("%d-%d", t.ExpSrv.Port, t.ExpSrv.Proto)] + t.NumConnections
-	}
-	for a, p := range ports {
-		portProtoString := strings.Split(a, "-")
-		protoInt, err := strconv.Atoi(portProtoString[1])
-		if err != nil {
-			utils.LogError(err.Error())
-		}
-		entries = append(entries, entry{port: portProtoString[0], proto: protocols[protoInt], flows: p})
-	}
-	sort.SliceStable(entries, func(i, j int) bool {
-		return entries[i].flows < entries[j].flows
-	})
-	entriesString := []string{}
-	for _, e := range entries {
-		entriesString = append(entriesString, fmt.Sprintf("%s %s (%d)", e.port, e.proto, e.flows))
-	}
+	return []string{asyncTrafficQuery.Href, "", ""}
 
-	return []string{strconv.Itoa(flows), strings.Join(entriesString, "; ")}
 }

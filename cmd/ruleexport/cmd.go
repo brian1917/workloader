@@ -40,10 +40,10 @@ func init() {
 	RuleExportCmd.Flags().StringVar(&input.PolicyVersion, "policy-version", "draft", "Policy version. Must be active or draft.")
 	RuleExportCmd.Flags().BoolVar(&input.ExpandServices, "expand-svcs", false, "expand service objects to show ports/protocols (not compatible in rule-import format).")
 	RuleExportCmd.Flags().BoolVar(&input.TrafficCount, "traffic-count", false, "include the traffic summaries for flows that meet the rule criteria. an explorer query is executed per rule, which will take some time.")
-	RuleExportCmd.Flags().IntVar(&input.ExplorerMax, "explorer-max-results", 10000, "maximum results on an explorer query. only applicable if used with traffic-count flag.")
-	RuleExportCmd.Flags().StringVar(&input.ExplorerStart, "explorer-start", time.Now().AddDate(0, 0, -88).In(time.UTC).Format("2006-01-02"), "start date in the format of yyyy-mm-dd. only applicable if used with traffic-count flag.")
-	RuleExportCmd.Flags().StringVar(&input.ExplorerEnd, "explorer-end", time.Now().Add(time.Hour*24).Format("2006-01-02"), "end date in the format of yyyy-mm-dd. only applicable if used with traffic-count flag.")
-	RuleExportCmd.Flags().StringVar(&input.ExclServiceCSV, "explorer-excl-svc-file", "", "file location of csv with port/protocols to exclude. Port number in column 1 and IANA numeric protocol in column 2. headers optional. only applicable if used with traffic-count flag.")
+	RuleExportCmd.Flags().IntVar(&input.ExplorerMax, "traffic-max-results", 10000, "maximum results on an explorer query. only applicable if used with traffic-count flag.")
+	RuleExportCmd.Flags().StringVar(&input.ExplorerStart, "traffic-start", time.Now().AddDate(0, 0, -88).In(time.UTC).Format("2006-01-02"), "start date in the format of yyyy-mm-dd. only applicable if used with traffic-count flag.")
+	RuleExportCmd.Flags().StringVar(&input.ExplorerEnd, "traffic-end", time.Now().Add(time.Hour*24).Format("2006-01-02"), "end date in the format of yyyy-mm-dd. only applicable if used with traffic-count flag.")
+	RuleExportCmd.Flags().StringVar(&input.ExclServiceCSV, "traffic-excl-svc-file", "", "file location of csv with port/protocols to exclude. Port number in column 1 and IANA numeric protocol in column 2. headers optional. only applicable if used with traffic-count flag.")
 	RuleExportCmd.Flags().BoolVarP(&input.SkipWkldDetailCheck, "skip-wkld-detail-check", "s", false, "do not check for enforced workloads with low detail or no logging, which can skew traffic results since allowed (low detail) or all (no detail) flows are not reported. this can save time by not checking each workload enforcement state.")
 	RuleExportCmd.Flags().StringVar(&input.OutputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 	RuleExportCmd.Flags().SortFlags = false
@@ -248,7 +248,7 @@ func ExportRules(input Input) {
 	// Start the data slice with headers
 	csvData := [][]string{}
 	if input.TrafficCount {
-		csvData = append(csvData, append(getCSVHeaders(input.NoHref), []string{"flows", "flows_by_port"}...))
+		csvData = append(csvData, append(getCSVHeaders(input.NoHref), []string{"async_query_href", "async_query_status", "flows", "flows_by_port"}...))
 	} else {
 		csvData = append(csvData, getCSVHeaders(input.NoHref))
 	}

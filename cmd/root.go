@@ -169,6 +169,7 @@ func init() {
 	RootCmd.AddCommand(deleteunusedlabels.LabelsDeleteUnusedCmd)
 
 	// Reporting
+	RootCmd.AddCommand(ruleexport.RuleUsageCmd)
 	RootCmd.AddCommand(unusedports.UnusedPortsCmd)
 	RootCmd.AddCommand(mislabel.MisLabelCmd)
 	RootCmd.AddCommand(dupecheck.DupeCheckCmd)
@@ -227,7 +228,7 @@ func Execute() {
 	}
 }
 
-//versionCmd returns the version of workloader
+// versionCmd returns the version of workloader
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print workloader version.",
