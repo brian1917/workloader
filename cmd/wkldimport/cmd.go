@@ -78,8 +78,9 @@ Create and assign labels to existing workloads and/or create unmanaged workloads
 
 The input file requires headers and matches fields to header values.
 
-Label keys must already exist in the PCE. wkld-import will not create label keys. Workloader will match any header that is a label key. Column headers that are not label keys or in the list below will be ignored:
-` + "\r\n- " + wkldexport.HeaderHostname + "\r\n" +
+Column headers that are not label keys or in the list below will be ignored:
+` + "\r\n- " + wkldexport.HeaderHref + "\r\n" +
+		"- " + wkldexport.HeaderHostname + "\r\n" +
 		"- " + wkldexport.HeaderName + "\r\n" +
 		"- " + wkldexport.HeaderInterfaces + "\r\n" +
 		"- " + wkldexport.HeaderPublicIP + "\r\n" +
@@ -94,6 +95,8 @@ Label keys must already exist in the PCE. wkld-import will not create label keys
 		"- " + wkldexport.HeaderExternalDataSet + "\r\n" +
 		"- " + wkldexport.HeaderExternalDataReference + "\r\n" + `
 Besides either href, hostname, or name for matching, no field is required.
+
+Label types must already exist in the PCE. Workloader will not create new label types based on headers; it matches headers to existing label type keys.
 
 Interfaces should be in the format of "192.168.200.20", "192.168.200.20/24", "eth0:192.168.200.20", or "eth0:192.168.200.20/24".
 If no interface name is provided with a colon (e.g., "eth0:"), then "umwl:" is used. Multiple interfaces should be separated by a semicolon.
