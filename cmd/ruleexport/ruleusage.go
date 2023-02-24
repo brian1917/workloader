@@ -113,7 +113,7 @@ func retrieveTraffic() {
 				utils.LogInfo(fmt.Sprintf("csv row %d - %s is not completed.", i+1, aq.Href), true)
 				numStillPending++
 			} else {
-				traffic, api, err := pce.GetResults(aq)
+				traffic, api, err := pce.GetAsyncQueryResults(aq)
 				utils.LogAPIResp("GetResults", api)
 				if err != nil {
 					utils.LogError(err.Error())
