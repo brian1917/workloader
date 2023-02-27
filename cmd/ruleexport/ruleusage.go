@@ -39,15 +39,14 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-
-		retrieveTraffic()
-
 		// Get the input file
 		if len(args) != 1 {
 			fmt.Println("command requires 1 argument for the csv file. see usage help.")
 			os.Exit(0)
 		}
 		inputFile = args[0]
+
+		retrieveTraffic()
 	},
 }
 
@@ -125,12 +124,6 @@ func retrieveTraffic() {
 		}
 
 		// Capture new row
-		utils.LogInfo(fmt.Sprintf("%d rule traffic queries in input.", len(csvData)-1), true)
-		utils.LogInfo(fmt.Sprintf("%d rule traffic queries completed prior to this run.", numAlreadyCompleted), true)
-		utils.LogInfo(fmt.Sprintf("%d rule traffic queries completed on this run.", numNewlyCompleted), true)
-		utils.LogInfo(fmt.Sprintf("%d rule traffic queries expired (see warnings).", numExpired), true)
-		utils.LogInfo(fmt.Sprintf("%d rule traffic queries still pending.", numStillPending), true)
-
 		newCsvData = append(newCsvData, row)
 	}
 
@@ -138,6 +131,13 @@ func retrieveTraffic() {
 	if outputFileName == "" {
 		outputFileName = fmt.Sprintf("workloader-ruleset-export-retrieve-traffic-%s.csv", time.Now().Format("20060102_150405"))
 	}
+
+	// Summarize
+	utils.LogInfo(fmt.Sprintf("%d rule traffic queries in input.", len(csvData)-1), true)
+	utils.LogInfo(fmt.Sprintf("%d rule traffic queries completed prior to this run.", numAlreadyCompleted), true)
+	utils.LogInfo(fmt.Sprintf("%d rule traffic queries completed on this run.", numNewlyCompleted), true)
+	utils.LogInfo(fmt.Sprintf("%d rule traffic queries expired (see warnings).", numExpired), true)
+	utils.LogInfo(fmt.Sprintf("%d rule traffic queries still pending.", numStillPending), true)
 	utils.WriteOutput(newCsvData, [][]string{}, outputFileName)
 }
 

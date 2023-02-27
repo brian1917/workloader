@@ -41,7 +41,7 @@ func init() {
 	RuleExportCmd.Flags().BoolVar(&input.ExpandServices, "expand-svcs", false, "expand service objects to show ports/protocols (not compatible in rule-import format).")
 	RuleExportCmd.Flags().BoolVar(&input.TrafficCount, "traffic-count", false, "include the traffic summaries for flows that meet the rule criteria. an explorer query is executed per rule, which will take some time.")
 	RuleExportCmd.Flags().IntVar(&input.ExplorerMax, "traffic-max-results", 10000, "maximum results on an explorer query. only applicable if used with traffic-count flag.")
-	RuleExportCmd.Flags().StringVar(&input.ExplorerStart, "traffic-start", time.Now().AddDate(0, 0, -88).In(time.UTC).Format("2006-01-02"), "start date in the format of yyyy-mm-dd. only applicable if used with traffic-count flag.")
+	RuleExportCmd.Flags().StringVar(&input.ExplorerStart, "traffic-start", time.Now().AddDate(0, 0, -7).In(time.UTC).Format("2006-01-02"), "start date in the format of yyyy-mm-dd. only applicable if used with traffic-count flag.")
 	RuleExportCmd.Flags().StringVar(&input.ExplorerEnd, "traffic-end", time.Now().Add(time.Hour*24).Format("2006-01-02"), "end date in the format of yyyy-mm-dd. only applicable if used with traffic-count flag.")
 	RuleExportCmd.Flags().StringVar(&input.ExclServiceCSV, "traffic-excl-svc-file", "", "file location of csv with port/protocols to exclude. Port number in column 1 and IANA numeric protocol in column 2. headers optional. only applicable if used with traffic-count flag.")
 	RuleExportCmd.Flags().BoolVarP(&input.SkipWkldDetailCheck, "skip-wkld-detail-check", "s", false, "do not check for enforced workloads with low detail or no logging, which can skew traffic results since allowed (low detail) or all (no detail) flows are not reported. this can save time by not checking each workload enforcement state.")
@@ -248,7 +248,7 @@ func ExportRules(input Input) {
 	// Start the data slice with headers
 	csvData := [][]string{}
 	if input.TrafficCount {
-		csvData = append(csvData, append(getCSVHeaders(input.NoHref), []string{"async_query_href", "async_query_status", "flows", "flows_by_port"}...))
+		csvData = append(csvData, append(getCSVHeaders(input.NoHref), []string{"async_query_href", "async_query_status", "flows", "flows_by_port", "query_body"}...))
 	} else {
 		csvData = append(csvData, getCSVHeaders(input.NoHref))
 	}
@@ -267,38 +267,44 @@ func ExportRules(input Input) {
 		csvData = append(csvData, tempHeaders)
 	}
 
-	// Iterate each ruleset
-	var i int
-	var rs illumioapi.RuleSet
+	// Start the otuput file
+	if input.OutputFileName == "" {
+		input.OutputFileName = fmt.Sprintf("workloader-rule-export-%s.csv", time.Now().Format("20060102_150405"))
+	}
+	utils.WriteLineOutput(csvData[0], input.OutputFileName)
 
-	for i, rs = range allRuleSets {
-		// Reset the matchedRules and filters
-		matchedRules := 0
+	// Iterate each ruleset
+	totalRules := 0
+	totalRulesets := 0
+	for _, rs := range allRuleSets {
+		totalRulesets++
 
 		// Log ruleset processing
 		utils.LogInfo(fmt.Sprintf("processing ruleset %s with %d rules", rs.Name, len(rs.Rules)), false)
 
 		// Set scope
-		scopeSlice := []string{}
+		scopes := []string{}
 
 		// Iterate through each scope
 		for _, scope := range rs.Scopes {
-			scopeMap := make(map[string]string)
+			scopeStrSlice := []string{}
 			for _, scopeMember := range scope {
 				if scopeMember.Label != nil {
-					scopeMap[input.PCE.Labels[scopeMember.Label.Href].Key] = input.PCE.Labels[scopeMember.Label.Href].Value
+					scopeStrSlice = append(scopeStrSlice, fmt.Sprintf("%s:%s", input.PCE.Labels[scopeMember.Label.Href].Key, input.PCE.Labels[scopeMember.Label.Href].Value))
 				}
 				if scopeMember.LabelGroup != nil {
-					scopeMap[input.PCE.LabelGroups[scopeMember.LabelGroup.Href].Key] = fmt.Sprintf("%s (label_group)", input.PCE.LabelGroups[scopeMember.LabelGroup.Href].Name)
+					scopeStrSlice = append(scopeStrSlice, fmt.Sprintf("%s:%s", input.PCE.LabelGroups[scopeMember.LabelGroup.Href].Key, input.PCE.LabelGroups[scopeMember.LabelGroup.Href].Name))
 				}
 			}
+			scopes = append(scopes, strings.Join(scopeStrSlice, ";"))
 		}
 
 		// Process each rule
 		for _, r := range rs.Rules {
+			totalRules++
 			csvEntryMap := make(map[string]string)
 			// Populate the map with basic info
-			csvEntryMap[HeaderRuleSetScope] = strings.Join(scopeSlice, ";")
+			csvEntryMap[HeaderRuleSetScope] = strings.Join(scopes, ";")
 			csvEntryMap[HeaderRulesetHref] = rs.Href
 			csvEntryMap[HeaderRulesetEnabled] = strconv.FormatBool(*rs.Enabled)
 			csvEntryMap[HeaderRulesetDescription] = rs.Description
@@ -524,32 +530,17 @@ func ExportRules(input Input) {
 
 			if input.TrafficCount {
 				csvData = append(csvData, append(createEntrySlice(csvEntryMap, input.NoHref, pceVersionIncludesUseSubnets), trafficCounter(input, rs, *r)...))
+				utils.WriteLineOutput(append(createEntrySlice(csvEntryMap, input.NoHref, pceVersionIncludesUseSubnets), trafficCounter(input, rs, *r)...), input.OutputFileName)
 			} else {
 				csvData = append(csvData, createEntrySlice(csvEntryMap, input.NoHref, pceVersionIncludesUseSubnets))
+				utils.WriteLineOutput(createEntrySlice(csvEntryMap, input.NoHref, pceVersionIncludesUseSubnets), input.OutputFileName)
 			}
 
-			matchedRules++
-
 		}
-		utils.LogInfo(fmt.Sprintf("%d rules exported.", matchedRules), false)
 	}
 
-	// Output the CSV Data
-	if len(csvData) > 1 {
-		if input.OutputFileName == "" {
-			input.OutputFileName = fmt.Sprintf("workloader-rule-export-%s.csv", time.Now().Format("20060102_150405"))
-		}
-		utils.WriteOutput(csvData, csvData, input.OutputFileName)
-		utils.LogInfo(fmt.Sprintf("%d rules from %d rulesets exported", len(csvData)-1, i+1), true)
-	} else {
-		// Log command execution for 0 results
-		utils.LogInfo("no rulesets in input.PCE.", true)
-	}
-
-	if input.Edge {
-		utils.LogEndCommand("edge-rule-export")
-	} else {
-		utils.LogEndCommand("rule-export")
-	}
+	utils.LogInfo(fmt.Sprintf("%d rules from %d rulesets exported", totalRules, totalRulesets), true)
+	utils.LogInfo(fmt.Sprintf("output file: %s", input.OutputFileName), true)
+	utils.LogEndCommand("rule-export")
 
 }

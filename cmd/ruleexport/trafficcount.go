@@ -14,7 +14,33 @@ func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule) []str
 	trafficReq := illumioapi.TrafficAnalysisRequest{MaxResults: input.ExplorerMax}
 
 	// Build the holder consumer label slice
-	var consumerLabels []illumioapi.Label
+	var consumerLabels, providerLabels []illumioapi.Label
+
+	// Scope exists - used to for checking AMS
+	scopeExists := false
+
+	// Scopes - iterate and fill provider slices. If unscoped consumers is false, also fill consumer slices. If it's a label group, expand it first.
+	for _, scope := range rs.Scopes {
+		for _, scopeEntity := range scope {
+			if scopeEntity.Label != nil {
+				scopeExists = true
+				providerLabels = append(providerLabels, input.PCE.Labels[scopeEntity.Label.Href])
+				if !*r.UnscopedConsumers {
+					consumerLabels = append(consumerLabels, input.PCE.Labels[scopeEntity.Label.Href])
+				}
+			}
+			if scopeEntity.LabelGroup != nil {
+				scopeExists = true
+				labelHrefs := input.PCE.ExpandLabelGroup(scopeEntity.LabelGroup.Href)
+				for _, labelHref := range labelHrefs {
+					providerLabels = append(providerLabels, input.PCE.Labels[labelHref])
+					if !*r.UnscopedConsumers {
+						consumerLabels = append(consumerLabels, input.PCE.Labels[labelHref])
+					}
+				}
+			}
+		}
+	}
 
 	// Consumers
 	for _, consumer := range r.Consumers {
@@ -33,10 +59,11 @@ func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule) []str
 		if consumer.IPList != nil {
 			trafficReq.Sources.Include = append(trafficReq.Sources.Include, []illumioapi.Include{{IPList: &illumioapi.IPList{Href: consumer.IPList.Href}}})
 		}
+		// All workloads
+		if consumer.Actors == "ams" && (!scopeExists || *r.UnscopedConsumers) {
+			trafficReq.Sources.Include = append(trafficReq.Sources.Include, []illumioapi.Include{{Actors: "ams"}})
+		}
 	}
-
-	// Build the holder provider label slice
-	var providerLabels []illumioapi.Label
 
 	// Providers
 	for _, provider := range r.Providers {
@@ -55,26 +82,9 @@ func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule) []str
 		if provider.IPList != nil {
 			trafficReq.Destinations.Include = append(trafficReq.Destinations.Include, []illumioapi.Include{{IPList: &illumioapi.IPList{Href: provider.IPList.Href}}})
 		}
-	}
-
-	// Scopes - iterate and fill provider slices. If unscoped consumers is false, also fill consumer slices. If it's a label group, expand it first.
-	for _, scope := range rs.Scopes {
-		for _, scopeEntity := range scope {
-			if scopeEntity.Label != nil {
-				providerLabels = append(providerLabels, input.PCE.Labels[scopeEntity.Label.Href])
-				if !*r.UnscopedConsumers {
-					consumerLabels = append(consumerLabels, input.PCE.Labels[scopeEntity.Label.Href])
-				}
-			}
-			if scopeEntity.LabelGroup != nil {
-				labelHrefs := input.PCE.ExpandLabelGroup(scopeEntity.LabelGroup.Href)
-				for _, labelHref := range labelHrefs {
-					providerLabels = append(providerLabels, input.PCE.Labels[labelHref])
-					if !*r.UnscopedConsumers {
-						consumerLabels = append(consumerLabels, input.PCE.Labels[labelHref])
-					}
-				}
-			}
+		// All workloads
+		if provider.Actors == "ams" && !scopeExists {
+			trafficReq.Destinations.Include = append(trafficReq.Destinations.Include, []illumioapi.Include{{Actors: "ams"}})
 		}
 	}
 
@@ -143,7 +153,7 @@ func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule) []str
 	}
 	input.PCE.GetVersion()
 	if input.PCE.Version.Major > 19 {
-		x := true
+		x := false
 		trafficReq.ExcludeWorkloadsFromIPListQuery = &x
 	}
 
@@ -160,14 +170,18 @@ func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule) []str
 	}
 	trafficReq.EndDate = t.In(time.UTC)
 
+	// Give it a name
+	name := "workloader-rule-usage-" + r.Href
+	trafficReq.QueryName = &name
+
 	// Make the traffic request
-	utils.LogInfo(fmt.Sprintf("ruleset %s - executing explorer query for %s...", rs.Name, r.Href), true)
 	asyncTrafficQuery, a, err := input.PCE.CreateAsyncTrafficRequest(trafficReq)
 	utils.LogAPIResp("GetTrafficAnalysisAPI", a)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
+	utils.LogInfo(fmt.Sprintf("ruleset %s - created async explorer query for %s", rs.Name, r.Href), true)
 
-	return []string{asyncTrafficQuery.Href, "", ""}
+	return []string{asyncTrafficQuery.Href, "", "", "", a.ReqBody}
 
 }
