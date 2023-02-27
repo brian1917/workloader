@@ -35,14 +35,14 @@ func WriteOutput(csvData, stdOutData [][]string, csvFileName string) {
 		// Create CSV
 		outFile, err := os.Create(csvFileName)
 		if err != nil {
-			LogError(fmt.Sprintf("creating CSV - %s\n", err))
+			LogError(fmt.Sprintf("creating csv - %s\n", err))
 		}
 
 		// Write CSV data
 		writer := csv.NewWriter(outFile)
 		writer.WriteAll(csvData)
 		if err := writer.Error(); err != nil {
-			LogError(fmt.Sprintf("writing CSV - %s\n", err))
+			LogError(fmt.Sprintf("writing csv - %s\n", err))
 		}
 		// Log
 		LogInfo(fmt.Sprintf("output file: %s", outFile.Name()), true)
