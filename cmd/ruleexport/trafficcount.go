@@ -8,7 +8,7 @@ import (
 	"github.com/brian1917/workloader/utils"
 )
 
-func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule, counterStr string) []string {
+func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule, counterStr string) ([]string, bool) {
 	// Build the new explorer query object
 	// Using the raw data structure for more flexibility versus illumioapi.TrafficQuery
 	trafficReq := illumioapi.TrafficAnalysisRequest{MaxResults: input.ExplorerMax}
@@ -59,10 +59,15 @@ func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule, count
 		if consumer.IPList != nil {
 			trafficReq.Sources.Include = append(trafficReq.Sources.Include, []illumioapi.Include{{IPList: &illumioapi.IPList{Href: consumer.IPList.Href}}})
 		}
+		// Workload
+		if consumer.Workload != nil {
+			trafficReq.Sources.Include = append(trafficReq.Sources.Include, []illumioapi.Include{{Workload: &illumioapi.Workload{Href: consumer.Workload.Href}}})
+		}
 		// All workloads
 		if consumer.Actors == "ams" && (!scopeExists || *r.UnscopedConsumers) {
 			trafficReq.Sources.Include = append(trafficReq.Sources.Include, []illumioapi.Include{{Actors: "ams"}})
 		}
+
 	}
 
 	// Providers
@@ -81,6 +86,10 @@ func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule, count
 		// Add IP lists directly to the traffic query
 		if provider.IPList != nil {
 			trafficReq.Destinations.Include = append(trafficReq.Destinations.Include, []illumioapi.Include{{IPList: &illumioapi.IPList{Href: provider.IPList.Href}}})
+		}
+		// Workload
+		if provider.Workload != nil {
+			trafficReq.Destinations.Include = append(trafficReq.Destinations.Include, []illumioapi.Include{{Workload: &illumioapi.Workload{Href: provider.Workload.Href}}})
 		}
 		// All workloads
 		if provider.Actors == "ams" && !scopeExists {
@@ -112,6 +121,20 @@ func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule, count
 			inc = append(inc, illumioapi.Include{Label: &illumioapi.Label{Href: providerLabel.Href}})
 		}
 		trafficReq.Destinations.Include = append(trafficReq.Destinations.Include, inc)
+	}
+
+	// Check we have a valid rule
+	if len(trafficReq.Sources.Include) == 0 {
+		utils.LogWarning(fmt.Sprintf("rule %s - %s - ruleset %s - does not have valid consumers for explorer query: labels, label groups, workloads, ip lists, or all workloads. skipping.", counterStr, r.Href, rs.Name), true)
+		return []string{"invalid rule for querying traffic", "invalid rule for querying traffic", "invalid rule for querying traffic", "invalid rule for querying traffic", "invalid rule for querying traffic"}, true
+	}
+	if len(trafficReq.Destinations.Include) == 0 {
+		utils.LogWarning(fmt.Sprintf("rule %s - %s - ruleset %s - does not have valid providers for explorer query: labels, label groups, workloads, ip lists, or all workloads. skipping.", counterStr, r.Href, rs.Name), true)
+		return []string{"invalid rule for querying traffic", "", "", "", ""}, true
+	}
+	if r.ConsumingSecurityPrincipals != nil && len(r.ConsumingSecurityPrincipals) > 0 {
+		utils.LogWarning(fmt.Sprintf("rule %s - ruleset %s - ad user groups not considered in traffic queries. %s", counterStr, rs.Name, r.Href), true)
+
 	}
 
 	// Parse services
@@ -182,6 +205,6 @@ func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule, count
 		utils.LogError(err.Error())
 	}
 
-	return []string{asyncTrafficQuery.Href, "", "", "", a.ReqBody}
+	return []string{asyncTrafficQuery.Href, "", "", "", a.ReqBody}, false
 
 }

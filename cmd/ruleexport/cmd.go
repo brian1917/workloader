@@ -282,6 +282,7 @@ func ExportRules(input Input) {
 	// Iterate each ruleset
 	totalRules := 0
 	totalRulesets := 0
+	skippedRules := 0
 	for _, rs := range allRuleSets {
 		totalRulesets++
 
@@ -535,7 +536,11 @@ func ExportRules(input Input) {
 			}
 
 			if input.TrafficCount {
-				utils.WriteLineOutput(append(createEntrySlice(csvEntryMap, input.NoHref, pceVersionIncludesUseSubnets), trafficCounter(input, rs, *r, fmt.Sprintf("%d of %d", totalRules, totalNumRules))...), input.OutputFileName)
+				data, skipped := trafficCounter(input, rs, *r, fmt.Sprintf("%d of %d", totalRules, totalNumRules))
+				if skipped {
+					skippedRules++
+				}
+				utils.WriteLineOutput(append(createEntrySlice(csvEntryMap, input.NoHref, pceVersionIncludesUseSubnets), data...), input.OutputFileName)
 			} else {
 				utils.WriteLineOutput(createEntrySlice(csvEntryMap, input.NoHref, pceVersionIncludesUseSubnets), input.OutputFileName)
 			}
@@ -544,6 +549,9 @@ func ExportRules(input Input) {
 	}
 
 	utils.LogInfo(fmt.Sprintf("%d rules from %d rulesets exported", totalRules, totalRulesets), true)
+	if skippedRules > 0 {
+		utils.LogWarning(fmt.Sprintf("%d rules skipped because could not create valid traffic query", skippedRules), true)
+	}
 	utils.LogInfo(fmt.Sprintf("output file: %s", input.OutputFileName), true)
 	utils.LogEndCommand("rule-export")
 

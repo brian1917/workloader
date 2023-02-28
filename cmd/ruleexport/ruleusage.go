@@ -81,7 +81,7 @@ func retrieveTraffic() {
 	if err != nil {
 		utils.LogError(err.Error())
 	}
-	utils.LogInfo(fmt.Sprintf("%d total async queries", len(asyncQueries)), true)
+	utils.LogInfo(fmt.Sprintf("%d total async queries for this user", len(asyncQueries)), true)
 
 	// Create the asyncQueries map
 	asyncHrefMap := make(map[string]illumioapi.AsyncTrafficQuery)
@@ -102,6 +102,10 @@ func retrieveTraffic() {
 		if row[asyncQueryStatusCol] == "completed" {
 			utils.LogInfo(fmt.Sprintf("csv row %d - %s already completed from previous run", i+1, row[asyncHrefCol]), true)
 			numAlreadyCompleted++
+			continue
+		}
+		if row[asyncQueryStatusCol] == "invalid rule for querying traffic" {
+			utils.LogInfo(fmt.Sprintf("csv row %d - invalid rule for querying traffic. skipping.", i+1), true)
 			continue
 		}
 		// Get the async query
