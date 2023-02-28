@@ -8,7 +8,7 @@ import (
 	"github.com/brian1917/workloader/utils"
 )
 
-func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule) []string {
+func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule, counterStr string) []string {
 	// Build the new explorer query object
 	// Using the raw data structure for more flexibility versus illumioapi.TrafficQuery
 	trafficReq := illumioapi.TrafficAnalysisRequest{MaxResults: input.ExplorerMax}
@@ -175,12 +175,12 @@ func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule) []str
 	trafficReq.QueryName = &name
 
 	// Make the traffic request
+	utils.LogInfo(fmt.Sprintf("rule %s - ruleset %s - creating async explorer query for %s", counterStr, rs.Name, r.Href), true)
 	asyncTrafficQuery, a, err := input.PCE.CreateAsyncTrafficRequest(trafficReq)
 	utils.LogAPIResp("GetTrafficAnalysisAPI", a)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
-	utils.LogInfo(fmt.Sprintf("ruleset %s - created async explorer query for %s", rs.Name, r.Href), true)
 
 	return []string{asyncTrafficQuery.Href, "", "", "", a.ReqBody}
 

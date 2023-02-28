@@ -75,11 +75,13 @@ func retrieveTraffic() {
 	}
 
 	// Get all pending explorer queries
+	utils.LogInfo("getting all async queries", true)
 	asyncQueries, api, err := pce.GetAsyncQueries(nil)
 	utils.LogAPIResp("GetAsyncQueries", api)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
+	utils.LogInfo(fmt.Sprintf("%d total async queries", len(asyncQueries)), true)
 
 	// Create the asyncQueries map
 	asyncHrefMap := make(map[string]illumioapi.AsyncTrafficQuery)
@@ -91,45 +93,47 @@ func retrieveTraffic() {
 	newCsvData := [][]string{}
 	var numStillPending, numAlreadyCompleted, numNewlyCompleted, numExpired int
 	for i, row := range csvData {
-
+		// Create thew new CSV data
+		newCsvData = append(newCsvData, row)
 		// Skip the first row
 		if i == 0 {
-			// Put into the new csv data
-			newCsvData = append(newCsvData, row)
 			continue
 		}
 		if row[asyncQueryStatusCol] == "completed" {
-			utils.LogInfo(fmt.Sprintf("csv row - %d - %s already completed", i+1, row[asyncHrefCol]), false)
+			utils.LogInfo(fmt.Sprintf("csv row %d - %s already completed from previous run", i+1, row[asyncHrefCol]), true)
 			numAlreadyCompleted++
+			continue
 		}
 		// Get the async query
-		if aq, exists := asyncHrefMap[row[asyncHrefCol]]; !exists {
+		var aq illumioapi.AsyncTrafficQuery
+		var exists bool
+		if aq, exists = asyncHrefMap[row[asyncHrefCol]]; !exists {
 			utils.LogWarning(fmt.Sprintf("csv row %d - %s does not exist as an async query. invalid href or it expired.", i+1, row[asyncHrefCol]), true)
 			numExpired++
-		} else {
-			// Check the status of the async query
-			if aq.Status != "completed" {
-				utils.LogInfo(fmt.Sprintf("csv row %d - %s is not completed.", i+1, aq.Href), true)
-				numStillPending++
-			} else {
-				traffic, api, err := pce.GetAsyncQueryResults(aq)
-				utils.LogAPIResp("GetResults", api)
-				if err != nil {
-					utils.LogError(err.Error())
-				}
-				row[flowsCol], row[flowsByPortCol] = processFlows(traffic)
-				row[asyncQueryStatusCol] = "completed"
-				numNewlyCompleted++
-			}
+			continue
+		}
+		if aq.Status != "completed" {
+			utils.LogInfo(fmt.Sprintf("csv row %d - %s is not completed.", i+1, aq.Href), true)
+			numStillPending++
+			continue
 		}
 
-		// Capture new row
-		newCsvData = append(newCsvData, row)
+		traffic, api, err := pce.GetAsyncQueryResults(aq)
+		utils.LogAPIResp("GetResults", api)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		// Edit the csv
+		newCsvData[len(newCsvData)-1][flowsCol], newCsvData[len(newCsvData)-1][flowsByPortCol] = processFlows(traffic)
+		newCsvData[len(newCsvData)-1][asyncQueryStatusCol] = "completed"
+		utils.LogInfo(fmt.Sprintf("csv row %d - %s completed and downloaded", i+1, aq.Href), true)
+		numNewlyCompleted++
+
 	}
 
 	// Write the output
 	if outputFileName == "" {
-		outputFileName = fmt.Sprintf("workloader-ruleset-export-retrieve-traffic-%s.csv", time.Now().Format("20060102_150405"))
+		outputFileName = fmt.Sprintf("workloader-ruleset-export-rule-usage-%s.csv", time.Now().Format("20060102_150405"))
 	}
 
 	// Summarize
@@ -152,6 +156,8 @@ func processFlows(traffic []illumioapi.TrafficAnalysis) (flowCount, flowCountByP
 		port  string
 		proto string
 	}
+	maxEntries := 20
+	numBeyondMax := 0
 	entries := []entry{}
 	for _, t := range traffic {
 		flows = flows + t.NumConnections
@@ -163,7 +169,11 @@ func processFlows(traffic []illumioapi.TrafficAnalysis) (flowCount, flowCountByP
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-		entries = append(entries, entry{port: portProtoString[0], proto: protocols[protoInt], flows: p})
+		if len(entries) < maxEntries {
+			entries = append(entries, entry{port: portProtoString[0], proto: protocols[protoInt], flows: p})
+		} else {
+			numBeyondMax++
+		}
 	}
 	sort.SliceStable(entries, func(i, j int) bool {
 		return entries[i].flows < entries[j].flows
@@ -171,6 +181,9 @@ func processFlows(traffic []illumioapi.TrafficAnalysis) (flowCount, flowCountByP
 	entriesString := []string{}
 	for _, e := range entries {
 		entriesString = append(entriesString, fmt.Sprintf("%s %s (%d)", e.port, e.proto, e.flows))
+	}
+	if numBeyondMax > 0 {
+		entriesString = append(entriesString, fmt.Sprintf("+ %d more", numBeyondMax))
 	}
 
 	return strconv.Itoa(flows), strings.Join(entriesString, "; ")

@@ -129,6 +129,14 @@ func ExportRules(input Input) {
 		}
 	}
 
+	// Get total number of rulesets
+	totalNumRules := 0
+	for _, rs := range allRuleSets {
+		for range rs.Rules {
+			totalNumRules++
+		}
+	}
+
 	// Run through rulesets to see what we need
 	var needWklds, needLabelGroups, needVirtualServices, needVirtualServers, needUserGroups bool
 	// Needed objects is for logging. Only add to this slice first time (when value is false and switches to true)
@@ -245,33 +253,31 @@ func ExportRules(input Input) {
 
 	}
 
-	// Start the data slice with headers
-	csvData := [][]string{}
+	// Start the headers
+	var headerSlice []string
 	if input.TrafficCount {
-		csvData = append(csvData, append(getCSVHeaders(input.NoHref), []string{"async_query_href", "async_query_status", "flows", "flows_by_port", "query_body"}...))
+		headerSlice = append(getCSVHeaders(input.NoHref), []string{"async_query_href", "async_query_status", "flows", "flows_by_port", "query_body"}...)
 	} else {
-		csvData = append(csvData, getCSVHeaders(input.NoHref))
+		headerSlice = getCSVHeaders(input.NoHref)
 	}
 
 	// Remove workloadsubnets from headers based on PCE version
-
 	if !pceVersionIncludesUseSubnets {
 		tempHeaders := []string{}
-		for _, header := range csvData[0] {
+		for _, header := range headerSlice {
 			if header == HeaderConsumerUseWorkloadSubnets || header == HeaderProviderUseWorkloadSubnets {
 				continue
 			}
 			tempHeaders = append(tempHeaders, header)
 		}
-		csvData = nil
-		csvData = append(csvData, tempHeaders)
+		headerSlice = tempHeaders
 	}
 
 	// Start the otuput file
 	if input.OutputFileName == "" {
 		input.OutputFileName = fmt.Sprintf("workloader-rule-export-%s.csv", time.Now().Format("20060102_150405"))
 	}
-	utils.WriteLineOutput(csvData[0], input.OutputFileName)
+	utils.WriteLineOutput(headerSlice, input.OutputFileName)
 
 	// Iterate each ruleset
 	totalRules := 0
@@ -529,10 +535,8 @@ func ExportRules(input Input) {
 			}
 
 			if input.TrafficCount {
-				csvData = append(csvData, append(createEntrySlice(csvEntryMap, input.NoHref, pceVersionIncludesUseSubnets), trafficCounter(input, rs, *r)...))
-				utils.WriteLineOutput(append(createEntrySlice(csvEntryMap, input.NoHref, pceVersionIncludesUseSubnets), trafficCounter(input, rs, *r)...), input.OutputFileName)
+				utils.WriteLineOutput(append(createEntrySlice(csvEntryMap, input.NoHref, pceVersionIncludesUseSubnets), trafficCounter(input, rs, *r, fmt.Sprintf("%d of %d", totalRules, totalNumRules))...), input.OutputFileName)
 			} else {
-				csvData = append(csvData, createEntrySlice(csvEntryMap, input.NoHref, pceVersionIncludesUseSubnets))
 				utils.WriteLineOutput(createEntrySlice(csvEntryMap, input.NoHref, pceVersionIncludesUseSubnets), input.OutputFileName)
 			}
 
