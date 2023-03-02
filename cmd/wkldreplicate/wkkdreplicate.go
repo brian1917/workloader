@@ -29,6 +29,8 @@ var WkldReplicate = &cobra.Command{
 	Long: `
 Replicate workloads between multiple PCEs.
 
+All PCEs must have the same label types. Any customer label types must be added to all PCEs.
+
 Managed and unmanaged workloads are replicated across all PCEs. The command creates and deletes unmanaged workloads. Unmanaged workloads are deleted in the following scenarios:
 1. The managed workload it was replicated from is unpaired.
 2. The original unmanaged workload it was replicated from is deleted.`,
@@ -46,18 +48,23 @@ type replicateWkld struct {
 	workload illumioapi.Workload
 }
 
-func processLabel(l illumioapi.Label) string {
-	if l.Key == "" {
-		return "wkld-replicate-remove"
-	} else {
-		return l.Value
+func labelSlice(w illumioapi.Workload, pce illumioapi.PCE, labelKeys []string) (labelSlice []string) {
+	for _, k := range labelKeys {
+		label := w.GetLabelByKey(k, pce.Labels)
+		if label.Key == "" {
+			labelSlice = append(labelSlice, "wkld-replicate-remove")
+		} else {
+			labelSlice = append(labelSlice, label.Value)
+		}
 	}
+	return labelSlice
 }
 
 func wkldReplicate() {
 
 	// Create a slice to hold our target PCEs
 	var pces []illumioapi.PCE
+
 	// Create a map to to hold the PCE names to verify skip PCEs
 	pceNameMap := make(map[string]bool)
 
@@ -87,8 +94,33 @@ func wkldReplicate() {
 	managedWkldMap := make(map[string]replicateWkld)
 	unmanagedWkldMap := make(map[string]replicateWkld)
 
+	// Determine if any PCEs don't support MT4L
+	legacyPCE := false
+	for _, p := range pces {
+		if p.Version.Major < 22 || (p.Version.Major == 22 && p.Version.Minor < 5) {
+			legacyPCE = true
+			break
+		}
+	}
+
+	// Get the label keys
+	labelKeys := []string{}
+	if !legacyPCE {
+		labelDimensions, api, err := pces[0].GetLabelDimensions(nil)
+		utils.LogAPIResp("GetLabelDimensions", api)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		for _, ld := range labelDimensions {
+			labelKeys = append(labelKeys, ld.Key)
+		}
+		utils.LogInfo(fmt.Sprintf("used %s to discover label dimensions: %s", pces[0].FriendlyName, strings.Join(labelKeys, ",")), true)
+	} else {
+		labelKeys = append(labelKeys, "role", "app", "env", "loc")
+	}
+
 	// Start the csv data
-	wkldImportCsvData := [][]string{{"source", wkldexport.HeaderHostname, wkldexport.HeaderDescription, "role", "app", "env", "loc", wkldexport.HeaderInterfaces, wkldexport.HeaderExternalDataSet, wkldexport.HeaderExternalDataReference}}
+	wkldImportCsvData := [][]string{append(append([]string{"source", wkldexport.HeaderHostname, wkldexport.HeaderDescription}, labelKeys...), wkldexport.HeaderInterfaces, wkldexport.HeaderExternalDataSet, wkldexport.HeaderExternalDataReference)}
 	wkldDeleteCsvdata := [][]string{{"href", "pce_fqdn", "pce_name"}}
 	deleteHrefMap := make(map[string][]string)
 
@@ -134,7 +166,9 @@ func wkldReplicate() {
 				w.ExternalDataReference = utils.StrToPtr(p.FQDN + "-managed-wkld-" + w.Href)
 
 				// Add to the CSV output
-				wkldImportCsvData = append(wkldImportCsvData, []string{p.FriendlyName, w.Hostname, fmt.Sprintf("managed ven on %s", p.FQDN), processLabel(w.GetRole(p.Labels)), processLabel(w.GetApp(p.Labels)), processLabel(w.GetEnv(p.Labels)), processLabel(w.GetLoc(p.Labels)), strings.Join(wkldexport.InterfaceToString(w, true), ";"), utils.PtrToStr(w.ExternalDataSet), utils.PtrToStr(w.ExternalDataReference)})
+				newRow := append([]string{p.FriendlyName, w.Hostname, fmt.Sprintf("managed ven on %s", p.FQDN)}, labelSlice(w, p, labelKeys)...)
+				newRow = append(newRow, strings.Join(wkldexport.InterfaceToString(w, true), ";"), utils.PtrToStr(w.ExternalDataSet), utils.PtrToStr(w.ExternalDataReference))
+				wkldImportCsvData = append(wkldImportCsvData, newRow)
 			}
 
 			// Unmanaged - just put in the map. Needs additional processing below before being added to CSV slice.
@@ -163,7 +197,9 @@ func wkldReplicate() {
 		if utils.PtrToStr(wkld.workload.ExternalDataSet) != "wkld-replicate" {
 			wkld.workload.ExternalDataSet = utils.StrToPtr("wkld-replicate")
 			wkld.workload.ExternalDataReference = utils.StrToPtr(wkld.pce.FQDN + "-unmanaged-wkld-" + wkld.workload.Href)
-			wkldImportCsvData = append(wkldImportCsvData, []string{wkld.pce.FriendlyName, wkld.workload.Hostname, fmt.Sprintf("unmanaged workload on %s", wkld.pce.FQDN), processLabel(wkld.workload.GetRole(wkld.pce.Labels)), processLabel(wkld.workload.GetApp(wkld.pce.Labels)), processLabel(wkld.workload.GetEnv(wkld.pce.Labels)), processLabel(wkld.workload.GetLoc(wkld.pce.Labels)), strings.Join(wkldexport.InterfaceToString(wkld.workload, true), ";"), utils.PtrToStr(wkld.workload.ExternalDataSet), utils.PtrToStr(wkld.workload.ExternalDataReference)})
+			newRow := append([]string{wkld.pce.FriendlyName, wkld.workload.Hostname, fmt.Sprintf("unmanaged workload on %s", wkld.pce.FQDN)}, labelSlice(wkld.workload, wkld.pce, labelKeys)...)
+			newRow = append(newRow, strings.Join(wkldexport.InterfaceToString(wkld.workload, true), ";"), utils.PtrToStr(wkld.workload.ExternalDataSet), utils.PtrToStr(wkld.workload.ExternalDataReference))
+			wkldImportCsvData = append(wkldImportCsvData, newRow)
 			continue
 		}
 
@@ -171,7 +207,9 @@ func wkldReplicate() {
 
 		// If it's ext data references shows it's owned by the same PCE, keep it.
 		if wkld.pce.FQDN == strings.Split(utils.PtrToStr(wkld.workload.ExternalDataReference), "-unmanaged-wkld-")[0] {
-			wkldImportCsvData = append(wkldImportCsvData, []string{wkld.pce.FriendlyName, wkld.workload.Hostname, fmt.Sprintf("unmanaged workload on %s", wkld.pce.FQDN), processLabel(wkld.workload.GetRole(wkld.pce.Labels)), processLabel(wkld.workload.GetApp(wkld.pce.Labels)), processLabel(wkld.workload.GetEnv(wkld.pce.Labels)), processLabel(wkld.workload.GetLoc(wkld.pce.Labels)), strings.Join(wkldexport.InterfaceToString(wkld.workload, true), ";"), utils.PtrToStr(wkld.workload.ExternalDataSet), utils.PtrToStr(wkld.workload.ExternalDataReference)})
+			newRow := append([]string{wkld.pce.FriendlyName, wkld.workload.Hostname, fmt.Sprintf("unmanaged workload on %s", wkld.pce.FQDN)}, labelSlice(wkld.workload, wkld.pce, labelKeys)...)
+			newRow = append(newRow, strings.Join(wkldexport.InterfaceToString(wkld.workload, true), ";"), utils.PtrToStr(wkld.workload.ExternalDataSet), utils.PtrToStr(wkld.workload.ExternalDataReference))
+			wkldImportCsvData = append(wkldImportCsvData, newRow)
 			continue
 		}
 
