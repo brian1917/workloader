@@ -31,7 +31,7 @@ var RuleSetExportCmd = &cobra.Command{
 	Long: `
 Create a CSV export of all rulesets in the PCE.
 
-Note - any label groups used in scopes will have "-lg" appended to their name to differentiate labels and label groups.
+Label groups used in scopes will have "lg:type:" pre-pended to their name to differentiate them from labels. For example, an environment label group non-prod would appear as "lg:env:non-prod".
 
 The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -51,7 +51,7 @@ func ExportRuleSets(pce illumioapi.PCE, outputFileName string, templateFormat bo
 	utils.LogStartCommand("ruleset-export")
 
 	// Start the csvData
-	headers := []string{"ruleset_name", "ruleset_enabled", "ruleset_description", "app_scope", "env_scope", "loc_scope", "contains_custom_iptables_rules"}
+	headers := []string{"ruleset_name", "enabled", "description", "scope", "contains_custom_iptables_rules"}
 	if !templateFormat {
 		headers = append(headers, "href")
 	}
@@ -81,75 +81,59 @@ func ExportRuleSets(pce illumioapi.PCE, outputFileName string, templateFormat bo
 		}
 	}
 
-	// Get all label groups
-	allLabelGroups, a, err := pce.GetLabelGroups(nil, "draft")
-	utils.LogAPIResp("GetAllLabelGroups", a)
-	if err != nil {
-		utils.LogError(err.Error())
+	// Determine if we need label groups
+	needLabelGroups := false
+	for _, rs := range allRuleSets {
+		for _, scope := range rs.Scopes {
+			for _, entity := range scope {
+				if entity.LabelGroup != nil {
+					needLabelGroups = true
+					break
+				}
+			}
+		}
 	}
+
+	// Get all label groups if necessary
 	labelGroupMap := make(map[string]illumioapi.LabelGroup)
-	for _, lg := range allLabelGroups {
-		labelGroupMap[lg.Href] = lg
+	if needLabelGroups {
+		utils.LogInfo("ruleset scopes include label groups. getting all label groups...", true)
+		allLabelGroups, a, err := pce.GetLabelGroups(nil, "draft")
+		utils.LogAPIResp("GetAllLabelGroups", a)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		for _, lg := range allLabelGroups {
+			labelGroupMap[lg.Href] = lg
+		}
 	}
 
 	// Iterate through each ruleset
 	for _, rs := range allRuleSets {
+		allScopesSlice := []string{}
 		// Check for custom iptables rules
 		customIPTables := false
 		if len(rs.IPTablesRules) != 0 {
 			customIPTables = true
 		}
 		utils.LogInfo(fmt.Sprintf("custom iptables rules: %t", customIPTables), false)
-		var appScopes, envScopes, locScopes []string
 		// Iterate through each scope
 		for _, scope := range rs.Scopes {
-			var appCheck, envCheck, locCheck bool
+			scopeStrSlice := []string{}
 			// Iterate through each scope entity
 			for _, scopeEntity := range scope {
 				if scopeEntity.Label != nil {
-					// Check the key and add it to the right slice
-					if pce.Labels[scopeEntity.Label.Href].Key == "app" {
-						appScopes = append(appScopes, pce.Labels[scopeEntity.Label.Href].Value)
-						appCheck = true
-					}
-					if pce.Labels[scopeEntity.Label.Href].Key == "env" {
-						envScopes = append(envScopes, pce.Labels[scopeEntity.Label.Href].Value)
-						envCheck = true
-					}
-					if pce.Labels[scopeEntity.Label.Href].Key == "loc" {
-						locScopes = append(locScopes, pce.Labels[scopeEntity.Label.Href].Value)
-						locCheck = true
-					}
+					scopeStrSlice = append(scopeStrSlice, fmt.Sprintf("%s:%s", pce.Labels[scopeEntity.Label.Href].Key, pce.Labels[scopeEntity.Label.Href].Value))
 				}
 				if scopeEntity.LabelGroup != nil {
-					if labelGroupMap[scopeEntity.LabelGroup.Href].Key == "app" {
-						appScopes = append(appScopes, fmt.Sprintf("%s-lg", labelGroupMap[scopeEntity.LabelGroup.Href].Name))
-						appCheck = true
-					}
-					if labelGroupMap[scopeEntity.LabelGroup.Href].Key == "env" {
-						envScopes = append(envScopes, fmt.Sprintf("%s-lg", labelGroupMap[scopeEntity.LabelGroup.Href].Name))
-						envCheck = true
-					}
-					if labelGroupMap[scopeEntity.LabelGroup.Href].Key == "loc" {
-						locScopes = append(locScopes, fmt.Sprintf("%s-lg", labelGroupMap[scopeEntity.LabelGroup.Href].Name))
-						locCheck = true
-					}
+					scopeStrSlice = append(scopeStrSlice, fmt.Sprintf("lg:%s:%s", labelGroupMap[scopeEntity.LabelGroup.Href].Key, labelGroupMap[scopeEntity.LabelGroup.Href].Name))
 				}
 			}
-			if !appCheck {
-				appScopes = append(appScopes, "all apps")
-			}
-			if !envCheck {
-				envScopes = append(envScopes, "all envs")
-			}
-			if !locCheck {
-				locScopes = append(locScopes, "all locs")
-			}
-
+			allScopesSlice = append(allScopesSlice, strings.Join(scopeStrSlice, ";"))
 		}
 
 		// Append to the CSV data
-		entry := []string{rs.Name, strconv.FormatBool(*rs.Enabled), rs.Description, strings.Join(appScopes, ";"), strings.Join(envScopes, ";"), strings.Join(locScopes, ";"), strconv.FormatBool(customIPTables)}
+		entry := []string{rs.Name, strconv.FormatBool(*rs.Enabled), rs.Description, strings.Join(allScopesSlice, "|"), strconv.FormatBool(customIPTables)}
 		if !templateFormat {
 			entry = append(entry, rs.Href)
 		}

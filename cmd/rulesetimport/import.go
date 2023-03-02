@@ -34,40 +34,37 @@ var RuleSetImportCmd = &cobra.Command{
 	Long: `
 Create or update rulesets in the PCE from a CSV file.
 
-If the app_scope, env_scope, or loc_scope is a label group, the name bust be appended with "-lg" in the CSV. The PCE object does not need any modification; it's just a tag in the CSV to tell workloader to look up the object as a label group.
+The following headers are acceptable (order does not matter):
+- name
+- enabled
+- description
+- scope
+- href
 
-To use the "All" construct, you must use all apps, all envs, or all locs.
+All other headers will be ignored.
 
-Multiple scopes can be separated by semi-colons. For example, the input below would create a ruleset with two scopes: App1 | Prod | All Locations and App 1 | Dev | All Locations.
-+--------------+-----------------+---------------------+-----------+-----------+------------------+
-| ruleset_name | ruleset_enabled | ruleset_description | app_scope | env_scope |    loc_scope     |
-+--------------+-----------------+---------------------+-----------+-----------+------------------+
-| Example      | TRUE            | This is a test      | App1;App1 | Prod;Dev  | all locs;all loc |
-+--------------+-----------------+---------------------+-----------+-----------+------------------+
+Scopes should be semi-colon separated values of label_type:label_value. Label-groups should be in the format of lg:label_group_type:value. Multiple scopes should be separated by a "|". Example of scope entires are below:
+- app:erp;env:prod
+- app:erp;env:prod|app:erp;env:dev
+- lg:env:non-prod
 
-The order of the CSV columns do not matter. The input format requires the following headers:
-- ruleset_name
-- ruleset_enabled
-- ruleset_description
-- app_scope
-- env_scope
-- loc_scope
+If an href is provided the name, enabled, and description fields can be updated. Scopes cannot be updated.
 
-Existing rulesets can be udpated if the href is provided. Only ruleset_name, ruleset_enabled, and ruleset_description can be updated.
+If an href is not provided, the ruleset will be created.
 
-Recommended to run without --update-pce first to log of what will change. If --update-pce is used, import will create labels without prompt, but it will not create/update workloads without user confirmation, unless --no-prompt is used.`,
+Recommended to run without --update-pce first to log what will change.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 
 		var err error
 		input.PCE, err = utils.GetTargetPCE(true)
 		if err != nil {
-			utils.Logger.Fatalf("Error getting PCE for csv command - %s", err)
+			utils.Logger.Fatalf("error getting PCE for csv command - %s", err)
 		}
 
 		// Set the CSV file
 		if len(args) != 1 {
-			fmt.Println("Command requires 1 argument for the csv file. See usage help.")
+			fmt.Println("command requires 1 argument for the csv file. see usage help.")
 			os.Exit(0)
 		}
 		input.ImportFile = args[0]
@@ -133,14 +130,13 @@ csvEntries:
 	for i, l := range csvInput {
 
 		// Skip the header row
-
 		if i == 0 {
 			// Process the headers
 			hm = processHeaders(l)
 			continue
 		}
 
-		// If the ruleset column is provided and there is a value, make sure it's valid.
+		// If the ruleset href column is provided and there is a value, make sure it's valid.
 		if rsHrefCol, ok := hm["href"]; ok && l[hm["href"]] != "" {
 			var rs illumioapi.RuleSet
 			if rs, ok = rsMap[l[rsHrefCol]]; !ok {
@@ -149,19 +145,19 @@ csvEntries:
 			// Begin update checks
 			update := false
 			// Name
-			if rs.Name != l[hm["ruleset_name"]] {
-				utils.LogInfo(fmt.Sprintf("csv line %d - ruleset name needs to be updated from %s to %s", i+1, rs.Name, l[hm["ruleset_name"]]), false)
+			if rs.Name != l[hm["name"]] {
+				utils.LogInfo(fmt.Sprintf("csv line %d - ruleset name needs to be updated from %s to %s", i+1, rs.Name, l[hm["name"]]), false)
 				update = true
-				rs.Name = l[hm["ruleset_name"]]
+				rs.Name = l[hm["name"]]
 			}
 			// Description
-			if rs.Description != l[hm["ruleset_description"]] {
-				utils.LogInfo(fmt.Sprintf("csv line %d - ruleset description needs to be updated from %s to %s", i+1, rs.Description, l[hm["ruleset_description"]]), false)
+			if rs.Description != l[hm["description"]] {
+				utils.LogInfo(fmt.Sprintf("csv line %d - ruleset description needs to be updated from %s to %s", i+1, rs.Description, l[hm["description"]]), false)
 				update = true
-				rs.Description = l[hm["ruleset_description"]]
+				rs.Description = l[hm["description"]]
 			}
 			// Enabled
-			csvEnabled, err := strconv.ParseBool(l[hm["ruleset_enabled"]])
+			csvEnabled, err := strconv.ParseBool(l[hm["enabled"]])
 			if err != nil {
 				utils.LogError(fmt.Sprintf("csv line %d - invalid entry for ruleset enabled. Expects true/false", i+1))
 			}
@@ -181,76 +177,63 @@ csvEntries:
 
 		// Build a new ruleset with name and description
 		rs := illumioapi.RuleSet{
-			Name:        l[hm["ruleset_name"]],
-			Description: l[hm["ruleset_description"]]}
+			Name:        l[hm["name"]],
+			Description: l[hm["description"]]}
 
-		t, err := strconv.ParseBool(l[hm["ruleset_enabled"]])
+		t, err := strconv.ParseBool(l[hm["enabled"]])
 		if err != nil {
-			utils.LogError(fmt.Sprintf("CSV line %d - invalid boolean value for ruleset_enabled.", i+1))
+			utils.LogError(fmt.Sprintf("csv line %d - invalid boolean value for enabled.", i+1))
 		}
 		rs.Enabled = &t
 
-		// Set scopes
-		apps := strings.Split(strings.Replace(l[hm["app_scope"]], "; ", ";", -1), ";")
-		envs := strings.Split(strings.Replace(l[hm["env_scope"]], "; ", ";", -1), ";")
-		locs := strings.Split(strings.Replace(l[hm["loc_scope"]], "; ", ";", -1), ";")
+		// Process scopes
 
-		// Validate the correct length
-		if len(apps) != len(envs) || len(apps) != len(locs) {
-			utils.LogError(fmt.Sprintf("CSV line %d - app, env, and loc scopes must be of equal length", i+1))
-		}
+		// Get rid of spaces
+		csvScopesStr := strings.Replace(l[hm["scope"]], " ;", ";", -1)
+		csvScopesStr = strings.Replace(csvScopesStr, "; ", ";", -1)
+		csvScopesStr = strings.Replace(csvScopesStr, "| ", "|", -1)
+		csvScopesStr = strings.Replace(csvScopesStr, " |", "|", -1)
+		csvScopesStr = strings.TrimSuffix(csvScopesStr, " ")
+		csvScopesStr = strings.TrimPrefix(csvScopesStr, " ")
 
-		// The csvScopes will be a slice of slices. Inner slices will be the app, env, and loc.
+		// Create the csvScopes slice of slices
 		csvScopes := [][]string{}
-		for n := range apps {
-			csvScopes = append(csvScopes, []string{apps[n], envs[n], locs[n]})
+
+		// Split on "|" to get each scope
+		scopes := strings.Split(csvScopesStr, "|")
+		// Iterate over each scope to make each scope a slice
+		for _, scope := range scopes {
+			csvScopes = append(csvScopes, strings.Split(scope, ";"))
 		}
 
-		// Process the scopes
+		// Iterate over the slice of slices to process each scope
+
 		for _, scope := range csvScopes {
-			// Declare the scope for each run
 			rsScope := []*illumioapi.Scopes{}
-			keys := []string{"app", "env", "loc"}
-			for n, entry := range scope {
-				// If the entry ends in "-lg", it's a label group
-				if len(entry) >= 3 && strings.ToLower(entry[len(entry)-3:]) == "-lg" {
-					// Check if the label group exists. Log if it does not.
-					if val, ok := labelGroupMap[strings.Replace(entry, "-lg", "", -1)]; !ok {
-						utils.LogError(fmt.Sprintf("CSV line %d - the label group %s does not exist", i+1, strings.Replace(entry, "-lg", "", -1)))
+			for _, entity := range scope {
+				if strings.HasPrefix(entity, "lg:") {
+					// Remove the lg
+					entity = strings.TrimPrefix(entity, "lg:")
+					// Remove the key
+					entity = strings.TrimPrefix(entity, strings.Split(entity, ":")[0]+":")
+					// Get the label Group
+					if lg, exists := labelGroupMap[entity]; !exists {
+						utils.LogError(fmt.Sprintf("csv line %d - %s doesn't exist as a label group", i+1, entity))
 					} else {
-						// If it does exist, add the label group the scope
-						rsScope = append(rsScope, &illumioapi.Scopes{LabelGroup: &illumioapi.LabelGroup{Href: val.Href}})
-						// Don't process this entry any more if it matched.
-						continue
+						rsScope = append(rsScope, &illumioapi.Scopes{LabelGroup: &illumioapi.LabelGroup{Href: lg.Href}})
 					}
-				}
-				// If it's not a label group, check if it's all <key>s and skip it. If it is all, we don't add it to the scope because no entry for a key is considered "all"
-				if entry == fmt.Sprintf("all %ss", keys[n]) {
 					continue
 				}
-				// If it's not all <key>s, check if the value exists. If it doesn't log error.
-				if val, ok := input.PCE.Labels[keys[n]+entry]; !ok {
-					if !input.CreateLabels {
-						utils.LogError(fmt.Sprintf("CSV line %d - the %s label %s does not exist", i+1, keys[n], entry))
-					} else if input.UpdatePCE {
-						l, a, err := input.PCE.CreateLabel(illumioapi.Label{Key: keys[n], Value: entry})
-						utils.LogAPIResp("CreateLabel", a)
-						if err != nil {
-							utils.LogError(fmt.Sprintf("CSV line %d - %s", i+1, err.Error()))
-						}
-						utils.LogInfo(fmt.Sprintf("CSV line %d - %s does not exist as a %s label - created %d", i+1, entry, keys[n], a.StatusCode), true)
-						input.PCE.Labels[l.Href] = l
-						input.PCE.Labels[keys[n]+entry] = l
-						rsScope = append(rsScope, &illumioapi.Scopes{Label: &illumioapi.Label{Href: l.Href}})
-					} else {
-						utils.LogInfo(fmt.Sprintf("CSV line %d - %s does not exist as a %s label - label will be created with --update-pce", i+1, entry, keys[n]), true)
-					}
-					// If the value does exist, we add it to the scope
+				// It's a label
+				key := strings.Split(entity, ":")[0]
+				value := strings.TrimPrefix(entity, key+":")
+				// Get the label
+				if label, exists := input.PCE.Labels[key+value]; !exists {
+					utils.LogError(fmt.Sprintf("csv line %d - %s doesn't exist as a label of type %s.", i+1, value, key))
 				} else {
-					rsScope = append(rsScope, &illumioapi.Scopes{Label: &illumioapi.Label{Href: val.Href}})
+					rsScope = append(rsScope, &illumioapi.Scopes{Label: &illumioapi.Label{Href: label.Href}})
 				}
 			}
-			// Append the rsScope to the ruleset
 			rs.Scopes = append(rs.Scopes, rsScope)
 		}
 
@@ -329,12 +312,6 @@ func processHeaders(headerRow []string) map[string]int {
 	headerMap := make(map[string]int)
 	for i, h := range headerRow {
 		headerMap[h] = i
-	}
-	reqHeaders := []string{"ruleset_name", "ruleset_enabled", "ruleset_description", "app_scope", "env_scope", "loc_scope"}
-	for _, header := range reqHeaders {
-		if _, ok := headerMap[header]; !ok {
-			utils.LogError(fmt.Sprintf("required header %s not in input file", header))
-		}
 	}
 	return headerMap
 }
