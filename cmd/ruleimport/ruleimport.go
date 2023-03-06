@@ -440,7 +440,7 @@ CSVEntries:
 		}
 
 		// Labels
-		if l[input.Headers[ruleexport.HeaderProviderAllWorkloads]] != "" {
+		if l[input.Headers[ruleexport.HeaderProviderLabels]] != "" {
 			csvLabels := []illumioapi.Label{}
 			// Split at the semi-colons
 			userProvidedLabels := strings.Split(strings.Replace(l[input.Headers[ruleexport.HeaderProviderLabels]], "; ", ";", -1), ";")
@@ -619,6 +619,21 @@ CSVEntries:
 			}
 		}
 
+		// ******************** Network Type ********************/
+		var networkType string
+		if c, ok := input.Headers[ruleexport.HeaderNetworkType]; ok {
+			networkType = strings.ToLower(l[c])
+			if networkType != "brn" && networkType != "non_brn" && networkType != "all" {
+				utils.LogError(fmt.Sprintf("csv line %d - %s is not valid network type. must be brn, non_brn, or all", i+1, l[c]))
+			}
+			if rowRuleHref != "" {
+				if rHrefMap[rowRuleHref].NetworkType != networkType {
+					update = true
+					utils.LogInfo(fmt.Sprintf("csv line %d - network_type needs to be updated from %s to %s.", i+1, rHrefMap[rowRuleHref].NetworkType, networkType), false)
+				}
+			}
+		}
+
 		// ******************** VS / Workload only ********************/
 
 		headers := []string{ruleexport.HeaderConsumerResolveLabelsAs, ruleexport.HeaderProviderResolveLabelsAs}
@@ -719,7 +734,7 @@ CSVEntries:
 		}
 
 		// Create the rule
-		csvRule := illumioapi.Rule{Description: description, UnscopedConsumers: &unscopedConsumers, Consumers: consumers, ConsumingSecurityPrincipals: consumingSecPrincipals, Providers: providers, IngressServices: &ingressSvc, Enabled: &enabled, MachineAuth: &machineAuth, SecConnect: &secConnect, Stateless: &stateless, ResolveLabelsAs: &illumioapi.ResolveLabelsAs{Consumers: consResolveAs, Providers: provResolveAs}, UseWorkloadSubnets: useWkldSubnets}
+		csvRule := illumioapi.Rule{Description: description, UnscopedConsumers: &unscopedConsumers, Consumers: consumers, ConsumingSecurityPrincipals: consumingSecPrincipals, Providers: providers, IngressServices: &ingressSvc, Enabled: &enabled, MachineAuth: &machineAuth, SecConnect: &secConnect, Stateless: &stateless, ResolveLabelsAs: &illumioapi.ResolveLabelsAs{Consumers: consResolveAs, Providers: provResolveAs}, UseWorkloadSubnets: useWkldSubnets, NetworkType: networkType}
 
 		// Add to our array
 		// Option 1 - No rule HREF provided, so it's a new rule

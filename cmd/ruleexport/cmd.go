@@ -323,6 +323,7 @@ func ExportRules(input Input) {
 			csvEntryMap[HeaderStateless] = strconv.FormatBool(*r.Stateless)
 			csvEntryMap[HeaderMachineAuthEnabled] = strconv.FormatBool(*r.MachineAuth)
 			csvEntryMap[HeaderSecureConnectEnabled] = strconv.FormatBool(*r.SecConnect)
+			csvEntryMap[HeaderNetworkType] = r.NetworkType
 			if r.UpdateType == "update" {
 				csvEntryMap[HeaderUpdateType] = "Modification Pending"
 			} else if r.UpdateType == "delete" {
