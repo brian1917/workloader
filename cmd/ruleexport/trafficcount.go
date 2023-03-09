@@ -20,22 +20,24 @@ func trafficCounter(input Input, rs illumioapi.RuleSet, r illumioapi.Rule, count
 	scopeExists := false
 
 	// Scopes - iterate and fill provider slices. If unscoped consumers is false, also fill consumer slices. If it's a label group, expand it first.
-	for _, scope := range rs.Scopes {
-		for _, scopeEntity := range scope {
-			if scopeEntity.Label != nil {
-				scopeExists = true
-				providerLabels = append(providerLabels, input.PCE.Labels[scopeEntity.Label.Href])
-				if !*r.UnscopedConsumers {
-					consumerLabels = append(consumerLabels, input.PCE.Labels[scopeEntity.Label.Href])
-				}
-			}
-			if scopeEntity.LabelGroup != nil {
-				scopeExists = true
-				labelHrefs := input.PCE.ExpandLabelGroup(scopeEntity.LabelGroup.Href)
-				for _, labelHref := range labelHrefs {
-					providerLabels = append(providerLabels, input.PCE.Labels[labelHref])
+	if rs.Scopes != nil {
+		for _, scope := range *rs.Scopes {
+			for _, scopeEntity := range scope {
+				if scopeEntity.Label != nil {
+					scopeExists = true
+					providerLabels = append(providerLabels, input.PCE.Labels[scopeEntity.Label.Href])
 					if !*r.UnscopedConsumers {
-						consumerLabels = append(consumerLabels, input.PCE.Labels[labelHref])
+						consumerLabels = append(consumerLabels, input.PCE.Labels[scopeEntity.Label.Href])
+					}
+				}
+				if scopeEntity.LabelGroup != nil {
+					scopeExists = true
+					labelHrefs := input.PCE.ExpandLabelGroup(scopeEntity.LabelGroup.Href)
+					for _, labelHref := range labelHrefs {
+						providerLabels = append(providerLabels, input.PCE.Labels[labelHref])
+						if !*r.UnscopedConsumers {
+							consumerLabels = append(consumerLabels, input.PCE.Labels[labelHref])
+						}
 					}
 				}
 			}

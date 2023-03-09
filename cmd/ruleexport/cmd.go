@@ -142,11 +142,13 @@ func ExportRules(input Input) {
 	// Needed objects is for logging. Only add to this slice first time (when value is false and switches to true)
 	neededObjects := map[string]bool{"labels": true, "ip_lists": true, "services": true}
 	for _, rs := range allRuleSets {
-		for _, scopes := range rs.Scopes {
-			for _, scopeEntity := range scopes {
-				if scopeEntity.LabelGroup != nil {
-					neededObjects["label_group"] = true
-					needLabelGroups = true
+		if rs.Scopes != nil {
+			for _, scopes := range *rs.Scopes {
+				for _, scopeEntity := range scopes {
+					if scopeEntity.LabelGroup != nil {
+						neededObjects["label_group"] = true
+						needLabelGroups = true
+					}
 				}
 			}
 		}
@@ -293,17 +295,19 @@ func ExportRules(input Input) {
 		scopes := []string{}
 
 		// Iterate through each scope
-		for _, scope := range rs.Scopes {
-			scopeStrSlice := []string{}
-			for _, scopeMember := range scope {
-				if scopeMember.Label != nil {
-					scopeStrSlice = append(scopeStrSlice, fmt.Sprintf("%s:%s", input.PCE.Labels[scopeMember.Label.Href].Key, input.PCE.Labels[scopeMember.Label.Href].Value))
+		if rs.Scopes != nil {
+			for _, scope := range *rs.Scopes {
+				scopeStrSlice := []string{}
+				for _, scopeMember := range scope {
+					if scopeMember.Label != nil {
+						scopeStrSlice = append(scopeStrSlice, fmt.Sprintf("%s:%s", input.PCE.Labels[scopeMember.Label.Href].Key, input.PCE.Labels[scopeMember.Label.Href].Value))
+					}
+					if scopeMember.LabelGroup != nil {
+						scopeStrSlice = append(scopeStrSlice, fmt.Sprintf("%s:%s", input.PCE.LabelGroups[scopeMember.LabelGroup.Href].Key, input.PCE.LabelGroups[scopeMember.LabelGroup.Href].Name))
+					}
 				}
-				if scopeMember.LabelGroup != nil {
-					scopeStrSlice = append(scopeStrSlice, fmt.Sprintf("%s:%s", input.PCE.LabelGroups[scopeMember.LabelGroup.Href].Key, input.PCE.LabelGroups[scopeMember.LabelGroup.Href].Name))
-				}
+				scopes = append(scopes, strings.Join(scopeStrSlice, ";"))
 			}
-			scopes = append(scopes, strings.Join(scopeStrSlice, ";"))
 		}
 
 		// Process each rule

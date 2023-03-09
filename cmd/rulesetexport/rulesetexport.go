@@ -84,11 +84,13 @@ func ExportRuleSets(pce illumioapi.PCE, outputFileName string, templateFormat bo
 	// Determine if we need label groups
 	needLabelGroups := false
 	for _, rs := range allRuleSets {
-		for _, scope := range rs.Scopes {
-			for _, entity := range scope {
-				if entity.LabelGroup != nil {
-					needLabelGroups = true
-					break
+		if rs.Scopes != nil {
+			for _, scope := range *rs.Scopes {
+				for _, entity := range scope {
+					if entity.LabelGroup != nil {
+						needLabelGroups = true
+						break
+					}
 				}
 			}
 		}
@@ -118,18 +120,20 @@ func ExportRuleSets(pce illumioapi.PCE, outputFileName string, templateFormat bo
 		}
 		utils.LogInfo(fmt.Sprintf("custom iptables rules: %t", customIPTables), false)
 		// Iterate through each scope
-		for _, scope := range rs.Scopes {
-			scopeStrSlice := []string{}
-			// Iterate through each scope entity
-			for _, scopeEntity := range scope {
-				if scopeEntity.Label != nil {
-					scopeStrSlice = append(scopeStrSlice, fmt.Sprintf("%s:%s", pce.Labels[scopeEntity.Label.Href].Key, pce.Labels[scopeEntity.Label.Href].Value))
+		if rs.Scopes != nil {
+			for _, scope := range *rs.Scopes {
+				scopeStrSlice := []string{}
+				// Iterate through each scope entity
+				for _, scopeEntity := range scope {
+					if scopeEntity.Label != nil {
+						scopeStrSlice = append(scopeStrSlice, fmt.Sprintf("%s:%s", pce.Labels[scopeEntity.Label.Href].Key, pce.Labels[scopeEntity.Label.Href].Value))
+					}
+					if scopeEntity.LabelGroup != nil {
+						scopeStrSlice = append(scopeStrSlice, fmt.Sprintf("lg:%s:%s", labelGroupMap[scopeEntity.LabelGroup.Href].Key, labelGroupMap[scopeEntity.LabelGroup.Href].Name))
+					}
 				}
-				if scopeEntity.LabelGroup != nil {
-					scopeStrSlice = append(scopeStrSlice, fmt.Sprintf("lg:%s:%s", labelGroupMap[scopeEntity.LabelGroup.Href].Key, labelGroupMap[scopeEntity.LabelGroup.Href].Name))
-				}
+				allScopesSlice = append(allScopesSlice, strings.Join(scopeStrSlice, ";"))
 			}
-			allScopesSlice = append(allScopesSlice, strings.Join(scopeStrSlice, ";"))
 		}
 
 		// Append to the CSV data

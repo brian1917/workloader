@@ -208,33 +208,38 @@ csvEntries:
 
 		// Iterate over the slice of slices to process each scope
 
-		for _, scope := range csvScopes {
-			rsScope := []*illumioapi.Scopes{}
-			for _, entity := range scope {
-				if strings.HasPrefix(entity, "lg:") {
-					// Remove the lg
-					entity = strings.TrimPrefix(entity, "lg:")
-					// Remove the key
-					entity = strings.TrimPrefix(entity, strings.Split(entity, ":")[0]+":")
-					// Get the label Group
-					if lg, exists := labelGroupMap[entity]; !exists {
-						utils.LogError(fmt.Sprintf("csv line %d - %s doesn't exist as a label group", i+1, entity))
-					} else {
-						rsScope = append(rsScope, &illumioapi.Scopes{LabelGroup: &illumioapi.LabelGroup{Href: lg.Href}})
+		// Star the scopes slice
+		rs.Scopes = &[][]*illumioapi.Scopes{}
+
+		if csvScopesStr != "" {
+			for _, scope := range csvScopes {
+				rsScope := []*illumioapi.Scopes{}
+				for _, entity := range scope {
+					if strings.HasPrefix(entity, "lg:") {
+						// Remove the lg
+						entity = strings.TrimPrefix(entity, "lg:")
+						// Remove the key
+						entity = strings.TrimPrefix(entity, strings.Split(entity, ":")[0]+":")
+						// Get the label Group
+						if lg, exists := labelGroupMap[entity]; !exists {
+							utils.LogError(fmt.Sprintf("csv line %d - %s doesn't exist as a label group", i+1, entity))
+						} else {
+							rsScope = append(rsScope, &illumioapi.Scopes{LabelGroup: &illumioapi.LabelGroup{Href: lg.Href}})
+						}
+						continue
 					}
-					continue
+					// It's a label
+					key := strings.Split(entity, ":")[0]
+					value := strings.TrimPrefix(entity, key+":")
+					// Get the label
+					if label, exists := input.PCE.Labels[key+value]; !exists {
+						utils.LogError(fmt.Sprintf("csv line %d - %s doesn't exist as a label of type %s.", i+1, value, key))
+					} else {
+						rsScope = append(rsScope, &illumioapi.Scopes{Label: &illumioapi.Label{Href: label.Href}})
+					}
 				}
-				// It's a label
-				key := strings.Split(entity, ":")[0]
-				value := strings.TrimPrefix(entity, key+":")
-				// Get the label
-				if label, exists := input.PCE.Labels[key+value]; !exists {
-					utils.LogError(fmt.Sprintf("csv line %d - %s doesn't exist as a label of type %s.", i+1, value, key))
-				} else {
-					rsScope = append(rsScope, &illumioapi.Scopes{Label: &illumioapi.Label{Href: label.Href}})
-				}
+				*rs.Scopes = append(*rs.Scopes, rsScope)
 			}
-			rs.Scopes = append(rs.Scopes, rsScope)
 		}
 
 		// Append to the new ruleset

@@ -238,7 +238,8 @@ func portLock(port int, protocol string) {
 				Description: "created by workloader containment-switch",
 				Name:        objectName,
 			}
-			rs.Scopes = append(rs.Scopes, []*illumioapi.Scopes{})
+			rs.Scopes = &[][]*illumioapi.Scopes{}
+			//rs.Scopes = append(rs.Scopes, []*illumioapi.Scopes{})
 			rs, api, err = pce.CreateRuleset(rs)
 			utils.LogAPIResp("CreateRuleSet", api)
 			if err != nil {
