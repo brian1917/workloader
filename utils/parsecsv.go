@@ -38,3 +38,14 @@ func ParseCSV(filename string) ([][]string, error) {
 
 	return data, nil
 }
+
+// ParseCsvHeaders parses a file and returns a slice of slice of strings and header map
+// The header map points to the header index in the slice
+func ParseCsvHeaders(filename string) (csvData [][]string, headerMap map[string]int, err error) {
+	headerMap = make(map[string]int)
+	csvData, err = ParseCSV(filename)
+	for i, column := range csvData[0] {
+		headerMap[column] = i
+	}
+	return csvData, headerMap, err
+}
