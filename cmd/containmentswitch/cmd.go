@@ -276,17 +276,17 @@ func portLock(port int, protocol string) {
 
 	// Create the enforcement boundary
 	eb := illumioapi.EnforcementBoundary{
-		Name:            objectName,
-		Consumers:       []illumioapi.Consumers{{IPList: &illumioapi.IPList{Href: anyIPList.Href}}},
-		Providers:       []illumioapi.Providers{{Actors: "ams"}},
-		IngressServices: []illumioapi.IngressServices{{Port: &port, Protocol: &protocolNum}},
+		Name:            &objectName,
+		Consumers:       &[]illumioapi.Consumers{{IPList: &illumioapi.IPList{Href: anyIPList.Href}}},
+		Providers:       &[]illumioapi.Providers{{Actors: "ams"}},
+		IngressServices: &[]illumioapi.IngressServices{{Port: &port, Protocol: &protocolNum}},
 	}
 	eb, api, err = pce.CreateEnforcementBoundary(eb)
 	utils.LogAPIResp("CreateEnforcementBoundary", api)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
-	utils.LogInfo(fmt.Sprintf("created enforcement boundary - %s - %s - status code: %d", eb.Name, eb.Href, api.StatusCode), true)
+	utils.LogInfo(fmt.Sprintf("created enforcement boundary - %s - %s - status code: %d", utils.PtrToStr(eb.Name), eb.Href, api.StatusCode), true)
 
 	// Provision enforcement boundary
 	api, err = pce.ProvisionHref([]string{eb.Href}, "provisioned by workloader containment-switch")
