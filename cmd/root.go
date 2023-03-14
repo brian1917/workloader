@@ -17,6 +17,8 @@ import (
 	"github.com/brian1917/workloader/cmd/deletehrefs"
 	"github.com/brian1917/workloader/cmd/deleteunusedlabels"
 	"github.com/brian1917/workloader/cmd/dupecheck"
+	"github.com/brian1917/workloader/cmd/ebexport"
+	"github.com/brian1917/workloader/cmd/ebimport"
 	"github.com/brian1917/workloader/cmd/explorer"
 	"github.com/brian1917/workloader/cmd/extract"
 	"github.com/brian1917/workloader/cmd/flowimport"
@@ -139,6 +141,8 @@ func init() {
 	RootCmd.AddCommand(rulesetimport.RuleSetImportCmd)
 	RootCmd.AddCommand(ruleexport.RuleExportCmd)
 	RootCmd.AddCommand(ruleimport.RuleImportCmd)
+	RootCmd.AddCommand(ebexport.EbExportCmd)
+	RootCmd.AddCommand(ebimport.EbImportCmd)
 	RootCmd.AddCommand(cwpexport.ContainerProfileExportCmd)
 	RootCmd.AddCommand(cwpimport.ContainerProfileImportCmd)
 	RootCmd.AddCommand(flowimport.FlowImportCmd)
