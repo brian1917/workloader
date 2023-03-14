@@ -10,7 +10,7 @@ import (
 	"github.com/brian1917/illumioapi"
 )
 
-func serviceComparison(csvServices []string, rule illumioapi.Rule, pceServiceMap map[string]illumioapi.Service, csvLine int) (bool, []*illumioapi.IngressServices) {
+func ServiceComparison(csvServices []string, rule illumioapi.Rule, pceServiceMap map[string]illumioapi.Service, csvLine int) (bool, []*illumioapi.IngressServices) {
 
 	// The key in the maps is name, protocol, from, to all concatenated together
 	csvServiceEntries := make(map[string]illumioapi.IngressServices)

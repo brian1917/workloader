@@ -7,7 +7,7 @@ import (
 	"github.com/brian1917/workloader/utils"
 )
 
-func iplComparison(csvIPLNames []string, rule illumioapi.Rule, pceIPLMap map[string]illumioapi.IPList, csvLine int, provider bool) (bool, []*illumioapi.IPList) {
+func IplComparison(csvIPLNames []string, rule illumioapi.Rule, pceIPLMap map[string]illumioapi.IPList, csvLine int, provider bool) (bool, []*illumioapi.IPList) {
 
 	// Build a map of the existing IP Lists
 	ruleIPLsNameMap := make(map[string]illumioapi.IPList)

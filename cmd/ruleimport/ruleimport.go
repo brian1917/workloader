@@ -325,7 +325,7 @@ CSVEntries:
 			if l[c] == "" {
 				consCSVipls = nil
 			}
-			iplChange, ipls := iplComparison(consCSVipls, rHrefMap[rowRuleHref], input.PCE.IPLists, i+1, false)
+			iplChange, ipls := IplComparison(consCSVipls, rHrefMap[rowRuleHref], input.PCE.IPLists, i+1, false)
 			if iplChange {
 				update = true
 			}
@@ -370,7 +370,7 @@ CSVEntries:
 			if l[c] == "" {
 				consCSVlgs = nil
 			}
-			lgChange, lgs := lgComparison(consCSVlgs, rHrefMap[rowRuleHref], input.PCE.LabelGroups, i+1, false)
+			lgChange, lgs := LabelGroupComparison(consCSVlgs, rHrefMap[rowRuleHref], input.PCE.LabelGroups, i+1, false)
 			if lgChange {
 				update = true
 			}
@@ -389,7 +389,7 @@ CSVEntries:
 				value := strings.TrimPrefix(label, key+":")
 				csvLabels = append(csvLabels, illumioapi.Label{Key: key, Value: value})
 			}
-			labelUpdate, labels := labelComparison(csvLabels, input.PCE, rHrefMap[rowRuleHref], i+1, false)
+			labelUpdate, labels := LabelComparison(csvLabels, input.PCE, rHrefMap[rowRuleHref], i+1, false)
 			if labelUpdate {
 				update = true
 			}
@@ -449,7 +449,7 @@ CSVEntries:
 				value := strings.TrimPrefix(label, key+":")
 				csvLabels = append(csvLabels, illumioapi.Label{Key: key, Value: value})
 			}
-			labelUpdate, labels := labelComparison(csvLabels, input.PCE, rHrefMap[rowRuleHref], i+1, true)
+			labelUpdate, labels := LabelComparison(csvLabels, input.PCE, rHrefMap[rowRuleHref], i+1, true)
 			if labelUpdate {
 				update = true
 			}
@@ -464,7 +464,7 @@ CSVEntries:
 			if l[c] == "" {
 				provCSVipls = nil
 			}
-			iplChange, ipls := iplComparison(provCSVipls, rHrefMap[rowRuleHref], input.PCE.IPLists, i+1, true)
+			iplChange, ipls := IplComparison(provCSVipls, rHrefMap[rowRuleHref], input.PCE.IPLists, i+1, true)
 			if iplChange {
 				update = true
 			}
@@ -509,7 +509,7 @@ CSVEntries:
 			if l[c] == "" {
 				provCSVlgs = nil
 			}
-			lgChange, lgs := lgComparison(provCSVlgs, rHrefMap[rowRuleHref], input.PCE.LabelGroups, i+1, true)
+			lgChange, lgs := LabelGroupComparison(provCSVlgs, rHrefMap[rowRuleHref], input.PCE.LabelGroups, i+1, true)
 			if lgChange {
 				update = true
 			}
@@ -526,7 +526,7 @@ CSVEntries:
 			if l[c] == "" {
 				csvServices = nil
 			}
-			svcChange, ingressSvc = serviceComparison(csvServices, rHrefMap[rowRuleHref], input.PCE.Services, i+1)
+			svcChange, ingressSvc = ServiceComparison(csvServices, rHrefMap[rowRuleHref], input.PCE.Services, i+1)
 			if svcChange {
 				update = true
 			}

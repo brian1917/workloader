@@ -7,7 +7,7 @@ import (
 	"github.com/brian1917/workloader/utils"
 )
 
-func lgComparison(csvLGNames []string, rule illumioapi.Rule, pceLGMap map[string]illumioapi.LabelGroup, csvLine int, provider bool) (bool, []*illumioapi.LabelGroup) {
+func LabelGroupComparison(csvLGNames []string, rule illumioapi.Rule, pceLGMap map[string]illumioapi.LabelGroup, csvLine int, provider bool) (bool, []*illumioapi.LabelGroup) {
 
 	// Build a map of the existing Label Groups
 	ruleLGsNameMap := make(map[string]illumioapi.LabelGroup)

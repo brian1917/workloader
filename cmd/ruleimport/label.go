@@ -7,7 +7,7 @@ import (
 	"github.com/brian1917/workloader/utils"
 )
 
-func labelComparison(csvLabels []illumioapi.Label, pce illumioapi.PCE, rule illumioapi.Rule, csvLine int, provider bool) (bool, []*illumioapi.Label) {
+func LabelComparison(csvLabels []illumioapi.Label, pce illumioapi.PCE, rule illumioapi.Rule, csvLine int, provider bool) (bool, []*illumioapi.Label) {
 
 	// Build a map of the existing labels
 	ruleLabelMap := make(map[string]illumioapi.Label)
