@@ -150,10 +150,12 @@ func serviceFinder() {
 
 		// Iterate through each running process
 		if len(processSlice) > 0 {
-			for _, wkldProcess := range w.Services.OpenServicePorts {
-				for _, providedProcess := range processSlice {
-					if strings.Contains(wkldProcess.ProcessName, providedProcess) {
-						data = append(data, []string{w.Href, w.Hostname, strconv.Itoa(wkldProcess.Port), wkldProcess.ProcessName, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, w.GetIPWithDefaultGW()})
+			if w.Services != nil {
+				for _, wkldProcess := range w.Services.OpenServicePorts {
+					for _, providedProcess := range processSlice {
+						if strings.Contains(wkldProcess.ProcessName, providedProcess) {
+							data = append(data, []string{w.Href, w.Hostname, strconv.Itoa(wkldProcess.Port), wkldProcess.ProcessName, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, w.GetIPWithDefaultGW()})
+						}
 					}
 				}
 			}
