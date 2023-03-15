@@ -55,8 +55,8 @@ func umwlCleanUp() {
 	utils.LogStartCommand("umwl-cleanup")
 
 	// Get all workloads
-	wklds, a, err := pce.GetAllWorkloadsQP(nil)
-	utils.LogAPIResp("GetAllWorkloadsQP", a)
+	wklds, a, err := pce.GetWklds(nil)
+	utils.LogAPIResp("GetWklds", a)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -83,7 +83,7 @@ func umwlCleanUp() {
 	}
 
 	// Start our data slice
-	data := [][]string{[]string{"managed_hostname", "umwl_hostname", "umwl_name", "managed_interfaces", "umwl_interfaces", "managed_role", "umwl_role", "managed_app", "umwl_app", "managed_env", "umwl_env", "managed_loc", "umwl_loc", "umwl_href", "managed_href", "href", "role", "app", "env", "loc"}}
+	data := [][]string{{"managed_hostname", "umwl_hostname", "umwl_name", "managed_interfaces", "umwl_interfaces", "managed_role", "umwl_role", "managed_app", "umwl_app", "managed_env", "umwl_env", "managed_loc", "umwl_loc", "umwl_href", "managed_href", "umwl_external_data_set", "umwl_external_data_ref", "managed_external_data_set", "managed_external_data_ref", "href", "role", "app", "env", "loc"}}
 
 	// Find managed workloads that have the same IP address of an unmanaged workload
 workloads:
@@ -111,7 +111,7 @@ workloads:
 				managedIPs = append(managedIPs, fmt.Sprintf("%s:%s", i.Name, i.Address))
 			}
 			//
-			data = append(data, []string{managedWkld.Hostname, umwl.Hostname, umwl.Name, strings.Join(managedIPs, ";"), strings.Join(umwlIPs, ";"), managedWkld.GetRole(pce.Labels).Value, umwl.GetRole(pce.Labels).Value, managedWkld.GetApp(pce.Labels).Value, umwl.GetApp(pce.Labels).Value, managedWkld.GetEnv(pce.Labels).Value, umwl.GetEnv(pce.Labels).Value, managedWkld.GetLoc(pce.Labels).Value, umwl.GetLoc(pce.Labels).Value, umwl.Href, managedWkld.Href, managedWkld.Href, umwl.GetRole(pce.Labels).Value, umwl.GetApp(pce.Labels).Value, umwl.GetEnv(pce.Labels).Value, umwl.GetLoc(pce.Labels).Value})
+			data = append(data, []string{managedWkld.Hostname, umwl.Hostname, umwl.Name, strings.Join(managedIPs, ";"), strings.Join(umwlIPs, ";"), managedWkld.GetRole(pce.Labels).Value, umwl.GetRole(pce.Labels).Value, managedWkld.GetApp(pce.Labels).Value, umwl.GetApp(pce.Labels).Value, managedWkld.GetEnv(pce.Labels).Value, umwl.GetEnv(pce.Labels).Value, managedWkld.GetLoc(pce.Labels).Value, umwl.GetLoc(pce.Labels).Value, umwl.Href, managedWkld.Href, utils.PtrToStr(umwl.ExternalDataSet), utils.PtrToStr(umwl.ExternalDataReference), utils.PtrToStr(managedWkld.ExternalDataSet), utils.PtrToStr(managedWkld.ExternalDataReference), managedWkld.Href, umwl.GetRole(pce.Labels).Value, umwl.GetApp(pce.Labels).Value, umwl.GetEnv(pce.Labels).Value, umwl.GetLoc(pce.Labels).Value})
 		}
 	}
 
