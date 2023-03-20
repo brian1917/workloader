@@ -34,6 +34,8 @@ Import labels for Azure VMs.
 
 The command relies on the Azure CLI being installed and authenticated. See here for installing the Azure CLI: https://learn.microsoft.com/en-us/cli/azure/install-azure-cli.
 
+To test the Azure CLI is authenticated, run az vm list and ensure JSON output is displayed.
+
 A file will be produced that is passed into the wkld-import command. 
 
 It is recommend to run without --update-pce first to the csv produced and what impacts of the wkld-import command.
@@ -70,7 +72,7 @@ func AzureLabels(labelMapping string, pce *illumioapi.PCE, updatePCE, noPrompt b
 
 	// Set up the csv headers
 	csvData := [][]string{{"hostname"}}
-	for _, illumioLabel := range illumioAzMap {
+	for illumioLabel := range illumioAzMap {
 		csvData[0] = append(csvData[0], illumioLabel)
 	}
 
@@ -108,7 +110,7 @@ func AzureLabels(labelMapping string, pce *illumioapi.PCE, updatePCE, noPrompt b
 			if header == "hostname" {
 				continue
 			}
-			csvRow = append(csvRow, vm.Tags[header])
+			csvRow = append(csvRow, vm.Tags[illumioAzMap[header]])
 		}
 		csvData = append(csvData, csvRow)
 	}
