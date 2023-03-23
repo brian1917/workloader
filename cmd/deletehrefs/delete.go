@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -38,7 +38,7 @@ var DeleteCmd = &cobra.Command{
 	Long: `  
 Delete any object with an HREF (e.g., unmanaged workloads, labels, services, IPLists, etc.) from the PCE.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		input.PCE, err = utils.GetTargetPCE(true)
+		input.PCE, err = utils.GetTargetPCEV2(true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -185,7 +185,7 @@ func DeleteHrefs(input Input) {
 			continue
 		}
 		a, _ := input.PCE.DeleteHref(href)
-		utils.LogAPIResp("DeleteHref", a)
+		utils.LogAPIRespV2("DeleteHref", a)
 		if a.StatusCode != 204 {
 			utils.LogWarning(fmt.Sprintf("%s - not deleted - status code %d", href, a.StatusCode), true)
 			skipped++
@@ -226,15 +226,15 @@ func DeleteHrefs(input Input) {
 	utils.LogInfo("using bulk api action delete workloads ...", true)
 	apiResps, err := input.PCE.BulkWorkload(bulkWorkloads, "delete", true)
 	for _, a := range apiResps {
-		utils.LogAPIResp("BulkWorkload", a)
+		utils.LogAPIRespV2("BulkWorkload", a)
 	}
 	if err != nil {
 		utils.LogError(err.Error())
 	}
 	for _, w := range bulkWorkloads {
-		n := w.Hostname
+		n := illumioapi.PtrToVal(w.Hostname)
 		if n == "" {
-			n = w.Name
+			n = illumioapi.PtrToVal(w.Name)
 		}
 		utils.LogInfo(fmt.Sprintf("%s - %s - passed into bulk workload delete - see bulk API responses for confirmation.", w.Href, n), false)
 	}
@@ -243,7 +243,7 @@ func DeleteHrefs(input Input) {
 	if len(provision) > 0 && input.Provision {
 		utils.LogInfo(fmt.Sprintf("provisioning deletion of %d provisionable objects.", len(provision)), true)
 		a, err := input.PCE.ProvisionHref(provision, "deleted by workloader")
-		utils.LogAPIResp("ProvisionHref", a)
+		utils.LogAPIRespV2("ProvisionHref", a)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
