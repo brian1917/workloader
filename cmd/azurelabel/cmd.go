@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/Azure/go-autorest/autorest/azure/cli"
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/cmd/wkldimport"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
@@ -43,7 +43,7 @@ It is recommend to run without --update-pce first to the csv produced and what i
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
-		pce, err := utils.GetTargetPCE(false)
+		pce, err := utils.GetTargetPCEV2(false)
 		if err != nil {
 			utils.LogError(fmt.Sprintf("error getting pce - %s", err.Error()))
 		}

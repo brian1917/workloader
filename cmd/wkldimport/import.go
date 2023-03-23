@@ -7,7 +7,7 @@ import (
 
 	"github.com/brian1917/workloader/cmd/wkldexport"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/viper"
@@ -35,7 +35,7 @@ func ImportWkldsFromCSV(input Input) {
 	// Check if we have the workload map populate
 	if input.PCE.Workloads == nil || len(input.PCE.WorkloadsSlice) == 0 {
 		apiResps, err := input.PCE.Load(illumioapi.LoadInput{Workloads: true})
-		utils.LogMultiAPIResp(apiResps)
+		utils.LogMultiAPIRespV2(apiResps)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -44,7 +44,7 @@ func ImportWkldsFromCSV(input Input) {
 	// Check if we have the labels maps
 	if input.PCE.Labels == nil || len(input.PCE.Labels) == 0 {
 		apiResps, err := input.PCE.Load(illumioapi.LoadInput{Labels: true})
-		utils.LogMultiAPIResp(apiResps)
+		utils.LogMultiAPIRespV2(apiResps)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -62,15 +62,15 @@ func ImportWkldsFromCSV(input Input) {
 		for _, w := range input.PCE.WorkloadsSlice {
 			if (w.GetMode() == "unmanaged" && input.UnmanagedOnly) || (w.GetMode() != "managed" && input.ManagedOnly) {
 				input.PCE.Workloads[w.Href] = w
-				input.PCE.Workloads[w.Hostname] = w
-				input.PCE.Workloads[w.Name] = w
+				input.PCE.Workloads[illumioapi.PtrToVal(w.Hostname)] = w
+				input.PCE.Workloads[illumioapi.PtrToVal(w.Name)] = w
 			}
 		}
 	}
 
 	// Get the PCE version
 	version, api, err := input.PCE.GetVersion()
-	utils.LogAPIResp("GetVersion", api)
+	utils.LogAPIRespV2("GetVersion", api)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -79,7 +79,7 @@ func ImportWkldsFromCSV(input Input) {
 	labelKeysMap := make(map[string]bool)
 	if version.Major > 22 || (version.Major == 22 && version.Minor >= 5) {
 		labelDimensions, api, err := input.PCE.GetLabelDimensions(nil)
-		utils.LogAPIResp("GetLabelDimensions", api)
+		utils.LogAPIRespV2("GetLabelDimensions", api)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -181,21 +181,21 @@ func ImportWkldsFromCSV(input Input) {
 
 		for i, header := range headerValues {
 			if index, ok := input.Headers[header]; ok {
-				//&& utils.PtrToStr(*targetUpdates[i]) != ""
-				if w.csvLine[index] == input.RemoveValue && targetUpdates[i] != nil && utils.PtrToStr(*targetUpdates[i]) != "" {
+				//&& illumioapi.PtrToVal(*targetUpdates[i]) != ""
+				if w.csvLine[index] == input.RemoveValue && targetUpdates[i] != nil && illumioapi.PtrToVal(*targetUpdates[i]) != "" {
 					if w.wkld.Href != "" {
 						utils.LogInfo(fmt.Sprintf("csv line %d - %s - %s to be removed", w.csvLineNum, w.compareString, header), false)
 						w.change = true
 					}
 					**targetUpdates[i] = ""
-				} else if w.csvLine[index] != utils.PtrToStr(*targetUpdates[i]) && w.csvLine[index] != "" {
+				} else if w.csvLine[index] != illumioapi.PtrToVal(*targetUpdates[i]) && w.csvLine[index] != "" {
 					// The values don't equal each other and not using the remove value
 					if w.wkld.Href != "" {
-						logValue := utils.PtrToStr(*targetUpdates[i])
+						logValue := illumioapi.PtrToVal(*targetUpdates[i])
 						if logValue == "" {
 							logValue = "<empty>"
 						}
-						utils.LogInfo(fmt.Sprintf("csv line %d - %s - %s - %s to be changed from \"%s\" to \"%s\"", w.csvLineNum, w.wkld.Hostname, w.wkld.Href, header, logValue, w.csvLine[index]), false)
+						utils.LogInfo(fmt.Sprintf("csv line %d - %s - %s - %s to be changed from \"%s\" to \"%s\"", w.csvLineNum, illumioapi.PtrToVal(w.wkld.Hostname), w.wkld.Href, header, logValue, w.csvLine[index]), false)
 						w.change = true
 					}
 					*targetUpdates[i] = &w.csvLine[index]
@@ -253,7 +253,7 @@ func ImportWkldsFromCSV(input Input) {
 	if len(newLabels) > 0 {
 		for _, label := range newLabels {
 			createdLabel, api, err := input.PCE.CreateLabel(illumioapi.Label{Key: label.Key, Value: label.Value})
-			utils.LogAPIResp("CreateLabel", api)
+			utils.LogAPIRespV2("CreateLabel", api)
 			if err != nil {
 				utils.LogError(err.Error())
 			}
@@ -264,13 +264,13 @@ func ImportWkldsFromCSV(input Input) {
 
 	// Replace the labels that need to
 	for i, wkld := range updatedWklds {
-		newLabels := []*illumioapi.Label{}
+		newLabels := []illumioapi.Label{}
 		if wkld.Labels != nil {
 			for _, l := range *wkld.Labels {
 				if strings.Contains(l.Href, "wkld-import-temp") {
-					newLabels = append(newLabels, &illumioapi.Label{Href: labelReplacementMap[l.Href]})
+					newLabels = append(newLabels, illumioapi.Label{Href: labelReplacementMap[l.Href]})
 				} else {
-					newLabels = append(newLabels, &illumioapi.Label{Href: l.Href})
+					newLabels = append(newLabels, illumioapi.Label{Href: l.Href})
 				}
 			}
 			wkld.Labels = &newLabels
@@ -279,12 +279,12 @@ func ImportWkldsFromCSV(input Input) {
 	}
 
 	for i, wkld := range newUMWLs {
-		newLabels := []*illumioapi.Label{}
-		for _, l := range *wkld.Labels {
+		newLabels := []illumioapi.Label{}
+		for _, l := range illumioapi.PtrToVal(wkld.Labels) {
 			if strings.Contains(l.Href, "wkld-import-temp") {
-				newLabels = append(newLabels, &illumioapi.Label{Href: labelReplacementMap[l.Href]})
+				newLabels = append(newLabels, illumioapi.Label{Href: labelReplacementMap[l.Href]})
 			} else {
-				newLabels = append(newLabels, &illumioapi.Label{Href: l.Href})
+				newLabels = append(newLabels, illumioapi.Label{Href: l.Href})
 			}
 		}
 		wkld.Labels = &newLabels
@@ -294,7 +294,7 @@ func ImportWkldsFromCSV(input Input) {
 	if len(updatedWklds) > 0 {
 		api, err := input.PCE.BulkWorkload(updatedWklds, "update", true)
 		for _, a := range api {
-			utils.LogAPIResp("BulkWorkloadUpdate", a)
+			utils.LogAPIRespV2("BulkWorkloadUpdate", a)
 		}
 		if err != nil {
 			utils.LogError(fmt.Sprintf("bulk updating workloads - %s", err))
@@ -306,7 +306,7 @@ func ImportWkldsFromCSV(input Input) {
 	if len(newUMWLs) > 0 {
 		api, err := input.PCE.BulkWorkload(newUMWLs, "create", true)
 		for _, a := range api {
-			utils.LogAPIResp("BulkWorkloadCreate", a)
+			utils.LogAPIRespV2("BulkWorkloadCreate", a)
 
 		}
 		if err != nil {

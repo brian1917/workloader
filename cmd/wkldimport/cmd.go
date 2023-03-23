@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/cmd/wkldexport"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
@@ -106,7 +106,7 @@ Recommended to run without --update-pce first to log what will change.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		var err error
-		input.PCE, err = utils.GetTargetPCE(true)
+		input.PCE, err = utils.GetTargetPCEV2(true)
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for csv command - %s", err)
 		}
@@ -124,7 +124,7 @@ Recommended to run without --update-pce first to log what will change.`,
 
 		// Load the PCE with workloads
 		apiResps, err := input.PCE.Load(illumioapi.LoadInput{Workloads: true})
-		utils.LogMultiAPIResp(apiResps)
+		utils.LogMultiAPIRespV2(apiResps)
 		if err != nil {
 			utils.LogError(err.Error())
 		}

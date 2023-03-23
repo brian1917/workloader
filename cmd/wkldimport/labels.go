@@ -3,7 +3,7 @@ package wkldimport
 import (
 	"fmt"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/utils"
 )
 
@@ -38,9 +38,9 @@ func (w *importWkld) labels(input Input, newLabels []illumioapi.Label, labelKeys
 	labelsCleared := false
 
 	// Put all labels that don't have a header back in
-	nonProcessedLabels := []*illumioapi.Label{}
+	nonProcessedLabels := []illumioapi.Label{}
 	if w.wkld.Labels != nil {
-		for _, l := range *w.wkld.Labels {
+		for _, l := range illumioapi.PtrToVal(w.wkld.Labels) {
 			if _, ok := input.Headers[input.PCE.Labels[l.Href].Key]; !ok {
 				nonProcessedLabels = append(nonProcessedLabels, l)
 			}
@@ -58,7 +58,7 @@ func (w *importWkld) labels(input Input, newLabels []illumioapi.Label, labelKeys
 		// If the input has a label header, we clear the original labels.
 		if !labelsCleared {
 			// Clear the labels
-			w.wkld.Labels = &[]*illumioapi.Label{}
+			w.wkld.Labels = &[]illumioapi.Label{}
 			labelsCleared = true
 		}
 
@@ -68,7 +68,7 @@ func (w *importWkld) labels(input Input, newLabels []illumioapi.Label, labelKeys
 		// If the value is blank and the current label exists keep the current label.
 		// Or, if the CSV entry equals the current value, keep it
 		if (w.csvLine[index] == "" && currentLabel.Href != "") || (w.csvLine[index] == currentLabel.Value && w.csvLine[index] != "") {
-			*w.wkld.Labels = append(*w.wkld.Labels, &illumioapi.Label{Href: currentLabel.Href})
+			*w.wkld.Labels = append(*w.wkld.Labels, illumioapi.Label{Href: currentLabel.Href})
 			continue
 		}
 
@@ -88,7 +88,7 @@ func (w *importWkld) labels(input Input, newLabels []illumioapi.Label, labelKeys
 			// Add that label to the new labels slice]
 			var retrievedLabel illumioapi.Label
 			retrievedLabel, newLabels = checkLabel(input.PCE, illumioapi.Label{Key: headerValue, Value: w.csvLine[index]}, newLabels)
-			*w.wkld.Labels = append(*w.wkld.Labels, &illumioapi.Label{Href: retrievedLabel.Href})
+			*w.wkld.Labels = append(*w.wkld.Labels, illumioapi.Label{Href: retrievedLabel.Href})
 
 			// Log if updating
 			if w.wkld.Href != "" && input.UpdateWorkloads {

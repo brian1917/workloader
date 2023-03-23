@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
@@ -45,7 +45,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
-		pce, err = utils.GetTargetPCE(true)
+		pce, err = utils.GetTargetPCEV2(true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -73,15 +73,15 @@ func exportWorkloads() {
 	if onlineOnly {
 		qp["online"] = "true"
 	}
-	wklds, a, err := pce.GetWklds(qp)
-	utils.LogAPIResp("GetWklds", a)
+	a, err := pce.GetWklds(qp)
+	utils.LogAPIRespV2("GetWklds", a)
 	if err != nil {
 		utils.LogError(fmt.Sprintf("getting all workloads - %s", err))
 	}
 
 	// Get the labels that are in use by the workloads
 	labelsKeyMap := make(map[string]bool)
-	for _, w := range wklds {
+	for _, w := range pce.WorkloadsSlice {
 		for _, label := range *w.Labels {
 			labelsKeyMap[pce.Labels[label.Href].Key] = true
 		}
@@ -111,7 +111,7 @@ func exportWorkloads() {
 	}
 
 	// Iterate through each workload
-	for _, w := range wklds {
+	for _, w := range pce.WorkloadsSlice {
 		csvRow := make(map[string]string)
 		// Skip deleted workloads
 		if *w.Deleted {
@@ -160,9 +160,9 @@ func exportWorkloads() {
 			if csvRow[HeaderCloudInstanceID] == "" {
 				csvRow[HeaderCloudInstanceID] = "NA"
 			}
-			if w.Agent.Status.AgentHealth != nil && len(w.Agent.Status.AgentHealth) > 0 {
+			if w.Agent.Status.AgentHealth != nil && len(illumioapi.PtrToVal(w.Agent.Status.AgentHealth)) > 0 {
 				healthSlice := []string{}
-				for _, a := range w.Agent.Status.AgentHealth {
+				for _, a := range illumioapi.PtrToVal(w.Agent.Status.AgentHealth) {
 					healthSlice = append(healthSlice, fmt.Sprintf("%s (%s)", a.Type, a.Severity))
 				}
 				csvRow[HeaderAgentHealth] = strings.Join(healthSlice, "; ")
@@ -187,29 +187,29 @@ func exportWorkloads() {
 		}
 
 		// Fill csv row with other data
-		csvRow[HeaderHostname] = w.Hostname
-		csvRow[HeaderName] = w.Name
+		csvRow[HeaderHostname] = illumioapi.PtrToVal(w.Hostname)
+		csvRow[HeaderName] = illumioapi.PtrToVal(w.Name)
 		csvRow[HeaderHref] = w.Href
 
-		csvRow[HeaderPublicIP] = w.PublicIP
-		csvRow[HeaderDistinguishedName] = utils.PtrToStr(w.DistinguishedName)
+		csvRow[HeaderPublicIP] = illumioapi.PtrToVal(w.PublicIP)
+		csvRow[HeaderDistinguishedName] = illumioapi.PtrToVal(w.DistinguishedName)
 		csvRow[HeaderIPWithDefaultGw] = w.GetIPWithDefaultGW()
 		csvRow[HeaderNetmaskOfIPWithDefGw] = w.GetNetMaskWithDefaultGW()
 		csvRow[HeaderDefaultGw] = w.GetDefaultGW()
 		csvRow[HeaderDefaultGwNetwork] = w.GetNetworkWithDefaultGateway()
-		csvRow[HeaderSPN] = utils.PtrToStr(w.ServicePrincipalName)
-		csvRow[HeaderDescription] = utils.PtrToStr(w.Description)
+		csvRow[HeaderSPN] = illumioapi.PtrToVal(w.ServicePrincipalName)
+		csvRow[HeaderDescription] = illumioapi.PtrToVal(w.Description)
 		csvRow[HeaderEnforcement] = w.GetMode()
 		csvRow[HeaderVisibility] = w.GetVisibilityLevel()
-		csvRow[HeaderOnline] = strconv.FormatBool(w.Online)
+		csvRow[HeaderOnline] = strconv.FormatBool(illumioapi.PtrToVal(w.Online))
 		csvRow[HeaderCreatedAt] = w.CreatedAt
-		csvRow[HeaderOsID] = utils.PtrToStr(w.OsID)
-		csvRow[HeaderOsDetail] = utils.PtrToStr(w.OsDetail)
-		csvRow[HeaderServiceProvider] = w.ServiceProvider
-		csvRow[HeaderDataCenter] = utils.PtrToStr(w.DataCenter)
-		csvRow[HeaderDataCenterZone] = w.DataCenterZone
-		csvRow[HeaderExternalDataReference] = utils.PtrToStr(w.ExternalDataReference)
-		csvRow[HeaderExternalDataSet] = utils.PtrToStr(w.ExternalDataSet)
+		csvRow[HeaderOsID] = illumioapi.PtrToVal(w.OsID)
+		csvRow[HeaderOsDetail] = illumioapi.PtrToVal(w.OsDetail)
+		csvRow[HeaderServiceProvider] = illumioapi.PtrToVal(w.ServiceProvider)
+		csvRow[HeaderDataCenter] = illumioapi.PtrToVal(w.DataCenter)
+		csvRow[HeaderDataCenterZone] = illumioapi.PtrToVal(w.DataCenterZone)
+		csvRow[HeaderExternalDataReference] = illumioapi.PtrToVal(w.ExternalDataReference)
+		csvRow[HeaderExternalDataSet] = illumioapi.PtrToVal(w.ExternalDataSet)
 
 		if includeVuln {
 			var maxVulnScore, vulnScore, vulnExposureScore string
@@ -253,7 +253,7 @@ func exportWorkloads() {
 }
 
 func InterfaceToString(w illumioapi.Workload, replaceDots bool) (interfaces []string) {
-	for _, i := range w.Interfaces {
+	for _, i := range illumioapi.PtrToVal(w.Interfaces) {
 		if replaceDots {
 			i.Name = strings.Replace(i.Name, ".", "-", -1)
 		}

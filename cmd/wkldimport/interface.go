@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/cmd/wkldexport"
 	"github.com/brian1917/workloader/utils"
 )
@@ -91,7 +91,7 @@ func (w *importWkld) interfaces(input Input) {
 	// If IP field is there and  IP address is provided, check it out
 	if index, ok := input.Headers[wkldexport.HeaderInterfaces]; ok && len(w.csvLine[index]) > 0 {
 		// Build out the netInterfaces slice provided by the user
-		netInterfaces := []*illumioapi.Interface{}
+		netInterfaces := []illumioapi.Interface{}
 		nics := strings.Split(strings.Replace(w.csvLine[index], " ", "", -1), ";")
 		for _, n := range nics {
 			ipInterface, err := userInputConvert(n)
@@ -99,7 +99,7 @@ func (w *importWkld) interfaces(input Input) {
 				utils.LogWarning(fmt.Sprintf("csv line %d - %s - skipping processing interfaces - ", w.csvLineNum, err.Error()), true)
 				return
 			}
-			netInterfaces = append(netInterfaces, &ipInterface)
+			netInterfaces = append(netInterfaces, ipInterface)
 		}
 
 		// If instructed by flag, make sure we keep all PCE interfaces
@@ -107,10 +107,10 @@ func (w *importWkld) interfaces(input Input) {
 			// Build a map of the interfaces provided by the user with the address as the key
 			interfaceMap := make(map[string]illumioapi.Interface)
 			for _, i := range netInterfaces {
-				interfaceMap[i.Address] = *i
+				interfaceMap[i.Address] = i
 			}
 			// For each interface on the PCE, check if the address is in the map
-			for _, i := range w.wkld.Interfaces {
+			for _, i := range illumioapi.PtrToVal(w.wkld.Interfaces) {
 				// If it's not in them map, append it to the user provdided netInterfaces so we keep it
 				if _, ok := interfaceMap[i.Address]; !ok {
 					netInterfaces = append(netInterfaces, i)
@@ -121,7 +121,7 @@ func (w *importWkld) interfaces(input Input) {
 		// Build some maps
 		userMap := make(map[string]bool)
 		wkldIntMap := make(map[string]bool)
-		for _, w := range w.wkld.Interfaces {
+		for _, w := range illumioapi.PtrToVal(w.wkld.Interfaces) {
 			cidrText := "nil"
 			if w.CidrBlock != nil {
 				cidrText = strconv.Itoa(*w.CidrBlock)
@@ -138,7 +138,7 @@ func (w *importWkld) interfaces(input Input) {
 
 		updateInterfaces := false
 		// Are all workload interfaces in spreadsheet?
-		for _, iFace := range w.wkld.Interfaces {
+		for _, iFace := range illumioapi.PtrToVal(w.wkld.Interfaces) {
 			cidrText := "nil"
 			if iFace.CidrBlock != nil && *iFace.CidrBlock != 0 {
 				cidrText = strconv.Itoa(*iFace.CidrBlock)
@@ -168,7 +168,7 @@ func (w *importWkld) interfaces(input Input) {
 		}
 
 		if updateInterfaces {
-			w.wkld.Interfaces = netInterfaces
+			w.wkld.Interfaces = &netInterfaces
 		}
 	}
 }
