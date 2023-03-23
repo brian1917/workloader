@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
 )
@@ -52,7 +52,7 @@ With the input file above, the query will get all IDLE workloads that are labele
 The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetTargetPCE(true)
+		pce, err = utils.GetTargetPCEV2(true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -121,15 +121,15 @@ func compatibilityReport() {
 		}
 
 		// Get all workloads from the query
-		wklds, a, err := pce.GetWklds(qp)
-		utils.LogAPIResp("GetAllWorkloadsQP", a)
+		a, err := pce.GetWklds(qp)
+		utils.LogAPIRespV2("GetAllWorkloadsQP", a)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
 
 		// Get Idle workload count
 		idleWklds = []illumioapi.Workload{}
-		for _, w := range wklds {
+		for _, w := range pce.WorkloadsSlice {
 			if w.Agent.Config.Mode == "idle" {
 				idleWklds = append(idleWklds, w)
 			}
@@ -146,18 +146,18 @@ func compatibilityReport() {
 			var err error
 			if strings.Contains(row[0], "/orgs/") {
 				w, a, err = pce.GetWkldByHref(row[0])
-				utils.LogAPIResp("GetWkldByHref", a)
+				utils.LogAPIRespV2("GetWkldByHref", a)
 				if err != nil {
 					utils.LogError(err.Error())
 				}
 			} else {
 				w, a, err = pce.GetWkldByHostname(row[0])
-				utils.LogAPIResp("GetWkldByHostname", a)
+				utils.LogAPIRespV2("GetWkldByHostname", a)
 				if err != nil {
 					utils.LogError(err.Error())
 				}
 			}
-			if w.Hostname == "" {
+			if illumioapi.PtrToVal(w.Hostname) == "" {
 				utils.LogInfo(fmt.Sprintf("csv line %d - %s does not exist. skipping.", i+1, row[0]), true)
 				continue
 			}
@@ -178,9 +178,9 @@ func compatibilityReport() {
 
 		// Get the compatibility report and append
 		cr, a, err := pce.GetCompatibilityReport(w)
-		utils.LogAPIResp("GetCompatibilityReport", a)
+		utils.LogAPIRespV2("GetCompatibilityReport", a)
 		if err != nil {
-			utils.LogError(fmt.Sprintf("getting compatibility report for %s (%s) - %s", w.Hostname, w.Href, err))
+			utils.LogError(fmt.Sprintf("getting compatibility report for %s (%s) - %s", illumioapi.PtrToVal(w.Hostname), w.Href, err))
 		}
 
 		// Set the initial values for Linux, AIX, and Solaris and override for Windows
@@ -210,7 +210,7 @@ func compatibilityReport() {
 			routingTableConflict = "na"
 		}
 
-		for _, c := range cr.Results.QualifyTests {
+		for _, c := range illumioapi.PtrToVal(cr.Results.QualifyTests) {
 			variables := []*string{
 				&requiredPackagesInstalled,
 				&ipsecServiceEnabled,
@@ -258,14 +258,14 @@ func compatibilityReport() {
 		fmt.Printf("\r%s [INFO] - reviewed compatibility report %d of %d (%d%%).%s", time.Now().Format("2006-01-02 15:04:05 "), i+1, len(idleWklds), (i+1)*100/len(idleWklds), end)
 
 		if cr.QualifyStatus == "" {
-			warningLogs = append(warningLogs, fmt.Sprintf("%s is an idle workload but does not have a compatibility report", w.Hostname))
+			warningLogs = append(warningLogs, fmt.Sprintf("%s is an idle workload but does not have a compatibility report", illumioapi.PtrToVal(w.Hostname)))
 			continue
 		}
 
 		// Put into slice if it's NOT green and issuesOnly is true
 		if (cr.QualifyStatus != "green" && issuesOnly) || !issuesOnly {
-			csvData = append(csvData, []string{w.Hostname, w.Href, cr.QualifyStatus, w.GetRole(pce.Labels).Value, w.GetApp(pce.Labels).Value, w.GetEnv(pce.Labels).Value, w.GetLoc(pce.Labels).Value, utils.PtrToStr(w.OsID), utils.PtrToStr(w.OsDetail), requiredPackagesInstalled, requiredPackagesMissing, ipsecServiceEnabled, ipv4ForwardingEnabled, ipv4ForwardingPktCnt, iptablesRuleCnt, ipv6GlobalScope, ipv6ActiveConnCnt, iP6TablesRuleCnt, routingTableConflict, iPv6Enabled, unwantedNics, groupPolicy, a.RespBody})
-			stdOutData = append(stdOutData, []string{w.Hostname, w.Href, cr.QualifyStatus})
+			csvData = append(csvData, []string{illumioapi.PtrToVal(w.Hostname), w.Href, cr.QualifyStatus, w.GetLabelByKey("role", pce.Labels).Value, w.GetLabelByKey("app", pce.Labels).Value, w.GetLabelByKey("env", pce.Labels).Value, w.GetLabelByKey("loc", pce.Labels).Value, utils.PtrToStr(w.OsID), utils.PtrToStr(w.OsDetail), requiredPackagesInstalled, requiredPackagesMissing, ipsecServiceEnabled, ipv4ForwardingEnabled, ipv4ForwardingPktCnt, iptablesRuleCnt, ipv6GlobalScope, ipv6ActiveConnCnt, iP6TablesRuleCnt, routingTableConflict, iPv6Enabled, unwantedNics, groupPolicy, a.RespBody})
+			stdOutData = append(stdOutData, []string{illumioapi.PtrToVal(w.Hostname), w.Href, cr.QualifyStatus})
 		}
 
 		if cr.QualifyStatus == "green" {
