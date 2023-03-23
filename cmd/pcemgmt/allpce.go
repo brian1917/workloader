@@ -1,4 +1,4 @@
-package allpce
+package pcemgmt
 
 import (
 	"github.com/spf13/cobra"

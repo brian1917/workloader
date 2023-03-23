@@ -7,7 +7,6 @@ import (
 
 	"github.com/brian1917/workloader/utils"
 
-	"github.com/brian1917/workloader/cmd/allpce"
 	"github.com/brian1917/workloader/cmd/azurelabel"
 	"github.com/brian1917/workloader/cmd/checkversion"
 	"github.com/brian1917/workloader/cmd/compatibility"
@@ -119,8 +118,8 @@ func init() {
 	RootCmd.AddCommand(pcemgmt.PCEListCmd)
 	RootCmd.AddCommand(pcemgmt.GetDefaultPCECmd)
 	RootCmd.AddCommand(pcemgmt.SetDefaultPCECmd)
-	RootCmd.AddCommand(allpce.AllPceCmd)
-	RootCmd.AddCommand(allpce.TargetPcesCmd)
+	RootCmd.AddCommand(pcemgmt.AllPceCmd)
+	RootCmd.AddCommand(pcemgmt.TargetPcesCmd)
 	RootCmd.AddCommand(pcemgmt.SetProxyCmd)
 	RootCmd.AddCommand(pcemgmt.ClearProxyCmd)
 
