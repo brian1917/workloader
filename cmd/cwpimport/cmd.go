@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/cmd/cwpexport"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
@@ -51,7 +51,7 @@ Only label assignments are supported. Label restrictions will show as blank in t
 		noPrompt = viper.Get("no_prompt").(bool)
 
 		// Get the PCE
-		pce, err := utils.GetTargetPCE(true)
+		pce, err := utils.GetTargetPCEV2(true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -86,8 +86,8 @@ func importContainerProfiles(pce illumioapi.PCE, importFile, removeValue string,
 	}
 
 	// Get all container clusters
-	_, a, err := pce.GetContainerClusters(nil)
-	utils.LogAPIResp("GetContainerClusters", a)
+	a, err := pce.GetContainerClusters(nil)
+	utils.LogAPIRespV2("GetContainerClusters", a)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -95,12 +95,12 @@ func importContainerProfiles(pce illumioapi.PCE, importFile, removeValue string,
 	// Iterate each container cluster and get the container profiles
 	cwpMap := make(map[string]illumioapi.ContainerWorkloadProfile)
 	for _, cc := range pce.ContainerClustersSlice {
-		cp, a, err := pce.GetContainerWkldProfiles(nil, cc.ID())
-		utils.LogAPIResp("GetContainerWkldProfiles", a)
+		a, err := pce.GetContainerWkldProfiles(nil, cc.ID())
+		utils.LogAPIRespV2("GetContainerWkldProfiles", a)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-		for _, p := range cp {
+		for _, p := range pce.ContainerWorkloadProfilesSlice {
 			if p.Name != nil && *p.Name == "Default Profile" {
 				continue
 			}
@@ -178,9 +178,9 @@ func importContainerProfiles(pce illumioapi.PCE, importFile, removeValue string,
 				if e != "idle" && e != "visibility_only" && e != "full" && e != "selective" {
 					utils.LogError(fmt.Sprintf("csv line %d - %s is an invalid enforcement value. acceptable values are idle, visibility_only, or full.", index+1, e))
 				}
-				if cwp.EnforcementMode != e {
-					logMsgs = append(logMsgs, fmt.Sprintf("enforcement to be updated from %s to %s", cwp.EnforcementMode, e))
-					cwp.EnforcementMode = e
+				if illumioapi.PtrToVal(cwp.EnforcementMode) != e {
+					logMsgs = append(logMsgs, fmt.Sprintf("enforcement to be updated from %s to %s", illumioapi.PtrToVal(cwp.EnforcementMode), e))
+					cwp.EnforcementMode = &e
 					update = true
 				}
 
@@ -188,7 +188,7 @@ func importContainerProfiles(pce illumioapi.PCE, importFile, removeValue string,
 
 				// Get PCE vis level in UI terms
 				pceVisLevel := ""
-				switch cwp.VisibilityLevel {
+				switch illumioapi.PtrToVal(cwp.VisibilityLevel) {
 				case "flow_summary":
 					pceVisLevel = "blocked_allowed"
 				case "flow_drops":
@@ -221,7 +221,7 @@ func importContainerProfiles(pce illumioapi.PCE, importFile, removeValue string,
 				// Compare the converted PCE level to the provided CSV level
 				if pceVisLevel != c {
 					logMsgs = append(logMsgs, fmt.Sprintf("visibility to be updated from %s to %s", pceVisLevel, c))
-					cwp.VisibilityLevel = csvVisLevel
+					cwp.VisibilityLevel = &csvVisLevel
 					update = true
 				}
 
@@ -245,7 +245,7 @@ func importContainerProfiles(pce illumioapi.PCE, importFile, removeValue string,
 						continue
 					} else if values[0] == removeValue && values[1] == removeValue && values[2] == removeValue && values[3] == removeValue {
 						update = true
-						cwp.Labels = &[]illumioapi.ContainerWorkloadProfileLabel{}
+						cwp.Labels = &[]illumioapi.Label{}
 						logMsgs = append(logMsgs, "all labels to be removed")
 						break
 					} else if values[i] == removeValue {
@@ -309,7 +309,7 @@ func importContainerProfiles(pce illumioapi.PCE, importFile, removeValue string,
 	// Prompt accepted or --no-prompt used - first, create labels.
 	for _, label := range labelsToBeCreated {
 		newLabel, api, err := pce.CreateLabel(label)
-		utils.LogAPIResp("CreateLabel", api)
+		utils.LogAPIRespV2("CreateLabel", api)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -330,7 +330,7 @@ func importContainerProfiles(pce illumioapi.PCE, importFile, removeValue string,
 	// Update the CWPs
 	for _, update := range updatedCWPs {
 		api, err := pce.UpdateContainerWkldProfiles(update.cwp)
-		utils.LogAPIResp("UpdateContainerWorkloadProfiles", api)
+		utils.LogAPIRespV2("UpdateContainerWorkloadProfiles", api)
 		if err != nil {
 			utils.LogError(fmt.Sprintf("csv line %d - %s", update.csvLine, err.Error()))
 		}
