@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
@@ -55,7 +55,7 @@ The --update-pce flag is required for Steps 2 through 7. If the --update-pce fla
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetTargetPCE(true)
+		pce, err = utils.GetTargetPCEV2(true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -83,8 +83,8 @@ func portLock(port int, protocol string) {
 	utils.LogStartCommand("containment-switch")
 
 	// Get visibility only workloads
-	visOnlywklds, api, err := pce.GetWklds(map[string]string{"managed": "true", "enforcement_mode": "visibility_only"})
-	utils.LogAPIResp("GetAllWorkloadsQP", api)
+	api, err := pce.GetWklds(map[string]string{"managed": "true", "enforcement_mode": "visibility_only"})
+	utils.LogAPIRespV2("GetAllWorkloadsQP", api)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -112,7 +112,7 @@ func portLock(port int, protocol string) {
 	// Get the Any IP List for use in the rule and/or enfourcement boundary.
 	// Get it here so it's available in the traffic conditional as well as in the EB
 	anyIPList, api, err := pce.GetIPListByName("Any (0.0.0.0/0 and ::/0)", "active")
-	utils.LogAPIResp("GetIPList", api)
+	utils.LogAPIRespV2("GetIPList", api)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -142,7 +142,7 @@ func portLock(port int, protocol string) {
 
 		// Run traffic query
 		traffic, api, err := pce.GetTrafficAnalysis(tq)
-		utils.LogAPIResp("GetTrafficAnalysis", api)
+		utils.LogAPIRespV2("GetTrafficAnalysis", api)
 		if err != nil {
 			utils.LogError(fmt.Sprintf("making explorer API call - %s", err))
 		}
@@ -158,10 +158,10 @@ func portLock(port int, protocol string) {
 		utils.LogInfo(fmt.Sprintf("identified %d workloads to bind to the virtual service. See workloader.log for list.", len(targetWorkloads)), true)
 		for _, t := range targetWorkloads {
 			name := t.Hostname
-			if name == "" {
+			if illumioapi.PtrToVal(name) == "" {
 				name = t.Name
 			}
-			utils.LogInfo(fmt.Sprintf("%s - %s", name, t.Href), false)
+			utils.LogInfo(fmt.Sprintf("%s - %s", illumioapi.PtrToVal(name), t.Href), false)
 		}
 
 		// Check that we should make changes to the PCE.
@@ -179,7 +179,7 @@ func portLock(port int, protocol string) {
 			}
 			changes = append(changes, fmt.Sprintf("create the %s enforcement boundary for any IP address to all workloads on %d %s", objectName, port, protocol))
 			if !skipModeChange {
-				changes = append(changes, fmt.Sprintf("move %d workloads from visibility-only to selective-enforcement to enforce created boundary", len(visOnlywklds)))
+				changes = append(changes, fmt.Sprintf("move %d workloads from visibility-only to selective-enforcement to enforce created boundary", len(pce.WorkloadsSlice)))
 			}
 
 			var prompt string
@@ -202,12 +202,12 @@ func portLock(port int, protocol string) {
 
 			// Create the virtual service
 			vs := illumioapi.VirtualService{
-				Description:  fmt.Sprintf("created by workloader containment-switch for %d %s", port, protocol),
+				Description:  illumioapi.Ptr(fmt.Sprintf("created by workloader containment-switch for %d %s", port, protocol)),
 				Name:         objectName,
-				ServicePorts: []*illumioapi.ServicePort{{Port: port, Protocol: protocolNum}}}
+				ServicePorts: &[]illumioapi.ServicePort{{Port: port, Protocol: protocolNum}}}
 
 			vs, api, err = pce.CreateVirtualService(vs)
-			utils.LogAPIResp("CreateVirtualService", api)
+			utils.LogAPIRespV2("CreateVirtualService", api)
 			if err != nil {
 				utils.LogError(err.Error())
 			}
@@ -215,7 +215,7 @@ func portLock(port int, protocol string) {
 
 			// Provision the virutal service
 			api, err = pce.ProvisionHref([]string{vs.Href}, "provisioned by workloader containment-switch")
-			utils.LogAPIResp("ProvisionHref", api)
+			utils.LogAPIRespV2("ProvisionHref", api)
 			if err != nil {
 				utils.LogError(err.Error())
 			}
@@ -224,10 +224,10 @@ func portLock(port int, protocol string) {
 			// Bind the workloads
 			serviceBindings := []illumioapi.ServiceBinding{}
 			for _, w := range targetWorkloads {
-				serviceBindings = append(serviceBindings, illumioapi.ServiceBinding{VirtualService: vs, Workload: w})
+				serviceBindings = append(serviceBindings, illumioapi.ServiceBinding{VirtualService: &vs, Workload: &w})
 			}
 			_, api, err = pce.CreateServiceBinding(serviceBindings)
-			utils.LogAPIResp("CreateServiceBinding", api)
+			utils.LogAPIRespV2("CreateServiceBinding", api)
 			if err != nil {
 				utils.LogError(err.Error())
 			}
@@ -235,13 +235,13 @@ func portLock(port int, protocol string) {
 
 			// Create a new ruleset
 			rs := illumioapi.RuleSet{
-				Description: "created by workloader containment-switch",
+				Description: illumioapi.Ptr("created by workloader containment-switch"),
 				Name:        objectName,
 			}
-			rs.Scopes = &[][]*illumioapi.Scopes{}
+			rs.Scopes = &[][]illumioapi.Scopes{}
 			//rs.Scopes = append(rs.Scopes, []*illumioapi.Scopes{})
 			rs, api, err = pce.CreateRuleset(rs)
-			utils.LogAPIResp("CreateRuleSet", api)
+			utils.LogAPIRespV2("CreateRuleSet", api)
 			if err != nil {
 				utils.LogError(err.Error())
 			}
@@ -250,14 +250,14 @@ func portLock(port int, protocol string) {
 			// Create a new rule
 			enabled := true
 			rule := illumioapi.Rule{
-				Providers:       []*illumioapi.Providers{{VirtualService: &illumioapi.VirtualService{Href: vs.Href}}},
-				Consumers:       []*illumioapi.Consumers{{IPList: &illumioapi.IPList{Href: anyIPList.Href}}},
+				Providers:       &[]illumioapi.ConsumerOrProvider{{VirtualService: &illumioapi.VirtualService{Href: vs.Href}}},
+				Consumers:       &[]illumioapi.ConsumerOrProvider{{IPList: &illumioapi.IPList{Href: anyIPList.Href}}},
 				Enabled:         &enabled,
-				ResolveLabelsAs: &illumioapi.ResolveLabelsAs{Consumers: []string{"workloads"}, Providers: []string{"virtual_services"}},
-				IngressServices: &[]*illumioapi.IngressServices{},
+				ResolveLabelsAs: &illumioapi.ResolveLabelsAs{Consumers: &[]string{"workloads"}, Providers: &[]string{"virtual_services"}},
+				IngressServices: &[]illumioapi.IngressServices{},
 			}
 			rule, api, err = pce.CreateRule(rs.Href, rule)
-			utils.LogAPIResp("CreateRuleSetRule", api)
+			utils.LogAPIRespV2("CreateRuleSetRule", api)
 			if err != nil {
 				utils.LogError(err.Error())
 			}
@@ -265,7 +265,7 @@ func portLock(port int, protocol string) {
 
 			// Provision the ruleset
 			api, err = pce.ProvisionHref([]string{rs.Href}, "provisioned by workloader containment-switch")
-			utils.LogAPIResp("ProvisionHref", api)
+			utils.LogAPIRespV2("ProvisionHref", api)
 			if err != nil {
 				utils.LogError(err.Error())
 			}
@@ -276,21 +276,21 @@ func portLock(port int, protocol string) {
 
 	// Create the enforcement boundary
 	eb := illumioapi.EnforcementBoundary{
-		Name:            &objectName,
-		Consumers:       &[]illumioapi.Consumers{{IPList: &illumioapi.IPList{Href: anyIPList.Href}}},
-		Providers:       &[]illumioapi.Providers{{Actors: "ams"}},
+		Name:            objectName,
+		Consumers:       &[]illumioapi.ConsumerOrProvider{{IPList: &illumioapi.IPList{Href: anyIPList.Href}}},
+		Providers:       &[]illumioapi.ConsumerOrProvider{{Actors: illumioapi.Ptr("ams")}},
 		IngressServices: &[]illumioapi.IngressServices{{Port: &port, Protocol: &protocolNum}},
 	}
 	eb, api, err = pce.CreateEnforcementBoundary(eb)
-	utils.LogAPIResp("CreateEnforcementBoundary", api)
+	utils.LogAPIRespV2("CreateEnforcementBoundary", api)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
-	utils.LogInfo(fmt.Sprintf("created enforcement boundary - %s - %s - status code: %d", utils.PtrToStr(eb.Name), eb.Href, api.StatusCode), true)
+	utils.LogInfo(fmt.Sprintf("created enforcement boundary - %s - %s - status code: %d", eb.Name, eb.Href, api.StatusCode), true)
 
 	// Provision enforcement boundary
 	api, err = pce.ProvisionHref([]string{eb.Href}, "provisioned by workloader containment-switch")
-	utils.LogAPIResp("ProvisionHref", api)
+	utils.LogAPIRespV2("ProvisionHref", api)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -299,15 +299,15 @@ func portLock(port int, protocol string) {
 	// Move all visibility-only workloads into selective enforcement
 	if !skipModeChange {
 		updateWklds := []illumioapi.Workload{}
-		for _, w := range visOnlywklds {
-			w.EnforcementMode = "selective"
+		for _, w := range pce.WorkloadsSlice {
+			w.EnforcementMode = illumioapi.Ptr("selective")
 			updateWklds = append(updateWklds, w)
 		}
 		utils.LogInfo(fmt.Sprintf("identified %d workloads in visibility only requiring move to selective", len(updateWklds)), true)
 		if len(updateWklds) > 0 {
 			apiResps, err := pce.BulkWorkload(updateWklds, "update", true)
 			for _, a := range apiResps {
-				utils.LogAPIResp("BulkWorkload", a)
+				utils.LogAPIRespV2("BulkWorkload", a)
 			}
 			if err != nil {
 				utils.LogError(err.Error())
