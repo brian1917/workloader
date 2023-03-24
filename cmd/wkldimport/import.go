@@ -23,9 +23,13 @@ func ImportWkldsFromCSV(input Input) {
 	var newLabels []illumioapi.Label
 
 	// Parse the CSV File
-	data, err := utils.ParseCSV(input.ImportFile)
-	if err != nil {
-		utils.LogError(err.Error())
+	data := input.ImportData
+	var err error
+	if len(data) == 0 {
+		data, err = utils.ParseCSV(input.ImportFile)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
 	}
 
 	// Process the headers and log in the input

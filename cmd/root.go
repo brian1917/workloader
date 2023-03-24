@@ -63,6 +63,7 @@ import (
 	"github.com/brian1917/workloader/cmd/wkldexport"
 	"github.com/brian1917/workloader/cmd/wkldimport"
 	"github.com/brian1917/workloader/cmd/wkldiplmapping"
+	"github.com/brian1917/workloader/cmd/wkldlabel"
 	"github.com/brian1917/workloader/cmd/wkldreplicate"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -169,6 +170,7 @@ func init() {
 	RootCmd.AddCommand(containmentswitch.ContainmentSwitchCmd)
 	RootCmd.AddCommand(increasevenupdaterate.IncreaseVENUpdateRateCmd)
 	RootCmd.AddCommand(wkldreplicate.WkldReplicate)
+	RootCmd.AddCommand(wkldlabel.WkldLabelCmd)
 
 	// Label management
 	RootCmd.AddCommand(deleteunusedlabels.LabelsDeleteUnusedCmd)

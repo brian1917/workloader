@@ -15,6 +15,7 @@ import (
 type Input struct {
 	PCE                                         illumioapi.PCE
 	ImportFile                                  string
+	ImportData                                  [][]string
 	RemoveValue                                 string
 	RolePrefix, AppPrefix, EnvPrefix, LocPrefix string
 	Headers                                     map[string]int
