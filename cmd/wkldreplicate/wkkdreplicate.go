@@ -106,12 +106,12 @@ func wkldReplicate() {
 	// Get the label keys
 	labelKeys := []string{}
 	if !legacyPCE {
-		labelDimensions, api, err := pces[0].GetLabelDimensions(nil)
+		api, err := pces[0].GetLabelDimensions(nil)
 		utils.LogAPIRespV2("GetLabelDimensions", api)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-		for _, ld := range labelDimensions {
+		for _, ld := range pces[0].LabelDimensionsSlice {
 			labelKeys = append(labelKeys, ld.Key)
 		}
 		utils.LogInfo(fmt.Sprintf("used %s to discover label dimensions: %s", pces[0].FriendlyName, strings.Join(labelKeys, ",")), true)

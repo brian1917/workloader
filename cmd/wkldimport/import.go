@@ -82,12 +82,12 @@ func ImportWkldsFromCSV(input Input) {
 	// Create a map of label keys and depending on version either populate with API or with role, app, env, and loc.
 	labelKeysMap := make(map[string]bool)
 	if version.Major > 22 || (version.Major == 22 && version.Minor >= 5) {
-		labelDimensions, api, err := input.PCE.GetLabelDimensions(nil)
+		api, err := input.PCE.GetLabelDimensions(nil)
 		utils.LogAPIRespV2("GetLabelDimensions", api)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-		for _, l := range labelDimensions {
+		for _, l := range input.PCE.LabelDimensionsSlice {
 			labelKeysMap[strings.ToLower(l.Key)] = true
 		}
 	} else {

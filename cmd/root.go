@@ -29,6 +29,7 @@ import (
 	"github.com/brian1917/workloader/cmd/iplexport"
 	"github.com/brian1917/workloader/cmd/iplimport"
 	"github.com/brian1917/workloader/cmd/iplreplace"
+	"github.com/brian1917/workloader/cmd/labeldimension"
 	"github.com/brian1917/workloader/cmd/labelexport"
 	"github.com/brian1917/workloader/cmd/labelgroupexport"
 	"github.com/brian1917/workloader/cmd/labelgroupimport"
@@ -136,6 +137,8 @@ func init() {
 	RootCmd.AddCommand(labelimport.LabelImportCmd)
 	RootCmd.AddCommand(labelgroupexport.LabelGroupExportCmd)
 	RootCmd.AddCommand(labelgroupimport.LabelGroupImportCmd)
+	RootCmd.AddCommand(labeldimension.LabelDimensionExportCmd)
+	RootCmd.AddCommand(labeldimension.LabelDimensionImportCmd)
 	RootCmd.AddCommand(svcimport.SvcImportCmd)
 	RootCmd.AddCommand(svcexport.SvcExportCmd)
 	RootCmd.AddCommand(rulesetexport.RuleSetExportCmd)
