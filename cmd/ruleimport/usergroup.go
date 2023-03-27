@@ -3,15 +3,15 @@ package ruleimport
 import (
 	"fmt"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/utils"
 )
 
-func userGroupComaprison(csvUserGroupNames []string, rule illumioapi.Rule, userGroupMapName map[string]illumioapi.ConsumingSecurityPrincipals, csvLine int) (bool, []*illumioapi.ConsumingSecurityPrincipals) {
+func userGroupComaprison(csvUserGroupNames []string, rule illumioapi.Rule, userGroupMapName map[string]illumioapi.ConsumingSecurityPrincipals, csvLine int) (bool, []illumioapi.ConsumingSecurityPrincipals) {
 
 	// Build a map of the existing user groups
 	ruleUserGroupsNameMap := make(map[string]illumioapi.ConsumingSecurityPrincipals)
-	for _, ug := range rule.ConsumingSecurityPrincipals {
+	for _, ug := range illumioapi.PtrToVal(rule.ConsumingSecurityPrincipals) {
 		ruleUserGroupsNameMap[userGroupMapName[ug.Href].Name] = userGroupMapName[ug.Href]
 	}
 
@@ -47,14 +47,14 @@ func userGroupComaprison(csvUserGroupNames []string, rule illumioapi.Rule, userG
 	}
 
 	// Create the right consumingSecPrincipals
-	consumingSecPrincipals := []*illumioapi.ConsumingSecurityPrincipals{}
+	consumingSecPrincipals := []illumioapi.ConsumingSecurityPrincipals{}
 	if change || rule.Href == "" {
 		for _, ug := range csvUserGroupsNameMap {
-			consumingSecPrincipals = append(consumingSecPrincipals, &illumioapi.ConsumingSecurityPrincipals{Href: ug.Href})
+			consumingSecPrincipals = append(consumingSecPrincipals, illumioapi.ConsumingSecurityPrincipals{Href: ug.Href})
 		}
 	} else {
-		for _, cp := range rule.ConsumingSecurityPrincipals {
-			consumingSecPrincipals = append(consumingSecPrincipals, &illumioapi.ConsumingSecurityPrincipals{Href: cp.Href})
+		for _, cp := range illumioapi.PtrToVal(rule.ConsumingSecurityPrincipals) {
+			consumingSecPrincipals = append(consumingSecPrincipals, illumioapi.ConsumingSecurityPrincipals{Href: cp.Href})
 		}
 	}
 	return change, consumingSecPrincipals

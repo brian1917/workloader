@@ -7,10 +7,10 @@ import (
 
 	"github.com/brian1917/workloader/utils"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 )
 
-func ServiceComparison(csvServices []string, rule illumioapi.Rule, pceServiceMap map[string]illumioapi.Service, csvLine int) (bool, []*illumioapi.IngressServices) {
+func ServiceComparison(csvServices []string, rule illumioapi.Rule, pceServiceMap map[string]illumioapi.Service, csvLine int) (bool, []illumioapi.IngressServices) {
 
 	// The key in the maps is name, protocol, from, to all concatenated together
 	csvServiceEntries := make(map[string]illumioapi.IngressServices)
@@ -40,7 +40,7 @@ func ServiceComparison(csvServices []string, rule illumioapi.Rule, pceServiceMap
 			// Check if it's a service
 		} else if service, exists := pceServiceMap[c]; exists {
 			// Add to our slice
-			csvServiceEntries[pceServiceMap[service.Href].Name] = illumioapi.IngressServices{Href: &service.Href}
+			csvServiceEntries[pceServiceMap[service.Href].Name] = illumioapi.IngressServices{Href: service.Href}
 		} else {
 			utils.LogError(fmt.Sprintf("CSV line %d - %s does not exist as a service", csvLine, c))
 		}
@@ -48,9 +48,9 @@ func ServiceComparison(csvServices []string, rule illumioapi.Rule, pceServiceMap
 
 	// Process the rule provided ingress services
 	if rule.IngressServices != nil {
-		for _, ruleService := range *rule.IngressServices {
+		for _, ruleService := range illumioapi.PtrToVal(rule.IngressServices) {
 			// Port range here
-			if ruleService.Href == nil {
+			if ruleService.Href == "" {
 				protocol := "tcp"
 				if *ruleService.Protocol == 17 {
 					protocol = "udp"
@@ -62,9 +62,9 @@ func ServiceComparison(csvServices []string, rule illumioapi.Rule, pceServiceMap
 				if ruleService.ToPort != nil {
 					toPort = *ruleService.ToPort
 				}
-				ruleServiceEntries[fmt.Sprintf("%s-%d-%d", protocol, port, toPort)] = *ruleService
+				ruleServiceEntries[fmt.Sprintf("%s-%d-%d", protocol, port, toPort)] = ruleService
 			} else {
-				ruleServiceEntries[pceServiceMap[*ruleService.Href].Name] = *ruleService
+				ruleServiceEntries[pceServiceMap[ruleService.Href].Name] = ruleService
 			}
 		}
 	}
@@ -88,10 +88,10 @@ func ServiceComparison(csvServices []string, rule illumioapi.Rule, pceServiceMap
 		}
 	}
 
-	returnServices := []*illumioapi.IngressServices{}
+	returnServices := []illumioapi.IngressServices{}
 	if change || rule.Href == "" {
 		for _, s := range csvServiceEntries {
-			returnServices = append(returnServices, &illumioapi.IngressServices{Port: s.Port, ToPort: s.ToPort, Href: s.Href, Protocol: s.Protocol})
+			returnServices = append(returnServices, illumioapi.IngressServices{Port: s.Port, ToPort: s.ToPort, Href: s.Href, Protocol: s.Protocol})
 		}
 		return true, returnServices
 	}

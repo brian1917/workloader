@@ -3,24 +3,24 @@ package ruleimport
 import (
 	"fmt"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/utils"
 )
 
-func LabelComparison(csvLabels []illumioapi.Label, pce illumioapi.PCE, rule illumioapi.Rule, csvLine int, provider bool) (bool, []*illumioapi.Label) {
+func LabelComparison(csvLabels []illumioapi.Label, pce illumioapi.PCE, rule illumioapi.Rule, csvLine int, provider bool) (bool, []illumioapi.Label) {
 
 	// Build a map of the existing labels
 	ruleLabelMap := make(map[string]illumioapi.Label)
 	connectionSide := "consumer"
 	if provider {
 		connectionSide = "provider"
-		for _, provider := range rule.Providers {
+		for _, provider := range illumioapi.PtrToVal(rule.Providers) {
 			if provider.Label != nil {
 				ruleLabelMap[pce.Labels[provider.Label.Href].Key+pce.Labels[provider.Label.Href].Value] = pce.Labels[provider.Label.Href]
 			}
 		}
 	} else {
-		for _, consumer := range rule.Consumers {
+		for _, consumer := range illumioapi.PtrToVal(rule.Consumers) {
 			if consumer.Label != nil {
 				ruleLabelMap[pce.Labels[consumer.Label.Href].Key+pce.Labels[consumer.Label.Href].Value] = pce.Labels[consumer.Label.Href]
 			}
@@ -35,7 +35,7 @@ func LabelComparison(csvLabels []illumioapi.Label, pce illumioapi.PCE, rule illu
 		} else if globalInput.CreateLabels {
 			if globalInput.UpdatePCE {
 				createdLabel, a, err := pce.CreateLabel(illumioapi.Label{Key: label.Key, Value: label.Value})
-				utils.LogAPIResp("CreateLabel", a)
+				utils.LogAPIRespV2("CreateLabel", a)
 				if err != nil {
 					utils.LogError(fmt.Sprintf("csv line %d - creating label - %s", csvLine, err.Error()))
 				}
@@ -73,14 +73,14 @@ func LabelComparison(csvLabels []illumioapi.Label, pce illumioapi.PCE, rule illu
 	}
 
 	// Build out the returned labels
-	returnedLabels := []*illumioapi.Label{}
+	returnedLabels := []illumioapi.Label{}
 	if change || rule.Href == "" {
 		for _, label := range csvLabelMap {
-			returnedLabels = append(returnedLabels, &illumioapi.Label{Href: label.Href})
+			returnedLabels = append(returnedLabels, illumioapi.Label{Href: label.Href})
 		}
 	} else {
 		for _, label := range ruleLabelMap {
-			returnedLabels = append(returnedLabels, &illumioapi.Label{Href: label.Href})
+			returnedLabels = append(returnedLabels, illumioapi.Label{Href: label.Href})
 		}
 	}
 

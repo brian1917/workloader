@@ -3,24 +3,24 @@ package ruleimport
 import (
 	"fmt"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/utils"
 )
 
-func virtualServiceCompare(csvVSNames []string, rule illumioapi.Rule, pceVSMap map[string]illumioapi.VirtualService, csvLine int, provider bool) (bool, []*illumioapi.VirtualService) {
+func virtualServiceCompare(csvVSNames []string, rule illumioapi.Rule, pceVSMap map[string]illumioapi.VirtualService, csvLine int, provider bool) (bool, []illumioapi.VirtualService) {
 
 	// Build a map of the existing Virtual Services
 	ruleVirtualServicesNameMap := make(map[string]illumioapi.VirtualService)
 	connectionSide := "consumer"
 	if provider {
 		connectionSide = "provider"
-		for _, provider := range rule.Providers {
+		for _, provider := range illumioapi.PtrToVal(rule.Providers) {
 			if provider.VirtualService != nil {
 				ruleVirtualServicesNameMap[pceVSMap[provider.VirtualService.Href].Name] = pceVSMap[provider.VirtualService.Href]
 			}
 		}
 	} else {
-		for _, consumer := range rule.Consumers {
+		for _, consumer := range illumioapi.PtrToVal(rule.Consumers) {
 			if consumer.VirtualService != nil {
 				ruleVirtualServicesNameMap[pceVSMap[consumer.VirtualService.Href].Name] = pceVSMap[consumer.VirtualService.Href]
 			}
@@ -60,14 +60,14 @@ func virtualServiceCompare(csvVSNames []string, rule illumioapi.Rule, pceVSMap m
 		}
 	}
 
-	returnedVirtualServices := []*illumioapi.VirtualService{}
+	returnedVirtualServices := []illumioapi.VirtualService{}
 	if change || rule.Href == "" {
 		for _, vs := range csvVirtualServicesNameMap {
-			returnedVirtualServices = append(returnedVirtualServices, &illumioapi.VirtualService{Href: vs.Href})
+			returnedVirtualServices = append(returnedVirtualServices, illumioapi.VirtualService{Href: vs.Href})
 		}
 	} else {
 		for _, vs := range ruleVirtualServicesNameMap {
-			returnedVirtualServices = append(returnedVirtualServices, &illumioapi.VirtualService{Href: vs.Href})
+			returnedVirtualServices = append(returnedVirtualServices, illumioapi.VirtualService{Href: vs.Href})
 		}
 	}
 

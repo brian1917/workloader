@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 
 	"github.com/brian1917/workloader/cmd/ruleexport"
 	"github.com/brian1917/workloader/utils"
@@ -81,7 +81,7 @@ Recommended to run without --update-pce first to log of what will change. If --u
 	Run: func(cmd *cobra.Command, args []string) {
 
 		var err error
-		globalInput.PCE, err = utils.GetTargetPCE(false)
+		globalInput.PCE, err = utils.GetTargetPCEV2(false)
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for csv command - %s", err)
 		}
@@ -167,8 +167,9 @@ func ImportRulesFromCSV(input Input) {
 	}
 	// Get all the rulesets and make a map
 	utils.LogInfo("Getting all rulesets...", true)
-	allRS, a, err := input.PCE.GetRulesets(nil, "draft")
-	utils.LogAPIResp("GetAllRuleSets", a)
+	a, err := input.PCE.GetRulesets(nil, "draft")
+	allRS := input.PCE.RuleSetsSlice
+	utils.LogAPIRespV2("GetAllRuleSets", a)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -180,12 +181,12 @@ func ImportRulesFromCSV(input Input) {
 	}
 	rHrefMap := make(map[string]illumioapi.Rule)
 	for _, rs := range allRS {
-		for _, r := range rs.Rules {
-			rHrefMap[r.Href] = *r
+		for _, r := range illumioapi.PtrToVal(rs.Rules) {
+			rHrefMap[r.Href] = r
 			// If the ruleset is in our CSV, check if it has label groups, workloads, virtual services, or virtual servers.
 			if csvRuleSetChecker[rs.Name] {
 				// Iterate through consumers to see if any consumers have virtual services or workloads
-				for _, c := range r.Consumers {
+				for _, c := range illumioapi.PtrToVal(r.Consumers) {
 					if c.VirtualService != nil {
 						neededObjects["virtual_services"] = true
 						needVirtualServices = true
@@ -198,13 +199,13 @@ func ImportRulesFromCSV(input Input) {
 						neededObjects["label_groups"] = true
 						needLabelGroups = true
 					}
-					if r.ConsumingSecurityPrincipals != nil && len(r.ConsumingSecurityPrincipals) > 0 {
+					if r.ConsumingSecurityPrincipals != nil && len(*r.ConsumingSecurityPrincipals) > 0 {
 						neededObjects["consuming_security_principals"] = true
 						needUserGroups = true
 					}
 				}
 				// Iterate through providers to see if any providers have virtual servers, virtual services, or workloads
-				for _, p := range r.Providers {
+				for _, p := range illumioapi.PtrToVal(r.Providers) {
 					if p.VirtualServer != nil {
 						neededObjects["virtual_servers"] = true
 						needVirtualServers = true
@@ -244,7 +245,7 @@ func ImportRulesFromCSV(input Input) {
 		VirtualServices:             needVirtualServices,
 		ConsumingSecurityPrincipals: needUserGroups,
 	})
-	utils.LogMultiAPIResp(apiResps)
+	utils.LogMultiAPIRespV2(apiResps)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -294,7 +295,7 @@ CSVEntries:
 		}
 
 		// ******************** Consumers ********************
-		consumers := []*illumioapi.Consumers{}
+		consumers := []illumioapi.ConsumerOrProvider{}
 
 		// All workloads
 		if c, ok := input.Headers[ruleexport.HeaderConsumerAllWorkloads]; ok {
@@ -304,8 +305,8 @@ CSVEntries:
 			}
 			if rule, ok := rHrefMap[rowRuleHref]; ok {
 				pceAllWklds := false
-				for _, cons := range rule.Consumers {
-					if cons.Actors == "ams" {
+				for _, cons := range illumioapi.PtrToVal(rule.Consumers) {
+					if illumioapi.PtrToVal(cons.Actors) == "ams" {
 						pceAllWklds = true
 					}
 				}
@@ -315,7 +316,7 @@ CSVEntries:
 				}
 			}
 			if csvAllWorkloads {
-				consumers = append(consumers, &illumioapi.Consumers{Actors: "ams"})
+				consumers = append(consumers, illumioapi.ConsumerOrProvider{Actors: illumioapi.Ptr("ams")})
 			}
 		}
 
@@ -330,7 +331,7 @@ CSVEntries:
 				update = true
 			}
 			for _, ipl := range ipls {
-				consumers = append(consumers, &illumioapi.Consumers{IPList: ipl})
+				consumers = append(consumers, illumioapi.ConsumerOrProvider{IPList: &ipl})
 			}
 		}
 
@@ -345,7 +346,7 @@ CSVEntries:
 				update = true
 			}
 			for _, wkld := range wklds {
-				consumers = append(consumers, &illumioapi.Consumers{Workload: wkld})
+				consumers = append(consumers, illumioapi.ConsumerOrProvider{Workload: &wkld})
 			}
 		}
 
@@ -360,7 +361,7 @@ CSVEntries:
 				update = true
 			}
 			for _, vs := range virtualServices {
-				consumers = append(consumers, &illumioapi.Consumers{VirtualService: vs})
+				consumers = append(consumers, illumioapi.ConsumerOrProvider{VirtualService: &vs})
 			}
 		}
 
@@ -375,7 +376,7 @@ CSVEntries:
 				update = true
 			}
 			for _, lg := range lgs {
-				consumers = append(consumers, &illumioapi.Consumers{LabelGroup: lg})
+				consumers = append(consumers, illumioapi.ConsumerOrProvider{LabelGroup: &lg})
 			}
 		}
 
@@ -394,12 +395,12 @@ CSVEntries:
 				update = true
 			}
 			for _, l := range labels {
-				consumers = append(consumers, &illumioapi.Consumers{Label: &illumioapi.Label{Href: l.Href}})
+				consumers = append(consumers, illumioapi.ConsumerOrProvider{Label: &illumioapi.Label{Href: l.Href}})
 			}
 		}
 
 		// User Groups - parse and run comparison
-		var consumingSecPrincipals []*illumioapi.ConsumingSecurityPrincipals
+		var consumingSecPrincipals []illumioapi.ConsumingSecurityPrincipals
 		if c, ok := input.Headers[ruleexport.HeaderConsumerUserGroups]; ok {
 			csvUserGroups := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
 			if l[c] == "" {
@@ -414,7 +415,7 @@ CSVEntries:
 
 		// ******************** Providers ********************
 
-		providers := []*illumioapi.Providers{}
+		providers := []illumioapi.ConsumerOrProvider{}
 
 		// All workloads
 		if c, ok := input.Headers[ruleexport.HeaderProviderAllWorkloads]; ok {
@@ -424,8 +425,8 @@ CSVEntries:
 			}
 			if rule, ok := rHrefMap[rowRuleHref]; ok {
 				pceAllWklds := false
-				for _, prov := range rule.Providers {
-					if prov.Actors == "ams" {
+				for _, prov := range illumioapi.PtrToVal(rule.Providers) {
+					if illumioapi.PtrToVal(prov.Actors) == "ams" {
 						pceAllWklds = true
 					}
 				}
@@ -435,7 +436,7 @@ CSVEntries:
 				}
 			}
 			if csvAllWorkloads {
-				providers = append(providers, &illumioapi.Providers{Actors: "ams"})
+				providers = append(providers, illumioapi.ConsumerOrProvider{Actors: illumioapi.Ptr("ams")})
 			}
 		}
 
@@ -454,7 +455,7 @@ CSVEntries:
 				update = true
 			}
 			for _, l := range labels {
-				providers = append(providers, &illumioapi.Providers{Label: &illumioapi.Label{Href: l.Href}})
+				providers = append(providers, illumioapi.ConsumerOrProvider{Label: &illumioapi.Label{Href: l.Href}})
 			}
 		}
 
@@ -469,7 +470,7 @@ CSVEntries:
 				update = true
 			}
 			for _, ipl := range ipls {
-				providers = append(providers, &illumioapi.Providers{IPList: ipl})
+				providers = append(providers, illumioapi.ConsumerOrProvider{IPList: &ipl})
 			}
 		}
 
@@ -484,7 +485,7 @@ CSVEntries:
 				update = true
 			}
 			for _, wkld := range wklds {
-				providers = append(providers, &illumioapi.Providers{Workload: wkld})
+				providers = append(providers, illumioapi.ConsumerOrProvider{Workload: &wkld})
 			}
 		}
 
@@ -499,7 +500,7 @@ CSVEntries:
 				update = true
 			}
 			for _, vs := range virtualServices {
-				providers = append(providers, &illumioapi.Providers{VirtualService: vs})
+				providers = append(providers, illumioapi.ConsumerOrProvider{VirtualService: &vs})
 			}
 		}
 
@@ -514,12 +515,12 @@ CSVEntries:
 				update = true
 			}
 			for _, lg := range lgs {
-				providers = append(providers, &illumioapi.Providers{LabelGroup: lg})
+				providers = append(providers, illumioapi.ConsumerOrProvider{LabelGroup: &lg})
 			}
 		}
 
 		// ******************** Services ********************
-		var ingressSvc []*illumioapi.IngressServices
+		var ingressSvc []illumioapi.IngressServices
 		var svcChange bool
 		if c, ok := input.Headers[ruleexport.HeaderServices]; ok {
 			csvServices := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
@@ -531,16 +532,16 @@ CSVEntries:
 				update = true
 			}
 			if ingressSvc == nil {
-				ingressSvc = append(ingressSvc, &illumioapi.IngressServices{})
+				ingressSvc = append(ingressSvc, illumioapi.IngressServices{})
 			}
 		}
 
 		// ******************** Description ********************
 		var description string
 		if c, ok := input.Headers[ruleexport.HeaderRuleDescription]; ok {
-			if rowRuleHref != "" && rHrefMap[rowRuleHref].Description != l[c] {
+			if rowRuleHref != "" && illumioapi.PtrToVal(rHrefMap[rowRuleHref].Description) != l[c] {
 				update = true
-				utils.LogInfo(fmt.Sprintf("csv line %d - rule_description needs to be updated from %s to %s.", i+1, rHrefMap[rowRuleHref].Description, l[c]), false)
+				utils.LogInfo(fmt.Sprintf("csv line %d - rule_description needs to be updated from %s to %s.", i+1, illumioapi.PtrToVal(rHrefMap[rowRuleHref].Description), l[c]), false)
 			}
 			description = l[c]
 		}
@@ -639,7 +640,7 @@ CSVEntries:
 		headers := []string{ruleexport.HeaderConsumerResolveLabelsAs, ruleexport.HeaderProviderResolveLabelsAs}
 		pceRuleResolveAs := [][]string{}
 		if rule, ok := rHrefMap[rowRuleHref]; ok {
-			pceRuleResolveAs = append(pceRuleResolveAs, rule.ResolveLabelsAs.Consumers, rule.ResolveLabelsAs.Providers)
+			pceRuleResolveAs = append(pceRuleResolveAs, illumioapi.PtrToVal(rule.ResolveLabelsAs.Consumers), illumioapi.PtrToVal(rule.ResolveLabelsAs.Providers))
 		}
 		var consResolveAs, provResolveAs []string
 		targets := []*[]string{&consResolveAs, &provResolveAs}
@@ -711,7 +712,7 @@ CSVEntries:
 				if existingRule, ok := rHrefMap[rowRuleHref]; ok {
 					// Set a variable for existingStatus
 					existingStatus := false
-					for _, x := range existingRule.UseWorkloadSubnets {
+					for _, x := range illumioapi.PtrToVal(existingRule.UseWorkloadSubnets) {
 						if x == target[a] {
 							existingStatus = true
 						}
@@ -734,7 +735,7 @@ CSVEntries:
 		}
 
 		// Create the rule
-		csvRule := illumioapi.Rule{Description: description, UnscopedConsumers: &unscopedConsumers, Consumers: consumers, ConsumingSecurityPrincipals: consumingSecPrincipals, Providers: providers, IngressServices: &ingressSvc, Enabled: &enabled, MachineAuth: &machineAuth, SecConnect: &secConnect, Stateless: &stateless, ResolveLabelsAs: &illumioapi.ResolveLabelsAs{Consumers: consResolveAs, Providers: provResolveAs}, UseWorkloadSubnets: useWkldSubnets, NetworkType: networkType}
+		csvRule := illumioapi.Rule{Description: &description, UnscopedConsumers: &unscopedConsumers, Consumers: &consumers, ConsumingSecurityPrincipals: &consumingSecPrincipals, Providers: &providers, IngressServices: &ingressSvc, Enabled: &enabled, MachineAuth: &machineAuth, SecConnect: &secConnect, Stateless: &stateless, ResolveLabelsAs: &illumioapi.ResolveLabelsAs{Consumers: &consResolveAs, Providers: &provResolveAs}, UseWorkloadSubnets: &useWkldSubnets, NetworkType: networkType}
 
 		// Add to our array
 		// Option 1 - No rule HREF provided, so it's a new rule
@@ -781,7 +782,7 @@ CSVEntries:
 	if len(newRules) > 0 {
 		for _, newRule := range newRules {
 			rule, a, err := input.PCE.CreateRule(newRule.ruleSetHref, newRule.rule)
-			utils.LogAPIResp("CreateRuleSetRule", a)
+			utils.LogAPIRespV2("CreateRuleSetRule", a)
 			if err != nil {
 				utils.LogError(err.Error())
 			}
@@ -794,7 +795,7 @@ CSVEntries:
 	if len(updatedRules) > 0 {
 		for _, updatedRule := range updatedRules {
 			a, err := input.PCE.UpdateRule(updatedRule.rule)
-			utils.LogAPIResp("UpdateRuleSetRules", a)
+			utils.LogAPIRespV2("UpdateRuleSetRules", a)
 			if err != nil {
 				utils.LogError(err.Error())
 			}
@@ -810,7 +811,7 @@ CSVEntries:
 	}
 	if input.Provision {
 		a, err := input.PCE.ProvisionHref(p, input.ProvisionComment)
-		utils.LogAPIResp("ProvisionHref", a)
+		utils.LogAPIRespV2("ProvisionHref", a)
 		if err != nil {
 			utils.LogError(err.Error())
 		}

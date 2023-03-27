@@ -3,24 +3,24 @@ package ruleimport
 import (
 	"fmt"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/utils"
 )
 
-func LabelGroupComparison(csvLGNames []string, rule illumioapi.Rule, pceLGMap map[string]illumioapi.LabelGroup, csvLine int, provider bool) (bool, []*illumioapi.LabelGroup) {
+func LabelGroupComparison(csvLGNames []string, rule illumioapi.Rule, pceLGMap map[string]illumioapi.LabelGroup, csvLine int, provider bool) (bool, []illumioapi.LabelGroup) {
 
 	// Build a map of the existing Label Groups
 	ruleLGsNameMap := make(map[string]illumioapi.LabelGroup)
 	connectionSide := "consumer"
 	if provider {
 		connectionSide = "provider"
-		for _, provider := range rule.Providers {
+		for _, provider := range illumioapi.PtrToVal(rule.Providers) {
 			if provider.LabelGroup != nil {
 				ruleLGsNameMap[pceLGMap[provider.LabelGroup.Href].Name] = pceLGMap[provider.LabelGroup.Href]
 			}
 		}
 	} else {
-		for _, consumer := range rule.Consumers {
+		for _, consumer := range illumioapi.PtrToVal(rule.Consumers) {
 			if consumer.LabelGroup != nil {
 				ruleLGsNameMap[pceLGMap[consumer.LabelGroup.Href].Name] = pceLGMap[consumer.LabelGroup.Href]
 			}
@@ -60,14 +60,14 @@ func LabelGroupComparison(csvLGNames []string, rule illumioapi.Rule, pceLGMap ma
 		}
 	}
 
-	returnedLGs := []*illumioapi.LabelGroup{}
+	returnedLGs := []illumioapi.LabelGroup{}
 	if change || rule.Href == "" {
 		for _, lg := range csvLGsNameMap {
-			returnedLGs = append(returnedLGs, &illumioapi.LabelGroup{Href: lg.Href})
+			returnedLGs = append(returnedLGs, illumioapi.LabelGroup{Href: lg.Href})
 		}
 	} else {
 		for _, lg := range ruleLGsNameMap {
-			returnedLGs = append(returnedLGs, &illumioapi.LabelGroup{Href: lg.Href})
+			returnedLGs = append(returnedLGs, illumioapi.LabelGroup{Href: lg.Href})
 		}
 	}
 
