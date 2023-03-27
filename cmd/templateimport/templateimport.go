@@ -15,6 +15,7 @@ import (
 	"github.com/brian1917/workloader/cmd/svcimport"
 
 	"github.com/brian1917/illumioapi"
+	illumioapiv2 "github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -23,6 +24,7 @@ import (
 // Global variables
 var template, directory string
 var pce illumioapi.PCE
+var pce2 illumioapiv2.PCE
 var provision, updatePCE, noPrompt bool
 var err error
 
@@ -42,6 +44,10 @@ Use template-list command to see available templates.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		pce, err = utils.GetTargetPCE(true)
+		if err != nil {
+			utils.Logger.Fatalf("Error getting PCE for csv command - %s", err)
+		}
+		pce2, err = utils.GetTargetPCEV2(true)
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for csv command - %s", err)
 		}
@@ -117,7 +123,7 @@ func importTemplate() {
 	fmt.Println("\r\n------------------------------------------- RULES ---------------------------------------------")
 	rFile := fmt.Sprintf("%s%s.rules.csv", directory, template)
 	if _, err := os.Stat(rFile); err == nil {
-		ruleimport.ImportRulesFromCSV(ruleimport.Input{PCE: pce, ImportFile: rFile, ProvisionComment: "workloader template-import", Provision: provision, UpdatePCE: updatePCE, NoPrompt: noPrompt, CreateLabels: true})
+		ruleimport.ImportRulesFromCSV(ruleimport.Input{PCE: pce2, ImportFile: rFile, ProvisionComment: "workloader template-import", Provision: provision, UpdatePCE: updatePCE, NoPrompt: noPrompt, CreateLabels: true})
 	} else {
 		utils.LogInfo(fmt.Sprintf("%s template does not include rules. skipping", template), true)
 	}
