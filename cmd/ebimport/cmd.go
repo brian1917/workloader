@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 
 	"github.com/brian1917/workloader/cmd/ebexport"
 	"github.com/brian1917/workloader/cmd/ruleimport"
@@ -62,7 +62,7 @@ Recommended to run without --update-pce first to log of what will change. If --u
 	Run: func(cmd *cobra.Command, args []string) {
 
 		var err error
-		cmdInput.PCE, err = utils.GetTargetPCE(false)
+		cmdInput.PCE, err = utils.GetTargetPCEV2(false)
 		if err != nil {
 			utils.LogError(fmt.Sprintf("error getting pce - %s", err))
 		}
@@ -96,7 +96,7 @@ func ImportBoundariesFromCSV(input Input) {
 		LabelGroups:           true,
 		Services:              true,
 	})
-	utils.LogMultiAPIResp(apiResps)
+	utils.LogMultiAPIRespV2(apiResps)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -148,28 +148,13 @@ func ImportBoundariesFromCSV(input Input) {
 		mockRule := illumioapi.Rule{}
 		if eb, ok := input.PCE.EnforcementBoundaries[rowHref]; ok {
 			mockRule.Href = eb.Href
-			// Adjust for having rules be slice of pointers
-			if eb.Consumers != nil {
-				for _, consumer := range *eb.Consumers {
-					mockRule.Consumers = append(mockRule.Consumers, &consumer)
-				}
-			}
-			if eb.Providers != nil {
-				for _, provider := range *eb.Providers {
-					mockRule.Providers = append(mockRule.Providers, &provider)
-				}
-			}
-			svcs := []*illumioapi.IngressServices{}
-			if eb.IngressServices != nil {
-				for _, service := range *eb.IngressServices {
-					svcs = append(svcs, &service)
-				}
-			}
-			mockRule.IngressServices = &svcs
+			mockRule.Providers = eb.Providers
+			mockRule.Consumers = eb.Consumers
+			mockRule.IngressServices = eb.IngressServices
 		}
 
 		// ******************** Consumers ********************
-		consumers := []*illumioapi.Consumers{}
+		consumers := []illumioapi.ConsumerOrProvider{}
 
 		// All workloads
 		if c, ok := input.Headers[ebexport.HeaderConsumerAllWorkloads]; ok {
@@ -179,20 +164,19 @@ func ImportBoundariesFromCSV(input Input) {
 			}
 			if eb, ok := input.PCE.EnforcementBoundaries[rowHref]; ok {
 				pceAllWklds := false
-				if eb.Consumers != nil {
-					for _, cons := range *eb.Consumers {
-						if cons.Actors == "ams" {
-							pceAllWklds = true
-						}
-					}
-					if pceAllWklds != csvAllWorkloads {
-						utils.LogInfo(fmt.Sprintf("csv line %d - consumer_all_workloads needs to be updated from %t to %t", rowIndex+1, pceAllWklds, csvAllWorkloads), false)
-						update = true
+				for _, cons := range illumioapi.PtrToVal(eb.Consumers) {
+					if illumioapi.PtrToVal(cons.Actors) == "ams" {
+						pceAllWklds = true
 					}
 				}
-				if csvAllWorkloads {
-					consumers = append(consumers, &illumioapi.Consumers{Actors: "ams"})
+				if pceAllWklds != csvAllWorkloads {
+					utils.LogInfo(fmt.Sprintf("csv line %d - consumer_all_workloads needs to be updated from %t to %t", rowIndex+1, pceAllWklds, csvAllWorkloads), false)
+					update = true
 				}
+			}
+
+			if csvAllWorkloads {
+				consumers = append(consumers, illumioapi.ConsumerOrProvider{Actors: illumioapi.Ptr("ams")})
 			}
 		}
 
@@ -209,7 +193,7 @@ func ImportBoundariesFromCSV(input Input) {
 				update = true
 			}
 			for _, ipl := range ipls {
-				consumers = append(consumers, &illumioapi.Consumers{IPList: ipl})
+				consumers = append(consumers, illumioapi.ConsumerOrProvider{IPList: &ipl})
 			}
 		}
 
@@ -224,7 +208,7 @@ func ImportBoundariesFromCSV(input Input) {
 				update = true
 			}
 			for _, lg := range lgs {
-				consumers = append(consumers, &illumioapi.Consumers{LabelGroup: lg})
+				consumers = append(consumers, illumioapi.ConsumerOrProvider{LabelGroup: &lg})
 			}
 		}
 
@@ -243,12 +227,12 @@ func ImportBoundariesFromCSV(input Input) {
 				update = true
 			}
 			for _, l := range labels {
-				consumers = append(consumers, &illumioapi.Consumers{Label: &illumioapi.Label{Href: l.Href}})
+				consumers = append(consumers, illumioapi.ConsumerOrProvider{Label: &illumioapi.Label{Href: l.Href}})
 			}
 		}
 
 		// ******************** Providers ********************
-		providers := []*illumioapi.Providers{}
+		providers := []illumioapi.ConsumerOrProvider{}
 
 		// All workloads
 		if c, ok := input.Headers[ebexport.HeaderProviderAllWorkloads]; ok {
@@ -258,20 +242,18 @@ func ImportBoundariesFromCSV(input Input) {
 			}
 			if eb, ok := input.PCE.EnforcementBoundaries[rowHref]; ok {
 				pceAllWklds := false
-				if eb.Providers != nil {
-					for _, provs := range *eb.Providers {
-						if provs.Actors == "ams" {
-							pceAllWklds = true
-						}
-					}
-					if pceAllWklds != csvAllWorkloads {
-						utils.LogInfo(fmt.Sprintf("csv line %d - provider_all_workloads needs to be updated from %t to %t", rowIndex+1, pceAllWklds, csvAllWorkloads), false)
-						update = true
+				for _, provs := range illumioapi.PtrToVal(eb.Providers) {
+					if illumioapi.PtrToVal(provs.Actors) == "ams" {
+						pceAllWklds = true
 					}
 				}
-				if csvAllWorkloads {
-					providers = append(providers, &illumioapi.Providers{Actors: "ams"})
+				if pceAllWklds != csvAllWorkloads {
+					utils.LogInfo(fmt.Sprintf("csv line %d - provider_all_workloads needs to be updated from %t to %t", rowIndex+1, pceAllWklds, csvAllWorkloads), false)
+					update = true
 				}
+			}
+			if csvAllWorkloads {
+				providers = append(providers, illumioapi.ConsumerOrProvider{Actors: illumioapi.Ptr("ams")})
 			}
 		}
 
@@ -288,7 +270,7 @@ func ImportBoundariesFromCSV(input Input) {
 				update = true
 			}
 			for _, ipl := range ipls {
-				providers = append(providers, &illumioapi.Providers{IPList: ipl})
+				providers = append(providers, illumioapi.ConsumerOrProvider{IPList: &ipl})
 			}
 		}
 
@@ -303,7 +285,7 @@ func ImportBoundariesFromCSV(input Input) {
 				update = true
 			}
 			for _, lg := range lgs {
-				providers = append(providers, &illumioapi.Providers{LabelGroup: lg})
+				providers = append(providers, illumioapi.ConsumerOrProvider{LabelGroup: &lg})
 			}
 		}
 
@@ -322,12 +304,12 @@ func ImportBoundariesFromCSV(input Input) {
 				update = true
 			}
 			for _, l := range labels {
-				providers = append(providers, &illumioapi.Providers{Label: &illumioapi.Label{Href: l.Href}})
+				providers = append(providers, illumioapi.ConsumerOrProvider{Label: &illumioapi.Label{Href: l.Href}})
 			}
 		}
 
 		// ******************** Services ********************
-		var ingressSvc []*illumioapi.IngressServices
+		var ingressSvc []illumioapi.IngressServices
 		var svcChange bool
 		if c, ok := input.Headers[ebexport.HeaderServices]; ok {
 			csvServices := strings.Split(strings.ReplaceAll(row[c], "; ", ";"), ";")
@@ -339,7 +321,7 @@ func ImportBoundariesFromCSV(input Input) {
 				update = true
 			}
 			if ingressSvc == nil {
-				ingressSvc = append(ingressSvc, &illumioapi.IngressServices{})
+				ingressSvc = append(ingressSvc, illumioapi.IngressServices{})
 			}
 		}
 
@@ -347,13 +329,13 @@ func ImportBoundariesFromCSV(input Input) {
 		var networkType string
 		if c, ok := input.Headers[ebexport.HeaderNetworkType]; ok {
 			networkType = strings.ToLower(row[c])
-			if networkType != "brn" && networkType != "non_brn" && networkType != "all" {
+			if networkType != "brn" && networkType != "non_brn" && networkType != "all" && networkType != "" {
 				utils.LogError(fmt.Sprintf("csv line %d - %s is not valid network type. must be brn, non_brn, or all", rowIndex+1, row[c]))
 			}
 			if rowHref != "" {
-				if utils.PtrToStr(input.PCE.EnforcementBoundaries[rowHref].NetworkType) != networkType {
+				if input.PCE.EnforcementBoundaries[rowHref].NetworkType != networkType {
 					update = true
-					utils.LogInfo(fmt.Sprintf("csv line %d - network_type needs to be updated from %s to %s.", rowIndex+1, utils.PtrToStr(input.PCE.EnforcementBoundaries[rowHref].NetworkType), networkType), false)
+					utils.LogInfo(fmt.Sprintf("csv line %d - network_type needs to be updated from %s to %s.", rowIndex+1, input.PCE.EnforcementBoundaries[rowHref].NetworkType, networkType), false)
 				}
 			}
 		}
@@ -361,9 +343,9 @@ func ImportBoundariesFromCSV(input Input) {
 		// ******************** Name ********************/
 		var name string
 		if c, ok := input.Headers[ebexport.HeaderName]; ok {
-			if rowHref != "" && utils.PtrToStr(input.PCE.EnforcementBoundaries[rowHref].Name) != row[c] {
+			if rowHref != "" && input.PCE.EnforcementBoundaries[rowHref].Name != row[c] {
 				update = true
-				utils.LogInfo(fmt.Sprintf("csv line %d - name needs to be updated from %s to %s.", rowIndex+1, utils.PtrToStr(input.PCE.EnforcementBoundaries[rowHref].Name), row[c]), false)
+				utils.LogInfo(fmt.Sprintf("csv line %d - name needs to be updated from %s to %s.", rowIndex+1, input.PCE.EnforcementBoundaries[rowHref].Name, row[c]), false)
 			}
 			name = row[c]
 		}
@@ -382,28 +364,21 @@ func ImportBoundariesFromCSV(input Input) {
 
 		}
 
-		// Adjust the providers and consumers
-		realProviders := []illumioapi.Providers{}
-		realConsumers := []illumioapi.Consumers{}
-		realServices := []illumioapi.IngressServices{}
-		for _, p := range providers {
-			realProviders = append(realProviders, *p)
-		}
-		for _, c := range consumers {
-			realConsumers = append(realConsumers, *c)
-		}
-		for _, s := range ingressSvc {
-			realServices = append(realServices, *s)
-		}
-
 		// Create the enforcement boundary
 		eb := illumioapi.EnforcementBoundary{
-			Name:            &name,
-			Providers:       &realProviders,
-			Consumers:       &realConsumers,
-			IngressServices: &realServices,
-			NetworkType:     &networkType,
+			Name:            name,
+			Providers:       &providers,
+			Consumers:       &consumers,
+			IngressServices: &ingressSvc,
+			NetworkType:     networkType,
 			Enabled:         &enabled,
+		}
+
+		// Adjust the network type. If PCE is older, clear it. If it's newwer and has a blank value, set it as brn.
+		if input.PCE.Version.Major < 22 || (input.PCE.Version.Major == 22 && input.PCE.Version.Minor <= 2) {
+			eb.NetworkType = ""
+		} else if eb.NetworkType == "" {
+			eb.NetworkType = "brn"
 		}
 
 		// Add to the right slice
@@ -449,7 +424,7 @@ func ImportBoundariesFromCSV(input Input) {
 	if len(newBoundaries) > 0 {
 		for _, nb := range newBoundaries {
 			eb, a, err := input.PCE.CreateEnforcementBoundary(nb.boundary)
-			utils.LogAPIResp("CreateEnforcementBoundary", a)
+			utils.LogAPIRespV2("CreateEnforcementBoundary", a)
 			if err != nil {
 				utils.LogError(err.Error())
 			}
@@ -462,7 +437,7 @@ func ImportBoundariesFromCSV(input Input) {
 	if len(updatedBoundaries) > 0 {
 		for _, ub := range updatedBoundaries {
 			a, err := input.PCE.UpdateEnforcementBoundary(ub.boundary)
-			utils.LogAPIResp("UpdateEnforcementBoundary", a)
+			utils.LogAPIRespV2("UpdateEnforcementBoundary", a)
 			if err != nil {
 				utils.LogError(err.Error())
 			}
@@ -473,7 +448,7 @@ func ImportBoundariesFromCSV(input Input) {
 
 	if input.Provision {
 		a, err := input.PCE.ProvisionHref(provisionHrefs, input.ProvisionComment)
-		utils.LogAPIResp("ProvisionHref", a)
+		utils.LogAPIRespV2("ProvisionHref", a)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
