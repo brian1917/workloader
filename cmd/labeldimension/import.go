@@ -118,8 +118,9 @@ func ImportLabelDimensions(pce *illumioapi.PCE, inputFile string, updatePCE, noP
 		} else {
 			// If it doesn't exist, ensure we have a key to create it
 			if col, exists := csvHeaderMap[HeaderKey]; !exists || row[col] == "" {
-				utils.LogError(fmt.Sprintf("csv row %d - key must exist for a new label dimension", rowIndex+1))
+				utils.LogError(fmt.Sprintf("csv row %d - key must exist", rowIndex+1))
 			} else {
+				pceLD = pce.LabelDimensions[row[col]]
 				key = row[col]
 			}
 		}
