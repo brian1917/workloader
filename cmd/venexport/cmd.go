@@ -5,8 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 
+	"github.com/brian1917/workloader/cmd/wkldexport"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
 )
@@ -27,7 +28,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
-		pce, err = utils.GetTargetPCE(true)
+		pce, err = utils.GetTargetPCEV2(true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -41,31 +42,67 @@ func exportVens() {
 	// Log command execution
 	utils.LogStartCommand("ven-export")
 
+	// Get workload export data
+	wkldExport := wkldexport.WkldExport{
+		PCE:                &pce,
+		ManagedOnly:        true,
+		IncludeVuln:        false,
+		NoHref:             false,
+		RemoveDescNewLines: false,
+		UnmanagedOnly:      false,
+		OnlineOnly:         false,
+		WriteCSV:           false,
+	}
+	wkldExportData := wkldExport.ExportToCsv()
+
+	// Build a map of entries in the CSV data
+	headers := []string{}
+	wkldMap := make(map[string]map[string]string)
+	venCol := 0
+	for rowIndex, row := range wkldExportData {
+		// Process the headers
+		if rowIndex == 0 {
+			for colIndex, header := range row {
+				headers = append(headers, header)
+				if header == wkldexport.HeaderVenHref {
+					venCol = colIndex
+				}
+			}
+			continue
+		}
+		// Process the rows
+		wkldMap[row[venCol]] = make(map[string]string)
+		for colIndex, entry := range row {
+			if colIndex == venCol {
+				continue
+			}
+			wkldMap[row[venCol]][headers[colIndex]] = entry
+		}
+	}
+
+	// Get the label dimesnions
+	api, err := wkldExport.PCE.GetLabelDimensions(nil)
+	utils.LogAPIRespV2("GetLabelDimensions", api)
+	if err != nil {
+		utils.LogError(err.Error())
+	}
+	labelDimensions := []string{}
+	for _, ld := range wkldExport.PCE.LabelDimensionsSlice {
+		labelDimensions = append(labelDimensions, ld.Key)
+	}
+
 	// Start the data slice with headers
 	csvData := [][]string{{HeaderName, HeaderHostname, HeaderDescription, HeaderVenType, HeaderStatus, HeaderHealth, HeaderVersion, HeaderActivationType, HeaderActivePceFqdn, HeaderTargetPceFqdn, HeaderWorkloads, HeaderContainerCluster, HeaderHref, HeaderUID}}
+	csvData[0] = append(csvData[0], labelDimensions...)
 
 	// Load the PCE
-	apiResps, err := pce.Load(illumioapi.LoadInput{Workloads: true, WorkloadsQueryParameters: map[string]string{"managed": "true"}, VENs: true, ContainerClusters: true, ContainerWorkloads: true})
-	utils.LogMultiAPIResp(apiResps)
+	apiResps, err := pce.Load(illumioapi.LoadInput{VENs: true, ContainerClusters: true, ContainerWorkloads: true})
+	utils.LogMultiAPIRespV2(apiResps)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
 
 	for _, v := range pce.VENsSlice {
-
-		// Get workloads
-		workloadHostnames := []string{}
-		if v.Workloads != nil {
-			for _, w := range *v.Workloads {
-				if val, ok := pce.Workloads[w.Href]; ok {
-					workloadHostnames = append(workloadHostnames, val.Hostname)
-				} else if val, ok := pce.ContainerWorkloads[w.Href]; ok {
-					workloadHostnames = append(workloadHostnames, val.Name)
-				} else {
-					utils.LogError(fmt.Sprintf("%s - %s - associated workload does not exist", v.Href, v.Hostname))
-				}
-			}
-		}
 
 		// Get container cluster
 		ccName := ""
@@ -78,14 +115,19 @@ func exportVens() {
 		// Get the VEN health
 		health := "healthy"
 		healthMessages := []string{}
-		if len(v.Conditions) > 0 {
-			for _, c := range v.Conditions {
+		if len(illumioapi.PtrToVal(v.Conditions)) > 0 {
+			for _, c := range illumioapi.PtrToVal(v.Conditions) {
 				healthMessages = append(healthMessages, c.LatestEvent.NotificationType)
 			}
 			health = strings.Join(healthMessages, "; ")
 		}
 
-		csvData = append(csvData, []string{v.Name, v.Hostname, v.Description, v.VenType, v.Status, health, v.Version, v.ActivationType, v.ActivePceFqdn, v.TargetPceFqdn, strings.Join(workloadHostnames, ";"), ccName, v.Href, v.UID})
+		row := []string{illumioapi.PtrToVal(v.Name), illumioapi.PtrToVal(v.Hostname), illumioapi.PtrToVal(v.Description), v.VenType, v.Status, health, v.Version, v.ActivationType, v.ActivePceFqdn, illumioapi.PtrToVal(v.TargetPceFqdn), wkldMap[v.Href][wkldexport.HeaderHostname], ccName, v.Href, v.UID}
+		for _, ld := range labelDimensions {
+			row = append(row, wkldMap[v.Href][ld])
+		}
+
+		csvData = append(csvData, row)
 	}
 
 	if len(csvData) > 1 {

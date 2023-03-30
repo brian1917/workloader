@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/Azure/go-autorest/autorest/azure/cli v0.4.6
 	github.com/brian1917/illumioapi v1.83.0
-	github.com/brian1917/illumioapi/v2 v2.0.0-beta.6
+	github.com/brian1917/illumioapi/v2 v2.0.0-beta.7
 	github.com/brian1917/ns v1.2.0
 	github.com/brian1917/workloader/utils v1.0.0
 	github.com/google/uuid v1.1.2

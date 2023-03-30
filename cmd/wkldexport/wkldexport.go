@@ -14,21 +14,26 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// WkldExport is used to export workloads
+type WkldExport struct {
+	PCE                                                                                       *illumioapi.PCE
+	ManagedOnly, UnmanagedOnly, OnlineOnly, IncludeVuln, NoHref, RemoveDescNewLines, WriteCSV bool
+	Headers, OutputFileName                                                                   string
+}
+
 // Declare local global variables
-var pce illumioapi.PCE
+var wkldExport WkldExport
 var err error
-var managedOnly, unmanagedOnly, onlineOnly, includeVuln, noHref, removeDescNewLines bool
-var exportHeaders, outputFileName string
 
 func init() {
-	WkldExportCmd.Flags().StringVar(&exportHeaders, "headers", "", "comma-separated list of headers for export. default is all headers.")
-	WkldExportCmd.Flags().BoolVarP(&managedOnly, "managed-only", "m", false, "only export managed workloads.")
-	WkldExportCmd.Flags().BoolVarP(&unmanagedOnly, "unmanaged-only", "u", false, "only export unmanaged workloads.")
-	WkldExportCmd.Flags().BoolVarP(&onlineOnly, "online-only", "o", false, "only export online workloads.")
-	WkldExportCmd.Flags().BoolVarP(&includeVuln, "incude-vuln-data", "v", false, "include vulnerability data.")
-	WkldExportCmd.Flags().BoolVar(&noHref, "no-href", false, "do not export href column. use this when exporting data to import into different pce.")
-	WkldExportCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
-	WkldExportCmd.Flags().BoolVar(&removeDescNewLines, "remove-desc-newline", false, "will remove new line characters in description field.")
+	WkldExportCmd.Flags().StringVar(&wkldExport.Headers, "headers", "", "comma-separated list of headers for export. default is all headers.")
+	WkldExportCmd.Flags().BoolVarP(&wkldExport.ManagedOnly, "managed-only", "m", false, "only export managed workloads.")
+	WkldExportCmd.Flags().BoolVarP(&wkldExport.UnmanagedOnly, "unmanaged-only", "u", false, "only export unmanaged workloads.")
+	WkldExportCmd.Flags().BoolVarP(&wkldExport.OnlineOnly, "online-only", "o", false, "only export online workloads.")
+	WkldExportCmd.Flags().BoolVarP(&wkldExport.IncludeVuln, "incude-vuln-data", "v", false, "include vulnerability data.")
+	WkldExportCmd.Flags().BoolVar(&wkldExport.NoHref, "no-href", false, "do not export href column. use this when exporting data to import into different pce.")
+	WkldExportCmd.Flags().StringVar(&wkldExport.OutputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+	WkldExportCmd.Flags().BoolVar(&wkldExport.RemoveDescNewLines, "remove-desc-newline", false, "will remove new line characters in description field.")
 
 	WkldExportCmd.Flags().SortFlags = false
 
@@ -45,35 +50,37 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
-		pce, err = utils.GetTargetPCEV2(true)
+		wkldExport.PCE = &illumioapi.PCE{}
+		*wkldExport.PCE, err = utils.GetTargetPCEV2(true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
 
-		exportWorkloads()
+		wkldExport.WriteCSV = true
+		wkldExport.ExportToCsv()
 	},
 }
 
-func exportWorkloads() {
+func (e *WkldExport) ExportToCsv() [][]string {
 
 	// Log command execution
 	utils.LogStartCommand("wkld-export")
 
 	// GetAllWorkloads
 	qp := make(map[string]string)
-	if unmanagedOnly {
+	if e.UnmanagedOnly {
 		qp["managed"] = "false"
 	}
-	if managedOnly {
+	if e.ManagedOnly {
 		qp["managed"] = "true"
 	}
-	if includeVuln {
+	if e.IncludeVuln {
 		qp["representation"] = "workload_labels_vulnerabilities"
 	}
-	if onlineOnly {
+	if e.OnlineOnly {
 		qp["online"] = "true"
 	}
-	a, err := pce.GetWklds(qp)
+	a, err := e.PCE.GetWklds(qp)
 	utils.LogAPIRespV2("GetWklds", a)
 	if err != nil {
 		utils.LogError(fmt.Sprintf("getting all workloads - %s", err))
@@ -81,9 +88,9 @@ func exportWorkloads() {
 
 	// Get the labels that are in use by the workloads
 	labelsKeyMap := make(map[string]bool)
-	for _, w := range pce.WorkloadsSlice {
+	for _, w := range e.PCE.WorkloadsSlice {
 		for _, label := range *w.Labels {
-			labelsKeyMap[pce.Labels[label.Href].Key] = true
+			labelsKeyMap[e.PCE.Labels[label.Href].Key] = true
 		}
 	}
 	labelsKeySlice := []string{}
@@ -97,21 +104,21 @@ func exportWorkloads() {
 	outputData := [][]string{}
 	headerRow := []string{}
 	// If no user headers provided, get all the headers
-	if exportHeaders == "" {
-		for _, header := range AllHeaders(includeVuln, !noHref) {
+	if e.Headers == "" {
+		for _, header := range AllHeaders(e.IncludeVuln, !e.NoHref) {
 			headerRow = append(headerRow, header)
 			// Insert the labels either after href or hostname
-			if (!noHref && header == "href") || (noHref && header == "name") {
+			if (!e.NoHref && header == "href") || (e.NoHref && header == "name") {
 				headerRow = append(headerRow, labelsKeySlice...)
 			}
 		}
 		outputData = append(outputData, headerRow)
 	} else {
-		outputData = append(outputData, strings.Split(strings.Replace(exportHeaders, " ", "", -1), ","))
+		outputData = append(outputData, strings.Split(strings.Replace(e.Headers, " ", "", -1), ","))
 	}
 
 	// Iterate through each workload
-	for _, w := range pce.WorkloadsSlice {
+	for _, w := range e.PCE.WorkloadsSlice {
 		csvRow := make(map[string]string)
 		// Skip deleted workloads
 		if *w.Deleted {
@@ -153,7 +160,7 @@ func exportWorkloads() {
 			csvRow[HeaderAgentID] = w.Agent.GetID()
 			csvRow[HeaderActivePceFqdn] = w.Agent.ActivePceFqdn
 			if csvRow[HeaderActivePceFqdn] == "" {
-				csvRow[HeaderActivePceFqdn] = pce.FQDN
+				csvRow[HeaderActivePceFqdn] = e.PCE.FQDN
 			}
 			csvRow[HeaderAgentStatus] = w.Agent.Status.Status
 			csvRow[HeaderCloudInstanceID] = w.Agent.Status.InstanceID
@@ -177,13 +184,13 @@ func exportWorkloads() {
 		}
 
 		// Remove newlines in description
-		if removeDescNewLines && w.Description != nil {
+		if e.RemoveDescNewLines && w.Description != nil {
 			*w.Description = utils.ReplaceNewLine(*w.Description)
 		}
 
 		// Get the labels
 		for _, labelKey := range labelsKeySlice {
-			csvRow[labelKey] = w.GetLabelByKey(labelKey, pce.Labels).Value
+			csvRow[labelKey] = w.GetLabelByKey(labelKey, e.PCE.Labels).Value
 		}
 
 		// Fill csv row with other data
@@ -211,7 +218,7 @@ func exportWorkloads() {
 		csvRow[HeaderExternalDataReference] = illumioapi.PtrToVal(w.ExternalDataReference)
 		csvRow[HeaderExternalDataSet] = illumioapi.PtrToVal(w.ExternalDataSet)
 
-		if includeVuln {
+		if e.IncludeVuln {
 			var maxVulnScore, vulnScore, vulnExposureScore string
 			targets := []*string{&maxVulnScore, &vulnScore, &vulnExposureScore}
 			if w.VulnerabilitySummary != nil {
@@ -237,11 +244,15 @@ func exportWorkloads() {
 		outputData = append(outputData, newRow)
 	}
 
+	if !e.WriteCSV {
+		return outputData
+	}
+
 	if len(outputData) > 1 {
-		if outputFileName == "" {
-			outputFileName = fmt.Sprintf("workloader-wkld-export-%s.csv", time.Now().Format("20060102_150405"))
+		if e.OutputFileName == "" {
+			e.OutputFileName = fmt.Sprintf("workloader-wkld-export-%s.csv", time.Now().Format("20060102_150405"))
 		}
-		utils.WriteOutput(outputData, outputData, outputFileName)
+		utils.WriteOutput(outputData, outputData, e.OutputFileName)
 		utils.LogInfo(fmt.Sprintf("%d workloads exported", len(outputData)-1), true)
 	} else {
 		// Log command execution for 0 results
@@ -249,6 +260,7 @@ func exportWorkloads() {
 	}
 
 	utils.LogEndCommand("wkld-export")
+	return [][]string{}
 
 }
 
