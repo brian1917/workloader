@@ -53,6 +53,7 @@ func exportVens() {
 		OnlineOnly:         false,
 		WriteCSV:           false,
 	}
+	utils.LogInfo("getting all workloads...", true)
 	wkldExportData := wkldExport.ExportToCsv()
 
 	// Build a map of entries in the CSV data
@@ -96,12 +97,14 @@ func exportVens() {
 	csvData[0] = append(csvData[0], labelDimensions...)
 
 	// Load the PCE
+	utils.LogInfo("getting all vens, conatiner clusters, and container workloads...", true)
 	apiResps, err := pce.Load(illumioapi.LoadInput{VENs: true, ContainerClusters: true, ContainerWorkloads: true})
 	utils.LogMultiAPIRespV2(apiResps)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
 
+	utils.LogInfo("processing exports...", true)
 	for _, v := range pce.VENsSlice {
 
 		// Get container cluster
