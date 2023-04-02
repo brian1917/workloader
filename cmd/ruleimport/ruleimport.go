@@ -244,7 +244,7 @@ func ImportRulesFromCSV(input Input) {
 		VirtualServers:              needVirtualServers,
 		VirtualServices:             needVirtualServices,
 		ConsumingSecurityPrincipals: needUserGroups,
-	})
+	}, utils.UseMulti())
 	utils.LogMultiAPIRespV2(apiResps)
 	if err != nil {
 		utils.LogError(err.Error())

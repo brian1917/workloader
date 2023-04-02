@@ -124,7 +124,7 @@ Recommended to run without --update-pce first to log what will change.`,
 		input.NoPrompt = viper.Get("no_prompt").(bool)
 
 		// Load the PCE with workloads
-		apiResps, err := input.PCE.Load(illumioapi.LoadInput{Workloads: true})
+		apiResps, err := input.PCE.Load(illumioapi.LoadInput{Workloads: true}, utils.UseMulti())
 		utils.LogMultiAPIRespV2(apiResps)
 		if err != nil {
 			utils.LogError(err.Error())

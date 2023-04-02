@@ -38,7 +38,7 @@ func ImportWkldsFromCSV(input Input) {
 
 	// Check if we have the workload map populate
 	if input.PCE.Workloads == nil || len(input.PCE.WorkloadsSlice) == 0 {
-		apiResps, err := input.PCE.Load(illumioapi.LoadInput{Workloads: true})
+		apiResps, err := input.PCE.Load(illumioapi.LoadInput{Workloads: true}, utils.UseMulti())
 		utils.LogMultiAPIRespV2(apiResps)
 		if err != nil {
 			utils.LogError(err.Error())
@@ -47,7 +47,7 @@ func ImportWkldsFromCSV(input Input) {
 
 	// Check if we have the labels maps
 	if input.PCE.Labels == nil || len(input.PCE.Labels) == 0 {
-		apiResps, err := input.PCE.Load(illumioapi.LoadInput{Labels: true})
+		apiResps, err := input.PCE.Load(illumioapi.LoadInput{Labels: true}, utils.UseMulti())
 		utils.LogMultiAPIRespV2(apiResps)
 		if err != nil {
 			utils.LogError(err.Error())

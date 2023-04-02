@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/brian1917/illumioapi"
 	"github.com/spf13/viper"
@@ -84,4 +85,8 @@ func GetPCEbyName(name string, GetLabelMaps bool) (illumioapi.PCE, error) {
 	}
 
 	return illumioapi.PCE{}, fmt.Errorf("could not retrieve %s PCE information", name)
+}
+
+func UseMulti() bool {
+	return !(strings.ToLower(os.Getenv("WORKLOADER_FORCE_SINGLE")) == "true")
 }

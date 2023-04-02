@@ -98,7 +98,7 @@ func exportVens() {
 
 	// Load the PCE
 	utils.LogInfo("getting all vens, conatiner clusters, and container workloads...", true)
-	apiResps, err := pce.Load(illumioapi.LoadInput{VENs: true, ContainerClusters: true, ContainerWorkloads: true})
+	apiResps, err := pce.Load(illumioapi.LoadInput{VENs: true, ContainerClusters: true, ContainerWorkloads: true}, utils.UseMulti())
 	utils.LogMultiAPIRespV2(apiResps)
 	if err != nil {
 		utils.LogError(err.Error())

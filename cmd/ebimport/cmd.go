@@ -95,7 +95,7 @@ func ImportBoundariesFromCSV(input Input) {
 		IPLists:               true,
 		LabelGroups:           true,
 		Services:              true,
-	})
+	}, utils.UseMulti())
 	utils.LogMultiAPIRespV2(apiResps)
 	if err != nil {
 		utils.LogError(err.Error())
