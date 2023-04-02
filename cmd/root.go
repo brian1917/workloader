@@ -49,7 +49,6 @@ import (
 	"github.com/brian1917/workloader/cmd/subnet"
 	"github.com/brian1917/workloader/cmd/svcexport"
 	"github.com/brian1917/workloader/cmd/svcimport"
-	"github.com/brian1917/workloader/cmd/templatecreate"
 	"github.com/brian1917/workloader/cmd/templateimport"
 	"github.com/brian1917/workloader/cmd/templatelist"
 	"github.com/brian1917/workloader/cmd/traffic"
@@ -80,6 +79,7 @@ Workloader is a tool that helps manage resources in an Illumio PCE.`,
 		viper.Set("update_pce", updatePCE)
 		viper.Set("no_prompt", noPrompt)
 		viper.Set("verbose", verbose)
+		viper.Set("continue_on_error", continueOnError)
 		// If the targetPCE is not set in the persistent flag, we clear it from the YAML
 		if targetPCE == "" {
 			viper.Set("target_pce", "")
@@ -104,7 +104,7 @@ Workloader is a tool that helps manage resources in an Illumio PCE.`,
 	},
 }
 
-var updatePCE, noPrompt, debug, verbose bool
+var updatePCE, continueOnError, noPrompt, debug, verbose bool
 var outFormat, targetPCE string
 
 // All subcommand flags are taken care of in their package's init.
@@ -124,6 +124,7 @@ func init() {
 	RootCmd.AddCommand(pcemgmt.TargetPcesCmd)
 	RootCmd.AddCommand(pcemgmt.SetProxyCmd)
 	RootCmd.AddCommand(pcemgmt.ClearProxyCmd)
+	RootCmd.AddCommand(ContinueOnErrorDefaultCmd)
 
 	// Import/Export
 	RootCmd.AddCommand(wkldexport.WkldExportCmd)
@@ -152,7 +153,7 @@ func init() {
 	RootCmd.AddCommand(flowimport.FlowImportCmd)
 	RootCmd.AddCommand(templateimport.TemplateImportCmd)
 	RootCmd.AddCommand(templatelist.TemplateListCmd)
-	RootCmd.AddCommand(templatecreate.TemplateCreateCmd)
+	// RootCmd.AddCommand(templatecreate.TemplateCreateCmd)
 
 	// Automation
 	RootCmd.AddCommand(azurelabel.AzureLabelCmd)
@@ -221,6 +222,7 @@ func init() {
 	// Persistent flags that will be passed into root command pre-run.
 	RootCmd.PersistentFlags().BoolVar(&updatePCE, "update-pce", false, "Command will update the PCE after a single user prompt. Default will just log potentialy changes to workloads.")
 	RootCmd.PersistentFlags().BoolVar(&noPrompt, "no-prompt", false, "Remove the user prompt when used with update-pce.")
+	RootCmd.PersistentFlags().BoolVar(&continueOnError, "continue-on-error", false, "Do not not exit on error. Use the workloader error-default command to set default behavior.")
 	RootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug level logging for troubleshooting.")
 	RootCmd.PersistentFlags().BoolVar(&verbose, "verbose", false, "When debug is enabled, include the raw API responses. This makes workloader.log increase in size significantly.")
 	RootCmd.PersistentFlags().StringVar(&outFormat, "out", "csv", "Output format. 3 options: csv, stdout, both")
@@ -245,5 +247,24 @@ var versionCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Printf("Version %s\r\n", utils.GetVersion())
 		fmt.Printf("Previous commit: %s \r\n", utils.GetCommit())
+	},
+}
+
+var ContinueOnErrorDefaultCmd = &cobra.Command{
+	Use:   "error-default [continue/stop]",
+	Short: "Set default behavior to continue on error. continue will continue command execution even on error. stop stops execution on error.",
+	Run: func(cmd *cobra.Command, args []string) {
+		utils.LogStartCommand("continue-on-error-default")
+		if strings.ToLower(args[0]) != "continue" && strings.ToLower(args[0]) != "stop" {
+			utils.LogError("argument must be true or false")
+			os.Exit(1) // Force exit here regardless of what settings are
+		}
+		viper.Set("continue_on_error_default", strings.ToLower(args[0]))
+		if err := viper.WriteConfig(); err != nil {
+			utils.LogError(err.Error())
+		}
+		utils.LogInfo(fmt.Sprintf("continue_on_error_default set to %s", strings.ToLower(args[0])), true)
+
+		utils.LogEndCommand("continue-on-error-default")
 	},
 }

@@ -5,7 +5,7 @@ func RootTemplate() string {
 	return `  Usage:{{if .Runnable}}
 	{{.CommandPath}} [command]
 
-  PCE Management Commands:{{range .Commands}}{{if (or (eq .Name "all-pces") (eq .Name "target-pces") (eq .Name "set-proxy") (eq .Name "clear-proxy") (eq .Name "pce-remove") (eq .Name "pce-add") (eq .Name "get-default") (eq .Name "set-default") (eq .Name "pce-list"))}}
+  PCE Management Commands:{{range .Commands}}{{if (or (eq .Name "all-pces") (eq .Name "target-pces") (eq .Name "set-proxy") (eq .Name "clear-proxy") (eq .Name "pce-remove") (eq .Name "pce-add") (eq .Name "get-default") (eq .Name "set-default") (eq .Name "pce-list") (eq .Name "error-default"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
   Import/Export Commands:{{range .Commands}}{{if (or (eq .Name "wkld-export") (eq .Name "wkld-import") (eq .Name "ven-export") (eq .Name "ven-import") (eq .Name "ipl-export") (eq .Name "ipl-import") (eq .Name "ipl-replace") (eq .Name "label-export") (eq .Name "label-import") (eq .Name "label-dimension-export") (eq .Name "label-dimension-import") (eq .Name "svc-export") (eq .Name "svc-import") (eq .Name "rule-export") (eq .Name "rule-import") (eq .Name "ruleset-export") (eq .Name "ruleset-import") (eq .Name "eb-export") (eq .Name "eb-import") (eq .Name "labelgroup-export") (eq .Name "labelgroup-import") (eq .Name "cwp-export") (eq .Name "cwp-import") (eq .Name "flow-import"))}}

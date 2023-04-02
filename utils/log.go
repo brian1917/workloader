@@ -25,9 +25,14 @@ func init() {
 
 // LogError writes the error the workloader.log and always prints an error to stdout.
 func LogError(msg string) {
+
 	Logger.SetPrefix(time.Now().Format("2006-01-02 15:04:05 "))
 	fmt.Printf("%s [ERROR] - %s see workloader.log for detailed information if error is from an illumio api call.\r\n", time.Now().Format("2006-01-02 15:04:05 "), msg)
-	Logger.Fatalf("[ERROR] - %s\r\n", msg)
+	if (viper.Get("continue_on_error") != nil && viper.Get("continue_on_error").(bool)) || (viper.Get("continue_on_error_default") != nil && viper.Get("continue_on_error_default").(string) == "continue") {
+		Logger.Printf("[ERROR] - %s\r\n", msg)
+	} else {
+		Logger.Fatalf("[ERROR] - %s\r\n", msg)
+	}
 }
 
 // LogWarning writes the log to workloader.log and optionally prints msg to stdout.
