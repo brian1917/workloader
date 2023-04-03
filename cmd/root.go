@@ -118,13 +118,11 @@ func init() {
 	RootCmd.AddCommand(pcemgmt.AddPCECmd)
 	RootCmd.AddCommand(pcemgmt.RemovePCECmd)
 	RootCmd.AddCommand(pcemgmt.PCEListCmd)
-	RootCmd.AddCommand(pcemgmt.GetDefaultPCECmd)
-	RootCmd.AddCommand(pcemgmt.SetDefaultPCECmd)
 	RootCmd.AddCommand(pcemgmt.AllPceCmd)
 	RootCmd.AddCommand(pcemgmt.TargetPcesCmd)
 	RootCmd.AddCommand(pcemgmt.SetProxyCmd)
 	RootCmd.AddCommand(pcemgmt.ClearProxyCmd)
-	RootCmd.AddCommand(ContinueOnErrorDefaultCmd)
+	RootCmd.AddCommand(SettingsCmd)
 
 	// Import/Export
 	RootCmd.AddCommand(wkldexport.WkldExportCmd)
@@ -250,21 +248,62 @@ var versionCmd = &cobra.Command{
 	},
 }
 
-var ContinueOnErrorDefaultCmd = &cobra.Command{
-	Use:   "error-default [continue/stop]",
-	Short: "Set default behavior to continue on error. continue will continue command execution even on error. stop stops execution on error.",
-	Run: func(cmd *cobra.Command, args []string) {
-		utils.LogStartCommand("continue-on-error-default")
-		if strings.ToLower(args[0]) != "continue" && strings.ToLower(args[0]) != "stop" {
-			utils.LogError("argument must be true or false")
-			os.Exit(1) // Force exit here regardless of what settings are
-		}
-		viper.Set("continue_on_error_default", strings.ToLower(args[0]))
-		if err := viper.WriteConfig(); err != nil {
-			utils.LogError(err.Error())
-		}
-		utils.LogInfo(fmt.Sprintf("continue_on_error_default set to %s", strings.ToLower(args[0])), true)
+var continueOnErrorDefault, defaultPCE, getAPIBehavior string
 
-		utils.LogEndCommand("continue-on-error-default")
+func init() {
+	SettingsCmd.Flags().StringVar(&defaultPCE, "default-pce", "", "name of pce to be the deafult")
+	SettingsCmd.Flags().StringVar(&continueOnErrorDefault, "continue-on-error-default", "", "continue or stop. continue is equivalent to always using the global continue-on-error flag")
+	SettingsCmd.Flags().StringVar(&getAPIBehavior, "api-behavior", "", "single or multi. single waits for each get api to the pce to complete before calling the next.")
+
+}
+
+var SettingsCmd = &cobra.Command{
+	Use:   "settings",
+	Short: "Use flags to change workloader settings for default pce, continuing on error default, and multi/single threaded get api call behavior. See flag options below.",
+	Run: func(cmd *cobra.Command, args []string) {
+
+		utils.LogStartCommand("settings")
+
+		// Continue on error
+		if continueOnErrorDefault != "" {
+			if strings.ToLower(continueOnErrorDefault) != "continue" && strings.ToLower(continueOnErrorDefault) != "stop" {
+				utils.LogError("continue-on-error-default must be stop or continue")
+				os.Exit(1) // Force exit here regardless of what settings are
+			}
+			viper.Set("continue_on_error_default", strings.ToLower(continueOnErrorDefault))
+			if err := viper.WriteConfig(); err != nil {
+				utils.LogError(err.Error())
+			}
+			utils.LogInfo(fmt.Sprintf("continue_on_error_default set to %s", strings.ToLower(continueOnErrorDefault)), true)
+		}
+
+		// Default PCE
+		if defaultPCE != "" {
+			if viper.Get(defaultPCE+".fqdn") == nil {
+				utils.LogError(fmt.Sprintf("%s pce does not exist.", defaultPCE))
+			}
+			viper.Set("default_pce_name", defaultPCE)
+			if err := viper.WriteConfig(); err != nil {
+				utils.LogError(err.Error())
+			}
+			utils.LogInfo(fmt.Sprintf("%s is default pce", defaultPCE), true)
+		}
+
+		// Get API behavior
+		if getAPIBehavior != "" {
+			if strings.ToLower(getAPIBehavior) != "single" && strings.ToLower(getAPIBehavior) != "multi" {
+				utils.LogError("api-behavior must be single or muti")
+				os.Exit(1) // Force exit here regardless of what settings are
+			}
+			viper.Set("get_api_behavior", strings.ToLower(getAPIBehavior))
+			if err := viper.WriteConfig(); err != nil {
+				utils.LogError(err.Error())
+			}
+			utils.LogInfo(fmt.Sprintf("get_api_behavior set to %s", strings.ToLower(getAPIBehavior)), true)
+
+		}
+
+		utils.LogEndCommand("settings")
+
 	},
 }

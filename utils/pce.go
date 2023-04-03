@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/brian1917/illumioapi"
 	"github.com/spf13/viper"
@@ -88,5 +87,10 @@ func GetPCEbyName(name string, GetLabelMaps bool) (illumioapi.PCE, error) {
 }
 
 func UseMulti() bool {
-	return !(strings.ToLower(os.Getenv("WORKLOADER_FORCE_SINGLE")) == "true")
+	if viper.Get("get_api_behavior") == nil || viper.Get("get_api_behavior").(string) == "multi" {
+		LogInfo("using multi get api behavior", false)
+		return true
+	}
+	LogInfo("using single get api behavior", false)
+	return false
 }
