@@ -85,7 +85,7 @@ func unusedPorts() {
 
 	// Get the output file name ready
 	if outputFileName == "" {
-		outputFileName = fmt.Sprintf("workloader-unused-ports-%s.csv", time.Now().Format("20060102_150405"))
+		outputFileName = fmt.Sprintf("workloader-port-usage-%s.csv", time.Now().Format("20060102_150405"))
 	}
 
 	// Check query- uration
