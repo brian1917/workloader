@@ -1,4 +1,4 @@
-package unusedports
+package portusage
 
 import (
 	"fmt"

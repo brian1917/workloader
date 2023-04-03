@@ -40,6 +40,7 @@ import (
 	"github.com/brian1917/workloader/cmd/nicexport"
 	"github.com/brian1917/workloader/cmd/nicmanage"
 	"github.com/brian1917/workloader/cmd/pcemgmt"
+	"github.com/brian1917/workloader/cmd/portusage"
 	"github.com/brian1917/workloader/cmd/processexport"
 	"github.com/brian1917/workloader/cmd/ruleexport"
 	"github.com/brian1917/workloader/cmd/ruleimport"
@@ -54,7 +55,6 @@ import (
 	"github.com/brian1917/workloader/cmd/traffic"
 	"github.com/brian1917/workloader/cmd/umwlcleanup"
 	"github.com/brian1917/workloader/cmd/unpair"
-	"github.com/brian1917/workloader/cmd/unusedports"
 	"github.com/brian1917/workloader/cmd/unusedumwl"
 	"github.com/brian1917/workloader/cmd/upgrade"
 	"github.com/brian1917/workloader/cmd/venexport"
@@ -179,7 +179,7 @@ func init() {
 
 	// Reporting
 	RootCmd.AddCommand(ruleexport.RuleUsageCmd)
-	RootCmd.AddCommand(unusedports.UnusedPortsCmd)
+	RootCmd.AddCommand(portusage.PortUsageCmd)
 	RootCmd.AddCommand(mislabel.MisLabelCmd)
 	RootCmd.AddCommand(dupecheck.DupeCheckCmd)
 	RootCmd.AddCommand(flowsummary.FlowSummaryCmd)

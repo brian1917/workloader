@@ -1,4 +1,4 @@
-package unusedports
+package portusage
 
 import (
 	"fmt"
@@ -20,21 +20,21 @@ var err error
 
 func init() {
 
-	UnusedPortsCmd.Flags().StringVarP(&wkldInputFile, "input-file", "i", "", "optional input file with list of hrefs for target workloads. recommended to use wkld-export to get href file.")
-	UnusedPortsCmd.Flags().StringVarP(&labelInputFile, "label-file", "l", "", "optional input csv with labels to target workload query. see below for details. ")
-	UnusedPortsCmd.Flags().IntVarP(&maxFlows, "max-flows", "m", 100, "max flows returned from explorer query. set to 100 by default to keep queries small since presence of flows is all that matters.")
-	UnusedPortsCmd.Flags().StringVarP(&queryDuration, "query-duration", "d", "24h", "time for initial query. format must be in xh or xd where x is a number and h specifies hours or d specifies days. for example, 24h is 24 hours and 30d is 30 days.")
-	UnusedPortsCmd.Flags().StringVarP(&exclHrefSrcFile, "excl-src-file", "x", "", "file with hrefs on separate lines to be used in as a consumer exclude. can be a csv with hrefs in first column. no headers")
-	UnusedPortsCmd.Flags().StringVarP(&ignorePorts, "ignore-ports", "p", "49152-65535", "comma-separated list of port numbers or ranges to exclude.")
-	UnusedPortsCmd.Flags().StringVarP(&resultsFile, "results", "r", "", "fileoutput from step 1 to get the traffic results.")
-	UnusedPortsCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+	PortUsageCmd.Flags().StringVarP(&wkldInputFile, "input-file", "i", "", "optional input file with list of hrefs for target workloads. recommended to use wkld-export to get href file.")
+	PortUsageCmd.Flags().StringVarP(&labelInputFile, "label-file", "l", "", "optional input csv with labels to target workload query. see below for details. ")
+	PortUsageCmd.Flags().IntVarP(&maxFlows, "max-flows", "m", 100, "max flows returned from explorer query. set to 100 by default to keep queries small since presence of flows is all that matters.")
+	PortUsageCmd.Flags().StringVarP(&queryDuration, "query-duration", "d", "24h", "time for initial query. format must be in xh or xd where x is a number and h specifies hours or d specifies days. for example, 24h is 24 hours and 30d is 30 days.")
+	PortUsageCmd.Flags().StringVarP(&exclHrefSrcFile, "excl-src-file", "x", "", "file with hrefs on separate lines to be used in as a consumer exclude. can be a csv with hrefs in first column. no headers")
+	PortUsageCmd.Flags().StringVarP(&ignorePorts, "ignore-ports", "p", "49152-65535", "comma-separated list of port numbers or ranges to exclude.")
+	PortUsageCmd.Flags().StringVarP(&resultsFile, "results", "r", "", "fileoutput from step 1 to get the traffic results.")
+	PortUsageCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 
-	UnusedPortsCmd.Flags().SortFlags = false
+	PortUsageCmd.Flags().SortFlags = false
 }
 
-// UnusedPortsCmd runs the upload command
-var UnusedPortsCmd = &cobra.Command{
-	Use:   "unused-ports",
+// PortUsageCmd runs the upload command
+var PortUsageCmd = &cobra.Command{
+	Use:   "port-usage",
 	Short: "Produce a report showing workloads with ports open that have no traffic to them.",
 	Long: `
 Produce a report showing workloads with ports open that have no traffic to them.
