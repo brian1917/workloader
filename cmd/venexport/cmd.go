@@ -28,7 +28,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
-		pce, err = utils.GetTargetPCEV2(true)
+		pce, err = utils.GetTargetPCEV2(false)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -42,6 +42,18 @@ func exportVens() {
 	// Log command execution
 	utils.LogStartCommand("ven-export")
 
+	// Load the pce
+	utils.LogInfo("getting workloads, vens, labels, label dimensions, container clusters, and container workloads...", true)
+	pce.Load(illumioapi.LoadInput{
+		Workloads:                true,
+		WorkloadsQueryParameters: map[string]string{"managed": "true"},
+		Labels:                   true,
+		VENs:                     true,
+		ContainerClusters:        true,
+		ContainerWorkloads:       true,
+		LabelDimensions:          true,
+	}, utils.UseMulti())
+
 	// Get workload export data
 	wkldExport := wkldexport.WkldExport{
 		PCE:                &pce,
@@ -53,7 +65,6 @@ func exportVens() {
 		OnlineOnly:         false,
 		WriteCSV:           false,
 	}
-	utils.LogInfo("getting all workloads...", true)
 	wkldExportData := wkldExport.ExportToCsv()
 
 	// Build a map of entries in the CSV data
@@ -81,12 +92,7 @@ func exportVens() {
 		}
 	}
 
-	// Get the label dimesnions
-	api, err := wkldExport.PCE.GetLabelDimensions(nil)
-	utils.LogAPIRespV2("GetLabelDimensions", api)
-	if err != nil {
-		utils.LogError(err.Error())
-	}
+	// Set up label dimesnions slice
 	labelDimensions := []string{}
 	for _, ld := range wkldExport.PCE.LabelDimensionsSlice {
 		labelDimensions = append(labelDimensions, ld.Key)
@@ -95,14 +101,6 @@ func exportVens() {
 	// Start the data slice with headers
 	csvData := [][]string{{HeaderName, HeaderHostname, HeaderDescription, HeaderVenType, HeaderStatus, HeaderHealth, HeaderVersion, HeaderActivationType, HeaderActivePceFqdn, HeaderTargetPceFqdn, HeaderWorkloads, HeaderContainerCluster, HeaderHref, HeaderUID}}
 	csvData[0] = append(csvData[0], labelDimensions...)
-
-	// Load the PCE
-	utils.LogInfo("getting all vens, conatiner clusters, and container workloads...", true)
-	apiResps, err := pce.Load(illumioapi.LoadInput{VENs: true, ContainerClusters: true, ContainerWorkloads: true}, utils.UseMulti())
-	utils.LogMultiAPIRespV2(apiResps)
-	if err != nil {
-		utils.LogError(err.Error())
-	}
 
 	utils.LogInfo("processing exports...", true)
 	for _, v := range pce.VENsSlice {

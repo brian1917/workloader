@@ -52,7 +52,7 @@ With the input file above, the query will get all IDLE workloads that are labele
 The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetTargetPCEV2(true)
+		pce, err = utils.GetTargetPCEV2(false)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -120,9 +120,9 @@ func compatibilityReport() {
 			utils.LogError(fmt.Sprintf("the query is too large. the total character count is %d and the limit for this command is 10,000", len(qp["labels"])))
 		}
 
-		// Get all workloads from the query
-		a, err := pce.GetWklds(qp)
-		utils.LogAPIRespV2("GetAllWorkloadsQP", a)
+		// Load the PCE
+		apiResps, err := pce.Load(illumioapi.LoadInput{Workloads: true, WorkloadsQueryParameters: qp, Labels: true}, utils.UseMulti())
+		utils.LogMultiAPIRespV2(apiResps)
 		if err != nil {
 			utils.LogError(err.Error())
 		}

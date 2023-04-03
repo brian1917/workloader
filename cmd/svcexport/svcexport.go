@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
@@ -36,7 +36,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
-		pce, err = utils.GetTargetPCE(true)
+		pce, err = utils.GetTargetPCEV2(false)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -53,11 +53,12 @@ func ExportServices(pce illumioapi.PCE, templateFormat bool, outputFileName stri
 	utils.LogStartCommand("svc-export")
 
 	// GetAllServices
-	allSvcs, a, err := pce.GetServices(nil, "draft")
-	utils.LogAPIResp("GetAllSvcs", a)
+	a, err := pce.GetServices(nil, "draft")
+	utils.LogAPIRespV2("GetAllSvcs", a)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
+	allSvcs := pce.ServicesSlice
 
 	// Create a map of the provided hrefs
 	providedHrefs := make(map[string]bool)
@@ -106,12 +107,12 @@ func ExportServices(pce illumioapi.PCE, templateFormat bool, outputFileName stri
 
 		for _, s := range targetSvcs {
 			var isWinSvc bool
-			if len(s.WindowsServices) > 0 {
+			if len(illumioapi.PtrToVal(s.WindowsServices)) > 0 {
 				isWinSvc = true
 			}
 
 			var port, proto string
-			for _, p := range s.ServicePorts {
+			for _, p := range illumioapi.PtrToVal(s.ServicePorts) {
 				if p.ToPort != 0 {
 					port = fmt.Sprintf("%d-%d", p.Port, p.ToPort)
 				} else {
@@ -131,7 +132,7 @@ func ExportServices(pce illumioapi.PCE, templateFormat bool, outputFileName stri
 				csvData = append(csvData, entry)
 			}
 
-			for _, p := range s.WindowsServices {
+			for _, p := range illumioapi.PtrToVal(s.WindowsServices) {
 				if p.ToPort != 0 {
 					port = fmt.Sprintf("%d-%d", p.Port, p.ToPort)
 				} else {

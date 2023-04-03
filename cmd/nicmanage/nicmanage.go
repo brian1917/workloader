@@ -32,7 +32,7 @@ Manage interfaces for managed or unmanaged workloads by setting ignored field to
 Head input CSV requires a header row with at least two headers: wkld_href and ignored. Other columns can be present as well. It is recommended to run worklodaer nic-export and  modify the ignored column in that output.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetTargetPCE(true)
+		pce, err = utils.GetTargetPCE(false)
 		if err != nil {
 			utils.LogError(err.Error())
 		}

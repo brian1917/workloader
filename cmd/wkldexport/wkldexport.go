@@ -61,29 +61,37 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 	},
 }
 
+// ExportToCsv epxorts a PCE workloads to a CSV
 func (e *WkldExport) ExportToCsv() [][]string {
 
 	// Log command execution
 	utils.LogStartCommand("wkld-export")
 
-	// GetAllWorkloads
-	qp := make(map[string]string)
-	if e.UnmanagedOnly {
-		qp["managed"] = "false"
+	// Load the PCE if necessary
+	load := illumioapi.LoadInput{}
+	if len(e.PCE.WorkloadsSlice) == 0 {
+		load.Workloads = true
+		load.WorkloadsQueryParameters = make(map[string]string)
+		if e.UnmanagedOnly {
+			load.WorkloadsQueryParameters["managed"] = "false"
+		}
+		if e.ManagedOnly {
+			load.WorkloadsQueryParameters["managed"] = "true"
+		}
+		if e.IncludeVuln {
+			load.WorkloadsQueryParameters["representation"] = "workload_labels_vulnerabilities"
+		}
+		if e.OnlineOnly {
+			load.WorkloadsQueryParameters["online"] = "true"
+		}
 	}
-	if e.ManagedOnly {
-		qp["managed"] = "true"
+	if len(e.PCE.LabelsSlice) == 0 {
+		load.Labels = true
 	}
-	if e.IncludeVuln {
-		qp["representation"] = "workload_labels_vulnerabilities"
-	}
-	if e.OnlineOnly {
-		qp["online"] = "true"
-	}
-	a, err := e.PCE.GetWklds(qp)
-	utils.LogAPIRespV2("GetWklds", a)
+	apiResps, err := e.PCE.Load(load, utils.UseMulti())
+	utils.LogMultiAPIRespV2(apiResps)
 	if err != nil {
-		utils.LogError(fmt.Sprintf("getting all workloads - %s", err))
+		utils.LogError(err.Error())
 	}
 
 	// Get the labels that are in use by the workloads

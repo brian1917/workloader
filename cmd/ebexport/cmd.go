@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brian1917/illumioapi"
+	ia "github.com/brian1917/illumioapi/v2"
 
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
@@ -36,7 +36,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
-		pce, err := utils.GetTargetPCE(false)
+		pce, err := utils.GetTargetPCEV2(false)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -46,23 +46,21 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 	},
 }
 
-func ExportEBs(pce illumioapi.PCE, outputFileName string, noHref bool) {
+func ExportEBs(pce ia.PCE, outputFileName string, noHref bool) {
 
 	// Log command execution
 	utils.LogStartCommand("eb-export")
 
 	// Get needed obects
 	utils.LogInfo("getting boundaries, labels, label groups, iplists, and services...", true)
-	apiResps, err := pce.Load(illumioapi.LoadInput{
+	apiResps, err := pce.Load(ia.LoadInput{
 		EnforcementBoundaries: true,
 		Labels:                true,
 		LabelGroups:           true,
 		IPLists:               true,
 		Services:              true,
-	})
-	for apiCall, api := range apiResps {
-		utils.LogAPIResp(apiCall, api)
-	}
+	}, utils.UseMulti())
+	utils.LogMultiAPIRespV2(apiResps)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -81,12 +79,12 @@ func ExportEBs(pce illumioapi.PCE, outputFileName string, noHref bool) {
 	for _, eb := range pce.EnforcementBoundariesSlice {
 		// Create the csv row and start with the strings
 		csvRow := map[string]string{
-			HeaderName:        utils.PtrToStr(eb.Name),
+			HeaderName:        eb.Name,
 			HeaderHref:        eb.Href,
-			HeaderCreatedAt:   utils.PtrToStr(eb.CreatedAt),
-			HeaderUpdateType:  utils.PtrToStr(eb.UpdateType),
-			HeaderUpdatedAt:   utils.PtrToStr(eb.UpdatedAt),
-			HeaderNetworkType: utils.PtrToStr(eb.NetworkType),
+			HeaderCreatedAt:   eb.CreatedAt,
+			HeaderUpdateType:  eb.UpdateType,
+			HeaderUpdatedAt:   eb.UpdatedAt,
+			HeaderNetworkType: eb.NetworkType,
 		}
 		// Process enabled
 		if eb.Enabled != nil {
@@ -98,7 +96,7 @@ func ExportEBs(pce illumioapi.PCE, outputFileName string, noHref bool) {
 		if eb.Consumers != nil {
 			for _, c := range *eb.Consumers {
 				// All workloads
-				if c.Actors == "ams" {
+				if ia.PtrToVal(c.Actors) == "ams" {
 					csvRow[HeaderConsumerAllWorkloads] = "true"
 					continue
 				}
@@ -131,7 +129,7 @@ func ExportEBs(pce illumioapi.PCE, outputFileName string, noHref bool) {
 		if eb.Providers != nil {
 			for _, p := range *eb.Providers {
 				// All workloads
-				if p.Actors == "ams" {
+				if ia.PtrToVal(p.Actors) == "ams" {
 					csvRow[HeaderProviderAllWorkloads] = "true"
 					continue
 				}
@@ -167,37 +165,35 @@ func ExportEBs(pce illumioapi.PCE, outputFileName string, noHref bool) {
 		if eb.IngressServices != nil {
 			for _, s := range *eb.IngressServices {
 				// Windows Services
-				if s.Href != nil && pce.Services[*s.Href].WindowsServices != nil {
-					a := pce.Services[*s.Href]
+				if pce.Services[s.Href].WindowsServices != nil {
+					a := pce.Services[s.Href]
 					b, _ := a.ParseService()
 					if !expandServices {
-						services = append(services, pce.Services[*s.Href].Name)
+						services = append(services, pce.Services[s.Href].Name)
 					} else {
-						services = append(services, fmt.Sprintf("%s (%s)", pce.Services[*s.Href].Name, strings.Join(b, ";")))
+						services = append(services, fmt.Sprintf("%s (%s)", pce.Services[s.Href].Name, strings.Join(b, ";")))
 					}
 				}
 				// Port/Proto Services
-				if s.Href != nil && pce.Services[*s.Href].ServicePorts != nil {
-					a := pce.Services[*s.Href]
+				if pce.Services[s.Href].ServicePorts != nil {
+					a := pce.Services[s.Href]
 					_, b := a.ParseService()
-					if pce.Services[*s.Href].Name == "All Services" {
+					if pce.Services[s.Href].Name == "All Services" {
 						services = append(services, "All Services")
 					} else {
 						if !expandServices {
-							services = append(services, pce.Services[*s.Href].Name)
+							services = append(services, pce.Services[s.Href].Name)
 						} else {
-							services = append(services, fmt.Sprintf("%s (%s)", pce.Services[*s.Href].Name, strings.Join(b, ";")))
+							services = append(services, fmt.Sprintf("%s (%s)", pce.Services[s.Href].Name, strings.Join(b, ";")))
 						}
 					}
 				}
 
 				// Port or port ranges
-				if s.Href == nil {
-					if s.ToPort == nil || *s.ToPort == 0 {
-						services = append(services, fmt.Sprintf("%d %s", *s.Port, illumioapi.ProtocolList()[*s.Protocol]))
-					} else {
-						services = append(services, fmt.Sprintf("%d-%d %s", *s.Port, *s.ToPort, illumioapi.ProtocolList()[*s.Protocol]))
-					}
+				if s.ToPort == nil || *s.ToPort == 0 {
+					services = append(services, fmt.Sprintf("%d %s", *s.Port, ia.ProtocolList()[*s.Protocol]))
+				} else {
+					services = append(services, fmt.Sprintf("%d-%d %s", *s.Port, *s.ToPort, ia.ProtocolList()[*s.Protocol]))
 				}
 			}
 		}

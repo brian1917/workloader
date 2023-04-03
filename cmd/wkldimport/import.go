@@ -36,22 +36,29 @@ func ImportWkldsFromCSV(input Input) {
 	input.processHeaders(data[0])
 	input.log()
 
-	// Check if we have the workload map populate
-	if input.PCE.Workloads == nil || len(input.PCE.WorkloadsSlice) == 0 {
-		apiResps, err := input.PCE.Load(illumioapi.LoadInput{Workloads: true}, utils.UseMulti())
-		utils.LogMultiAPIRespV2(apiResps)
-		if err != nil {
-			utils.LogError(err.Error())
-		}
+	// Get the PCE version
+	version, api, err := input.PCE.GetVersion()
+	utils.LogAPIRespV2("GetVersion", api)
+	if err != nil {
+		utils.LogError(err.Error())
 	}
 
-	// Check if we have the labels maps
+	// Check if need workloads, labels, and label dimensions
+	var needWklds, needLabels, needLabelDimensions bool
+	if input.PCE.Workloads == nil || len(input.PCE.WorkloadsSlice) == 0 {
+		needWklds = true
+	}
 	if input.PCE.Labels == nil || len(input.PCE.Labels) == 0 {
-		apiResps, err := input.PCE.Load(illumioapi.LoadInput{Labels: true}, utils.UseMulti())
-		utils.LogMultiAPIRespV2(apiResps)
-		if err != nil {
-			utils.LogError(err.Error())
-		}
+		needLabels = true
+	}
+	if (version.Major > 22 || (version.Major == 22 && version.Minor >= 5)) && len(input.PCE.LabelDimensionsSlice) == 0 {
+		needLabelDimensions = true
+	}
+
+	apiResps, err := input.PCE.Load(illumioapi.LoadInput{Workloads: needWklds, Labels: needLabels, LabelDimensions: needLabelDimensions}, utils.UseMulti())
+	utils.LogMultiAPIRespV2(apiResps)
+	if err != nil {
+		utils.LogError(err.Error())
 	}
 
 	// Check for invalid flag combinations
@@ -72,21 +79,9 @@ func ImportWkldsFromCSV(input Input) {
 		}
 	}
 
-	// Get the PCE version
-	version, api, err := input.PCE.GetVersion()
-	utils.LogAPIRespV2("GetVersion", api)
-	if err != nil {
-		utils.LogError(err.Error())
-	}
-
 	// Create a map of label keys and depending on version either populate with API or with role, app, env, and loc.
 	labelKeysMap := make(map[string]bool)
 	if version.Major > 22 || (version.Major == 22 && version.Minor >= 5) {
-		api, err := input.PCE.GetLabelDimensions(nil)
-		utils.LogAPIRespV2("GetLabelDimensions", api)
-		if err != nil {
-			utils.LogError(err.Error())
-		}
 		for _, l := range input.PCE.LabelDimensionsSlice {
 			labelKeysMap[strings.ToLower(l.Key)] = true
 		}

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
 )
@@ -37,7 +37,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
-		pce, err = utils.GetTargetPCE(true)
+		pce, err = utils.GetTargetPCEV2(false)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -57,12 +57,13 @@ func ExportRuleSets(pce illumioapi.PCE, outputFileName string, templateFormat bo
 	}
 	csvData := [][]string{headers}
 
-	// Get all rulesets
-	allPCERuleSets, a, err := pce.GetRulesets(nil, "draft")
-	utils.LogAPIResp("GetAllRuleSets", a)
+	// Get all rulesets and labels
+	apiResps, err := pce.Load(illumioapi.LoadInput{RuleSets: true, Labels: true, ProvisionStatus: "draft"}, utils.UseMulti())
+	utils.LogMultiAPIRespV2(apiResps)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
+	allPCERuleSets := pce.RuleSetsSlice
 
 	// Filter down the rulesets if we are given a slice
 	allRuleSets := []illumioapi.RuleSet{}
@@ -100,11 +101,12 @@ func ExportRuleSets(pce illumioapi.PCE, outputFileName string, templateFormat bo
 	labelGroupMap := make(map[string]illumioapi.LabelGroup)
 	if needLabelGroups {
 		utils.LogInfo("ruleset scopes include label groups. getting all label groups...", true)
-		allLabelGroups, a, err := pce.GetLabelGroups(nil, "draft")
-		utils.LogAPIResp("GetAllLabelGroups", a)
+		a, err := pce.GetLabelGroups(nil, "draft")
+		utils.LogAPIRespV2("GetAllLabelGroups", a)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
+		allLabelGroups := pce.LabelGroupsSlice
 		for _, lg := range allLabelGroups {
 			labelGroupMap[lg.Href] = lg
 		}
@@ -115,7 +117,7 @@ func ExportRuleSets(pce illumioapi.PCE, outputFileName string, templateFormat bo
 		allScopesSlice := []string{}
 		// Check for custom iptables rules
 		customIPTables := false
-		if len(rs.IPTablesRules) != 0 {
+		if len(illumioapi.PtrToVal(rs.IPTablesRules)) != 0 {
 			customIPTables = true
 		}
 		utils.LogInfo(fmt.Sprintf("custom iptables rules: %t", customIPTables), false)
@@ -137,7 +139,7 @@ func ExportRuleSets(pce illumioapi.PCE, outputFileName string, templateFormat bo
 		}
 
 		// Append to the CSV data
-		entry := []string{rs.Name, strconv.FormatBool(*rs.Enabled), rs.Description, strings.Join(allScopesSlice, "|"), strconv.FormatBool(customIPTables)}
+		entry := []string{rs.Name, strconv.FormatBool(*rs.Enabled), illumioapi.PtrToVal(rs.Description), strings.Join(allScopesSlice, "|"), strconv.FormatBool(customIPTables)}
 		if !templateFormat {
 			entry = append(entry, rs.Href)
 		}
