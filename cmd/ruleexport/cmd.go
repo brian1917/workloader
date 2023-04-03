@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brian1917/illumioapi"
+	ia "github.com/brian1917/illumioapi/v2"
 
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
@@ -20,17 +20,17 @@ import (
 // Declare local global variables
 var err error
 
-// Input is the input format for the rule-export command
-type Input struct {
-	PCE                                                                       illumioapi.PCE
+// RuleExport is the input format for the rule-export command
+type RuleExport struct {
+	PCE                                                                       *ia.PCE
 	Debug, Edge, ExpandServices, TrafficCount, SkipWkldDetailCheck            bool
 	OutputFileName, ExplorerStart, ExplorerEnd, ExclServiceCSV, PolicyVersion string
 	ExplorerMax                                                               int
 	NoHref                                                                    bool
-	RulesetHrefs                                                              []string
+	RulesetHrefs                                                              *[]string
 }
 
-var input Input
+var input RuleExport
 var userProvidedRulesetHrefs string
 
 // Init handles flags
@@ -66,24 +66,28 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 		}
 
 		// Get the PCE
-		input.PCE, err = utils.GetTargetPCE(false)
+		input.PCE = &ia.PCE{}
+		*input.PCE, err = utils.GetTargetPCEV2(false)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
 
-		ExportRules(input)
+		input.ExportToCsv()
 	},
 }
 
 // ExportRules exports rules from the PCE
-func ExportRules(input Input) {
+func (r *RuleExport) ExportToCsv() {
 
 	// Log command execution
 	utils.LogStartCommand("rule-export")
 
+	// Initialize Slice
+	input.RulesetHrefs = &[]string{}
+
 	// Get version
 	version, api, err := input.PCE.GetVersion()
-	utils.LogAPIResp("GetVersion", api)
+	utils.LogAPIRespV2("GetVersion", api)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -92,10 +96,10 @@ func ExportRules(input Input) {
 		pceVersionIncludesUseSubnets = true
 	}
 
-	// GetAllRulesets
+	// GetAllRulesets first to see what objects we need.
 	utils.LogInfo("getting all rulesets...", true)
-	allPCERulesets, a, err := input.PCE.GetRulesets(nil, input.PolicyVersion)
-	utils.LogAPIResp("GetAllRuleSets", a)
+	a, err := input.PCE.GetRulesets(nil, input.PolicyVersion)
+	utils.LogAPIRespV2("GetAllRuleSets", a)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -108,21 +112,21 @@ func ExportRules(input Input) {
 		}
 		for _, row := range data {
 			if strings.Contains(row[0], "/orgs/") {
-				input.RulesetHrefs = append(input.RulesetHrefs, row[0])
+				*input.RulesetHrefs = append(*input.RulesetHrefs, row[0])
 			}
 		}
 	}
 
-	allRuleSets := []illumioapi.RuleSet{}
-	if len(input.RulesetHrefs) == 0 {
-		allRuleSets = allPCERulesets
+	allRuleSets := []ia.RuleSet{}
+	if len(*input.RulesetHrefs) == 0 {
+		allRuleSets = input.PCE.RuleSetsSlice
 	} else {
 		// Create a map
 		targetRuleSets := make(map[string]bool)
-		for _, h := range input.RulesetHrefs {
+		for _, h := range *input.RulesetHrefs {
 			targetRuleSets[h] = true
 		}
-		for _, rs := range allPCERulesets {
+		for _, rs := range input.PCE.RuleSetsSlice {
 			if targetRuleSets[rs.Href] {
 				allRuleSets = append(allRuleSets, rs)
 			}
@@ -132,7 +136,7 @@ func ExportRules(input Input) {
 	// Get total number of rulesets
 	totalNumRules := 0
 	for _, rs := range allRuleSets {
-		for range rs.Rules {
+		for range ia.PtrToVal(rs.Rules) {
 			totalNumRules++
 		}
 	}
@@ -142,18 +146,16 @@ func ExportRules(input Input) {
 	// Needed objects is for logging. Only add to this slice first time (when value is false and switches to true)
 	neededObjects := map[string]bool{"labels": true, "ip_lists": true, "services": true}
 	for _, rs := range allRuleSets {
-		if rs.Scopes != nil {
-			for _, scopes := range *rs.Scopes {
-				for _, scopeEntity := range scopes {
-					if scopeEntity.LabelGroup != nil {
-						neededObjects["label_group"] = true
-						needLabelGroups = true
-					}
+		for _, scopes := range ia.PtrToVal(rs.Scopes) {
+			for _, scopeEntity := range scopes {
+				if scopeEntity.LabelGroup != nil {
+					neededObjects["label_group"] = true
+					needLabelGroups = true
 				}
 			}
 		}
-		for _, r := range rs.Rules {
-			for _, c := range r.Consumers {
+		for _, rule := range ia.PtrToVal(rs.Rules) {
+			for _, c := range ia.PtrToVal(rule.Consumers) {
 				if c.Workload != nil {
 					neededObjects["workloads"] = true
 					needWklds = true
@@ -167,7 +169,7 @@ func ExportRules(input Input) {
 					needLabelGroups = true
 				}
 			}
-			for _, p := range r.Providers {
+			for _, p := range ia.PtrToVal(rule.Providers) {
 				if p.Workload != nil {
 					neededObjects["workloads"] = true
 					needWklds = true
@@ -185,7 +187,7 @@ func ExportRules(input Input) {
 					needLabelGroups = true
 				}
 			}
-			if r.ConsumingSecurityPrincipals != nil && len(r.ConsumingSecurityPrincipals) > 0 {
+			if rule.ConsumingSecurityPrincipals != nil && len(ia.PtrToVal(rule.ConsumingSecurityPrincipals)) > 0 {
 				neededObjects["consuming_security_principals"] = true
 				needUserGroups = true
 			}
@@ -198,7 +200,7 @@ func ExportRules(input Input) {
 		neededObjectsSlice = append(neededObjectsSlice, n)
 	}
 	utils.LogInfo(fmt.Sprintf("getting %s ...", strings.Join(neededObjectsSlice, ", ")), true)
-	apiResps, err := input.PCE.Load(illumioapi.LoadInput{
+	apiResps, err := input.PCE.Load(ia.LoadInput{
 		Labels:                      true,
 		IPLists:                     true,
 		Services:                    true,
@@ -208,8 +210,8 @@ func ExportRules(input Input) {
 		VirtualServices:             needVirtualServices,
 		VirtualServers:              needVirtualServers,
 		ProvisionStatus:             input.PolicyVersion,
-	})
-	utils.LogMultiAPIResp(apiResps)
+	}, utils.UseMulti())
+	utils.LogMultiAPIRespV2(apiResps)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -219,19 +221,19 @@ func ExportRules(input Input) {
 	noCount := 0
 	if input.TrafficCount && !input.SkipWkldDetailCheck {
 		if !needWklds {
-			w, api, err := input.PCE.GetWklds(map[string]string{"visibility_level": "flow_off"})
-			utils.LogAPIResp("GetWklds?visibility_level=flow_off", api)
+			api, err := input.PCE.GetWklds(map[string]string{"visibility_level": "flow_off"})
+			utils.LogAPIRespV2("GetWklds?visibility_level=flow_off", api)
 			if err != nil {
 				utils.LogError(err.Error())
 			}
-			noCount = len(w)
+			noCount = len(input.PCE.WorkloadsSlice)
 
-			w, api, err = input.PCE.GetWklds(map[string]string{"visibility_level": "flow_drops"})
-			utils.LogAPIResp("GetWklds?visibility_level=flow_drops", api)
+			api, err = input.PCE.GetWklds(map[string]string{"visibility_level": "flow_drops"})
+			utils.LogAPIRespV2("GetWklds?visibility_level=flow_drops", api)
 			if err != nil {
 				utils.LogError(err.Error())
 			}
-			lowCount = len(w)
+			lowCount = len(input.PCE.WorkloadsSlice)
 		} else {
 			for _, wkld := range input.PCE.Workloads {
 				if wkld.GetMode() == "enforced-low" {
@@ -289,59 +291,57 @@ func ExportRules(input Input) {
 		totalRulesets++
 
 		// Log ruleset processing
-		utils.LogInfo(fmt.Sprintf("processing ruleset %s with %d rules", rs.Name, len(rs.Rules)), false)
+		utils.LogInfo(fmt.Sprintf("processing ruleset %s with %d rules", rs.Name, len(ia.PtrToVal(rs.Rules))), false)
 
 		// Set scope
 		scopes := []string{}
 
 		// Iterate through each scope
-		if rs.Scopes != nil {
-			for _, scope := range *rs.Scopes {
-				scopeStrSlice := []string{}
-				for _, scopeMember := range scope {
-					if scopeMember.Label != nil {
-						scopeStrSlice = append(scopeStrSlice, fmt.Sprintf("%s:%s", input.PCE.Labels[scopeMember.Label.Href].Key, input.PCE.Labels[scopeMember.Label.Href].Value))
-					}
-					if scopeMember.LabelGroup != nil {
-						scopeStrSlice = append(scopeStrSlice, fmt.Sprintf("%s:%s", input.PCE.LabelGroups[scopeMember.LabelGroup.Href].Key, input.PCE.LabelGroups[scopeMember.LabelGroup.Href].Name))
-					}
+		for _, scope := range ia.PtrToVal(rs.Scopes) {
+			scopeStrSlice := []string{}
+			for _, scopeMember := range scope {
+				if scopeMember.Label != nil {
+					scopeStrSlice = append(scopeStrSlice, fmt.Sprintf("%s:%s", input.PCE.Labels[scopeMember.Label.Href].Key, input.PCE.Labels[scopeMember.Label.Href].Value))
 				}
-				scopes = append(scopes, strings.Join(scopeStrSlice, ";"))
+				if scopeMember.LabelGroup != nil {
+					scopeStrSlice = append(scopeStrSlice, fmt.Sprintf("%s:%s", input.PCE.LabelGroups[scopeMember.LabelGroup.Href].Key, input.PCE.LabelGroups[scopeMember.LabelGroup.Href].Name))
+				}
 			}
+			scopes = append(scopes, strings.Join(scopeStrSlice, ";"))
 		}
 
 		// Process each rule
-		for _, r := range rs.Rules {
+		for _, rule := range ia.PtrToVal(rs.Rules) {
 			totalRules++
 			csvEntryMap := make(map[string]string)
 			// Populate the map with basic info
 			csvEntryMap[HeaderRuleSetScope] = strings.Join(scopes, ";")
 			csvEntryMap[HeaderRulesetHref] = rs.Href
-			csvEntryMap[HeaderRulesetEnabled] = strconv.FormatBool(*rs.Enabled)
-			csvEntryMap[HeaderRulesetDescription] = rs.Description
+			csvEntryMap[HeaderRulesetEnabled] = strconv.FormatBool(ia.PtrToVal(rs.Enabled))
+			csvEntryMap[HeaderRulesetDescription] = ia.PtrToVal(rs.Description)
 			csvEntryMap[HeaderRulesetName] = rs.Name
-			csvEntryMap[HeaderRuleHref] = r.Href
-			csvEntryMap[HeaderRuleDescription] = r.Description
-			csvEntryMap[HeaderRuleEnabled] = strconv.FormatBool(*r.Enabled)
-			csvEntryMap[HeaderUnscopedConsumers] = strconv.FormatBool(*r.UnscopedConsumers)
-			csvEntryMap[HeaderStateless] = strconv.FormatBool(*r.Stateless)
-			csvEntryMap[HeaderMachineAuthEnabled] = strconv.FormatBool(*r.MachineAuth)
-			csvEntryMap[HeaderSecureConnectEnabled] = strconv.FormatBool(*r.SecConnect)
-			csvEntryMap[HeaderNetworkType] = r.NetworkType
-			if r.UpdateType == "update" {
+			csvEntryMap[HeaderRuleHref] = rule.Href
+			csvEntryMap[HeaderRuleDescription] = ia.PtrToVal(rule.Description)
+			csvEntryMap[HeaderRuleEnabled] = strconv.FormatBool(ia.PtrToVal(rule.Enabled))
+			csvEntryMap[HeaderUnscopedConsumers] = strconv.FormatBool(ia.PtrToVal(rule.UnscopedConsumers))
+			csvEntryMap[HeaderStateless] = strconv.FormatBool(ia.PtrToVal(rule.Stateless))
+			csvEntryMap[HeaderMachineAuthEnabled] = strconv.FormatBool(ia.PtrToVal(rule.MachineAuth))
+			csvEntryMap[HeaderSecureConnectEnabled] = strconv.FormatBool(ia.PtrToVal(rule.SecConnect))
+			csvEntryMap[HeaderNetworkType] = rule.NetworkType
+			if rule.UpdateType == "update" {
 				csvEntryMap[HeaderUpdateType] = "Modification Pending"
-			} else if r.UpdateType == "delete" {
+			} else if rule.UpdateType == "delete" {
 				csvEntryMap[HeaderUpdateType] = "Deletion Pending"
-			} else if r.UpdateType == "create" {
+			} else if rule.UpdateType == "create" {
 				csvEntryMap[HeaderUpdateType] = "Addition Pending"
 			} else {
-				csvEntryMap[HeaderUpdateType] = r.UpdateType
+				csvEntryMap[HeaderUpdateType] = rule.UpdateType
 			}
 
 			// Consumers
 			consumerLabels := []string{}
-			for _, c := range r.Consumers {
-				if c.Actors == "ams" {
+			for _, c := range ia.PtrToVal(rule.Consumers) {
+				if ia.PtrToVal(c.Actors) == "ams" {
 					csvEntryMap[HeaderConsumerAllWorkloads] = "true"
 					continue
 				}
@@ -379,10 +379,10 @@ func ExportRules(input Input) {
 					// Get the hostname
 					pceHostname := ""
 					if pceWorkload, ok := input.PCE.Workloads[c.Workload.Href]; ok {
-						if pceWorkload.Hostname != "" {
-							pceHostname = pceWorkload.Hostname
+						if ia.PtrToVal(pceWorkload.Hostname) != "" {
+							pceHostname = ia.PtrToVal(pceWorkload.Hostname)
 						} else {
-							pceHostname = pceWorkload.Name
+							pceHostname = ia.PtrToVal(pceWorkload.Name)
 						}
 					} else {
 						pceHostname = "DELETED-WORKLOAD"
@@ -397,16 +397,16 @@ func ExportRules(input Input) {
 
 			// Consuming Security Principals
 			consumingSecPrincipals := []string{}
-			for _, csp := range r.ConsumingSecurityPrincipals {
+			for _, csp := range ia.PtrToVal(rule.ConsumingSecurityPrincipals) {
 				consumingSecPrincipals = append(consumingSecPrincipals, input.PCE.ConsumingSecurityPrincipals[csp.Href].Name)
 			}
 			csvEntryMap[HeaderConsumerUserGroups] = strings.Join(consumingSecPrincipals, ";")
 
 			// Providers
 			providerLabels := []string{}
-			for _, p := range r.Providers {
+			for _, p := range ia.PtrToVal(rule.Providers) {
 
-				if p.Actors == "ams" {
+				if ia.PtrToVal(p.Actors) == "ams" {
 					csvEntryMap[HeaderProviderAllWorkloads] = "true"
 					continue
 				}
@@ -444,10 +444,10 @@ func ExportRules(input Input) {
 					// Get the hostname
 					pceHostname := ""
 					if pceWorkload, ok := input.PCE.Workloads[p.Workload.Href]; ok {
-						if pceWorkload.Hostname != "" {
-							pceHostname = pceWorkload.Hostname
+						if ia.PtrToVal(pceWorkload.Hostname) != "" {
+							pceHostname = ia.PtrToVal(pceWorkload.Hostname)
 						} else {
-							pceHostname = pceWorkload.Name
+							pceHostname = ia.PtrToVal(pceWorkload.Name)
 						}
 					} else {
 						pceHostname = "DELETED-WORKLOAD"
@@ -475,52 +475,52 @@ func ExportRules(input Input) {
 			// Services
 			services := []string{}
 			// Iterate through ingress service
-			for _, s := range *r.IngressServices {
+			for _, s := range ia.PtrToVal(rule.IngressServices) {
 				// Windows Services
-				if s.Href != nil && input.PCE.Services[*s.Href].WindowsServices != nil {
-					a := input.PCE.Services[*s.Href]
+				if input.PCE.Services[s.Href].WindowsServices != nil {
+					a := input.PCE.Services[s.Href]
 					b, _ := a.ParseService()
 					if !input.ExpandServices {
-						services = append(services, input.PCE.Services[*s.Href].Name)
+						services = append(services, input.PCE.Services[s.Href].Name)
 					} else {
-						services = append(services, fmt.Sprintf("%s (%s)", input.PCE.Services[*s.Href].Name, strings.Join(b, ";")))
+						services = append(services, fmt.Sprintf("%s (%s)", input.PCE.Services[s.Href].Name, strings.Join(b, ";")))
 					}
 				}
 				// Port/Proto Services
-				if s.Href != nil && input.PCE.Services[*s.Href].ServicePorts != nil {
-					a := input.PCE.Services[*s.Href]
+				if input.PCE.Services[s.Href].ServicePorts != nil {
+					a := input.PCE.Services[s.Href]
 					_, b := a.ParseService()
-					if input.PCE.Services[*s.Href].Name == "All Services" {
+					if input.PCE.Services[s.Href].Name == "All Services" {
 						services = append(services, "All Services")
 					} else {
 						if !input.ExpandServices {
-							services = append(services, input.PCE.Services[*s.Href].Name)
+							services = append(services, input.PCE.Services[s.Href].Name)
 						} else {
-							services = append(services, fmt.Sprintf("%s (%s)", input.PCE.Services[*s.Href].Name, strings.Join(b, ";")))
+							services = append(services, fmt.Sprintf("%s (%s)", input.PCE.Services[s.Href].Name, strings.Join(b, ";")))
 						}
 					}
 				}
 
 				// Port or port ranges
-				if s.Href == nil {
-					if s.ToPort == nil || *s.ToPort == 0 {
-						services = append(services, fmt.Sprintf("%d %s", *s.Port, illumioapi.ProtocolList()[*s.Protocol]))
+				if s.Href == "" {
+					if ia.PtrToVal(s.ToPort) == 0 {
+						services = append(services, fmt.Sprintf("%d %s", ia.PtrToVal(s.Port), ia.ProtocolList()[ia.PtrToVal(s.Protocol)]))
 					} else {
-						services = append(services, fmt.Sprintf("%d-%d %s", *s.Port, *s.ToPort, illumioapi.ProtocolList()[*s.Protocol]))
+						services = append(services, fmt.Sprintf("%d-%d %s", ia.PtrToVal(s.Port), ia.PtrToVal(s.ToPort), ia.ProtocolList()[ia.PtrToVal(s.Protocol)]))
 					}
 				}
+				csvEntryMap[HeaderServices] = strings.Join(services, ";")
 			}
-			csvEntryMap[HeaderServices] = strings.Join(services, ";")
 
 			// Resolve As
-			csvEntryMap[HeaderConsumerResolveLabelsAs] = strings.Join(r.ResolveLabelsAs.Consumers, ";")
-			csvEntryMap[HeaderProviderResolveLabelsAs] = strings.Join(r.ResolveLabelsAs.Providers, ";")
+			csvEntryMap[HeaderConsumerResolveLabelsAs] = strings.Join(ia.PtrToVal(rule.ResolveLabelsAs.Consumers), ";")
+			csvEntryMap[HeaderProviderResolveLabelsAs] = strings.Join(ia.PtrToVal(rule.ResolveLabelsAs.Providers), ";")
 
 			// Use Workload Subnets
 			if pceVersionIncludesUseSubnets {
 				csvEntryMap[HeaderConsumerUseWorkloadSubnets] = "false"
 				csvEntryMap[HeaderProviderUseWorkloadSubnets] = "false"
-				for _, u := range r.UseWorkloadSubnets {
+				for _, u := range ia.PtrToVal(rule.UseWorkloadSubnets) {
 					if u == "consumers" {
 						csvEntryMap[HeaderConsumerUseWorkloadSubnets] = "true"
 					}
@@ -541,7 +541,7 @@ func ExportRules(input Input) {
 			}
 
 			if input.TrafficCount {
-				data, skipped := trafficCounter(input, rs, *r, fmt.Sprintf("%d of %d", totalRules, totalNumRules))
+				data, skipped := input.TrafficCounter(&rs, &rule, fmt.Sprintf("%d of %d", totalRules, totalNumRules))
 				if skipped {
 					skippedRules++
 				}
