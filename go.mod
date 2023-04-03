@@ -15,8 +15,6 @@ require (
 	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035
 )
 
-replace github.com/brian1917/illumioapi/v2 => /Users/brian.pitta/go/src/github.com/brian1917/illumioapi
-
 require (
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.9.18 // indirect
