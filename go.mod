@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/Azure/go-autorest/autorest/azure/cli v0.4.6
 	github.com/brian1917/illumioapi v1.83.0
-	github.com/brian1917/illumioapi/v2 v2.0.0-beta.8
+	github.com/brian1917/illumioapi/v2 v2.0.0-beta.9
 	github.com/brian1917/ns v1.2.0
 	github.com/brian1917/workloader/utils v1.0.0
 	github.com/google/uuid v1.1.2
@@ -14,6 +14,8 @@ require (
 	github.com/spf13/viper v1.15.0
 	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035
 )
+
+replace github.com/brian1917/illumioapi/v2 => /Users/brian.pitta/go/src/github.com/brian1917/illumioapi
 
 require (
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
