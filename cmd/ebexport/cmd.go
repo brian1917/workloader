@@ -173,6 +173,8 @@ func ExportEBs(pce ia.PCE, outputFileName string, noHref bool) {
 					} else {
 						services = append(services, fmt.Sprintf("%s (%s)", pce.Services[s.Href].Name, strings.Join(b, ";")))
 					}
+					// Skip processing the services
+					continue
 				}
 				// Port/Proto Services
 				if pce.Services[s.Href].ServicePorts != nil {
@@ -187,13 +189,19 @@ func ExportEBs(pce ia.PCE, outputFileName string, noHref bool) {
 							services = append(services, fmt.Sprintf("%s (%s)", pce.Services[s.Href].Name, strings.Join(b, ";")))
 						}
 					}
+					// Skip processing the services
+					continue
 				}
 
 				// Port or port ranges
-				if s.ToPort == nil || *s.ToPort == 0 {
-					services = append(services, fmt.Sprintf("%d %s", *s.Port, ia.ProtocolList()[*s.Protocol]))
+				protocol := ia.ProtocolList()[ia.PtrToVal(s.Protocol)]
+				if ia.PtrToVal(s.Protocol) == 0 {
+					protocol = ""
+				}
+				if ia.PtrToVal(s.ToPort) == 0 {
+					services = append(services, fmt.Sprintf("%d %s", ia.PtrToVal(s.Port), protocol))
 				} else {
-					services = append(services, fmt.Sprintf("%d-%d %s", *s.Port, *s.ToPort, ia.ProtocolList()[*s.Protocol]))
+					services = append(services, fmt.Sprintf("%d-%d %s", ia.PtrToVal(s.Port), ia.PtrToVal(s.ToPort), protocol))
 				}
 			}
 		}
