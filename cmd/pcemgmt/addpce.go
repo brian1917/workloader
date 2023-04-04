@@ -65,7 +65,7 @@ The --update-pce and --no-prompt flags are ignored for this command.
 	},
 }
 
-//addPCE creates a YAML file for authentication
+// addPCE creates a YAML file for authentication
 func addPCE() {
 
 	// Log start
@@ -190,8 +190,6 @@ func addPCE() {
 		}
 	}
 
-	//
-
 	var userLogin illumioapi.UserLogin
 
 	// If using an API key, build the PCE and check authentication
@@ -211,7 +209,7 @@ func addPCE() {
 
 	// Process session if set
 	var apiResponses []illumioapi.APIResponse
-	if !noAuth {
+	if !noAuth && !useAPIKey {
 		// Generate session credentials if session flag set
 		if session {
 			fmt.Println("\r\nAuthenticating ...")
@@ -239,7 +237,7 @@ func addPCE() {
 				utils.LogError(fmt.Sprintf("error generating API key - %s", err))
 			}
 		}
-	} else {
+	} else if noAuth {
 		// Generate PCE if no auth set
 		pce = illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS, Org: org}
 	}
