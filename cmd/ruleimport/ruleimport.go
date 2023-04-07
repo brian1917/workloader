@@ -331,7 +331,7 @@ CSVEntries:
 				update = true
 			}
 			for _, ipl := range ipls {
-				consumers = append(consumers, illumioapi.ConsumerOrProvider{IPList: &ipl})
+				consumers = append(consumers, illumioapi.ConsumerOrProvider{IPList: &illumioapi.IPList{Href: ipl.Href}})
 			}
 		}
 
@@ -346,7 +346,7 @@ CSVEntries:
 				update = true
 			}
 			for _, wkld := range wklds {
-				consumers = append(consumers, illumioapi.ConsumerOrProvider{Workload: &wkld})
+				consumers = append(consumers, illumioapi.ConsumerOrProvider{Workload: &illumioapi.Workload{Href: wkld.Href}})
 			}
 		}
 
@@ -361,7 +361,7 @@ CSVEntries:
 				update = true
 			}
 			for _, vs := range virtualServices {
-				consumers = append(consumers, illumioapi.ConsumerOrProvider{VirtualService: &vs})
+				consumers = append(consumers, illumioapi.ConsumerOrProvider{VirtualService: &illumioapi.VirtualService{Href: vs.Href}})
 			}
 		}
 
@@ -376,7 +376,7 @@ CSVEntries:
 				update = true
 			}
 			for _, lg := range lgs {
-				consumers = append(consumers, illumioapi.ConsumerOrProvider{LabelGroup: &lg})
+				consumers = append(consumers, illumioapi.ConsumerOrProvider{LabelGroup: &illumioapi.LabelGroup{Href: lg.Href}})
 			}
 		}
 
@@ -470,7 +470,7 @@ CSVEntries:
 				update = true
 			}
 			for _, ipl := range ipls {
-				providers = append(providers, illumioapi.ConsumerOrProvider{IPList: &ipl})
+				providers = append(providers, illumioapi.ConsumerOrProvider{IPList: &illumioapi.IPList{Href: ipl.Href}})
 			}
 		}
 
@@ -485,7 +485,7 @@ CSVEntries:
 				update = true
 			}
 			for _, wkld := range wklds {
-				providers = append(providers, illumioapi.ConsumerOrProvider{Workload: &wkld})
+				providers = append(providers, illumioapi.ConsumerOrProvider{Workload: &illumioapi.Workload{Href: wkld.Href}})
 			}
 		}
 
@@ -500,7 +500,7 @@ CSVEntries:
 				update = true
 			}
 			for _, vs := range virtualServices {
-				providers = append(providers, illumioapi.ConsumerOrProvider{VirtualService: &vs})
+				providers = append(providers, illumioapi.ConsumerOrProvider{VirtualService: &illumioapi.VirtualService{Href: vs.Href}})
 			}
 		}
 
@@ -515,7 +515,7 @@ CSVEntries:
 				update = true
 			}
 			for _, lg := range lgs {
-				providers = append(providers, illumioapi.ConsumerOrProvider{LabelGroup: &lg})
+				providers = append(providers, illumioapi.ConsumerOrProvider{LabelGroup: &illumioapi.LabelGroup{Href: lg.Href}})
 			}
 		}
 
