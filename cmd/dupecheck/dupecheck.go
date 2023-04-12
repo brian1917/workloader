@@ -5,18 +5,20 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brian1917/illumioapi"
+	ia "github.com/brian1917/illumioapi/v2"
+	"github.com/brian1917/workloader/cmd/wkldexport"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
 )
 
-var pce illumioapi.PCE
-var caseSensitive bool
+var pce ia.PCE
+var caseSensitive, oneInterfaceMatch bool
 var outputFileName string
 var err error
 
 func init() {
 	DupeCheckCmd.Flags().BoolVarP(&caseSensitive, "case-sensitive", "c", false, "Require hostname/name matches to be case-sensitve.")
+	DupeCheckCmd.Flags().BoolVar(&oneInterfaceMatch, "one-interface-match", false, "consider a match if at least one interface matches. default requires all interfaces to match.")
 	DupeCheckCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 
 	DupeCheckCmd.Flags().SortFlags = false
@@ -29,12 +31,12 @@ var DupeCheckCmd = &cobra.Command{
 	Long: `
 Identifies unmanaged workloads with hostnames, names, or IP addresses also assigned to managed workloads.
 
-Interfaces with the default gateway are used on managed workloads.
+Interfaces with a default gateway are used on managed workloads.
 
 The --update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetTargetPCE(true)
+		pce, err = utils.GetTargetPCEV2(false)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -47,31 +49,58 @@ func dupeCheck() {
 	utils.LogStartCommand("dupecheck")
 
 	// Get all workloads
-	wklds, a, err := pce.GetWklds(nil)
-	utils.LogAPIResp("GetAllWorkloads", a)
+	apiResps, err := pce.Load(ia.LoadInput{Workloads: true, Labels: true, LabelDimensions: true}, utils.UseMulti())
+	utils.LogMultiAPIRespV2(apiResps)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
 
+	ldSlice := []string{}
+	for _, ld := range pce.LabelDimensionsSlice {
+		ldSlice = append(ldSlice, ld.Key)
+	}
+
+	headers := append([]string{"href", "hostname", "name", "interfaces"}, ldSlice...)
+	// Get workload export data
+	wkldExport := wkldexport.WkldExport{
+		PCE:         &pce,
+		ManagedOnly: false,
+		Headers:     strings.Join(headers, ","),
+	}
+	wkldExportData := wkldExport.ExportToCsv()
+	csvDataMap := make(map[string]map[string]string)
+	for rowIndex, row := range wkldExportData {
+		if rowIndex == 0 {
+			continue
+		}
+		csvDataMap[row[0]] = make(map[string]string)
+		for colIndex, col := range row {
+			csvDataMap[row[0]][headers[colIndex]] = col
+		}
+
+	}
+
 	// Get all managed workloads
-	managedHostNameMap := make(map[string]illumioapi.Workload)
-	managedIPAddressMap := make(map[string]illumioapi.Workload)
-	unmanagedWklds := []illumioapi.Workload{}
-	for _, w := range wklds {
+	managedHostNameMap := make(map[string]ia.Workload)
+	managedIPAddressMap := make(map[string]ia.Workload)
+	unmanagedWklds := []ia.Workload{}
+	for _, w := range pce.WorkloadsSlice {
 		if w.GetMode() == "unmanaged" {
 			unmanagedWklds = append(unmanagedWklds, w)
 		} else {
 			if caseSensitive {
-				managedHostNameMap[w.Hostname] = w
+				managedHostNameMap[ia.PtrToVal(w.Hostname)] = w
 			} else {
-				managedHostNameMap[strings.ToLower(w.Hostname)] = w
+				managedHostNameMap[strings.ToLower(ia.PtrToVal(w.Hostname))] = w
 			}
-			managedIPAddressMap[w.GetIPWithDefaultGW()] = w
+			for _, ip := range w.GetIsPWithDefaultGW() {
+				managedIPAddressMap[ip] = w
+			}
 		}
 	}
 
 	// Start the header
-	data := [][]string{{"href", "hostname", "name", "interfaces", "role", "app", "env", "loc", "reason"}}
+	outputData := [][]string{append(headers, "reason")}
 
 	// Iterate through unmanaged workloads
 	for _, umwl := range unmanagedWklds {
@@ -79,18 +108,18 @@ func dupeCheck() {
 		reason := []string{}
 
 		// Check managed hostnames
-		hostname := strings.ToLower(umwl.Hostname)
+		hostname := strings.ToLower(ia.PtrToVal(umwl.Hostname))
 		if caseSensitive {
-			hostname = umwl.Hostname
+			hostname = ia.PtrToVal(umwl.Hostname)
 		}
 		if val, ok := managedHostNameMap[hostname]; ok {
 			reason = append(reason, fmt.Sprintf("unmanaged workload hostname matches with hostname of managed workload %s", val.Href))
 		}
 
 		// Check managed names
-		name := strings.ToLower(umwl.Name)
+		name := strings.ToLower(ia.PtrToVal(umwl.Name))
 		if caseSensitive {
-			name = umwl.Name
+			name = ia.PtrToVal(umwl.Name)
 		}
 		if val, ok := managedHostNameMap[name]; ok {
 			reason = append(reason, fmt.Sprintf("unmanaged workload name matches with hostname of managed workload %s", val.Href))
@@ -99,31 +128,36 @@ func dupeCheck() {
 		// Check interfaces - all must exist in managed workloads to count.
 		ifaceMatchCount := 0
 		matches := []string{}
-		interfaceList := []string{}
-		for _, iface := range umwl.Interfaces {
-			interfaceList = append(interfaceList, fmt.Sprintf("%s:%s", iface.Name, iface.Address))
+		for _, iface := range ia.PtrToVal(umwl.Interfaces) {
 			if val, ok := managedIPAddressMap[iface.Address]; ok {
 				ifaceMatchCount++
 				matches = append(matches, val.Href)
 			}
 		}
-		if ifaceMatchCount == len(umwl.Interfaces) {
+		if ifaceMatchCount == len(ia.PtrToVal(umwl.Interfaces)) {
 			reason = append(reason, fmt.Sprintf("unmanaged interfaces match to managed IP addresses of %s", strings.Join(matches, "; ")))
+		} else if ifaceMatchCount == 1 && oneInterfaceMatch {
+			reason = append(reason, fmt.Sprintf("one-interface-match set to true and unmanaged interfaces matches to one of a managed IP addresses of %s", strings.Join(matches, "; ")))
 		}
 
 		// If we have reasons, append
 		if len(reason) > 0 {
-			data = append(data, []string{umwl.Href, umwl.Hostname, umwl.Name, strings.Join(interfaceList, ";"), umwl.GetRole(pce.Labels).Value, umwl.GetApp(pce.Labels).Value, umwl.GetEnv(pce.Labels).Value, umwl.GetLoc(pce.Labels).Value, strings.Join(reason, ";")})
+			outputCsvRow := []string{}
+			for _, header := range headers {
+				outputCsvRow = append(outputCsvRow, csvDataMap[umwl.Href][header])
+			}
+			outputCsvRow = append(outputCsvRow, strings.Join(reason, ";"))
+			outputData = append(outputData, outputCsvRow)
 		}
 
 	}
 	// Write the output
-	if len(data) > 1 {
+	if len(outputData) > 1 {
 		if outputFileName == "" {
 			outputFileName = fmt.Sprintf("workloader-dupecheck-%s.csv", time.Now().Format("20060102_150405"))
 		}
-		utils.WriteOutput(data, data, outputFileName)
-		utils.LogInfo(fmt.Sprintf("%d unmanaged workloads found. See %s for output. The output file can be used as input to workloader delete command.", len(data)-1, outputFileName), true)
+		utils.WriteOutput(outputData, outputData, outputFileName)
+		utils.LogInfo(fmt.Sprintf("%d unmanaged workloads found. The output file can be used as input to workloader delete command.", len(outputData)-1), true)
 	} else {
 		utils.LogInfo("No duplicates found", true)
 	}
