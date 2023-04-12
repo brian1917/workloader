@@ -5,14 +5,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brian1917/illumioapi"
-
+	ia "github.com/brian1917/illumioapi/v2"
+	"github.com/brian1917/workloader/cmd/wkldexport"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
 )
 
 // Declare local global variables
-var pce illumioapi.PCE
+var pce ia.PCE
 var err error
 var oneInterfaceMatch bool
 var outputFileName string
@@ -40,7 +40,7 @@ Additionally, the output can be passed into the delete command with the --header
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
-		pce, err = utils.GetTargetPCE(true)
+		pce, err = utils.GetTargetPCEV2(false)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -54,36 +54,72 @@ func umwlCleanUp() {
 	// Log start of command
 	utils.LogStartCommand("umwl-cleanup")
 
-	// Get all workloads
-	wklds, a, err := pce.GetWklds(nil)
-	utils.LogAPIResp("GetWklds", a)
+	// Get all workloads, labels and label dimensions
+	apiResps, err := pce.Load(ia.LoadInput{Workloads: true, LabelDimensions: true, Labels: true}, utils.UseMulti())
+	utils.LogMultiAPIRespV2(apiResps)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
 
+	ldSlice := []string{}
+	for _, ld := range pce.LabelDimensionsSlice {
+		ldSlice = append(ldSlice, ld.Key)
+	}
+
+	headers := append([]string{"href", "hostname", "name", "interfaces"}, ldSlice...)
+	// Get the workload export data
+	wkldExport := wkldexport.WkldExport{
+		PCE:         &pce,
+		ManagedOnly: false,
+		Headers:     strings.Join(headers, ","),
+	}
+	wkldExportData := wkldExport.ExportToCsv()
+	csvDataMap := make(map[string]map[string]string)
+	for rowIndex, row := range wkldExportData {
+		if rowIndex == 0 {
+			continue
+		}
+		csvDataMap[row[0]] = make(map[string]string)
+		for colIndex, col := range row {
+			csvDataMap[row[0]][headers[colIndex]] = col
+		}
+
+	}
+
 	// Create the maps
-	umwlDefaultIPMap := make(map[string]illumioapi.Workload)
-	managedDefaultIPMap := make(map[string]illumioapi.Workload)
-	allManagedIPMap := make(map[string]illumioapi.Workload)
+	umwlDefaultIPMap := make(map[string]ia.Workload)
+	managedDefaultIPMap := make(map[string]ia.Workload)
+	allManagedIPMap := make(map[string]ia.Workload)
 
 	// Populate the maps
-	for _, w := range wklds {
+	for _, w := range pce.WorkloadsSlice {
 		if w.GetMode() == "unmanaged" {
-			for _, i := range w.Interfaces {
+			for _, i := range ia.PtrToVal(w.Interfaces) {
 				umwlDefaultIPMap[i.Address] = w
 			}
 		} else {
-			for _, i := range w.Interfaces {
+			for _, i := range ia.PtrToVal(w.Interfaces) {
 				allManagedIPMap[i.Address] = w
 			}
 			if w.GetIPWithDefaultGW() != "NA" {
-				managedDefaultIPMap[w.GetIPWithDefaultGW()] = w
+				defaultGWIPs := w.GetIsPWithDefaultGW()
+				for _, ip := range defaultGWIPs {
+					managedDefaultIPMap[ip] = w
+				}
+
 			}
 		}
 	}
 
 	// Start our data slice
-	data := [][]string{{"managed_hostname", "umwl_hostname", "umwl_name", "managed_interfaces", "umwl_interfaces", "managed_role", "umwl_role", "managed_app", "umwl_app", "managed_env", "umwl_env", "managed_loc", "umwl_loc", "umwl_href", "managed_href", "umwl_external_data_set", "umwl_external_data_ref", "managed_external_data_set", "managed_external_data_ref", "href", "role", "app", "env", "loc"}}
+	var managedLabels, unmanagedLabels, labels []string
+	for _, ld := range ldSlice {
+		managedLabels = append(managedLabels, "managed_"+ld)
+		unmanagedLabels = append(unmanagedLabels, "umwl_"+ld)
+	}
+	data := [][]string{{"managed_hostname", "umwl_hostname", "umwl_name", "managed_interfaces", "umwl_interfaces", "managed_href", "unmanaged_href", "managed_external_data_set", "managed_external_data_ref", "umwl_external_data_set", "umwl_external_data_ref"}}
+	data[0] = append(append(data[0], managedLabels...), unmanagedLabels...)
+	data[0] = append(append(data[0], "href"), labels...)
 
 	// Find managed workloads that have the same IP address of an unmanaged workload
 workloads:
@@ -93,25 +129,33 @@ workloads:
 			// Hit here if there's a match. First, check if all IPs match
 			// Get IP strings
 			umwlIPs, managedIPs := []string{}, []string{}
-			for _, i := range umwl.Interfaces {
+			for _, i := range ia.PtrToVal(umwl.Interfaces) {
 				if allManagedIPMap[i.Address].Href != managedWkld.Href && !oneInterfaceMatch {
 					umwlIdentifier := []string{}
-					if umwl.Hostname != "" {
-						umwlIdentifier = append(umwlIdentifier, fmt.Sprintf("hostname: %s", umwl.Hostname))
+					if ia.PtrToVal(umwl.Hostname) != "" {
+						umwlIdentifier = append(umwlIdentifier, fmt.Sprintf("hostname: %s", ia.PtrToVal(umwl.Hostname)))
 					}
-					if umwl.Name != "" {
-						umwlIdentifier = append(umwlIdentifier, fmt.Sprintf("name: %s", umwl.Name))
+					if ia.PtrToVal(umwl.Name) != "" {
+						umwlIdentifier = append(umwlIdentifier, fmt.Sprintf("name: %s", ia.PtrToVal(umwl.Name)))
 					}
-					utils.LogWarning(fmt.Sprintf("Unmanaged workload - %s - has multiple IP addresses. At least one matches managed workload %s, but others do not. Skipping.", strings.Join(umwlIdentifier, ";"), managedWkld.Hostname), true)
+					utils.LogWarning(fmt.Sprintf("Unmanaged workload - %s - has multiple IP addresses. At least one matches managed workload %s, but others do not. Skipping.", strings.Join(umwlIdentifier, ";"), ia.PtrToVal(managedWkld.Hostname)), true)
 					continue workloads
 				}
 				umwlIPs = append(umwlIPs, fmt.Sprintf("%s:%s", i.Name, i.Address))
 			}
-			for _, i := range managedWkld.Interfaces {
+			for _, i := range ia.PtrToVal(managedWkld.Interfaces) {
 				managedIPs = append(managedIPs, fmt.Sprintf("%s:%s", i.Name, i.Address))
 			}
 			//
-			data = append(data, []string{managedWkld.Hostname, umwl.Hostname, umwl.Name, strings.Join(managedIPs, ";"), strings.Join(umwlIPs, ";"), managedWkld.GetRole(pce.Labels).Value, umwl.GetRole(pce.Labels).Value, managedWkld.GetApp(pce.Labels).Value, umwl.GetApp(pce.Labels).Value, managedWkld.GetEnv(pce.Labels).Value, umwl.GetEnv(pce.Labels).Value, managedWkld.GetLoc(pce.Labels).Value, umwl.GetLoc(pce.Labels).Value, umwl.Href, managedWkld.Href, utils.PtrToStr(umwl.ExternalDataSet), utils.PtrToStr(umwl.ExternalDataReference), utils.PtrToStr(managedWkld.ExternalDataSet), utils.PtrToStr(managedWkld.ExternalDataReference), managedWkld.Href, umwl.GetRole(pce.Labels).Value, umwl.GetApp(pce.Labels).Value, umwl.GetEnv(pce.Labels).Value, umwl.GetLoc(pce.Labels).Value})
+			dataRow := []string{ia.PtrToVal(managedWkld.Hostname), ia.PtrToVal(umwl.Hostname), ia.PtrToVal(umwl.Name), strings.Join(managedIPs, ";"), strings.Join(umwlIPs, ";"), managedWkld.Href, umwl.Href, ia.PtrToVal(managedWkld.ExternalDataSet), ia.PtrToVal(managedWkld.ExternalDataReference), ia.PtrToVal(umwl.ExternalDataSet), ia.PtrToVal(umwl.ExternalDataReference)}
+			for _, ld := range ldSlice {
+				dataRow = append(dataRow, managedWkld.GetLabelByKey(ld, pce.Labels).Value)
+			}
+			for _, ld := range ldSlice {
+				dataRow = append(dataRow, umwl.GetLabelByKey(ld, pce.Labels).Value)
+			}
+			data = append(data, dataRow)
+
 		}
 	}
 
