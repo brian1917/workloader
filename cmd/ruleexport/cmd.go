@@ -149,7 +149,7 @@ func (r *RuleExport) ExportToCsv() {
 		for _, scopes := range ia.PtrToVal(rs.Scopes) {
 			for _, scopeEntity := range scopes {
 				if scopeEntity.LabelGroup != nil {
-					neededObjects["label_group"] = true
+					neededObjects["label_groups"] = true
 					needLabelGroups = true
 				}
 			}
