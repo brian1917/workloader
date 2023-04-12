@@ -201,6 +201,9 @@ func init() {
 	// Undocumented
 	RootCmd.AddCommand(extract.ExtractCmd)
 
+	// Deprecated
+	RootCmd.AddCommand(SetDefaultCmd)
+
 	// Set the usage templates
 	for _, c := range RootCmd.Commands() {
 		c.SetUsageTemplate(utils.SubCmdTemplate())
@@ -254,7 +257,6 @@ func init() {
 	SettingsCmd.Flags().StringVar(&defaultPCE, "default-pce", "", "name of pce to be the deafult")
 	SettingsCmd.Flags().StringVar(&continueOnErrorDefault, "continue-on-error-default", "", "continue or stop. continue is equivalent to always using the global continue-on-error flag")
 	SettingsCmd.Flags().StringVar(&getAPIBehavior, "api-behavior", "", "single or multi. single waits for each get api to the pce to complete before calling the next.")
-
 }
 
 var SettingsCmd = &cobra.Command{
@@ -305,5 +307,13 @@ var SettingsCmd = &cobra.Command{
 
 		utils.LogEndCommand("settings")
 
+	},
+}
+
+var SetDefaultCmd = &cobra.Command{
+	Use:   "set-default",
+	Short: "Deprecated command. Use workloader settings --default-pce instead.",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Deprecated command. Use workloader settings --default-pce instead.")
 	},
 }
