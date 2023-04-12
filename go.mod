@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/Azure/go-autorest/autorest/azure/cli v0.4.6
 	github.com/brian1917/illumioapi v1.83.0
-	github.com/brian1917/illumioapi/v2 v2.0.0-beta.9
+	github.com/brian1917/illumioapi/v2 v2.0.0-beta.10
 	github.com/brian1917/ns v1.2.0
 	github.com/brian1917/workloader/utils v1.0.0
 	github.com/google/uuid v1.1.2
@@ -39,6 +39,7 @@ require (
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect
 	golang.org/x/sys v0.3.0 // indirect
 	golang.org/x/text v0.5.0 // indirect
+	gonum.org/v1/gonum v0.12.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
