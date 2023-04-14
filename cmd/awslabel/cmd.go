@@ -19,7 +19,7 @@ import (
 var labelMapping, outputFileName, awsOptions string
 
 func init() {
-	AwsLabelCmd.Flags().StringVarP(&labelMapping, "mapping", "m", "", "mappings of azure tags to illumio labels. the format is a comma-separated list of aws-tag:illumio-label. For example, \"application:app,type:role\" maps the AWS tag of application to the Illumio app label and the Azure type tag to the Illumio role label.")
+	AwsLabelCmd.Flags().StringVarP(&labelMapping, "mapping", "m", "", "mappings of AWS tags to illumio labels. the format is a comma-separated list of aws-tag:illumio-label. For example, \"application:app,type:role\" maps the AWS tag of application to the Illumio app label and the Azure type tag to the Illumio role label.")
 	AwsLabelCmd.Flags().StringVarP(&awsOptions, "awsoptions", "o", "", "AWS CLI can be extended using this option.  Anything added after -o inside quotes will be passed as is(e.g \"--region us-west-1\"")
 	AwsLabelCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 	AwsLabelCmd.MarkFlagRequired("mapping")
@@ -58,7 +58,7 @@ It is recommend to run without --update-pce first to the csv produced and what i
 
 func AwsLabels(labelMapping string, pce *illumioapi.PCE, updatePCE, noPrompt bool) {
 
-	// Create the lookup map where the illumio label is the key and the azure key is the value
+	// Create the lookup map where the illumio label is the key and the AWS key is the value
 	illumioAwsMap := make(map[string]string)
 
 	// Iterate through the user provider mappings
@@ -77,23 +77,16 @@ func AwsLabels(labelMapping string, pce *illumioapi.PCE, updatePCE, noPrompt boo
 		csvData[0] = append(csvData[0], illumioLabel)
 	}
 
+	//Include AWS options if user enters any
 	cmd := exec.Command("aws", "ec2", "describe-instances")
 	if awsOptions != "" {
-		for _, args := range strings.Split(awsOptions, " ") {
-			cmd.Args = append(cmd.Args, args)
-		}
-	}
-	//cmd := exec.Command("echo", "-n", `{"Name": "Bob", "Age": 32}`)
-	// Get the location of the Azure
-	var err error
-	// cmd.Path, err = exec.LookPath("aws")
-	cmd.Env = []string{`AWS_PAGER=""`}
-	if err != nil {
-		utils.LogError(fmt.Sprintf("Cannot find aws cli in path - %s", err.Error()))
+		cmd.Args = append(cmd.Args, strings.Split(awsOptions, " ")...)
 	}
 
+	// Set aws cli to not paginate response.
+	cmd.Env = []string{`AWS_PAGER=""`}
+
 	// Build the VM list command with a pipe
-	//cmd.Args = []string{cmd.Path, "ec2", "describe-instance"}
 	pipe, err := cmd.StdoutPipe()
 	if err != nil {
 		utils.LogError(fmt.Sprintf("pipe error - %s", err.Error()))
@@ -115,7 +108,7 @@ func AwsLabels(labelMapping string, pce *illumioapi.PCE, updatePCE, noPrompt boo
 	json.Unmarshal(bytes, &awsReservations)
 
 	var awsInstanceCount int
-	// Iterate through the azure VMs
+	// Iterate through the AWS VMs
 	for _, reservation := range awsReservations.Reservations {
 		for _, instance := range reservation.Instance {
 
@@ -147,7 +140,7 @@ func AwsLabels(labelMapping string, pce *illumioapi.PCE, updatePCE, noPrompt boo
 		}
 
 	}
-	// Create the output file and call wkld-import
+
 	// Create the output file and call wkld-import
 	if awsInstanceCount > 0 {
 		if outputFileName == "" {

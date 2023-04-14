@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/Azure/go-autorest/autorest/azure/cli v0.4.6
+	github.com/aws/aws-sdk-go v1.44.243
 	github.com/brian1917/illumioapi v1.83.0
 	github.com/brian1917/illumioapi/v2 v2.0.0-beta.12
 	github.com/brian1917/ns v1.2.0
@@ -27,6 +28,7 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
