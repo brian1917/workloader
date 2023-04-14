@@ -56,7 +56,7 @@ func exportContainerProfiles(pce illumioapi.PCE) {
 			utils.LogError(err.Error())
 		}
 		for _, p := range pce.ContainerWorkloadProfilesSlice {
-			if p.Name != nil && *p.Name == "Default Profile" {
+			if illumioapi.PtrToVal(p.Name) == "Default Profile" {
 				continue
 			}
 			p.ClusterName = cc.Name
