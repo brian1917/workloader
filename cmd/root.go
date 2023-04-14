@@ -7,6 +7,7 @@ import (
 
 	"github.com/brian1917/workloader/utils"
 
+	"github.com/brian1917/workloader/cmd/awslabel"
 	"github.com/brian1917/workloader/cmd/azurelabel"
 	"github.com/brian1917/workloader/cmd/checkversion"
 	"github.com/brian1917/workloader/cmd/compatibility"
@@ -155,6 +156,7 @@ func init() {
 
 	// Automation
 	RootCmd.AddCommand(azurelabel.AzureLabelCmd)
+	RootCmd.AddCommand(awslabel.AwsLabelCmd)
 	RootCmd.AddCommand(traffic.TrafficCmd)
 	RootCmd.AddCommand(subnet.SubnetCmd)
 	RootCmd.AddCommand(hostparse.HostnameCmd)
