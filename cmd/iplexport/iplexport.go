@@ -88,7 +88,7 @@ func ExportIPL(pce ia.PCE, iplName, outputFileName string) {
 						entry = fmt.Sprintf("%s-%s", r.FromIP, r.ToIP)
 					}
 					if r.Description != "" {
-						entry = fmt.Sprintf("%s(%s)", entry, r.Description)
+						entry = fmt.Sprintf("%s#%s", entry, r.Description)
 					}
 					if r.Exclusion {
 						exclude = append(exclude, entry)
