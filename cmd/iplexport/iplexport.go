@@ -6,15 +6,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brian1917/illumioapi"
-
+	ia "github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/cmd/iplimport"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
 )
 
 // Declare local global variables
-var pce illumioapi.PCE
+var pce ia.PCE
 var noHref bool
 var err error
 var iplName, outputFileName string
@@ -41,7 +40,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
-		pce, err = utils.GetTargetPCE(false)
+		pce, err = utils.GetTargetPCEV2(false)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -59,7 +58,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 	},
 }
 
-func ExportIPL(pce illumioapi.PCE, iplName, outputFileName string) {
+func ExportIPL(pce ia.PCE, iplName, outputFileName string) {
 
 	// Log command execution
 	utils.LogStartCommand("ipl-export")
@@ -73,13 +72,13 @@ func ExportIPL(pce illumioapi.PCE, iplName, outputFileName string) {
 		}
 
 		// Get all IPLists
-		ipls, a, err := pce.GetIPLists(nil, "draft")
-		utils.LogAPIResp("GetAllDraftIPLists", a)
+		a, err := pce.GetIPLists(nil, "draft")
+		utils.LogAPIRespV2("GetAllDraftIPLists", a)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
 
-		for _, i := range ipls {
+		for _, i := range pce.IPListsSlice {
 			exclude := []string{}
 			include := []string{}
 			if i.IPRanges != nil {
@@ -87,6 +86,9 @@ func ExportIPL(pce illumioapi.PCE, iplName, outputFileName string) {
 					entry := r.FromIP
 					if r.ToIP != "" {
 						entry = fmt.Sprintf("%s-%s", r.FromIP, r.ToIP)
+					}
+					if r.Description != "" {
+						entry = fmt.Sprintf("%s(%s)", entry, r.Description)
 					}
 					if r.Exclusion {
 						exclude = append(exclude, entry)
@@ -102,10 +104,10 @@ func ExportIPL(pce illumioapi.PCE, iplName, outputFileName string) {
 
 			}
 			if noHref {
-				csvData = append(csvData, []string{i.Name, i.Description, strings.Join(include, ";"), strings.Join(exclude, ";"), strings.Join(fqdns, ";"), i.ExternalDataSet, i.ExternalDataReference})
+				csvData = append(csvData, []string{i.Name, ia.PtrToVal(i.Description), strings.Join(include, ";"), strings.Join(exclude, ";"), strings.Join(fqdns, ";"), ia.PtrToVal(i.ExternalDataSet), ia.PtrToVal(i.ExternalDataReference)})
 
 			} else {
-				csvData = append(csvData, []string{i.Name, i.Description, strings.Join(include, ";"), strings.Join(exclude, ";"), strings.Join(fqdns, ";"), i.ExternalDataSet, i.ExternalDataReference, i.Href})
+				csvData = append(csvData, []string{i.Name, ia.PtrToVal(i.Description), strings.Join(include, ";"), strings.Join(exclude, ";"), strings.Join(fqdns, ";"), ia.PtrToVal(i.ExternalDataSet), ia.PtrToVal(i.ExternalDataReference), i.Href})
 			}
 		}
 
@@ -127,7 +129,7 @@ func ExportIPL(pce illumioapi.PCE, iplName, outputFileName string) {
 
 	// Get the IP list by name
 	ipl, a, err := pce.GetIPListByName(iplName, "draft")
-	utils.LogAPIResp("GetIPList", a)
+	utils.LogAPIRespV2("GetIPList", a)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
