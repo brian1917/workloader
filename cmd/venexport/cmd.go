@@ -44,7 +44,7 @@ func exportVens() {
 
 	// Load the pce
 	utils.LogInfo("getting workloads, vens, labels, label dimensions, container clusters, and container workloads...", true)
-	pce.Load(illumioapi.LoadInput{
+	apiResps, err := pce.Load(illumioapi.LoadInput{
 		Workloads:                true,
 		WorkloadsQueryParameters: map[string]string{"managed": "true"},
 		Labels:                   true,
@@ -53,56 +53,29 @@ func exportVens() {
 		ContainerWorkloads:       true,
 		LabelDimensions:          true,
 	}, utils.UseMulti())
-
-	// Get workload export data
-	wkldExport := wkldexport.WkldExport{
-		PCE:                &pce,
-		ManagedOnly:        true,
-		IncludeVuln:        false,
-		NoHref:             false,
-		RemoveDescNewLines: false,
-		UnmanagedOnly:      false,
-		OnlineOnly:         false,
-		WriteCSV:           false,
-	}
-	wkldExportData := wkldExport.ExportToCsv()
-
-	// Build a map of entries in the CSV data
-	headers := []string{}
-	wkldMap := make(map[string]map[string]string)
-	venCol := 0
-	for rowIndex, row := range wkldExportData {
-		// Process the headers
-		if rowIndex == 0 {
-			for colIndex, header := range row {
-				headers = append(headers, header)
-				if header == wkldexport.HeaderVenHref {
-					venCol = colIndex
-				}
-			}
-			continue
-		}
-		// Process the rows
-		wkldMap[row[venCol]] = make(map[string]string)
-		for colIndex, entry := range row {
-			if colIndex == venCol {
-				continue
-			}
-			wkldMap[row[venCol]][headers[colIndex]] = entry
-		}
+	utils.LogMultiAPIRespV2(apiResps)
+	if err != nil {
+		utils.LogError(err.Error())
 	}
 
 	// Set up label dimesnions slice
 	labelDimensions := []string{}
-	for _, ld := range wkldExport.PCE.LabelDimensionsSlice {
+	for _, ld := range pce.LabelDimensionsSlice {
 		labelDimensions = append(labelDimensions, ld.Key)
 	}
+
+	// Get workload export data
+	wkldExport := wkldexport.WkldExport{
+		PCE:                &pce,
+		RemoveDescNewLines: false,
+		Headers:            append([]string{"ven_href"}, labelDimensions...),
+	}
+	wkldMap := wkldExport.MapData()
 
 	// Start the data slice with headers
 	csvData := [][]string{{HeaderName, HeaderHostname, HeaderDescription, HeaderVenType, HeaderStatus, HeaderHealth, HeaderVersion, HeaderActivationType, HeaderActivePceFqdn, HeaderTargetPceFqdn, HeaderWorkloads, HeaderContainerCluster, HeaderHref, HeaderUID}}
 	csvData[0] = append(csvData[0], labelDimensions...)
 
-	utils.LogInfo("processing exports...", true)
 	for _, v := range pce.VENsSlice {
 
 		// Get container cluster

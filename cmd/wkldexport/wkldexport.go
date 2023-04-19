@@ -11,88 +11,18 @@ import (
 	"github.com/brian1917/illumioapi/v2"
 
 	"github.com/brian1917/workloader/utils"
-	"github.com/spf13/cobra"
 )
 
 // WkldExport is used to export workloads
 type WkldExport struct {
-	PCE                                                                                       *illumioapi.PCE
-	ManagedOnly, UnmanagedOnly, OnlineOnly, IncludeVuln, NoHref, RemoveDescNewLines, WriteCSV bool
-	Headers, OutputFileName                                                                   string
+	PCE                *illumioapi.PCE
+	IncludeVuln        bool
+	RemoveDescNewLines bool
+	Headers            []string
 }
 
-// Declare local global variables
-var wkldExport WkldExport
-var err error
-
-func init() {
-	WkldExportCmd.Flags().StringVar(&wkldExport.Headers, "headers", "", "comma-separated list of headers for export. default is all headers.")
-	WkldExportCmd.Flags().BoolVarP(&wkldExport.ManagedOnly, "managed-only", "m", false, "only export managed workloads.")
-	WkldExportCmd.Flags().BoolVarP(&wkldExport.UnmanagedOnly, "unmanaged-only", "u", false, "only export unmanaged workloads.")
-	WkldExportCmd.Flags().BoolVarP(&wkldExport.OnlineOnly, "online-only", "o", false, "only export online workloads.")
-	WkldExportCmd.Flags().BoolVarP(&wkldExport.IncludeVuln, "incude-vuln-data", "v", false, "include vulnerability data.")
-	WkldExportCmd.Flags().BoolVar(&wkldExport.NoHref, "no-href", false, "do not export href column. use this when exporting data to import into different pce.")
-	WkldExportCmd.Flags().StringVar(&wkldExport.OutputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
-	WkldExportCmd.Flags().BoolVar(&wkldExport.RemoveDescNewLines, "remove-desc-newline", false, "will remove new line characters in description field.")
-
-	WkldExportCmd.Flags().SortFlags = false
-
-}
-
-// WkldExportCmd runs the workload identifier
-var WkldExportCmd = &cobra.Command{
-	Use:   "wkld-export",
-	Short: "Create a CSV export of all workloads in the PCE.",
-	Long: `
-Create a CSV export of all workloads in the PCE.
-
-The update-pce and --no-prompt flags are ignored for this command.`,
-	Run: func(cmd *cobra.Command, args []string) {
-
-		// Get the PCE
-		wkldExport.PCE = &illumioapi.PCE{}
-		*wkldExport.PCE, err = utils.GetTargetPCEV2(true)
-		if err != nil {
-			utils.LogError(err.Error())
-		}
-
-		wkldExport.WriteCSV = true
-		wkldExport.ExportToCsv()
-	},
-}
-
-// ExportToCsv epxorts a PCE workloads to a CSV
-func (e *WkldExport) ExportToCsv() [][]string {
-
-	// Log command execution
-	utils.LogStartCommand("wkld-export")
-
-	// Load the PCE if necessary
-	load := illumioapi.LoadInput{}
-	if len(e.PCE.WorkloadsSlice) == 0 {
-		load.Workloads = true
-		load.WorkloadsQueryParameters = make(map[string]string)
-		if e.UnmanagedOnly {
-			load.WorkloadsQueryParameters["managed"] = "false"
-		}
-		if e.ManagedOnly {
-			load.WorkloadsQueryParameters["managed"] = "true"
-		}
-		if e.IncludeVuln {
-			load.WorkloadsQueryParameters["representation"] = "workload_labels_vulnerabilities"
-		}
-		if e.OnlineOnly {
-			load.WorkloadsQueryParameters["online"] = "true"
-		}
-	}
-	if len(e.PCE.LabelsSlice) == 0 {
-		load.Labels = true
-	}
-	apiResps, err := e.PCE.Load(load, utils.UseMulti())
-	utils.LogMultiAPIRespV2(apiResps)
-	if err != nil {
-		utils.LogError(err.Error())
-	}
+// CsvData returns wkld export in a csv format of slice of slice of strings
+func (e *WkldExport) CsvData() (csvData [][]string) {
 
 	// Get the labels that are in use by the workloads
 	labelsKeyMap := make(map[string]bool)
@@ -109,20 +39,19 @@ func (e *WkldExport) ExportToCsv() [][]string {
 	sort.Strings(labelsKeySlice)
 
 	// Start the outputdata
-	outputData := [][]string{}
 	headerRow := []string{}
 	// If no user headers provided, get all the headers
-	if e.Headers == "" {
-		for _, header := range AllHeaders(e.IncludeVuln, !e.NoHref) {
+	if len(e.Headers) == 0 {
+		for _, header := range AllHeaders(e.IncludeVuln, !noHref) {
 			headerRow = append(headerRow, header)
 			// Insert the labels either after href or hostname
-			if (!e.NoHref && header == "href") || (e.NoHref && header == "name") {
+			if (!noHref && header == "href") || (noHref && header == "name") {
 				headerRow = append(headerRow, labelsKeySlice...)
 			}
 		}
-		outputData = append(outputData, headerRow)
+		csvData = append(csvData, headerRow)
 	} else {
-		outputData = append(outputData, strings.Split(strings.Replace(e.Headers, " ", "", -1), ","))
+		csvData = append(csvData, e.Headers)
 	}
 
 	// Iterate through each workload
@@ -246,29 +175,50 @@ func (e *WkldExport) ExportToCsv() [][]string {
 		}
 
 		newRow := []string{}
-		for _, header := range outputData[0] {
+		for _, header := range csvData[0] {
 			newRow = append(newRow, csvRow[header])
 		}
-		outputData = append(outputData, newRow)
+		csvData = append(csvData, newRow)
 	}
+	return csvData
+}
 
-	if !e.WriteCSV {
-		return outputData
+// MapData returns a map where they key is the first header's value and the value is another map for each column.
+// For example, if the first header is "hostname" and you need to find the interfaces, use csvDataMap["wkld_host_name"][interfaces]
+func (e *WkldExport) MapData() (csvDataMap map[string]map[string]string) {
+	csvData := e.CsvData()
+	csvDataMap = make(map[string]map[string]string)
+	headers := []string{}
+	for rowIndex, row := range csvData {
+		if rowIndex == 0 {
+			// Populate the headers slice
+			headers = append(headers, row...)
+			continue
+		}
+		csvDataMap[row[0]] = make(map[string]string)
+		for colIndex, col := range row {
+			csvDataMap[row[0]][headers[colIndex]] = col
+		}
 	}
+	return csvDataMap
+}
+
+// WriteToCsv epxorts a PCE workloads to a CSV
+func (e *WkldExport) WriteToCsv(outputFile string) {
+
+	// Get the csvData
+	outputData := e.CsvData()
 
 	if len(outputData) > 1 {
-		if e.OutputFileName == "" {
-			e.OutputFileName = fmt.Sprintf("workloader-wkld-export-%s.csv", time.Now().Format("20060102_150405"))
+		if outputFile == "" {
+			outputFile = fmt.Sprintf("workloader-wkld-export-%s.csv", time.Now().Format("20060102_150405"))
 		}
-		utils.WriteOutput(outputData, outputData, e.OutputFileName)
+		utils.WriteOutput(outputData, outputData, outputFile)
 		utils.LogInfo(fmt.Sprintf("%d workloads exported", len(outputData)-1), true)
 	} else {
 		// Log command execution for 0 results
 		utils.LogInfo("no workloads in PCE.", true)
 	}
-
-	utils.LogEndCommand("wkld-export")
-	return [][]string{}
 
 }
 

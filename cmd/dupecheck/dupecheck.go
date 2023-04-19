@@ -63,22 +63,10 @@ func dupeCheck() {
 	headers := append([]string{"href", "hostname", "name", "interfaces"}, ldSlice...)
 	// Get workload export data
 	wkldExport := wkldexport.WkldExport{
-		PCE:         &pce,
-		ManagedOnly: false,
-		Headers:     strings.Join(headers, ","),
+		PCE:     &pce,
+		Headers: headers,
 	}
-	wkldExportData := wkldExport.ExportToCsv()
-	csvDataMap := make(map[string]map[string]string)
-	for rowIndex, row := range wkldExportData {
-		if rowIndex == 0 {
-			continue
-		}
-		csvDataMap[row[0]] = make(map[string]string)
-		for colIndex, col := range row {
-			csvDataMap[row[0]][headers[colIndex]] = col
-		}
-
-	}
+	csvDataMap := wkldExport.MapData()
 
 	// Get all managed workloads
 	managedHostNameMap := make(map[string]ia.Workload)

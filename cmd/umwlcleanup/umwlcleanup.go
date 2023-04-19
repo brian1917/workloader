@@ -6,7 +6,6 @@ import (
 	"time"
 
 	ia "github.com/brian1917/illumioapi/v2"
-	"github.com/brian1917/workloader/cmd/wkldexport"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
 )
@@ -66,26 +65,6 @@ func umwlCleanUp() {
 		ldSlice = append(ldSlice, ld.Key)
 	}
 
-	headers := append([]string{"href", "hostname", "name", "interfaces"}, ldSlice...)
-	// Get the workload export data
-	wkldExport := wkldexport.WkldExport{
-		PCE:         &pce,
-		ManagedOnly: false,
-		Headers:     strings.Join(headers, ","),
-	}
-	wkldExportData := wkldExport.ExportToCsv()
-	csvDataMap := make(map[string]map[string]string)
-	for rowIndex, row := range wkldExportData {
-		if rowIndex == 0 {
-			continue
-		}
-		csvDataMap[row[0]] = make(map[string]string)
-		for colIndex, col := range row {
-			csvDataMap[row[0]][headers[colIndex]] = col
-		}
-
-	}
-
 	// Create the maps
 	umwlDefaultIPMap := make(map[string]ia.Workload)
 	managedDefaultIPMap := make(map[string]ia.Workload)
@@ -112,14 +91,14 @@ func umwlCleanUp() {
 	}
 
 	// Start our data slice
-	var managedLabels, unmanagedLabels, labels []string
+	var managedLabels, unmanagedLabels []string
 	for _, ld := range ldSlice {
 		managedLabels = append(managedLabels, "managed_"+ld)
 		unmanagedLabels = append(unmanagedLabels, "umwl_"+ld)
 	}
 	data := [][]string{{"managed_hostname", "umwl_hostname", "umwl_name", "managed_interfaces", "umwl_interfaces", "managed_href", "unmanaged_href", "managed_external_data_set", "managed_external_data_ref", "umwl_external_data_set", "umwl_external_data_ref"}}
 	data[0] = append(append(data[0], managedLabels...), unmanagedLabels...)
-	data[0] = append(append(data[0], "href"), labels...)
+	data[0] = append(append(data[0], "href"), ldSlice...)
 
 	// Find managed workloads that have the same IP address of an unmanaged workload
 workloads:
@@ -148,9 +127,17 @@ workloads:
 			}
 			//
 			dataRow := []string{ia.PtrToVal(managedWkld.Hostname), ia.PtrToVal(umwl.Hostname), ia.PtrToVal(umwl.Name), strings.Join(managedIPs, ";"), strings.Join(umwlIPs, ";"), managedWkld.Href, umwl.Href, ia.PtrToVal(managedWkld.ExternalDataSet), ia.PtrToVal(managedWkld.ExternalDataReference), ia.PtrToVal(umwl.ExternalDataSet), ia.PtrToVal(umwl.ExternalDataReference)}
+
+			// append the managed labels
 			for _, ld := range ldSlice {
 				dataRow = append(dataRow, managedWkld.GetLabelByKey(ld, pce.Labels).Value)
 			}
+			// append the unmanaged labels
+			for _, ld := range ldSlice {
+				dataRow = append(dataRow, umwl.GetLabelByKey(ld, pce.Labels).Value)
+			}
+			// append the managed href and the unmanaged labels so they can be passed into wkld-import to be applied
+			dataRow = append(dataRow, managedWkld.Href)
 			for _, ld := range ldSlice {
 				dataRow = append(dataRow, umwl.GetLabelByKey(ld, pce.Labels).Value)
 			}
@@ -169,5 +156,5 @@ workloads:
 	}
 
 	// Log end of command
-	utils.LogStartCommand("umwl-cleanup")
+	utils.LogEndCommand("umwl-cleanup")
 }
