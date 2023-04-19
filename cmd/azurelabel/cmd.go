@@ -16,10 +16,11 @@ import (
 	"github.com/spf13/viper"
 )
 
-var labelMapping, outputFileName string
+var labelMapping, outputFileName, azureOptions string
 
 func init() {
 	AzureLabelCmd.Flags().StringVarP(&labelMapping, "mapping", "m", "", "mappings of azure tags to illumio labels. the format is a comma-separated list of azure-tag:illumio-label. For example, \"application:app,type:role\" maps the Azure tag of application to the Illumio app label and the Azure type tag to the Illumio role label.")
+	AzureLabelCmd.Flags().StringVarP(&azureOptions, "options", "o", "", "AWS CLI can be extended using this option.  Anything added after -o inside quotes will be passed as is(e.g \"--region us-west-1\"")
 	AzureLabelCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 	AzureLabelCmd.MarkFlagRequired("mapping")
 	AzureLabelCmd.Flags().SortFlags = false
@@ -81,6 +82,9 @@ func AzureLabels(labelMapping string, pce *illumioapi.PCE, updatePCE, noPrompt b
 
 	// Build the VM list command with a pipe
 	cmd.Args = []string{cmd.Path, "vm", "list"}
+	if azureOptions != "" {
+		cmd.Args = append(cmd.Args, strings.Split(azureOptions, " ")...)
+	}
 	pipe, err := cmd.StdoutPipe()
 	if err != nil {
 		utils.LogError(fmt.Sprintf("pipe error - %s", err.Error()))
