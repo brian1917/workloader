@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/brian1917/illumioapi"
+	ia "github.com/brian1917/illumioapi/v2"
 
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
@@ -14,7 +14,7 @@ import (
 )
 
 // Declare local global variables
-var pce illumioapi.PCE
+var pce ia.PCE
 var err error
 var provision, debug, updatePCE, noPrompt bool
 var csvFile string
@@ -61,7 +61,7 @@ Recommended to run without --update-pce first to log of what will change. If --u
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
-		pce, err = utils.GetTargetPCE(true)
+		pce, err = utils.GetTargetPCEV2(false)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -83,7 +83,7 @@ Recommended to run without --update-pce first to log of what will change. If --u
 }
 
 // ImportIPLists imports IP Lists to a target PCE from a CSV file
-func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debug, provision bool) {
+func ImportIPLists(pce ia.PCE, csvFile string, updatePCE, noPrompt, debug, provision bool) {
 
 	// Log command execution
 	utils.LogStartCommand("ipl-import")
@@ -96,7 +96,7 @@ func ImportIPLists(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt, debu
 
 	// Create a map for our CSV ip lists
 	type entry struct {
-		IPL     illumioapi.IPList
+		IPL     ia.IPList
 		csvLine int
 	}
 
@@ -119,27 +119,35 @@ csvEntries:
 			continue
 		}
 
-		// Create our array of ranges
-		ranges := []*illumioapi.IPRange{}
+		// Create array of ranges
+		ranges := []ia.IPRange{}
 		var includeCSV, excludeCSV, fqdns []string
 
 		// Include
 		if val, ok := headers[HeaderInclude]; ok && line[*val] != "" {
 			includeCSV = strings.Split(strings.ReplaceAll(line[*val], " ", ""), ";")
 			for _, i := range includeCSV {
+				// Process description
+				i = strings.Replace(i, " #", "#", -1)
+				iSplit := strings.Split(i, "#")
+				i = iSplit[0]
+				desc := ""
+				if len(iSplit) == 2 {
+					desc = iSplit[1]
+				}
 				// Validate the IP
 				if !ValidateIplistEntry(i) {
 					utils.LogWarning(fmt.Sprintf("csv line %d - %s is not a valid ip list entry. skipping csv line.", csvLine, i), true)
 					continue csvEntries
 				}
-				iprange := illumioapi.IPRange{}
+				iprange := ia.IPRange{Description: desc}
 				if strings.Contains(i, "-") {
 					iprange.FromIP = strings.Split(i, "-")[0]
 					iprange.ToIP = strings.Split(i, "-")[1]
 				} else {
 					iprange.FromIP = i
 				}
-				ranges = append(ranges, &iprange)
+				ranges = append(ranges, iprange)
 			}
 		}
 
@@ -150,12 +158,20 @@ csvEntries:
 				if len(excludeCSV) == 1 && len(excludeCSV[0]) == 0 {
 					continue
 				}
+				// Remove the description
+				i = strings.Replace(i, " #", "#", -1)
+				iSplit := strings.Split(i, "#")
+				i = iSplit[0]
+				desc := ""
+				if len(iSplit) == 2 {
+					desc = iSplit[1]
+				}
 				// Validate the IP
 				if !ValidateIplistEntry(i) {
 					utils.LogWarning(fmt.Sprintf("csv line %d - %s is not a valid ip list entry. skipping csv line.", csvLine, i), true)
 					continue csvEntries
 				}
-				iprange := illumioapi.IPRange{}
+				iprange := ia.IPRange{Description: desc}
 				if strings.Contains(i, "-") {
 					iprange.FromIP = strings.Split(i, "-")[0]
 					iprange.ToIP = strings.Split(i, "-")[1]
@@ -163,45 +179,45 @@ csvEntries:
 					iprange.FromIP = i
 				}
 				iprange.Exclusion = true
-				ranges = append(ranges, &iprange)
+				ranges = append(ranges, iprange)
 			}
 		}
 
 		// FQDNs
-		fqdnsEntry := []*illumioapi.FQDN{}
+		fqdnsEntry := []ia.FQDN{}
 		if val, ok := headers[HeaderFqdns]; ok && line[*val] != "" {
 			fqdns = strings.Split(strings.ReplaceAll(line[*val], " ", ""), ";")
 			for _, i := range fqdns {
 				if i != "" {
-					fqdnsEntry = append(fqdnsEntry, &illumioapi.FQDN{FQDN: i})
+					fqdnsEntry = append(fqdnsEntry, ia.FQDN{FQDN: i})
 				}
 			}
 		}
 
 		// Create the IP list
-		ipl := illumioapi.IPList{IPRanges: &ranges, FQDNs: &fqdnsEntry}
+		ipl := ia.IPList{IPRanges: &ranges, FQDNs: &fqdnsEntry}
 		if val, ok := headers[HeaderName]; ok {
 			ipl.Name = line[*val]
 		}
 		if val, ok := headers[HeaderDescription]; ok {
-			ipl.Description = line[*val]
+			ipl.Description = ia.Ptr(line[*val])
 		}
 		if val, ok := headers[HeaderExternalDataRef]; ok {
-			ipl.ExternalDataReference = line[*val]
+			ipl.ExternalDataReference = ia.Ptr(line[*val])
 		}
 		if val, ok := headers[HeaderExternalDataSet]; ok {
-			ipl.ExternalDataSet = line[*val]
+			ipl.ExternalDataSet = ia.Ptr(line[*val])
 		}
 		if val, ok := headers[HeaderHref]; ok {
 			ipl.Href = line[*val]
 		}
 		// Add our IPlist to our CSV Map
-		csvIPLs = append(csvIPLs, entry{csvLine: i, IPL: ipl})
+		csvIPLs = append(csvIPLs, entry{csvLine: csvLine, IPL: ipl})
 	}
 
 	// Get all IP lists in the pce
-	apiResps, err := pce.Load(illumioapi.LoadInput{IPLists: true})
-	utils.LogMultiAPIResp(apiResps)
+	apiResps, err := pce.Load(ia.LoadInput{IPLists: true}, utils.UseMulti())
+	utils.LogMultiAPIRespV2(apiResps)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -211,7 +227,7 @@ csvEntries:
 	for _, ipl := range csvIPLs {
 		if ipl.IPL.IPRanges != nil {
 			for _, iplr := range *ipl.IPL.IPRanges {
-				csvRangeMap[fmt.Sprintf("%s%s%s%t", ipl.IPL.Name, iplr.FromIP, iplr.ToIP, iplr.Exclusion)] = true
+				csvRangeMap[fmt.Sprintf("%s%s%s%t%s", ipl.IPL.Name, iplr.FromIP, iplr.ToIP, iplr.Exclusion, iplr.Description)] = true
 			}
 		}
 		if ipl.IPL.FQDNs != nil {
@@ -226,7 +242,7 @@ csvEntries:
 	for _, ipl := range pce.IPListsSlice {
 		if ipl.IPRanges != nil {
 			for _, iplr := range *ipl.IPRanges {
-				existingRangeMap[fmt.Sprintf("%s%s%s%t", ipl.Name, iplr.FromIP, iplr.ToIP, iplr.Exclusion)] = true
+				existingRangeMap[fmt.Sprintf("%s%s%s%t%s", ipl.Name, iplr.FromIP, iplr.ToIP, iplr.Exclusion, iplr.Description)] = true
 			}
 		}
 		if ipl.FQDNs != nil {
@@ -242,7 +258,7 @@ csvEntries:
 	// Iterate through each CSV IP list and see what we need to do
 	for _, csvIPL := range csvIPLs {
 
-		var existingIPL illumioapi.IPList
+		var existingIPL ia.IPList
 		var ok bool
 
 		// If an href is provided, verify it exists. If it doesn't skip the entry.
@@ -271,21 +287,24 @@ csvEntries:
 		}
 
 		// Check the description
-		if existingIPL.Description != csvIPL.IPL.Description {
+		if ia.PtrToVal(existingIPL.Description) != ia.PtrToVal(csvIPL.IPL.Description) {
 			update = true
-			logMsg = fmt.Sprintf("%s descrption to be updated from %s to %s.", logMsg, existingIPL.Description, csvIPL.IPL.Description)
+			logMsg = fmt.Sprintf("%s descrption to be updated from %s to %s.", logMsg, ia.PtrToVal(existingIPL.Description), ia.PtrToVal(csvIPL.IPL.Description))
 		}
 
 		// Check that all IP ranges from CSV are in the PCE.
 		if csvIPL.IPL.IPRanges != nil {
 			for _, r := range *csvIPL.IPL.IPRanges {
-				if !existingRangeMap[fmt.Sprintf("%s%s%s%t", existingIPL.Name, r.FromIP, r.ToIP, r.Exclusion)] { // use existingIPL.Name in case name is being changed
+				if !existingRangeMap[fmt.Sprintf("%s%s%s%t%s", existingIPL.Name, r.FromIP, r.ToIP, r.Exclusion, r.Description)] { // use existingIPL.Name in case name is being changed
 					rangeTxt := r.FromIP
 					if r.ToIP != "" {
 						rangeTxt = fmt.Sprintf("%s-%s", r.FromIP, r.ToIP)
 					}
 					if r.Exclusion {
 						rangeTxt = fmt.Sprintf("!%s", rangeTxt)
+					}
+					if r.Description != "" {
+						rangeTxt = fmt.Sprintf("%s#%s", rangeTxt, r.Description)
 					}
 					logMsg = fmt.Sprintf("%s %s will be added to the ip list.", logMsg, rangeTxt)
 					update = true
@@ -296,13 +315,16 @@ csvEntries:
 		// Check that all IP ranges from PCE are in CSV
 		if existingIPL.IPRanges != nil {
 			for _, r := range *existingIPL.IPRanges {
-				if !csvRangeMap[fmt.Sprintf("%s%s%s%t", csvIPL.IPL.Name, r.FromIP, r.ToIP, r.Exclusion)] { // use csvIPL.IPL.Name in case name is being changed
+				if !csvRangeMap[fmt.Sprintf("%s%s%s%t%s", csvIPL.IPL.Name, r.FromIP, r.ToIP, r.Exclusion, r.Description)] { // use csvIPL.IPL.Name in case name is being changed
 					rangeTxt := r.FromIP
 					if r.ToIP != "" {
 						rangeTxt = fmt.Sprintf("%s-%s", r.FromIP, r.ToIP)
 					}
 					if r.Exclusion {
 						rangeTxt = fmt.Sprintf("!%s", rangeTxt)
+					}
+					if r.Description != "" {
+						rangeTxt = fmt.Sprintf("%s#%s", rangeTxt, r.Description)
 					}
 					logMsg = fmt.Sprintf("%s %s will be removed from the ip list.", logMsg, rangeTxt)
 					update = true
@@ -379,7 +401,7 @@ csvEntries:
 
 	for _, newIPL := range IPLsToCreate {
 		ipl, a, err := pce.CreateIPList(newIPL.IPL)
-		utils.LogAPIResp("CreateIPList", a)
+		utils.LogAPIRespV2("CreateIPList", a)
 		if err != nil && a.StatusCode != 406 {
 			utils.LogError(fmt.Sprintf("ending run - %d ip lists created - %d ip lists updated.", createdIPLs, updatedIPLs))
 			utils.LogError(err.Error())
@@ -399,7 +421,7 @@ csvEntries:
 	// Update IPLs
 	for _, updateIPL := range IPLsToUpdate {
 		a, err := pce.UpdateIPList(updateIPL.IPL)
-		utils.LogAPIResp("UpdateIPList", a)
+		utils.LogAPIRespV2("UpdateIPList", a)
 		if err != nil && a.StatusCode != 406 {
 			utils.LogError(fmt.Sprintf("ending run - %d ip lists created - %d ip lists updated.", createdIPLs, updatedIPLs))
 			utils.LogError(err.Error())
@@ -419,7 +441,7 @@ csvEntries:
 	// Provision
 	if provision {
 		a, err := pce.ProvisionHref(provisionableIPLs, "workloader wkld-to-ipl")
-		utils.LogAPIResp("ProvisionHrefs", a)
+		utils.LogAPIRespV2("ProvisionHrefs", a)
 		if err != nil {
 			utils.LogError(err.Error())
 		}

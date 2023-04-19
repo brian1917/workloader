@@ -10,14 +10,14 @@ import (
 
 	"github.com/brian1917/workloader/cmd/iplimport"
 
-	"github.com/brian1917/illumioapi"
+	ia "github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 // Declare local global variables
-var pce illumioapi.PCE
+var pce ia.PCE
 var err error
 var ipCol, ipDescCol, fqdnCol int
 var create, provision, noHeaders, noBackup, updatePCE, noPrompt bool
@@ -57,7 +57,7 @@ Recommended to run without --update-pce first to log of what will change. If --u
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
-		pce, err = utils.GetTargetPCE(true)
+		pce, err = utils.GetTargetPCEV2(false)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -104,7 +104,7 @@ func iplReplace() {
 
 	// Get the IPL
 	pceIPL, api, err := pce.GetIPListByName(iplName, "draft")
-	utils.LogAPIResp("GetIPList", api)
+	utils.LogAPIRespV2("GetIPList", api)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -121,8 +121,8 @@ func iplReplace() {
 	}
 
 	// Create our new IPL Ranges and FQDNs
-	ranges := []*illumioapi.IPRange{}
-	fqdns := []*illumioapi.FQDN{}
+	ranges := []ia.IPRange{}
+	fqdns := []ia.FQDN{}
 	var ipCount, fqdnCount int
 
 	for i, line := range iplCsvData {
@@ -132,7 +132,7 @@ func iplReplace() {
 		}
 
 		// Check exclusion
-		ipRange := illumioapi.IPRange{}
+		ipRange := ia.IPRange{}
 		if line[ipCol][0:1] == "!" {
 			ipRange.Exclusion = true
 			line[ipCol] = strings.Replace(line[ipCol], "!", "", 1)
@@ -156,7 +156,7 @@ func iplReplace() {
 		} else {
 			ipRange.FromIP = line[ipCol]
 		}
-		ranges = append(ranges, &ipRange)
+		ranges = append(ranges, ipRange)
 		ipCount++
 
 	}
@@ -166,7 +166,7 @@ func iplReplace() {
 			continue
 		}
 		// Process the FQDNs
-		fqdns = append(fqdns, &illumioapi.FQDN{FQDN: line[fqdnCol]})
+		fqdns = append(fqdns, ia.FQDN{FQDN: line[fqdnCol]})
 		fqdnCount++
 	}
 
@@ -209,14 +209,14 @@ func iplReplace() {
 
 	if iplToBeCreated {
 		pceIPL, api, err = pce.CreateIPList(pceIPL)
-		utils.LogAPIResp("CreateIPList", api)
+		utils.LogAPIRespV2("CreateIPList", api)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
 		utils.LogInfo(fmt.Sprintf("%s create - status code %d", pceIPL.Name, api.StatusCode), true)
 	} else {
 		api, err = pce.UpdateIPList(pceIPL)
-		utils.LogAPIResp("UpdateIPList", api)
+		utils.LogAPIRespV2("UpdateIPList", api)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -226,7 +226,7 @@ func iplReplace() {
 	// Provision
 	if provision {
 		a, err := pce.ProvisionHref([]string{pceIPL.Href}, "workloader ipl-replace")
-		utils.LogAPIResp("ProvisionHrefs", a)
+		utils.LogAPIRespV2("ProvisionHrefs", a)
 		if err != nil {
 			utils.LogError(err.Error())
 		}

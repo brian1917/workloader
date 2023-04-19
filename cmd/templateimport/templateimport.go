@@ -105,7 +105,7 @@ func importTemplate() {
 	fmt.Println("\r\n------------------------------------------ IP Lists -------------------------------------------")
 	iplFile := fmt.Sprintf("%s%s.iplists.csv", directory, template)
 	if _, err := os.Stat(iplFile); err == nil {
-		iplimport.ImportIPLists(pce, iplFile, updatePCE, noPrompt, false, provision)
+		iplimport.ImportIPLists(pce2, iplFile, updatePCE, noPrompt, false, provision)
 	} else {
 		utils.LogInfo(fmt.Sprintf("%s template does not include ip lists. skipping", template), true)
 	}
