@@ -78,12 +78,12 @@ func LogAPIResp(callType string, apiResp illumioapi.APIResponse) {
 	}
 
 	if apiResp.Request != nil {
-		LogDebug(fmt.Sprintf("%s HTTP Request: %s %v", callType, apiResp.Request.Method, apiResp.Request.URL))
-		LogDebug(fmt.Sprintf("%s Request Body: %s", callType, apiResp.ReqBody))
+		LogDebug(fmt.Sprintf("%s http request: %s %v", callType, apiResp.Request.Method, apiResp.Request.URL))
+		LogDebug(fmt.Sprintf("%s request body: %s", callType, apiResp.ReqBody))
 	}
-	LogDebug(fmt.Sprintf("%s Response Status Code: %d", callType, apiResp.StatusCode))
+	LogInfo(fmt.Sprintf("%s status sode: %d", callType, apiResp.StatusCode), false)
 	if viper.Get("verbose").(bool) || apiResp.StatusCode > 299 {
-		LogDebug(fmt.Sprintf("%s Response Body: %s", callType, apiResp.RespBody))
+		LogDebug(fmt.Sprintf("%s response body: %s", callType, apiResp.RespBody))
 	}
 
 	for _, w := range apiResp.Warnings {
