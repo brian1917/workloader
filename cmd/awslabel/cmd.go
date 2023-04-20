@@ -20,7 +20,7 @@ var labelMapping, outputFileName, awsOptions string
 
 func init() {
 	AwsLabelCmd.Flags().StringVarP(&labelMapping, "mapping", "m", "", "mappings of AWS tags to illumio labels. the format is a comma-separated list of aws-tag:illumio-label. For example, \"application:app,type:role\" maps the AWS tag of application to the Illumio app label and the Azure type tag to the Illumio role label.")
-	AwsLabelCmd.Flags().StringVarP(&awsOptions, "awsoptions", "o", "", "AWS CLI can be extended using this option.  Anything added after -o inside quotes will be passed as is(e.g \"--region us-west-1\"")
+	AwsLabelCmd.Flags().StringVarP(&awsOptions, "options", "o", "", "AWS CLI can be extended using this option.  Anything added after -o inside quotes will be passed as is(e.g \"--region us-west-1\"")
 	AwsLabelCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 	AwsLabelCmd.MarkFlagRequired("mapping")
 	AwsLabelCmd.Flags().SortFlags = false
@@ -33,7 +33,7 @@ var AwsLabelCmd = &cobra.Command{
 	Long: `
 Import labels for AWS VMs.
 
-The command relies on the AWS CLI being installed and authenticated. See here for installing the Azure CLI: https://aws.amazon.com/cli/.
+The command relies on the AWS CLI being installed and authenticated. See here for installing the AWS CLI: https://aws.amazon.com/cli/.
 
 To test the AWS CLI is authenticated, run aws ec2 describe-instances and ensure JSON output is displayed.
 
