@@ -83,7 +83,7 @@ func ImportWkldsFromCSV(input Input) {
 	labelKeysMap := make(map[string]bool)
 	if version.Major > 22 || (version.Major == 22 && version.Minor >= 5) {
 		for _, l := range input.PCE.LabelDimensionsSlice {
-			labelKeysMap[strings.ToLower(l.Key)] = true
+			labelKeysMap[l.Key] = true
 		}
 	} else {
 		labelKeysMap["role"] = true

@@ -15,7 +15,7 @@ func (i *Input) processHeaders(headers []string) {
 	// Convert the first row into a map
 	csvHeaderMap := make(map[string]int)
 	for i, header := range headers {
-		csvHeaderMap[strings.ToLower(header)] = i
+		csvHeaderMap[header] = i
 	}
 
 	// Get the fieldMap
