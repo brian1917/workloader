@@ -31,7 +31,7 @@ var GcpLabelCmd = &cobra.Command{
 	Use:   "gcp-label",
 	Short: "Import labels for GCP VMs.",
 	Long: `
-Import labels for AWS VMs.
+Import labels for GCP VMs.
 
 The command relies on the GCP CLI(gcloud) being installed and authenticated. See here for installing the GCP CLI: https://cloud.google.com/sdk/docs/install-sdk.
 
