@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brian1917/illumioapi/v2"
+	ia "github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/cmd/wkldexport"
 	"github.com/brian1917/workloader/cmd/wkldimport"
 	"github.com/brian1917/workloader/utils"
@@ -44,11 +44,11 @@ Managed and unmanaged workloads are replicated across all PCEs. The command crea
 }
 
 type replicateWkld struct {
-	pce      illumioapi.PCE
-	workload illumioapi.Workload
+	pce      ia.PCE
+	workload ia.Workload
 }
 
-func labelSlice(w illumioapi.Workload, pce illumioapi.PCE, labelKeys []string) (labelSlice []string) {
+func labelSlice(w ia.Workload, pce ia.PCE, labelKeys []string) (labelSlice []string) {
 	for _, k := range labelKeys {
 		label := w.GetLabelByKey(k, pce.Labels)
 		if label.Key == "" {
@@ -63,7 +63,7 @@ func labelSlice(w illumioapi.Workload, pce illumioapi.PCE, labelKeys []string) (
 func wkldReplicate() {
 
 	// Create a slice to hold our target PCEs
-	var pces []illumioapi.PCE
+	var pces []ia.PCE
 
 	// Create a map to to hold the PCE names to verify skip PCEs
 	pceNameMap := make(map[string]bool)
@@ -84,7 +84,7 @@ func wkldReplicate() {
 	if skipSources != "" {
 		for _, pce := range strings.Split(strings.Replace(skipSources, " ", "", -1), ",") {
 			if !pceNameMap[pce] {
-				utils.LogError("%s is not in the pce list. skipped pces must also be in the pce list")
+				utils.LogErrorf("%s is not in the pce list. skipped pces must also be in the pce list", pce)
 			}
 			skipPCENameMap[pce] = true
 		}
@@ -103,7 +103,8 @@ func wkldReplicate() {
 		}
 	}
 
-	// Get the label keys
+	// Get the label keys using the first pce.
+	// command requires all pces to have same label dimensions
 	labelKeys := []string{}
 	if !legacyPCE {
 		api, err := pces[0].GetLabelDimensions(nil)
@@ -136,11 +137,11 @@ func wkldReplicate() {
 		deleteHrefMap[p.FQDN] = []string{}
 
 		// Get the workloads
-		utils.LogInfo(fmt.Sprintf("getting workloads for %s (%s)", p.FriendlyName, p.FQDN), true)
+		utils.LogInfof(true, "getting workloads for %s (%s)", p.FriendlyName, p.FQDN)
 		a, err := p.GetWklds(nil)
-		utils.LogAPIRespV2("GetWkld", a)
+		utils.LogAPIRespV2("GetWklds", a)
 		if err != nil {
-			utils.LogError(err.Error())
+			utils.LogErrorf("GetWklds - %s", err)
 		}
 
 		// Reset counters
@@ -151,31 +152,32 @@ func wkldReplicate() {
 
 		// Iterate over all managed and unmanaged workloads separately
 		for _, w := range p.WorkloadsSlice {
-			if illumioapi.PtrToVal(w.Hostname) == "" {
-				utils.LogError(fmt.Sprintf("%s - href: %s - name: %s - wkld-replicate requires hostnames on all workloads. one option to quickly fix is to use wkld-export, edit the csv to have unique hostnames, and use wkld-import to apply.", p.FQDN, w.Href, illumioapi.PtrToVal(w.Name)))
+			if ia.PtrToVal(w.Hostname) == "" {
+				utils.LogErrorf("%s - href: %s - name: %s - wkld-replicate requires hostnames on all workloads. one option to quickly fix is to use wkld-export, edit the csv to have unique hostnames, and use wkld-import to apply.", p.FQDN, w.Href, ia.PtrToVal(w.Name))
 			}
 
 			// Start with managed worklodas
 			if w.GetMode() != "unmanaged" {
 				// Put it in the map
-				managedWkldMap[p.FQDN+illumioapi.PtrToVal(w.Hostname)] = replicateWkld{pce: p, workload: w}
+				managedWkldMap[p.FQDN+ia.PtrToVal(w.Hostname)] = replicateWkld{pce: p, workload: w}
 				managedWkldCnt++
 
 				// Edit the external data reference section
-				w.ExternalDataSet = utils.StrToPtr("wkld-replicate")
-				w.ExternalDataReference = utils.StrToPtr(p.FQDN + "-managed-wkld-" + w.Href)
+				w.ExternalDataSet = ia.Ptr("wkld-replicate")
+				w.ExternalDataReference = ia.Ptr(p.FQDN + "-managed-wkld-" + w.Href)
 
 				// Add to the CSV output
-				newRow := append([]string{p.FriendlyName, illumioapi.PtrToVal(w.Hostname), fmt.Sprintf("managed ven on %s", p.FQDN)}, labelSlice(w, p, labelKeys)...)
-				newRow = append(newRow, strings.Join(wkldexport.InterfaceToString(w, true), ";"), utils.PtrToStr(w.ExternalDataSet), utils.PtrToStr(w.ExternalDataReference))
+				newRow := append([]string{p.FriendlyName, ia.PtrToVal(w.Hostname), fmt.Sprintf("managed ven on %s", p.FQDN)}, labelSlice(w, p, labelKeys)...)
+				newRow = append(newRow, strings.Join(wkldexport.InterfaceToString(w, true), ";"), ia.PtrToVal(w.ExternalDataSet), ia.PtrToVal(w.ExternalDataReference))
 				wkldImportCsvData = append(wkldImportCsvData, newRow)
 			}
 
 			// Unmanaged - just put in the map. Needs additional processing below before being added to CSV slice.
 			if w.GetMode() == "unmanaged" {
 				unmanagedWkldnt++
-				unmanagedWkldMap[p.FQDN+illumioapi.PtrToVal(w.Hostname)] = replicateWkld{pce: p, workload: w}
-				if strings.Contains(utils.PtrToStr(w.ExternalDataReference), p.FQDN) || utils.PtrToStr(w.ExternalDataReference) == "" {
+				unmanagedWkldMap[p.FQDN+ia.PtrToVal(w.Hostname)] = replicateWkld{pce: p, workload: w}
+				// If the external data reference contains the pce FQDN or there isn't an external data reference yet, this PCE owns this unmanaged workload
+				if strings.Contains(ia.PtrToVal(w.ExternalDataReference), p.FQDN) || ia.PtrToVal(w.ExternalDataReference) == "" {
 					unmanagedOwned++
 				} else {
 					unmanagedNotOwned++
@@ -183,22 +185,22 @@ func wkldReplicate() {
 			}
 		}
 		// Log information
-		utils.LogInfo(fmt.Sprintf("%s (%s) - workload counts:", p.FriendlyName, p.FQDN), true)
-		utils.LogInfo(fmt.Sprintf("%d total workloads", len(p.WorkloadsSlice)), true)
-		utils.LogInfo(fmt.Sprintf("%d managed workloads", managedWkldCnt), true)
-		utils.LogInfo(fmt.Sprintf("%d unmanaged workloads (%d owned by this pce and %d not owned by this pce)", unmanagedWkldnt, unmanagedOwned, unmanagedNotOwned), true)
-		utils.LogInfo(fmt.Sprintf("%d contributions (managed + unmanaged owned by this pce)", managedWkldCnt+unmanagedOwned), true)
+		utils.LogInfof(true, "%s (%s) - workload counts:", p.FriendlyName, p.FQDN)
+		utils.LogInfof(true, "%d total workloads", len(p.WorkloadsSlice))
+		utils.LogInfof(true, "%d managed workloads", managedWkldCnt)
+		utils.LogInfof(true, "%d unmanaged workloads (%d owned by this pce and %d not owned by this pce)", unmanagedWkldnt, unmanagedOwned, unmanagedNotOwned)
+		utils.LogInfof(true, "%d contributions (managed + unmanaged owned by this pce)", managedWkldCnt+unmanagedOwned)
 		utils.LogInfo("------------------------------", true)
 	}
 
 	// Iterate through all the unmanaged workloads
 	for _, wkld := range unmanagedWkldMap {
 		// If it's not in the dataset yet, update the external data reference and add it to the csv
-		if utils.PtrToStr(wkld.workload.ExternalDataSet) != "wkld-replicate" {
-			wkld.workload.ExternalDataSet = utils.StrToPtr("wkld-replicate")
-			wkld.workload.ExternalDataReference = utils.StrToPtr(wkld.pce.FQDN + "-unmanaged-wkld-" + wkld.workload.Href)
-			newRow := append([]string{wkld.pce.FriendlyName, illumioapi.PtrToVal(wkld.workload.Hostname), fmt.Sprintf("unmanaged workload on %s", wkld.pce.FQDN)}, labelSlice(wkld.workload, wkld.pce, labelKeys)...)
-			newRow = append(newRow, strings.Join(wkldexport.InterfaceToString(wkld.workload, true), ";"), utils.PtrToStr(wkld.workload.ExternalDataSet), utils.PtrToStr(wkld.workload.ExternalDataReference))
+		if ia.PtrToVal(wkld.workload.ExternalDataSet) != "wkld-replicate" {
+			wkld.workload.ExternalDataSet = ia.Ptr("wkld-replicate")
+			wkld.workload.ExternalDataReference = ia.Ptr(wkld.pce.FQDN + "-unmanaged-wkld-" + wkld.workload.Href)
+			newRow := append([]string{wkld.pce.FriendlyName, ia.PtrToVal(wkld.workload.Hostname), fmt.Sprintf("unmanaged workload on %s", wkld.pce.FQDN)}, labelSlice(wkld.workload, wkld.pce, labelKeys)...)
+			newRow = append(newRow, strings.Join(wkldexport.InterfaceToString(wkld.workload, true), ";"), ia.PtrToVal(wkld.workload.ExternalDataSet), ia.PtrToVal(wkld.workload.ExternalDataReference))
 			wkldImportCsvData = append(wkldImportCsvData, newRow)
 			continue
 		}
@@ -206,16 +208,16 @@ func wkldReplicate() {
 		// If we are here, the external dataset equals wkld-replicate and need to validate it still should exist
 
 		// If it's ext data references shows it's owned by the same PCE, keep it.
-		if wkld.pce.FQDN == strings.Split(utils.PtrToStr(wkld.workload.ExternalDataReference), "-unmanaged-wkld-")[0] {
-			newRow := append([]string{wkld.pce.FriendlyName, illumioapi.PtrToVal(wkld.workload.Hostname), fmt.Sprintf("unmanaged workload on %s", wkld.pce.FQDN)}, labelSlice(wkld.workload, wkld.pce, labelKeys)...)
-			newRow = append(newRow, strings.Join(wkldexport.InterfaceToString(wkld.workload, true), ";"), utils.PtrToStr(wkld.workload.ExternalDataSet), utils.PtrToStr(wkld.workload.ExternalDataReference))
+		if wkld.pce.FQDN == strings.Split(ia.PtrToVal(wkld.workload.ExternalDataReference), "-unmanaged-wkld-")[0] {
+			newRow := append([]string{wkld.pce.FriendlyName, ia.PtrToVal(wkld.workload.Hostname), fmt.Sprintf("unmanaged workload on %s", wkld.pce.FQDN)}, labelSlice(wkld.workload, wkld.pce, labelKeys)...)
+			newRow = append(newRow, strings.Join(wkldexport.InterfaceToString(wkld.workload, true), ";"), ia.PtrToVal(wkld.workload.ExternalDataSet), ia.PtrToVal(wkld.workload.ExternalDataReference))
 			wkldImportCsvData = append(wkldImportCsvData, newRow)
 			continue
 		}
 
 		// If ext data reference shows it's a managed workload and that manage workload doesn't exist any more, remove it.
-		if strings.Contains(utils.PtrToStr(wkld.workload.ExternalDataReference), "-managed-wkld-") {
-			if _, exists := managedWkldMap[strings.Split(illumioapi.PtrToVal(wkld.workload.ExternalDataReference), "-managed-wkld-")[0]+illumioapi.PtrToVal(wkld.workload.Hostname)]; !exists {
+		if strings.Contains(ia.PtrToVal(wkld.workload.ExternalDataReference), "-managed-wkld-") {
+			if _, exists := managedWkldMap[strings.Split(ia.PtrToVal(wkld.workload.ExternalDataReference), "-managed-wkld-")[0]+ia.PtrToVal(wkld.workload.Hostname)]; !exists {
 				wkldDeleteCsvdata = append(wkldDeleteCsvdata, []string{wkld.workload.Href, wkld.pce.FQDN, wkld.pce.FriendlyName})
 				deleteHrefMap[wkld.pce.FQDN] = append(deleteHrefMap[wkld.pce.FQDN], wkld.workload.Href)
 			}
@@ -223,8 +225,8 @@ func wkldReplicate() {
 		}
 
 		// If the ext data reference shows it's owned by an unmanaged workload in a separate pce (already validated it's not same PCE above),
-		if strings.Contains(utils.PtrToStr(wkld.workload.ExternalDataReference), "-unmanaged-wkld-") {
-			if _, exists := unmanagedWkldMap[strings.Split(illumioapi.PtrToVal(wkld.workload.ExternalDataReference), "-unmanaged-wkld-")[0]+illumioapi.PtrToVal(wkld.workload.Hostname)]; !exists {
+		if strings.Contains(ia.PtrToVal(wkld.workload.ExternalDataReference), "-unmanaged-wkld-") {
+			if _, exists := unmanagedWkldMap[strings.Split(ia.PtrToVal(wkld.workload.ExternalDataReference), "-unmanaged-wkld-")[0]+ia.PtrToVal(wkld.workload.Hostname)]; !exists {
 				wkldDeleteCsvdata = append(wkldDeleteCsvdata, []string{wkld.workload.Href, wkld.pce.FQDN, wkld.pce.FriendlyName})
 				deleteHrefMap[wkld.pce.FQDN] = append(deleteHrefMap[wkld.pce.FQDN], wkld.workload.Href)
 			}
