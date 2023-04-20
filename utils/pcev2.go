@@ -73,6 +73,7 @@ func GetPCEbyNameV2(name string, GetLabelMaps bool) (illumioapi.PCE, error) {
 			}
 		}
 		_, api, err := pce.GetVersion()
+		LogAPIRespV2("GetVersion", api)
 		if err != nil {
 			return illumioapi.PCE{}, fmt.Errorf("error getting pce version - %s - %s - %d", err, api.RespBody, api.StatusCode)
 		}
