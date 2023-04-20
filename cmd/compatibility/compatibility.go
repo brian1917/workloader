@@ -170,7 +170,7 @@ func compatibilityReport() {
 		ipv6ActiveConnCnt := "green"
 		iP6TablesRuleCnt := "green"
 		routingTableConflict := "green"
-		if strings.Contains(utils.PtrToStr(w.OsID), "win") {
+		if strings.Contains(illumioapi.PtrToVal(w.OsID), "win") {
 			iPv6Enabled = "green"
 			unwantedNics = "green"
 			groupPolicy = "green"
@@ -234,7 +234,7 @@ func compatibilityReport() {
 			for _, key := range labelKeys {
 				rowEntry = append(rowEntry, wkldMapData[w.Href][key])
 			}
-			rowEntry = append(rowEntry, utils.PtrToStr(w.OsID), utils.PtrToStr(w.OsDetail), requiredPackagesInstalled, requiredPackagesMissing, ipsecServiceEnabled, ipv4ForwardingEnabled, ipv4ForwardingPktCnt, iptablesRuleCnt, ipv6GlobalScope, ipv6ActiveConnCnt, iP6TablesRuleCnt, routingTableConflict, iPv6Enabled, unwantedNics, groupPolicy, a.RespBody)
+			rowEntry = append(rowEntry, illumioapi.PtrToVal(w.OsID), illumioapi.PtrToVal(w.OsDetail), requiredPackagesInstalled, requiredPackagesMissing, ipsecServiceEnabled, ipv4ForwardingEnabled, ipv4ForwardingPktCnt, iptablesRuleCnt, ipv6GlobalScope, ipv6ActiveConnCnt, iP6TablesRuleCnt, routingTableConflict, iPv6Enabled, unwantedNics, groupPolicy, a.RespBody)
 			csvData = append(csvData, rowEntry)
 		}
 

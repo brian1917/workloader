@@ -15,7 +15,7 @@ func (w *importWkld) hostname(input Input) {
 			if illumioapi.PtrToVal(w.wkld.Hostname) != w.csvLine[index] {
 				if w.wkld.Href != "" && input.UpdateWorkloads {
 					w.change = true
-					utils.LogInfo(fmt.Sprintf("csv line %d - %s - hostname to be changed from %s to %s", w.csvLineNum, w.compareString, utils.LogBlankValue(utils.PtrToStr(w.wkld.Hostname)), w.csvLine[index]), false)
+					utils.LogInfo(fmt.Sprintf("csv line %d - %s - hostname to be changed from %s to %s", w.csvLineNum, w.compareString, utils.LogBlankValue(illumioapi.PtrToVal(w.wkld.Hostname)), w.csvLine[index]), false)
 				}
 				w.wkld.Hostname = &w.csvLine[index]
 			}
