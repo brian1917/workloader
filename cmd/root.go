@@ -159,7 +159,7 @@ func init() {
 	RootCmd.AddCommand(azurelabel.AzureLabelCmd)
 	RootCmd.AddCommand(awslabel.AwsLabelCmd)
 	RootCmd.AddCommand(gcplabel.GcpLabelCmd)
-	RootCmd.AddCommand(traffic.TrafficCmd)
+	RootCmd.AddCommand(traffic.TrafficCmd) // Traffic is deprecated because it's in core services identifier
 	RootCmd.AddCommand(subnet.SubnetCmd)
 	RootCmd.AddCommand(hostparse.HostnameCmd)
 	RootCmd.AddCommand(dagsync.DAGSyncCmd)
