@@ -27,12 +27,17 @@ func init() {
 func LogError(msg string) {
 
 	Logger.SetPrefix(time.Now().Format("2006-01-02 15:04:05 "))
-	fmt.Printf("%s [ERROR] - %s see workloader.log for detailed information if error is from an illumio api call.\r\n", time.Now().Format("2006-01-02 15:04:05 "), msg)
+	fmt.Printf("%s [ERROR] - %s see workloader.log for potentially more information.\r\n", time.Now().Format("2006-01-02 15:04:05 "), msg)
 	if (viper.Get("continue_on_error") != nil && viper.Get("continue_on_error").(bool)) || (viper.Get("continue_on_error_default") != nil && viper.Get("continue_on_error_default").(string) == "continue") {
 		Logger.Printf("[ERROR] - %s\r\n", msg)
 	} else {
 		Logger.Fatalf("[ERROR] - %s\r\n", msg)
 	}
+}
+
+// LogErrorf uses string formatting to write to log to workloader.log and always prints msg to stdout.
+func LogErrorf(format string, a ...any) {
+	LogError(fmt.Sprintf(format, a...))
 }
 
 // LogWarning writes the log to workloader.log and optionally prints msg to stdout.
@@ -44,13 +49,23 @@ func LogWarning(msg string, stdout bool) {
 	Logger.Printf("[WARNING] - %s\r\n", msg)
 }
 
-// LogInfo writes the log to workloader.log and never prints to stdout.
+// LogWarningf uses string formatting to write to log to workloader.log and optionally prints msg to stdout.
+func LogWarningf(stdout bool, format string, a ...any) {
+	LogWarning(fmt.Sprintf(format, a...), stdout)
+}
+
+// LogInfo writes the log to workloader.log and optionally prints msg to stdout.
 func LogInfo(msg string, stdout bool) {
 	Logger.SetPrefix(time.Now().Format("2006-01-02 15:04:05 "))
 	if stdout {
 		fmt.Printf("%s [INFO] - %s\r\n", time.Now().Format("2006-01-02 15:04:05 "), msg)
 	}
 	Logger.Printf("[INFO] - %s\r\n", msg)
+}
+
+// LogInfof uses string formatting to write to log to workloader.log and optionally prints msg to stdout.
+func LogInfof(stdout bool, format string, a ...any) {
+	LogInfo(fmt.Sprintf(format, a...), stdout)
 }
 
 // LogDebug writes the log to workloader.log only if debug flag is set and never prints to stdout.
