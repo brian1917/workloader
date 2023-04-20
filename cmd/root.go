@@ -24,7 +24,7 @@ import (
 	"github.com/brian1917/workloader/cmd/extract"
 	"github.com/brian1917/workloader/cmd/flowimport"
 	"github.com/brian1917/workloader/cmd/flowsummary"
-	gcplabel "github.com/brian1917/workloader/cmd/gcp-label"
+	"github.com/brian1917/workloader/cmd/gcplabel"
 	"github.com/brian1917/workloader/cmd/getpairingkey"
 	"github.com/brian1917/workloader/cmd/hostparse"
 	"github.com/brian1917/workloader/cmd/increasevenupdaterate"
