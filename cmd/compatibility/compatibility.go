@@ -1,31 +1,27 @@
 package compatibility
 
 import (
-	"encoding/csv"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/brian1917/illumioapi/v2"
+	"github.com/brian1917/workloader/cmd/wkldexport"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
 )
 
-var modeChangeInput, issuesOnly bool
+var modeChangeInput, issuesOnly, single bool
 var pce illumioapi.PCE
-var outputFileName, role, app, env, loc, labelFile, hostFile string
+var outputFileName, labelFile, hrefFile string
 var err error
 
 func init() {
+	CompatibilityCmd.Flags().StringVar(&labelFile, "label-file", "", "csv file with labels to filter query. the file should have 4 headers: role, app, env, and loc. The four columns in each row is an \"AND\" operation. Each row is an \"OR\" operation.")
+	CompatibilityCmd.Flags().StringVar(&hrefFile, "href-file", "", "csv file with hrefs.")
 	CompatibilityCmd.Flags().BoolVarP(&modeChangeInput, "mode-input", "m", false, "generate the input file to change all idle workloads to build using workloader mode command")
 	CompatibilityCmd.Flags().BoolVarP(&issuesOnly, "issues-only", "i", false, "only export compatibility checks with an issue")
-	CompatibilityCmd.Flags().StringVarP(&role, "role", "r", "", "role label value. label flags are an \"and\" operator.")
-	CompatibilityCmd.Flags().StringVarP(&app, "app", "a", "", "app label value. label flags are an \"and\" operator.")
-	CompatibilityCmd.Flags().StringVarP(&env, "env", "e", "", "env label value. label flags are an \"and\" operator.")
-	CompatibilityCmd.Flags().StringVarP(&loc, "loc", "l", "", "loc label value. label flags are an \"and\" operator.")
-	CompatibilityCmd.Flags().StringVar(&labelFile, "label-file", "", "csv file with labels to filter query. the file should have 4 headers: role, app, env, and loc. The four columns in each row is an \"AND\" operation. Each row is an \"OR\" operation.")
-	CompatibilityCmd.Flags().StringVar(&hostFile, "host-file", "", "csv file with hrefs or hostnames. any labels or label files are ignored with this flag.")
+	CompatibilityCmd.Flags().BoolVar(&single, "single", false, "only used with --host-file. gets hosts by individual api calls vs. getting all workloads and filtering after.")
 	CompatibilityCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 	CompatibilityCmd.Flags().SortFlags = false
 }
@@ -35,19 +31,22 @@ var CompatibilityCmd = &cobra.Command{
 	Use:   "compatibility",
 	Short: "Generate a compatibility report for all Idle workloads.",
 	Long: `
-Generate a compatibility report for all Idle workloads.
+Generate a compatibility report for idle workloads.
 
-The --role (-r), --app (-a), --env(-e), and --loc(-l) flags can be used with one label per key and is run as an "AND" operation. The workloads must have all the labels.
+If no label-file or href-file are used all idle workloads are processed.
 
-If using --label-file, the other label flags are ignored. The label file first row must be "role", "app", "env", and "loc". The order does not matter. The entries in each row are an "AND" operation and the rows are combined in "OR" operations. See example below:
-+------+-----+------+-----+
-| role | app | env  | loc |
-+------+-----+------+-----+
-| WEB  | ERP | PROD |     |
-| DB   | CRM |      | AWS |
-+------+-----+------+-----+
-
-With the input file above, the query will get all IDLE workloads that are labeled as WEB (role) AND ERP (app) AND PROD (env) AND any location OR IDLE workloads that are labeled DB (role) AND CRM (app) AND any environment AND AWS (loc).
+The first row of a label-file should be label keys. The workload query uses an AND operator for entries on the same row and an OR operator for the separate rows. An example label file is below:
++------+-----+-----+-----+----+
+| role | app | env | loc | bu |
++------+-----+-----+-----+----+
+| web  | erp |     |     |    |
+|      |     |     | bos | it |
+|      | crm |     |     |    |
++------+-----+-----+-----+----+
+This example queries all idle workloads that are
+- web (role) AND erp (app) 
+- OR bos(loc) AND it (bu)
+- OR CRM (app)
 
 The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -57,124 +56,98 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 			utils.LogError(err.Error())
 		}
 
+		// Log command
+		utils.LogStartCommand("compatibility")
 		compatibilityReport()
+		utils.LogEndCommand("compatibility")
 	},
 }
 
 func compatibilityReport() {
 
-	// Log command
-	utils.LogStartCommand("compatibility")
+	// Get labels and label dimensions
+	apiResps, err := pce.Load(illumioapi.LoadInput{LabelDimensions: true, Labels: true}, utils.UseMulti())
+	utils.LogMultiAPIRespV2(apiResps)
+	if err != nil {
+		utils.LogError(fmt.Sprintf("loading pce - %s", err))
+	}
 
-	// Start the data slice with the headers. We will append data to this.
-	var csvData, stdOutData, modeChangeInputData [][]string
-	csvData = append(csvData, []string{"hostname", "href", "status", "role", "app", "env", "loc", "os_id", "os_details", "required_packages_installed", "required_packages_missing", "ipsec_service_enabled", "ipv4_forwarding_enabled", "ipv4_forwarding_pkt_cnt", "iptables_rule_cnt", "ipv6_global_scope", "ipv6_active_conn_cnt", "ip6tables_rule_cnt", "routing_table_conflict", "IPv6_enabled", "Unwanted_nics", "GroupPolicy", "raw_data"})
-	stdOutData = append(stdOutData, []string{"hostname", "href", "status"})
-	modeChangeInputData = append(modeChangeInputData, []string{"href", "mode"})
-
-	// Get all idle  workloads - start query with just idle
-	qp := map[string]string{"mode": "idle"}
-
-	idleWklds := []illumioapi.Workload{}
-	if hostFile == "" {
-
-		// Process the file if provided
+	// If there is no href file, get workloads with query parameters
+	if hrefFile == "" {
+		qp := map[string]string{"mode": "idle"}
+		// Process a label file if one is provided
 		if labelFile != "" {
-			// Parse the CSV
-			labelData, err := utils.ParseCSV(labelFile)
+			labelCsvData, err := utils.ParseCSV(labelFile)
 			if err != nil {
-				utils.LogError(err.Error())
+				utils.LogError(fmt.Sprintf("parsing labelFile - %s", err))
 			}
 
-			// Get the labelQuery
-			qp["labels"], err = pce.WorkloadQueryLabelParameter(labelData)
+			labelQuery, err := pce.WorkloadQueryLabelParameter(labelCsvData)
 			if err != nil {
-				utils.LogError(err.Error())
+				utils.LogError(fmt.Sprintf("getting label parameter query - %s", err))
 			}
-
-		} else {
-			providedValues := []string{role, app, env, loc}
-			keys := []string{"role", "app", "env", "loc"}
-			queryLabels := []string{}
-			for i, labelValue := range providedValues {
-				// Do nothing if the labelValue is blank
-				if labelValue == "" {
-					continue
-				}
-				// Confirm the label exists
-				if label, ok := pce.Labels[keys[i]+labelValue]; !ok {
-					utils.LogError(fmt.Sprintf("%s does not exist as a %s label", labelValue, keys[i]))
-				} else {
-					queryLabels = append(queryLabels, label.Href)
-				}
-
+			if len(labelQuery) > 10000 {
+				utils.LogError(fmt.Sprintf("the query is too large. the total character count is %d and the limit for this command is 10,000", len(labelQuery)))
 			}
-
-			// If we have query labels add to the map
-			if len(queryLabels) > 0 {
-				qp["labels"] = fmt.Sprintf("[[\"%s\"]]", strings.Join(queryLabels, "\",\""))
-			}
+			qp["labels"] = labelQuery
 		}
-
-		if len(qp["labels"]) > 10000 {
-			utils.LogError(fmt.Sprintf("the query is too large. the total character count is %d and the limit for this command is 10,000", len(qp["labels"])))
-		}
-
-		// Load the PCE
-		apiResps, err := pce.Load(illumioapi.LoadInput{Workloads: true, WorkloadsQueryParameters: qp, Labels: true}, utils.UseMulti())
-		utils.LogMultiAPIRespV2(apiResps)
+		// Get the workloads
+		api, err := pce.GetWklds(qp)
+		utils.LogAPIRespV2("GetWklds", api)
 		if err != nil {
 			utils.LogError(err.Error())
-		}
-
-		// Get Idle workload count
-		idleWklds = []illumioapi.Workload{}
-		for _, w := range pce.WorkloadsSlice {
-			if w.Agent.Config.Mode == "idle" {
-				idleWklds = append(idleWklds, w)
-			}
 		}
 	} else {
-		// If the hostfile is provided, parse it.
-		hostFileCsvData, err := utils.ParseCSV(hostFile)
+		// A hostn file is provided - parse it
+		hrefFileData, err := utils.ParseCSV(hrefFile)
 		if err != nil {
-			utils.LogError(err.Error())
+			utils.LogError(fmt.Sprintf("parsing hrefFile - %d", err))
 		}
-		for i, row := range hostFileCsvData {
-			var w illumioapi.Workload
-			var a illumioapi.APIResponse
-			var err error
-			if strings.Contains(row[0], "/orgs/") {
-				w, a, err = pce.GetWkldByHref(row[0])
-				utils.LogAPIRespV2("GetWkldByHref", a)
-				if err != nil {
-					utils.LogError(err.Error())
-				}
-			} else {
-				w, a, err = pce.GetWkldByHostname(row[0])
-				utils.LogAPIRespV2("GetWkldByHostname", a)
-				if err != nil {
-					utils.LogError(err.Error())
-				}
-			}
-			if illumioapi.PtrToVal(w.Hostname) == "" {
-				utils.LogInfo(fmt.Sprintf("csv line %d - %s does not exist. skipping.", i+1, row[0]), true)
-				continue
-			}
+		// Build the href list
+		hrefList := []string{}
+		for _, row := range hrefFileData {
+			hrefList = append(hrefList, row[0])
+		}
+		// Get the workloads
+		apiResps, err := pce.GetWkldsByHrefList(hrefList, single)
+		for _, a := range apiResps {
+			utils.LogAPIRespV2("GetWkldsByHrefList", a)
+		}
+		if err != nil {
+			utils.LogError(fmt.Sprintf("GetWkldsByHrefList - %s", err))
+		}
+		// Validate workload is idle
+		confirmedIdle := []illumioapi.Workload{}
+		for _, w := range pce.WorkloadsSlice {
 			if w.GetMode() != "idle" {
-				utils.LogInfo(fmt.Sprintf("csv line %d - %s is not in idle mode. skipping.", i+1, row[0]), true)
+				utils.LogInfo(fmt.Sprintf("%s-%s-is not idle skipping.", illumioapi.PtrToVal(w.Hostname), w.Href), true)
 				continue
 			}
-			idleWklds = append(idleWklds, w)
+			confirmedIdle = append(confirmedIdle, w)
 		}
-
+		pce.WorkloadsSlice = confirmedIdle
 	}
+
+	// Get the label information
+	labelKeys := []string{}
+	for _, ld := range pce.LabelDimensionsSlice {
+		labelKeys = append(labelKeys, ld.Key)
+	}
+	wkldExport := wkldexport.WkldExport{PCE: &pce, Headers: append([]string{"href"}, labelKeys...)}
+	wkldMapData := wkldExport.MapData()
+
+	// Start the output
+	outputHeaders := append([]string{"hostname", "href", "status"}, labelKeys...)
+	outputHeaders = append(outputHeaders, "os_id", "os_details", "required_packages_installed", "required_packages_missing", "ipsec_service_enabled", "ipv4_forwarding_enabled", "ipv4_forwarding_pkt_cnt", "iptables_rule_cnt", "ipv6_global_scope", "ipv6_active_conn_cnt", "ip6tables_rule_cnt", "routing_table_conflict", "IPv6_enabled", "Unwanted_nics", "GroupPolicy", "raw_data")
+	csvData := [][]string{outputHeaders}
+	modeChangeInputData := [][]string{{"href", "mode"}}
 
 	// Create a warning logs holder
 	warningLogs := []string{}
 
 	// Iterate through each workload
-	for i, w := range idleWklds {
+	for i, w := range pce.WorkloadsSlice {
+		utils.LogInfo(fmt.Sprintf("reviewing compatibility report for %s - %s - %d of %d", illumioapi.PtrToVal(w.Hostname), w.Href, i+1, len(pce.WorkloadsSlice)), true)
 
 		// Get the compatibility report and append
 		cr, a, err := pce.GetCompatibilityReport(w)
@@ -250,26 +223,23 @@ func compatibilityReport() {
 			}
 		}
 
-		// Update stdout
-		end := ""
-		if i+1 == len(idleWklds) {
-			end = "\r\n"
-		}
-		fmt.Printf("\r%s [INFO] - reviewed compatibility report %d of %d (%d%%).%s", time.Now().Format("2006-01-02 15:04:05 "), i+1, len(idleWklds), (i+1)*100/len(idleWklds), end)
-
 		if cr.QualifyStatus == "" {
 			warningLogs = append(warningLogs, fmt.Sprintf("%s is an idle workload but does not have a compatibility report", illumioapi.PtrToVal(w.Hostname)))
 			continue
 		}
 
-		// Put into slice if it's NOT green and issuesOnly is true
+		// Put into slice if it's not green and issuesOnly is true
 		if (cr.QualifyStatus != "green" && issuesOnly) || !issuesOnly {
-			csvData = append(csvData, []string{illumioapi.PtrToVal(w.Hostname), w.Href, cr.QualifyStatus, w.GetLabelByKey("role", pce.Labels).Value, w.GetLabelByKey("app", pce.Labels).Value, w.GetLabelByKey("env", pce.Labels).Value, w.GetLabelByKey("loc", pce.Labels).Value, utils.PtrToStr(w.OsID), utils.PtrToStr(w.OsDetail), requiredPackagesInstalled, requiredPackagesMissing, ipsecServiceEnabled, ipv4ForwardingEnabled, ipv4ForwardingPktCnt, iptablesRuleCnt, ipv6GlobalScope, ipv6ActiveConnCnt, iP6TablesRuleCnt, routingTableConflict, iPv6Enabled, unwantedNics, groupPolicy, a.RespBody})
-			stdOutData = append(stdOutData, []string{illumioapi.PtrToVal(w.Hostname), w.Href, cr.QualifyStatus})
+			rowEntry := []string{illumioapi.PtrToVal(w.Hostname), w.Href, cr.QualifyStatus}
+			for _, key := range labelKeys {
+				rowEntry = append(rowEntry, wkldMapData[w.Href][key])
+			}
+			rowEntry = append(rowEntry, utils.PtrToStr(w.OsID), utils.PtrToStr(w.OsDetail), requiredPackagesInstalled, requiredPackagesMissing, ipsecServiceEnabled, ipv4ForwardingEnabled, ipv4ForwardingPktCnt, iptablesRuleCnt, ipv6GlobalScope, ipv6ActiveConnCnt, iP6TablesRuleCnt, routingTableConflict, iPv6Enabled, unwantedNics, groupPolicy, a.RespBody)
+			csvData = append(csvData, rowEntry)
 		}
 
 		if cr.QualifyStatus == "green" {
-			modeChangeInputData = append(modeChangeInputData, []string{w.Href, "build"})
+			modeChangeInputData = append(modeChangeInputData, []string{w.Href, "visibility_only"})
 		}
 
 	}
@@ -284,7 +254,7 @@ func compatibilityReport() {
 		if outputFileName == "" {
 			outputFileName = fmt.Sprintf("workloader-compatibility-%s.csv", time.Now().Format("20060102_150405"))
 		}
-		utils.WriteOutput(csvData, stdOutData, outputFileName)
+		utils.WriteOutput(csvData, nil, outputFileName)
 		utils.LogInfo(fmt.Sprintf("%d compatibility reports exported.", len(csvData)-1), true)
 	} else {
 		// Log command execution for 0 results
@@ -294,23 +264,9 @@ func compatibilityReport() {
 	// Write the mode change CSV
 	if modeChangeInput && len(modeChangeInputData) > 1 {
 		// Create CSV
-		if outputFileName == "" {
-			outputFileName = "mode-input-" + outputFileName
-		}
-		outFile, err := os.Create(outputFileName)
-		if err != nil {
-			utils.LogError(fmt.Sprintf("creating CSV - %s\n", err))
-		}
-
-		// Write CSV data
-		writer := csv.NewWriter(outFile)
-		writer.WriteAll(modeChangeInputData)
-		if err := writer.Error(); err != nil {
-			utils.LogError(fmt.Sprintf("writing CSV - %s\n", err))
-		}
-		// Log
-		utils.LogInfo(fmt.Sprintf("Created a file to be used with workloader mode command to change all green status IDLE workloads to build: %s", outFile.Name()), true)
+		utils.LogInfo("creating mode input file...", true)
+		outputFileName = "mode-input-" + outputFileName
+		utils.WriteOutput(modeChangeInputData, nil, outputFileName)
 	}
-	utils.LogEndCommand("compatibility")
 
 }
