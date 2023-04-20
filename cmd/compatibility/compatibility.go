@@ -69,7 +69,7 @@ func compatibilityReport() {
 	apiResps, err := pce.Load(illumioapi.LoadInput{LabelDimensions: true, Labels: true}, utils.UseMulti())
 	utils.LogMultiAPIRespV2(apiResps)
 	if err != nil {
-		utils.LogError(fmt.Sprintf("loading pce - %s", err))
+		utils.LogErrorf("loading pce - %s", err)
 	}
 
 	// If there is no href file, get workloads with query parameters
@@ -79,15 +79,15 @@ func compatibilityReport() {
 		if labelFile != "" {
 			labelCsvData, err := utils.ParseCSV(labelFile)
 			if err != nil {
-				utils.LogError(fmt.Sprintf("parsing labelFile - %s", err))
+				utils.LogErrorf("parsing labelFile - %s", err)
 			}
 
 			labelQuery, err := pce.WorkloadQueryLabelParameter(labelCsvData)
 			if err != nil {
-				utils.LogError(fmt.Sprintf("getting label parameter query - %s", err))
+				utils.LogErrorf("getting label parameter query - %s", err)
 			}
 			if len(labelQuery) > 10000 {
-				utils.LogError(fmt.Sprintf("the query is too large. the total character count is %d and the limit for this command is 10,000", len(labelQuery)))
+				utils.LogErrorf("the query is too large. the total character count is %d and the limit for this command is 10,000", len(labelQuery))
 			}
 			qp["labels"] = labelQuery
 		}
@@ -95,13 +95,13 @@ func compatibilityReport() {
 		api, err := pce.GetWklds(qp)
 		utils.LogAPIRespV2("GetWklds", api)
 		if err != nil {
-			utils.LogError(err.Error())
+			utils.LogErrorf("GetWklds - %s", err)
 		}
 	} else {
 		// A hostn file is provided - parse it
 		hrefFileData, err := utils.ParseCSV(hrefFile)
 		if err != nil {
-			utils.LogError(fmt.Sprintf("parsing hrefFile - %d", err))
+			utils.LogErrorf("parsing hrefFile - %d", err)
 		}
 		// Build the href list
 		hrefList := []string{}
@@ -114,13 +114,13 @@ func compatibilityReport() {
 			utils.LogAPIRespV2("GetWkldsByHrefList", a)
 		}
 		if err != nil {
-			utils.LogError(fmt.Sprintf("GetWkldsByHrefList - %s", err))
+			utils.LogErrorf("GetWkldsByHrefList - %s", err)
 		}
 		// Validate workload is idle
 		confirmedIdle := []illumioapi.Workload{}
 		for _, w := range pce.WorkloadsSlice {
 			if w.GetMode() != "idle" {
-				utils.LogInfo(fmt.Sprintf("%s-%s-is not idle skipping.", illumioapi.PtrToVal(w.Hostname), w.Href), true)
+				utils.LogInfof(true, "%s-%s-is not idle skipping.", illumioapi.PtrToVal(w.Hostname), w.Href)
 				continue
 			}
 			confirmedIdle = append(confirmedIdle, w)
@@ -147,7 +147,7 @@ func compatibilityReport() {
 
 	// Iterate through each workload
 	for i, w := range pce.WorkloadsSlice {
-		utils.LogInfo(fmt.Sprintf("reviewing compatibility report for %s - %s - %d of %d", illumioapi.PtrToVal(w.Hostname), w.Href, i+1, len(pce.WorkloadsSlice)), true)
+		utils.LogInfof(true, "reviewing compatibility report for %s - %s - %d of %d", illumioapi.PtrToVal(w.Hostname), w.Href, i+1, len(pce.WorkloadsSlice))
 
 		// Get the compatibility report and append
 		cr, a, err := pce.GetCompatibilityReport(w)
@@ -255,7 +255,7 @@ func compatibilityReport() {
 			outputFileName = fmt.Sprintf("workloader-compatibility-%s.csv", time.Now().Format("20060102_150405"))
 		}
 		utils.WriteOutput(csvData, nil, outputFileName)
-		utils.LogInfo(fmt.Sprintf("%d compatibility reports exported.", len(csvData)-1), true)
+		utils.LogInfof(true, "%d compatibility reports exported.", len(csvData)-1)
 	} else {
 		// Log command execution for 0 results
 		utils.LogInfo("no workloads with compatibility reports for provided query.", true)
