@@ -202,10 +202,10 @@ csvEntries:
 		if val, ok := headers[HeaderDescription]; ok {
 			ipl.Description = ia.Ptr(line[*val])
 		}
-		if val, ok := headers[HeaderExternalDataRef]; ok {
+		if val, ok := headers[HeaderExternalDataRef]; ok && line[*val] != "" {
 			ipl.ExternalDataReference = ia.Ptr(line[*val])
 		}
-		if val, ok := headers[HeaderExternalDataSet]; ok {
+		if val, ok := headers[HeaderExternalDataSet]; ok && line[*val] != "" {
 			ipl.ExternalDataSet = ia.Ptr(line[*val])
 		}
 		if val, ok := headers[HeaderHref]; ok {
