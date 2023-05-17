@@ -235,11 +235,17 @@ func wkldReplicate() {
 
 	// Export the wkld-import CSV
 	var wkldCsvFileName string
+
 	if len(wkldImportCsvData) > 1 {
 		if outputFileName == "" {
 			wkldCsvFileName = fmt.Sprintf("workloader-wkld-replicate-wkld-import-%s.csv", time.Now().Format("20060102_150405"))
 		} else {
-			wkldCsvFileName = "wkld-import-" + outputFileName
+			// Make sure output file has csv extension
+			if !strings.HasSuffix(strings.ToLower(outputFileName), ".csv") {
+				outputFileName = outputFileName + ".csv"
+			}
+			// Put the wkld-import suffics on the custom file name
+			wkldCsvFileName = strings.Replace(outputFileName, ".csv", "-wkld-import.csv", -1)
 		}
 		utils.WriteOutput(wkldImportCsvData, wkldImportCsvData, wkldCsvFileName)
 		utils.LogInfo(fmt.Sprintf("%d workloads to be imported", len(wkldImportCsvData)-1), true)
@@ -251,7 +257,11 @@ func wkldReplicate() {
 		if outputFileName == "" {
 			deleteCsvFileName = fmt.Sprintf("workloader-wkld-replicate-wkld-delete-%s.csv", time.Now().Format("20060102_150405"))
 		} else {
-			deleteCsvFileName = "wkld-delete-" + outputFileName
+			// Make sure output file has csv extension
+			if !strings.HasSuffix(strings.ToLower(outputFileName), ".csv") {
+				outputFileName = outputFileName + ".csv"
+			}
+			deleteCsvFileName = strings.Replace(outputFileName, ".csv", "-wkld-delete.csv", -1)
 		}
 		utils.WriteOutput(wkldDeleteCsvdata, wkldDeleteCsvdata, deleteCsvFileName)
 		utils.LogInfo(fmt.Sprintf("%d workloads to be deleted", len(wkldDeleteCsvdata)-1), true)
