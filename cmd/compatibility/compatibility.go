@@ -156,6 +156,12 @@ func compatibilityReport() {
 			utils.LogError(fmt.Sprintf("getting compatibility report for %s (%s) - %s", illumioapi.PtrToVal(w.Hostname), w.Href, err))
 		}
 
+		// Get the online status
+		onlineStatus := "false"
+		if illumioapi.PtrToVal(w.Online) {
+			onlineStatus = "true"
+		}
+
 		// Set the initial values for Linux, AIX, and Solaris and override for Windows
 		requiredPackagesInstalled := "green"
 		requiredPackagesMissing := ""
@@ -183,48 +189,54 @@ func compatibilityReport() {
 			routingTableConflict = "na"
 		}
 
-		for _, c := range illumioapi.PtrToVal(cr.Results.QualifyTests) {
-			variables := []*string{
-				&requiredPackagesInstalled,
-				&ipsecServiceEnabled,
-				&iPv6Enabled,
-				&unwantedNics,
-				&groupPolicy,
-				&ipv4ForwardingEnabled,
-				&ipv4ForwardingPktCnt,
-				&iptablesRuleCnt,
-				&ipv6GlobalScope,
-				&ipv6ActiveConnCnt,
-				&iP6TablesRuleCnt,
-				&routingTableConflict}
-			checks := []interface{}{
-				c.RequiredPackagesInstalled,
-				c.IpsecServiceEnabled,
-				c.IPv6Enabled,
-				c.UnwantedNics,
-				c.GroupPolicy,
-				c.Ipv4ForwardingEnabled,
-				c.Ipv4ForwardingPktCnt,
-				c.IptablesRuleCnt,
-				c.Ipv6GlobalScope,
-				c.Ipv6ActiveConnCnt,
-				c.IP6TablesRuleCnt,
-				c.RoutingTableConflict}
+		if cr.Results != nil {
+			for _, c := range illumioapi.PtrToVal(cr.Results.QualifyTests) {
+				variables := []*string{
+					&requiredPackagesInstalled,
+					&ipsecServiceEnabled,
+					&iPv6Enabled,
+					&unwantedNics,
+					&groupPolicy,
+					&ipv4ForwardingEnabled,
+					&ipv4ForwardingPktCnt,
+					&iptablesRuleCnt,
+					&ipv6GlobalScope,
+					&ipv6ActiveConnCnt,
+					&iP6TablesRuleCnt,
+					&routingTableConflict}
+				checks := []interface{}{
+					c.RequiredPackagesInstalled,
+					c.IpsecServiceEnabled,
+					c.IPv6Enabled,
+					c.UnwantedNics,
+					c.GroupPolicy,
+					c.Ipv4ForwardingEnabled,
+					c.Ipv4ForwardingPktCnt,
+					c.IptablesRuleCnt,
+					c.Ipv6GlobalScope,
+					c.Ipv6ActiveConnCnt,
+					c.IP6TablesRuleCnt,
+					c.RoutingTableConflict}
 
-			for i, variable := range variables {
-				if checks[i] != nil {
-					*variable = c.Status
+				for i, variable := range variables {
+					if checks[i] != nil {
+						*variable = c.Status
+					}
+				}
+
+				// Process missing packages separately
+				if c.RequiredPackagesMissing != nil {
+					requiredPackagesMissing = strings.Join(*c.RequiredPackagesMissing, ";")
 				}
 			}
+		} else {
 
-			// Process missing packages separately
-			if c.RequiredPackagesMissing != nil {
-				requiredPackagesMissing = strings.Join(*c.RequiredPackagesMissing, ";")
-			}
+			warningLogs = append(warningLogs, fmt.Sprintf("%s is an idle %s workload but does not have compatibility results", illumioapi.PtrToVal(w.Hostname), onlineStatus))
+			continue
 		}
 
 		if cr.QualifyStatus == "" {
-			warningLogs = append(warningLogs, fmt.Sprintf("%s is an idle workload but does not have a compatibility report", illumioapi.PtrToVal(w.Hostname)))
+			warningLogs = append(warningLogs, fmt.Sprintf("%s is an idle %s workload but does not have a compatibility report", illumioapi.PtrToVal(w.Hostname), onlineStatus))
 			continue
 		}
 
