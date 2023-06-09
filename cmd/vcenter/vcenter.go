@@ -155,19 +155,15 @@ func callWkldImport(cloudName string, allVMs map[string]cloudData) {
 		utils.LogInfo("no cloud instances found for export.", true)
 	}
 
-	// Call the workloader import command
-	f := wkldimport.Input{
-		ImportFile:           outputFileName,
-		PCE:                  illumioapi.PCE,
-		Headers:              nil,
-		RemoveValue:          "",
-		Umwl:                 umwl,
-		KeepAllPCEInterfaces: keepAllPCEInterfaces,
-		FQDNtoHostname:       fqdnToHostname,
-		UpdatePCE:            updatePCE,
-		NoPrompt:             noPrompt,
-	}
-	wkldimport.ImportWkldsFromCSV(f)
+	wkldimport.ImportWkldsFromCSV(wkldimport.Input{
+		PCE:             *pce,
+		ImportFile:      outputFileName,
+		RemoveValue:     "gcp-label-delete",
+		Umwl:            false,
+		UpdateWorkloads: true,
+		UpdatePCE:       updatePCE,
+		NoPrompt:        noPrompt,
+	})
 
 	// Delete the temp file
 	if !keepTempFile {
@@ -587,7 +583,7 @@ func vcenterHTTP(keyMap map[string]string) map[string]cloudData {
 		// 	os = compute.Windows
 		// }
 
-		allvms[tmpvm.VM] = cloudData{VMID: tmpvm.VM, Name: tmpvm.Name, State: tmpvm.PowerState, Location: tmplocation, OsType: os, Interfaces: []netInterface{tmpintf}}
+		allvms[tmpvm.VM] = cloudData{VMID: tmpvm.VM, Name: tmpvm.Name, State: tmpvm.PowerState, Location: tmplocation, Interfaces: []netInterface{tmpintf}}
 	}
 	getVMsFromTags(httpHeader, label, allvms)
 
