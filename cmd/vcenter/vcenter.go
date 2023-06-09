@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/arm/compute"
 	"github.com/brian1917/illumioapi"
 	"github.com/brian1917/workloader/cmd/wkldimport"
 	"github.com/brian1917/workloader/utils"
@@ -583,10 +582,10 @@ func vcenterHTTP(keyMap map[string]string) map[string]cloudData {
 		if datacenter != "" {
 			tmplocation = datacenter
 		}
-		os := compute.Linux
-		if tmp.Family != "LINUX" {
-			os = compute.Windows
-		}
+		// os := compute.Linux
+		// if tmp.Family != "LINUX" {
+		// 	os = compute.Windows
+		// }
 
 		allvms[tmpvm.VM] = cloudData{VMID: tmpvm.VM, Name: tmpvm.Name, State: tmpvm.PowerState, Location: tmplocation, OsType: os, Interfaces: []netInterface{tmpintf}}
 	}
