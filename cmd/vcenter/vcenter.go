@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/cmd/wkldimport"
 	"github.com/brian1917/workloader/utils"
 	"github.com/pkg/errors"
@@ -62,7 +62,7 @@ var VCenterSyncCmd = &cobra.Command{
 	Short: "Integrate Azure VMs into PCE.",
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetTargetPCE(true)
+		pce, err = utils.GetTargetPCEV2(false)
 		if err != nil {
 			utils.LogError(fmt.Sprintf("Error getting PCE - %s", err.Error()))
 		}
@@ -84,6 +84,57 @@ var VCenterSyncCmd = &cobra.Command{
 		keyMap := readKeyFile(csvFile)
 		callWkldImport("vcenter", vcenterHTTP(keyMap))
 	},
+}
+
+func callWkldImport(cloudName string, allVMs map[string]cloudData) {
+	var outputFileName string
+
+	csvData := [][]string{{"hostname", "role", "app", "env", "loc", "interfaces", "name"}}
+
+	for _, instance := range allVMs {
+
+		ipdata := []string{}
+		for num, intf := range instance.Interfaces {
+			if intf.PublicIP != "" {
+				ipdata = append(ipdata, fmt.Sprintf("eth%d:%s", num, intf.PublicIP))
+			}
+			for _, ips := range intf.PrivateIP {
+				ipdata = append(ipdata, fmt.Sprintf("eth%d:%s", num, ips))
+			}
+		}
+		csvData = append(csvData, []string{instance.Name, instance.Tags["role"], instance.Tags["app"], instance.Tags["env"], instance.Tags["loc"], strings.Join(ipdata, ";"), instance.Name})
+	}
+
+	if len(csvData) > 1 {
+		if outputFileName == "" {
+			outputFileName = fmt.Sprintf("workloader-%s-rawdata-%s.csv", cloudName, time.Now().Format("20060102_150405"))
+		}
+		utils.WriteOutput(csvData, csvData, outputFileName)
+		utils.LogInfo(fmt.Sprintf("%d workloads exported", len(csvData)-1), true)
+	} else {
+		// Log command execution for 0 results
+		utils.LogInfo("no cloud instances found for export.", true)
+	}
+
+	wkldimport.ImportWkldsFromCSV(wkldimport.Input{
+		PCE:             pce,
+		ImportFile:      outputFileName,
+		RemoveValue:     "gcp-label-delete",
+		Umwl:            false,
+		UpdateWorkloads: true,
+		UpdatePCE:       updatePCE,
+		NoPrompt:        noPrompt,
+	})
+
+	// Delete the temp file
+	if !keepTempFile {
+		if err := os.Remove(outputFileName); err != nil {
+			utils.LogWarning(fmt.Sprintf("Could not delete %s", outputFileName), true)
+		} else {
+			utils.LogInfo(fmt.Sprintf("Deleted %s", outputFileName), false)
+		}
+	}
+	utils.LogEndCommand(fmt.Sprintf("%s-sync", cloudName))
 }
 
 // read-KeyFile - Reads file that maps TAG names to PCE RAEL labels.   File is added as the first argument.
@@ -123,57 +174,6 @@ func readKeyFile(filename string) map[string]string {
 		keyMap[line[0]] = line[1]
 	}
 	return keyMap
-}
-
-func callWkldImport(cloudName string, allVMs map[string]cloudData) {
-	var outputFileName string
-
-	csvData := [][]string{{"hostname", "role", "app", "env", "loc", "interfaces", "name"}}
-
-	for _, instance := range allVMs {
-
-		ipdata := []string{}
-		for num, intf := range instance.Interfaces {
-			if intf.PublicIP != "" {
-				ipdata = append(ipdata, fmt.Sprintf("eth%d:%s", num, intf.PublicIP))
-			}
-			for _, ips := range intf.PrivateIP {
-				ipdata = append(ipdata, fmt.Sprintf("eth%d:%s", num, ips))
-			}
-		}
-		csvData = append(csvData, []string{instance.Name, instance.Tags["role"], instance.Tags["app"], instance.Tags["env"], instance.Tags["loc"], strings.Join(ipdata, ";"), instance.Name})
-	}
-
-	if len(csvData) > 1 {
-		if outputFileName == "" {
-			outputFileName = fmt.Sprintf("workloader-%s-rawdata-%s.csv", cloudName, time.Now().Format("20060102_150405"))
-		}
-		utils.WriteOutput(csvData, csvData, outputFileName)
-		utils.LogInfo(fmt.Sprintf("%d workloads exported", len(csvData)-1), true)
-	} else {
-		// Log command execution for 0 results
-		utils.LogInfo("no cloud instances found for export.", true)
-	}
-
-	wkldimport.ImportWkldsFromCSV(wkldimport.Input{
-		PCE:             *pce,
-		ImportFile:      outputFileName,
-		RemoveValue:     "gcp-label-delete",
-		Umwl:            false,
-		UpdateWorkloads: true,
-		UpdatePCE:       updatePCE,
-		NoPrompt:        noPrompt,
-	})
-
-	// Delete the temp file
-	if !keepTempFile {
-		if err := os.Remove(outputFileName); err != nil {
-			utils.LogWarning(fmt.Sprintf("Could not delete %s", outputFileName), true)
-		} else {
-			utils.LogInfo(fmt.Sprintf("Deleted %s", outputFileName), false)
-		}
-	}
-	utils.LogEndCommand(fmt.Sprintf("%s-sync", cloudName))
 }
 
 func getCategoryDetail(headers [][2]string, categoryid string) categoryDetail {
@@ -532,16 +532,16 @@ func vcenterHTTP(keyMap map[string]string) map[string]cloudData {
 	utils.LogInfo("VCenter API Session setup - ", false)
 
 	if userID == "" || secret == "" {
-		utils.LogError(fmt.Sprintf("Both user - %s", err))
+		utils.LogError(fmt.Sprintf("Both USER and SECRET are empty.  Both are required."))
 	}
 
 	//Call the EC2 API to get the instance info
 	fmt.Println("Start")
 	httpHeader := [][2]string{{"Content-Type", "application/json"}, {"vmware-api-session-id", getSessionToken()}}
 
-	if err != nil {
-		utils.LogError(fmt.Sprintf("DescribeInstances error - %s", err))
-	}
+	// if err != nil {
+	// 	utils.LogError(fmt.Sprintf("DescribeInstances error - %s", err))
+	// }
 	utils.LogInfo("AWS DescribeInstance API call - ", false)
 	fmt.Println("Get Tags and Categories")
 	categories := getCategories(httpHeader)
