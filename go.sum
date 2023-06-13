@@ -57,8 +57,6 @@ github.com/aws/aws-sdk-go v1.44.243 h1:f5cNDSVfU/TsH0FXi+DwPjOY4XAv9ehubfw/7yTQQ
 github.com/aws/aws-sdk-go v1.44.243/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
 github.com/brian1917/illumioapi v1.83.0 h1:hTg2Xz+kBWfi+9wwXNSpYmA29zbQLVfmzPYglm+LF+Y=
 github.com/brian1917/illumioapi v1.83.0/go.mod h1:jREIUsMQeaaL7Mde0nTG2ehSDJjRSU79WFgFXcm0XhQ=
-github.com/brian1917/illumioapi/v2 v2.0.0-beta.13 h1:sIPe3VaRVVqceiXMnU3m193bx3vee3Qkiwhk4mZAS0I=
-github.com/brian1917/illumioapi/v2 v2.0.0-beta.13/go.mod h1:2uy7bernq5Ein6PiTS+9a4VvjYEMKi3vAGybByDZ2c8=
 github.com/brian1917/illumioapi/v2 v2.0.0-beta.14 h1:qocJhSaSuAwvN94wAuhwsvW7KI2KHkzPKzsikCHaULk=
 github.com/brian1917/illumioapi/v2 v2.0.0-beta.14/go.mod h1:2uy7bernq5Ein6PiTS+9a4VvjYEMKi3vAGybByDZ2c8=
 github.com/brian1917/ns v1.2.0 h1:8z9dR8WhaqJPTi8Ygyf6VHrYGoP8dbNV8hoD30/k/8c=
@@ -191,6 +189,7 @@ github.com/olekukonko/tablewriter v0.0.5/go.mod h1:hPp6KlRPjbx+hW8ykQs1w3UBbZlj6
 github.com/pelletier/go-toml/v2 v2.0.6 h1:nrzqCb7j9cDFj2coyLNLaZuJTLjWjlaz6nvTvIwycIU=
 github.com/pelletier/go-toml/v2 v2.0.6/go.mod h1:eumQOmlWiOPt5WriQQqoM5y18pDHwha2N+QD+EUNTek=
 github.com/pkg/diff v0.0.0-20210226163009-20ebb0f2a09e/go.mod h1:pJLUxLENpZxwdsKMEsNbx1VGcRFpLqf3715MtcvvzbA=
+github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/sftp v1.13.1/go.mod h1:3HaPG6Dq1ILlpPZRO0HVMrsydcdLt6HRDccSgb87qRg=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
