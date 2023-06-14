@@ -13,7 +13,7 @@ import (
 var vcenter, datacenter, cluster, folder, userID, secret string
 
 var csvFile string
-var ignoreState, umwl, updatePCE, noPrompt, keepTempFile, ignoreFQDNHostname, deprecated bool
+var ignoreState, umwl, updatePCE, noPrompt, keepTempFile, keepFQDNHostname, deprecated bool
 var pce illumioapi.PCE
 var err error
 
@@ -33,7 +33,7 @@ func init() {
 	VCenterSyncCmd.Flags().BoolVarP(&ignoreState, "ignore-state", "i", false, "By default only looks for workloads in a running state")
 	VCenterSyncCmd.Flags().BoolVar(&umwl, "umwl", false, "Create unmanaged workloads for non-matches.")
 	VCenterSyncCmd.Flags().BoolVarP(&keepTempFile, "keep-temp-file", "k", false, "Do not delete the temp CSV file downloaded from SerivceNow.")
-	VCenterSyncCmd.Flags().BoolVarP(&ignoreFQDNHostname, "ignore-name-clean", "", false, "Convert FQDN hostnames reported by Illumio VEN to short hostnames by removing everything after first period (e.g., test.domain.com becomes test). ")
+	VCenterSyncCmd.Flags().BoolVarP(&keepFQDNHostname, "keepfqdn", "", false, "By default hostnames with domains are removed.  You can keep FQDN hostnames (e.g., test.domain.com will not become test). ")
 	VCenterSyncCmd.Flags().BoolVarP(&deprecated, "deprecated", "", false, "use this option if you are running an older version of the API (VCenter 6.5-7.0.u2")
 	VCenterSyncCmd.MarkFlagRequired("userID")
 	VCenterSyncCmd.MarkFlagRequired("secret")
@@ -48,7 +48,7 @@ var VCenterSyncCmd = &cobra.Command{
 	Short: "Integrate Azure VMs into PCE.",
 	Long: `Sync VCenter VM Tags with PCE workload Labels.  The command requires a CSV file that maps VCenter Categories to PCE label types.
 	There are options to filter the VMs from VCenter using VCenter objects(datacenter, clusters, folders, power state).  PCE hostnames and VM names
-	are used to match PCE workloads to VCenter VMs.   There is an option to remove a FQDN hostname doamin to match with the VM name in VCenter
+	are used to match PCE workloads to VCenter VMs.   There is an option to remove a FQDN hostname domain to match with the VM name in VCenter
 	
 	There is also an UMWL option to find all VMs that are not running the Illumio VEN.  Any VCenter VM no matching a PCE workload will
 	be considered as an UMWL.  To correctly configure the IP address for these UWML VMTools should be installed to pull that data from the 

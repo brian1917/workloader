@@ -15,6 +15,8 @@ import (
 	"github.com/brian1917/workloader/utils"
 )
 
+const NumVM = 500
+
 // CallWkldImport - Function that gets the data structure to build a wkld import file.
 func callWkldImport(keyMap map[string]string, pce *illumioapi.PCE, vmMap map[string]vcenterVM) {
 
@@ -397,10 +399,9 @@ func getAllVMs(headers [][2]string) []vcenterVM {
 
 	params := apiURL.Query()
 
+	//Add filter parameters for getting the VMs
 	state := "POWERED_ON"
-	if ignoreState {
-		state = ""
-	} else {
+	if !ignoreState {
 		if deprecated {
 			params.Set("filter.power_states", state)
 		} else {
@@ -489,7 +490,7 @@ func getTagsfromVMs(headers [][2]string, vms map[string]vcenterVM, tags map[stri
 
 		count++
 		if count != len(vms) {
-			if count < 500 {
+			if count < NumVM {
 				continue
 			}
 		}

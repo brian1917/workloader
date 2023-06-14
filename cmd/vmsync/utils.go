@@ -130,7 +130,7 @@ func makeLowerCase(str string) string {
 // output sting without domain
 func nameCheck(name string) string {
 
-	if ignoreFQDNHostname {
+	if !keepFQDNHostname {
 		fullname := strings.Split(name, ".")
 		return fullname[0]
 	}
