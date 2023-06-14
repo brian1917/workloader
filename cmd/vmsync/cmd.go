@@ -7,6 +7,7 @@ import (
 	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var vcenter, datacenter, cluster, folder, userID, secret string
@@ -67,10 +68,10 @@ var VCenterSyncCmd = &cobra.Command{
 		}
 		csvFile = args[0]
 
-		// Get the debug value from viper
-		// debug = viper.Get("debug").(bool)
-		// updatePCE = viper.Get("update_pce").(bool)
-		// noPrompt = viper.Get("no_prompt").(bool)
+		//Get the debug value from viper
+		//debug = viper.Get("debug").(bool)
+		updatePCE = viper.Get("update_pce").(bool)
+		noPrompt = viper.Get("no_prompt").(bool)
 
 		utils.LogStartCommand("vcenter-sync")
 
@@ -81,6 +82,6 @@ var VCenterSyncCmd = &cobra.Command{
 		validateKeyMap(keyMap)
 
 		//Sync VMs to Workloads or create UMWL VMs for all machines in VCenter not running VEN
-		callWkldImport(keyMap, vcenterBuildPCEInputData(keyMap))
+		callWkldImport(keyMap, &pce, vcenterBuildPCEInputData(keyMap))
 	},
 }
