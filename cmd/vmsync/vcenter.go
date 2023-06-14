@@ -2,142 +2,81 @@ package vmsync
 
 import (
 	"bufio"
-	"bytes"
-	"crypto/tls"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"net/http"
 	"net/url"
 	"os"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/cmd/wkldimport"
 	"github.com/brian1917/workloader/utils"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 )
 
-var vcenter, datacenter, cluster, folder, userID, secret string
-
-var csvFile string
-var ignoreState, umwl, updatePCE, noPrompt, keepTempFile, ignoreFQDNHostname, keepAllPCEInterfaces, deprecated bool
-var pce illumioapi.PCE
-var err error
-
-// Init builds the commands
-func init() {
-
-	// Disable sorting
-	cobra.EnableCommandSorting = false
-
-	//awsimport options
-	VCenterSyncCmd.Flags().StringVarP(&datacenter, "datacenter", "d", "", "Sync VMs that reside in certain VCenter Datacenter object. (default - \"\"")
-	VCenterSyncCmd.Flags().StringVarP(&cluster, "cluster", "c", "", "Sync VMs that reside in certain VCenter cluster object. (default - \"\"")
-	VCenterSyncCmd.Flags().StringVarP(&folder, "folder", "f", "", "Sync VMs that reside in certain VCenter folder object. (default - \"\"")
-	VCenterSyncCmd.Flags().StringVarP(&vcenter, "vcenter", "v", "", "Required - FQDN or IP of VCenter instance - e.g vcenter.illumio.com")
-	VCenterSyncCmd.Flags().StringVarP(&userID, "user", "u", "", "Required - username of account with access to VCenter REST API")
-	VCenterSyncCmd.Flags().StringVarP(&secret, "password", "p", "", "Required - password of account with access to VCenter REST API")
-	VCenterSyncCmd.Flags().BoolVarP(&ignoreState, "ignore-state", "", false, "By default only looks for workloads in a running state")
-	VCenterSyncCmd.Flags().BoolVar(&umwl, "umwl", false, "Create unmanaged workloads for non-matches.")
-	VCenterSyncCmd.Flags().BoolVarP(&keepTempFile, "keep-temp-file", "k", false, "Do not delete the temp CSV file downloaded from SerivceNow.")
-	VCenterSyncCmd.Flags().BoolVarP(&ignoreFQDNHostname, "ignore-name-clean", "i", false, "Convert FQDN hostnames reported by Illumio VEN to short hostnames by removing everything after first period (e.g., test.domain.com becomes test). ")
-	VCenterSyncCmd.Flags().BoolVarP(&keepAllPCEInterfaces, "keep-all-pce-interfaces", "s", false, "Will not delete an interface on an unmanaged workload if it's not in the import. It will only add interfaces to the workload.")
-	VCenterSyncCmd.Flags().BoolVarP(&deprecated, "deprecated", "", false, "use this option if you are running an older version of the API (VCenter 6.5-7.0.u2")
-	VCenterSyncCmd.MarkFlagRequired("userID")
-	VCenterSyncCmd.MarkFlagRequired("secret")
-	VCenterSyncCmd.MarkFlagRequired("vcenter")
-	VCenterSyncCmd.Flags().SortFlags = false
-
-}
-
-// VCenterSyncCmd checks if the keyfilename is entered.
-var VCenterSyncCmd = &cobra.Command{
-	Use:   "vmsync",
-	Short: "Integrate Azure VMs into PCE.",
-	Long: `Sync VCenter VM Tags with PCE workload Labels.  The command requires a CSV file that maps VCenter Categories to PCE label types.
-	There are options to filter the VMs from VCenter using VCenter objects(datacenter, clusters, folders, power state).  PCE hostnames and VM names
-	are used to match PCE workloads to VCenter VMs.   There is an option to remove a FQDN hostname doamin to match with the VM name in VCenter
-	
-	There is also an UMWL option to find all VMs that are not running the Illumio VEN.  Any VCenter VM no matching a PCE workload will
-	be considered as an UMWL.  To correctly configure the IP address for these UWML VMTools should be installed to pull that data from the 
-	API.`,
-
-	Run: func(cmd *cobra.Command, args []string) {
-
-		//Get all the PCE data
-		pce, err = utils.GetTargetPCEV2(true)
-		if err != nil {
-			utils.LogError(fmt.Sprintf("Error getting PCE - %s", err.Error()))
-		}
-		// Set the CSV file
-		if len(args) != 1 {
-			fmt.Println("Command requires 1 argument for the csv file. See usage help.")
-			os.Exit(0)
-		}
-		csvFile = args[0]
-
-		// Get the debug value from viper
-		// debug = viper.Get("debug").(bool)
-		// updatePCE = viper.Get("update_pce").(bool)
-		// noPrompt = viper.Get("no_prompt").(bool)
-
-		utils.LogStartCommand("vcenter-sync")
-
-		//load keymapfile, This file will have the Catagories to Label Type mapping
-		keyMap := readKeyFile(csvFile)
-
-		//Sync VMs to Workloads or create UMWL VMs for all machines in VCenter not running VEN
-		callWkldImport(vcenterTagInfo(keyMap))
-	},
-}
-
-func callWkldImport(vmMap map[string][]string) {
+// CallWkldImport - Function that gets the data structure to build a wkld import file.
+func callWkldImport(keyMap map[string]string, vmMap map[string]vcenterVM) {
 
 	var outputFileName string
-
-	csvData := [][]string{{"hostname", "role", "app", "env", "loc", "interfaces", "name"}}
-
-	// for _, instance := range vmMap {
-
-	// 	ipdata := []string{}
-	// 	for num, intf := range instance.Interfaces {
-	// 		if intf.PublicIP != "" {
-	// 			ipdata = append(ipdata, fmt.Sprintf("eth%d:%s", num, intf.PublicIP))
-	// 		}
-	// 		for _, ips := range intf.PrivateIP {
-	// 			ipdata = append(ipdata, fmt.Sprintf("eth%d:%s", num, ips))
-	// 		}
-	// 	}
-	// 	csvData = append(csvData, []string{instance.Name, instance.Tags["role"], instance.Tags["app"], instance.Tags["env"], instance.Tags["loc"], strings.Join(ipdata, ";"), instance.Name})
-	// }
-
-	if len(csvData) > 1 {
-		if outputFileName == "" {
-			outputFileName = fmt.Sprintf("workloader-%s-rawdata-%s.csv", "vcenter", time.Now().Format("20060102_150405"))
-		}
-		utils.WriteOutput(csvData, csvData, outputFileName)
-		utils.LogInfo(fmt.Sprintf("%d workloads exported", len(csvData)-1), true)
-	} else {
-		// Log command execution for 0 results
-		utils.LogInfo("no cloud instances found for export.", true)
+	// Set up the csv headers
+	csvData := [][]string{{"hostname"}}
+	if umwl {
+		csvData[0] = append(csvData[0], "interfaces")
+	}
+	for _, illumioLabelType := range keyMap {
+		csvData[0] = append(csvData[0], illumioLabelType)
 	}
 
-	wkldimport.ImportWkldsFromCSV(wkldimport.Input{
-		PCE:             pce,
-		ImportFile:      outputFileName,
-		RemoveValue:     "gcp-label-delete",
-		Umwl:            false,
-		UpdateWorkloads: true,
-		UpdatePCE:       updatePCE,
-		NoPrompt:        noPrompt,
-	})
+	//csvData := [][]string{{"hostname", "role", "app", "env", "loc", "interfaces", "name"}
+	for _, vm := range vmMap {
+		csvRow := []string{vm.Name}
+		var tmpInf string
+		if umwl {
+			for c, inf := range vm.Interfaces {
+				if c != 0 {
+					tmpInf = tmpInf + ";"
+				}
+				tmpInf = tmpInf + fmt.Sprintf("%s:%s", inf[0], inf[1])
+			}
+			csvRow = append(csvRow, tmpInf)
+		}
+		for index, header := range csvData[0] {
 
+			// Skip hostname and interfaces if umwls ...they are statically added above
+			if index == 0 {
+				continue
+			} else if umwl && index == 1 {
+				continue
+			}
+			//process hostname by finding Name TAG
+			csvRow = append(csvRow, vm.Tags[header])
+		}
+		csvData = append(csvData, csvRow)
+	}
+
+	if len(vmMap) > 0 {
+		if outputFileName == "" {
+			outputFileName = fmt.Sprintf("workloader-vcenter-sync-%s.csv", time.Now().Format("20060102_150405"))
+		}
+		utils.WriteOutput(csvData, nil, outputFileName)
+		utils.LogInfo(fmt.Sprintf("%d VCenter vms with label data exported", len(csvData)-1), true)
+
+		utils.LogInfo("passing output into wkld-import...", true)
+
+		wkldimport.ImportWkldsFromCSV(wkldimport.Input{
+			PCE:             pce,
+			ImportFile:      outputFileName,
+			RemoveValue:     "vcenter-label-delete",
+			Umwl:            false,
+			UpdateWorkloads: true,
+			UpdatePCE:       updatePCE,
+			NoPrompt:        noPrompt,
+		})
+
+	} else {
+		utils.LogInfo("no Vcenter vms found", true)
+	}
 	// Delete the temp file
 	if !keepTempFile {
 		if err := os.Remove(outputFileName); err != nil {
@@ -150,6 +89,7 @@ func callWkldImport(vmMap map[string][]string) {
 }
 
 // readKeyFile - Reads file that maps TAG names to PCE RAEL labels.   File is added as the first argument.
+// the first entry in the CSV should be the VCenter Category.  The second is the PCE label type.
 func readKeyFile(filename string) map[string]string {
 
 	keyMap := make(map[string]string)
@@ -245,23 +185,23 @@ func getTagFromCategories(headers [][2]string, categoryID string) []string {
 	if err != nil {
 		utils.LogInfo(fmt.Sprintf("Get Tags from Category API failed - %s", err), false)
 	}
-
+	//If using older API make sure to use a different object for unmarshaling response
 	if deprecated {
-		var value struct {
-			Tags []string `json:"value"`
+		var tagFromCat struct {
+			Value []string `json:"value"`
 		}
-		err = json.Unmarshal([]byte(response.RespBody), &value)
+		err = json.Unmarshal([]byte(response.RespBody), &tagFromCat)
 		if err != nil {
 			utils.LogError(fmt.Sprintf("JSON parsing failed for Get Tags from Category - %s", err))
 		}
-		return value.Tags
+		return tagFromCat.Value
 	}
-	var tags []string
-	err = json.Unmarshal([]byte(response.RespBody), &tags)
+	var tagFromCat []string
+	err = json.Unmarshal([]byte(response.RespBody), &tagFromCat)
 	if err != nil {
 		utils.LogError(fmt.Sprintf("JSON parsing failed for Get Tags from Category - %s", err))
 	}
-	return tags
+	return tagFromCat
 }
 
 // getObjectID - This will call the VCenter API to get the objectID of a Datacenter or Cluster.  These objectID
@@ -285,7 +225,7 @@ func getObjectID(headers [][2]string, object, filter string) vcenterObjects {
 	if deprecated {
 		escapedParams = "filter.names=" + filter
 	} else {
-		escapedParams = "names=" + "Jeff Schmitz"
+		escapedParams = "names=" + filter
 	}
 	apiURL.RawQuery = url.PathEscape(escapedParams)
 
@@ -337,12 +277,22 @@ func getCategories(headers [][2]string) []string {
 	if err != nil {
 		utils.LogError(fmt.Sprintf("Get All Categories access to VCenter failed - %s", err))
 	}
+	//If using older API make sure to use a different object for unmarshaling response
+	if deprecated {
+		var cat struct {
+			Value []string `json:"value"`
+		}
+		err = json.Unmarshal([]byte(response.RespBody), &cat)
+		if err != nil {
+			utils.LogError(fmt.Sprintf("JSON parsing failed for Get All Categories - %s", err))
+		}
+		return cat.Value
+	}
 
 	err = json.Unmarshal([]byte(response.RespBody), &cat)
 	if err != nil {
 		utils.LogError(fmt.Sprintf("JSON parsing failed for Get All Categories - %s", err))
 	}
-
 	return cat
 }
 
@@ -366,6 +316,19 @@ func getCategoryDetail(headers [][2]string, categoryid string) categoryDetail {
 	if err != nil {
 		utils.LogInfo(fmt.Sprintf("getCategory API call failed - %s", err), false)
 	}
+
+	//If using older API make sure to use a different object for unmarshaling response
+	if deprecated {
+		var cat struct {
+			Value categoryDetail `json:"value"`
+		}
+		err = json.Unmarshal([]byte(response.RespBody), &cat)
+		if err != nil {
+			utils.LogError(fmt.Sprintf("JSON parsing failed for getCategoryt - %s", err))
+		}
+		return cat.Value
+	}
+
 	err = json.Unmarshal([]byte(response.RespBody), &catDetail)
 	if err != nil {
 		utils.LogError(fmt.Sprintf("JSON parsing failed for getCategoryt - %s", err))
@@ -390,32 +353,37 @@ func getVMNetworkDetail(headers [][2]string, vm string) []Netinterfaces {
 	}
 	response, err = httpCall("GET", apiURL.String(), []byte{}, headers, false)
 	if err != nil {
-		utils.LogInfo(fmt.Sprintf("getVMNetworkDetail API Call failed - %s", err), false)
-	}
-	if deprecated {
-		var obj struct {
-			Value []Netinterfaces `json:"value"`
+		if response.StatusCode == 503 {
+			utils.LogInfo(fmt.Sprintf("getVMNetworkDetail Return 503 - %s - Service Unavailable - No VMTools", vm), false)
+		} else {
+			utils.LogError(fmt.Sprintf("getVMNetworkDetail API Call failed - %s", err))
 		}
+	} else {
+		if deprecated {
+			var obj struct {
+				Value []Netinterfaces `json:"value"`
+			}
+			err = json.Unmarshal([]byte(response.RespBody), &obj)
+			if err != nil {
+				utils.LogError(fmt.Sprintf("JSON parsing failed for getVMNetworkDetail - %s", err))
+			}
+
+			return obj.Value
+		}
+
 		err = json.Unmarshal([]byte(response.RespBody), &obj)
 		if err != nil {
 			utils.LogError(fmt.Sprintf("JSON parsing failed for getVMNetworkDetail - %s", err))
 		}
-
-		return obj.Value
-	}
-
-	err = json.Unmarshal([]byte(response.RespBody), &obj)
-	if err != nil {
-		utils.LogError(fmt.Sprintf("JSON parsing failed for getVMNetworkDetail - %s", err))
+		return obj
 	}
 	return obj
-
 }
 
 // getAllVMs - VCenter API call to get all the VCenter VMs.  The call will return no more than 4000 objects.
 // To make sure you can fit all the VMs into a single call you can use the 'datacenter' and 'cluster' filter.
 // Currently only powered on machines are returned.
-func getAllVMs(headers [][2]string) []vmwareVM {
+func getAllVMs(headers [][2]string) []vcenterVM {
 	var response apiResponse
 
 	var datacenterId, clusterId, folderId string
@@ -481,7 +449,7 @@ func getAllVMs(headers [][2]string) []vmwareVM {
 	}
 	if deprecated {
 		var vms struct {
-			Value []vmwareVM `json:"value"`
+			Value []vcenterVM `json:"value"`
 		}
 		err = json.Unmarshal([]byte(response.RespBody), &vms)
 		if err != nil {
@@ -489,7 +457,7 @@ func getAllVMs(headers [][2]string) []vmwareVM {
 		}
 		return vms.Value
 	}
-	var vms []vmwareVM
+	var vms []vcenterVM
 	err = json.Unmarshal([]byte(response.RespBody), &vms)
 	if err != nil {
 		utils.LogError(fmt.Sprintf("JSON parsing failed for VM Get - %s", err))
@@ -498,7 +466,7 @@ func getAllVMs(headers [][2]string) []vmwareVM {
 }
 
 // GetVMsFromTags - Function that will get all VMs that have a certain tag.
-func getTagsfromVMs(headers [][2]string, vms map[string]vmwareVM, tags map[string]vcenterTags) []responseObject {
+func getTagsfromVMs(headers [][2]string, vms map[string]vcenterVM, tags map[string]vcenterTags) []responseObject {
 
 	tmpurl := "/api/cis/tagging/tag-association?action=list-attached-tags-on-objects"
 	if deprecated {
@@ -517,11 +485,11 @@ func getTagsfromVMs(headers [][2]string, vms map[string]vmwareVM, tags map[strin
 
 	for vmid := range vms {
 
-		tmpvm := append(tmpvm, objects{Type: "VirtualMachine", ID: vmid})
+		tmpvm = append(tmpvm, objects{Type: "VirtualMachine", ID: vmid})
 
 		count++
 		if count != len(vms) {
-			if count < 1 {
+			if count < 500 {
 				continue
 			}
 		}
@@ -535,9 +503,20 @@ func getTagsfromVMs(headers [][2]string, vms map[string]vmwareVM, tags map[strin
 		//Send Request for tags per VM.
 		response, err := httpCall("POST", apiURL.String(), body, headers, false)
 		if err != nil {
-			utils.LogInfo(fmt.Sprintf("GetTagsFromVMs API call failed - %s", err), false)
+			utils.LogError(fmt.Sprintf("GetTagsFromVMs API call failed - %s", err))
 		}
 
+		if deprecated {
+			var resObject struct {
+				Value []responseObject `json:"value"`
+			}
+			err = json.Unmarshal([]byte(response.RespBody), &resObject)
+			if err != nil {
+				utils.LogError(fmt.Sprintf("GetTagFromVM Unmarshall Failed - %s", err))
+			}
+			totalResObject = append(totalResObject, resObject.Value...)
+			return totalResObject
+		}
 		//Build Response object to store returned tags for each VM sent in the request.
 		var resObject []responseObject
 		err = json.Unmarshal([]byte(response.RespBody), &resObject)
@@ -546,6 +525,7 @@ func getTagsfromVMs(headers [][2]string, vms map[string]vmwareVM, tags map[strin
 		}
 		totalResObject = append(totalResObject, resObject...)
 	}
+
 	return totalResObject
 }
 
@@ -584,113 +564,53 @@ func getSessionToken() string {
 	}
 	return raw
 }
+func validateKeyMap(keyMap map[string]string) {
 
-// httpCall - Generic Function to call VCenter APIs
-func httpCall(httpAction, apiURL string, body []byte, headers [][2]string, login bool) (apiResponse, error) {
-
-	var response apiResponse
-	var httpBody *bytes.Buffer
-	//var asyncResults asyncResults
-
-	// Validate the provided action
-	httpAction = strings.ToUpper(httpAction)
-	if httpAction != "GET" && httpAction != "POST" && httpAction != "PUT" && httpAction != "DELETE" {
-		return response, errors.New("invalid http action string. action must be GET, POST, PUT, or DELETE")
-	}
-
-	// Get the base URL
-	//	u, err := url.Parse(apiURL)
-
-	// Create body
-	httpBody = bytes.NewBuffer(body)
-
-	// Create HTTP client and request
-	client := &http.Client{}
-	if pce.DisableTLSChecking {
-		client.Transport = &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
-	}
-
-	req, err := http.NewRequest(httpAction, apiURL, httpBody)
+	// Get the PCE version
+	version, api, err := pce.GetVersion()
+	utils.LogAPIRespV2("GetVersion", api)
 	if err != nil {
-		return response, err
+		utils.LogError(err.Error())
 	}
 
-	// Set basic authentication and headers
-	if login {
-		req.SetBasicAuth(userID, secret)
+	needLabelDimensions := false
+	if (version.Major > 22 || (version.Major == 22 && version.Minor >= 5)) && len(pce.LabelDimensionsSlice) == 0 {
+		needLabelDimensions = true
 	}
 
-	// Set the user provided headers
-	for _, h := range headers {
-		req.Header.Set(h[0], h[1])
-	}
-
-	// Make HTTP Request
-	resp, err := client.Do(req)
+	//Call PCE load data to get all the machines.
+	apiResps, err := pce.Load(illumioapi.LoadInput{Workloads: true, Labels: true, LabelDimensions: needLabelDimensions}, utils.UseMulti())
+	utils.LogMultiAPIRespV2(apiResps)
 	if err != nil {
-		return response, err
+		utils.LogError(err.Error())
 	}
 
-	// Process response
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return response, err
+	// Create a map of label keys and depending on version either populate with API or with role, app, env, and loc.
+	labelKeysMap := make(map[string]bool)
+	if version.Major > 22 || (version.Major == 22 && version.Minor >= 5) {
+		for _, l := range pce.LabelDimensionsSlice {
+			labelKeysMap[l.Key] = true
+		}
+	} else {
+		labelKeysMap["role"] = true
+		labelKeysMap["app"] = true
+		labelKeysMap["env"] = true
+		labelKeysMap["loc"] = true
 	}
+	utils.LogInfo(fmt.Sprintf("label keys map: %v", labelKeysMap), false)
 
-	// Put relevant response info into struct
-	response.RespBody = string(data)
-	response.StatusCode = resp.StatusCode
-	response.Header = resp.Header
-	response.Request = resp.Request
-
-	// Check for a 200 response code
-	if strconv.Itoa(resp.StatusCode)[0:1] != "2" {
-		return response, errors.New("http status code of " + strconv.Itoa(response.StatusCode))
-	}
-
-	// Return data and nil error
-	return response, nil
-}
-
-// getVCenterVersion - Gets the version of VCenter running so we can make sure to correctly build the VCenter APIs
-// After 7.0.u2 there is new syntax for the api.
-// pre 7.0.u2 - https:<vcenter>/rest/com/vmware/cis/<tag APIs> and https:<vcenter>/rest/vcenter/vm<VM APIs>
-// post 7.0.u2 - https:<vcenter>/api/vcenter/<All APIs>
-func validateVCenterVersion(headers [][2]string) {
-
-	apiURL, err := url.Parse(fmt.Sprintf("https://%s/api/appliance/system/version", vcenter))
-	if err != nil {
-		utils.LogError(fmt.Sprintf("validateVCenterVersio URL Parse Failed - %s", err))
-	}
-	response, err := httpCall("GET", apiURL.String(), []byte{}, headers, false)
-	if err != nil {
-		utils.LogError(fmt.Sprintf("validateVCenterVersio API call failed - %s", err))
-	}
-
-	//vmware version json response.
-	var raw struct {
-		Build       string `json:"build"`
-		InstallTime string `json:"install_time"`
-		Product     string `json:"product"`
-		Releasedate string `json:"releasedate"`
-		Summary     string `json:"summary"`
-		Type        string `json:"type"`
-		Version     string `json:"version"`
-	}
-
-	err = json.Unmarshal([]byte(response.RespBody), &raw)
-	if err != nil {
-		utils.LogError(fmt.Sprintf("marshal validateVCenterVersion response failed - %s", err))
-	}
-	utils.LogInfo(fmt.Sprintf("The current version of VCenter is %s", raw.Version), false)
-	if ver := strings.Split(raw.Version, "."); (ver[0] == "7" && ver[2] == "u2" || ver[2] == "u1") || ver[0] == "6" {
-		utils.LogError("Currently this feature only support VCenter '7.0.u2' and above")
+	for _, val := range keyMap {
+		if !labelKeysMap[val] {
+			utils.LogError(fmt.Sprintf("Following PCE LabelType '%s' is not configured on the PCE", val))
+		}
 	}
 }
 
-func vcenterTagInfo(keyMap map[string]string) map[string][]string {
+// vcenterGetPCEInputData - Function that will pull categories, tags, and vms.  These will map to PCE labeltypes, labels and workloads.
+// The function will find all the tags for each vm that is either running a VEN or desired all machines that are not running a VEN.
+// The output will of the function will be easily imported buy the workload wkld.import feature.
+func vcenterBuildPCEInputData(keyMap map[string]string) map[string]vcenterVM {
 
-	utils.LogInfo("Begin VCenter API Session setup - ", false)
 	if userID == "" || secret == "" {
 		utils.LogError("Either USER or/and SECRET are empty.  Both are required.")
 	}
@@ -717,105 +637,75 @@ func vcenterTagInfo(keyMap map[string]string) map[string][]string {
 	//Detail to find that.  That is what getCategoryDetail and getTagDetail are doing.
 	for _, category := range categories {
 		catDetail := getCategoryDetail(httpHeader, category)
-		if keyMap[catDetail.Name] != "" {
+		if _, ok := keyMap[catDetail.Name]; ok {
 			tagIDS := getTagFromCategories(httpHeader, catDetail.ID)
 
 			for _, tagid := range tagIDS {
 				taginfo := getTagDetail(httpHeader, tagid)
-				vcTags[tagid] = vcenterTags{Category: keyMap[catDetail.Name], CategoryID: catDetail.ID, Tag: taginfo.Name}
+				vcTags[tagid] = vcenterTags{Category: catDetail.Name, LabelType: keyMap[catDetail.Name], CategoryID: catDetail.ID, Tag: taginfo.Name}
 			}
-			//totalTags = append(totalTags, tagIDS...)
 		}
 	}
 
 	//return totaltags
-	var allvms = make(map[string]vmwareDetail)
+	//var allvms = make(map[string]vmwareDetail)
 	listvms := getAllVMs(httpHeader)
 
-	// Get the PCE version
-	version, api, err := pce.GetVersion()
-	utils.LogAPIRespV2("GetVersion", api)
-	if err != nil {
-		utils.LogError(err.Error())
-	}
-	// Create a map of label keys and depending on version either populate with API or with role, app, env, and loc.
-	labelKeysMap := make(map[string]bool)
-	if version.Major > 22 || (version.Major == 22 && version.Minor >= 5) {
-		for _, l := range pce.LabelDimensionsSlice {
-			labelKeysMap[l.Key] = true
-		}
-	} else {
-		labelKeysMap["role"] = true
-		labelKeysMap["app"] = true
-		labelKeysMap["env"] = true
-		labelKeysMap["loc"] = true
-	}
-	utils.LogInfo(fmt.Sprintf("label keys map: %v", labelKeysMap), false)
-
-	needLabelDimensions := false
-	if (version.Major > 22 || (version.Major == 22 && version.Minor >= 5)) && len(pce.LabelDimensionsSlice) == 0 {
-		needLabelDimensions = true
-	}
-
-	//Call PCE load data to get all the machines.
-	apiResps, err := pce.Load(illumioapi.LoadInput{Workloads: true, Labels: true, LabelDimensions: needLabelDimensions}, utils.UseMulti())
-	utils.LogMultiAPIRespV2(apiResps)
-	if err != nil {
-		utils.LogError(err.Error())
-	}
-
+	//******WHY
 	tmpWklds := make(map[string]illumioapi.Workload)
 	for key, wkldStruct := range pce.Workloads {
 		tmpWklds[makeLowerCase(key)] = wkldStruct
 	}
 
 	//Cycle through all VMs looking for match if labeling VMs or no match to creat umwls
-	vms := make(map[string]vmwareVM)
+	vms := make(map[string]vcenterVM)
 	for _, tmpvm := range listvms {
 		if wkld, ok := tmpWklds[makeLowerCase(tmpvm.Name)]; ok {
 			if umwl {
 				continue
 			}
 			if makeLowerCase(nameCheck(*wkld.Hostname)) == makeLowerCase(nameCheck(tmpvm.Name)) {
-				vms[tmpvm.VMID] = vmwareVM{Name: tmpvm.Name, VMID: tmpvm.VMID, PowerState: tmpvm.PowerState}
+				vms[tmpvm.VMID] = vcenterVM{Name: *wkld.Hostname, VMID: tmpvm.VMID, PowerState: tmpvm.PowerState}
 			}
 		}
 		if umwl {
+			infs := getVMNetworkDetail(httpHeader, tmpvm.VMID)
+			if len(infs) == 0 {
+				utils.LogInfo(fmt.Sprintf("UMWL skipped - %s No Network Object returned", tmpvm.Name), false)
+			} else {
+				var tmpintfs [][]string
+				for _, intf := range infs {
+					count := 0
+					for _, ips := range intf.IP.IPAddresses {
+						var tmpintfips []string
+						count++
+						tmpintfips = []string{fmt.Sprint("eth" + intf.Nic + "-" + fmt.Sprintf("%d", count)), ips.IPAddress}
+						tmpintfs = append(tmpintfs, tmpintfips)
+					}
+				}
+				vms[tmpvm.VMID] = vcenterVM{Name: tmpvm.Name, VMID: tmpvm.VMID, PowerState: tmpvm.PowerState, Interfaces: tmpintfs}
+				// allvms[tmpvm.VMID] = cloudData{VMID: tmpvm.VMID, Name: tmpvm.Name, State: tmpvm.PowerState, Location: tmplocation, Interfaces: []netInterface{tmpintf}}
 
-			tmp := getVMNetworkDetail(httpHeader, tmpvm.VMID)
-			for _, inf := range tmp {
-				fmt.Println(inf.IP.IPAddresses, inf.Nic)
 			}
-
-			vms[tmpvm.VMID] = vmwareVM{Name: tmpvm.Name, VMID: tmpvm.VMID, PowerState: tmpvm.PowerState}
-			// allvms[tmpvm.VMID] = cloudData{VMID: tmpvm.VMID, Name: tmpvm.Name, State: tmpvm.PowerState, Location: tmplocation, Interfaces: []netInterface{tmpintf}}
 		}
 
 	}
 	totalVMs := getTagsfromVMs(httpHeader, vms, vcTags)
-	vmMap := make(map[string][]string)
-	for _, vm := range totalVMs {
-		vmMap[vm.ObjectId.ID] = vm.TagIds
+
+	//Cycle through all the VMs and add the Tags
+	newVMs := make(map[string]vcenterVM)
+	for _, object := range totalVMs {
+		tmpTags := make(map[string]string)
+		for _, tag := range object.TagIds {
+			if _, ok := vcTags[tag]; ok {
+				tmpTags[vcTags[tag].LabelType] = vcTags[tag].Tag
+			}
+		}
+
+		newVMs[object.ObjectId.ID] = vcenterVM{VMID: vms[object.ObjectId.ID].VMID, Name: vms[object.ObjectId.ID].Name, PowerState: vms[object.ObjectId.ID].PowerState, Tags: tmpTags, Interfaces: vms[object.ObjectId.ID].Interfaces}
 	}
 
-	//Cycle through all the reservations for all arrays in that reservation
+	utils.LogInfo(fmt.Sprintf("Total VMs found - %d", len(newVMs)), true)
+	return newVMs
 
-	utils.LogInfo(fmt.Sprintf("Total EC2 instances discovered - %d", len(allvms)), true)
-	return vmMap
-
-}
-
-// makeLowerCase - Take any string and make it all lowercase
-func makeLowerCase(str string) string {
-	return strings.ToLower(str)
-}
-
-// nameCheck - Match Hostname with or without domain information
-func nameCheck(name string) string {
-
-	if ignoreFQDNHostname {
-		fullname := strings.Split(name, ".")
-		return fullname[0]
-	}
-	return name
 }

@@ -13,12 +13,15 @@ type apiResponse struct {
 	ReqBody    string
 }
 
+// vcenterTags - container for tags and their category, categoryId and pce labeltype once matched
 type vcenterTags struct {
+	LabelType  string
 	CategoryID string `json:"category_id"`
 	Category   string `json:"category"`
 	Tag        string `json:"tag"`
 }
 
+// categoryDetail - used to get the Category Name which equates to LabelType
 type categoryDetail struct {
 	Name            string   `json:"name"`
 	Cardinality     string   `json:"cardinality"`
@@ -28,6 +31,7 @@ type categoryDetail struct {
 	UsedBy          []string `json:"used_by"`
 }
 
+// tagDetail - Struct used to get the Tag Name from the TagID.
 type tagDetail struct {
 	Name        string   `json:"name"`
 	CategoryID  string   `json:"category_id"`
@@ -35,22 +39,17 @@ type tagDetail struct {
 	ID          string   `json:"id"`
 	UsedBy      []string `json:"used_by"`
 }
-type vmwareDetail struct {
-	Name      string `json:"name"`
-	HostName  string `json:"host_name"`
-	IPAddress string `json:"ip_address"`
-	Family    string `json:"family"`
-	Found     bool
-}
 
-type vmwareVM struct {
+// vcenterVM - Struct used to gather all VM informatoin to be the basis of the wkld.import file
+type vcenterVM struct {
 	VMID       string `json:"vm"`
 	Name       string `json:"name"`
 	PowerState string `json:"power_state"`
 	Tags       map[string]string
-	Detail     vmwareDetail
+	Interfaces [][]string
 }
 
+// vcenterObjects - Struct that is used for filtering VMs.
 type vcenterObjects struct {
 	Name       string `json:"name"`
 	Datacenter string `json:"datacenter"`
@@ -73,6 +72,7 @@ type responseObject struct {
 	ObjectId objects  `json:"object_id"`
 }
 
+// Netinterface struct for GetVMDetail Call.  This is the network data discovered by VMTools
 type Netinterfaces struct {
 	IP struct {
 		IPAddresses []struct {
@@ -82,6 +82,6 @@ type Netinterfaces struct {
 			State        string `json:"state"`
 		} `json:"ip_addresses"`
 	} `json:"ip"`
-	MacAddress string `json:"mac_address"`
 	Nic        string `json:"nic"`
+	MacAddress string `json:"mac_address"`
 }
