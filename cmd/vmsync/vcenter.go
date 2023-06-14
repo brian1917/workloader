@@ -16,11 +16,11 @@ import (
 )
 
 // CallWkldImport - Function that gets the data structure to build a wkld import file.
-func callWkldImport(keyMap map[string]string, vmMap map[string]vcenterVM) {
+func callWkldImport(keyMap map[string]string, pce *illumioapi.PCE, vmMap map[string]vcenterVM) {
 
 	var outputFileName string
 	// Set up the csv headers
-	csvData := [][]string{{"hostname"}}
+	csvData := [][]string{{"hostname", "description"}}
 	if umwl {
 		csvData[0] = append(csvData[0], "interfaces")
 	}
@@ -30,7 +30,7 @@ func callWkldImport(keyMap map[string]string, vmMap map[string]vcenterVM) {
 
 	//csvData := [][]string{{"hostname", "role", "app", "env", "loc", "interfaces", "name"}
 	for _, vm := range vmMap {
-		csvRow := []string{vm.Name}
+		csvRow := []string{vm.Name, vm.VMID}
 		var tmpInf string
 		if umwl {
 			for c, inf := range vm.Interfaces {
@@ -44,9 +44,9 @@ func callWkldImport(keyMap map[string]string, vmMap map[string]vcenterVM) {
 		for index, header := range csvData[0] {
 
 			// Skip hostname and interfaces if umwls ...they are statically added above
-			if index == 0 {
+			if index < 2 {
 				continue
-			} else if umwl && index == 1 {
+			} else if umwl && index == 2 {
 				continue
 			}
 			//process hostname by finding Name TAG
@@ -65,10 +65,10 @@ func callWkldImport(keyMap map[string]string, vmMap map[string]vcenterVM) {
 		utils.LogInfo("passing output into wkld-import...", true)
 
 		wkldimport.ImportWkldsFromCSV(wkldimport.Input{
-			PCE:             pce,
+			PCE:             *pce,
 			ImportFile:      outputFileName,
 			RemoveValue:     "vcenter-label-delete",
-			Umwl:            false,
+			Umwl:            umwl,
 			UpdateWorkloads: true,
 			UpdatePCE:       updatePCE,
 			NoPrompt:        noPrompt,
@@ -563,7 +563,8 @@ func getSessionToken() string {
 		return ""
 	}
 	return raw
-}
+
+} // validateKeyMap - Check the KepMap file so it has correct Category to LabelType mapping.  Exit if not correct.
 func validateKeyMap(keyMap map[string]string) {
 
 	// Get the PCE version
@@ -671,7 +672,7 @@ func vcenterBuildPCEInputData(keyMap map[string]string) map[string]vcenterVM {
 		if umwl {
 			infs := getVMNetworkDetail(httpHeader, tmpvm.VMID)
 			if len(infs) == 0 {
-				utils.LogInfo(fmt.Sprintf("UMWL skipped - %s No Network Object returned", tmpvm.Name), false)
+				//utils.LogInfo(fmt.Sprintf("UMWL skipped - %s No Network Object returned", tmpvm.Name), false)
 			} else {
 				var tmpintfs [][]string
 				for _, intf := range infs {
@@ -684,8 +685,6 @@ func vcenterBuildPCEInputData(keyMap map[string]string) map[string]vcenterVM {
 					}
 				}
 				vms[tmpvm.VMID] = vcenterVM{Name: tmpvm.Name, VMID: tmpvm.VMID, PowerState: tmpvm.PowerState, Interfaces: tmpintfs}
-				// allvms[tmpvm.VMID] = cloudData{VMID: tmpvm.VMID, Name: tmpvm.Name, State: tmpvm.PowerState, Location: tmplocation, Interfaces: []netInterface{tmpintf}}
-
 			}
 		}
 
@@ -697,7 +696,13 @@ func vcenterBuildPCEInputData(keyMap map[string]string) map[string]vcenterVM {
 	for _, object := range totalVMs {
 		tmpTags := make(map[string]string)
 		for _, tag := range object.TagIds {
+
+			//Check for a tag and to see if you have adont have 2 Tags with the same Category on the same VM
 			if _, ok := vcTags[tag]; ok {
+				if _, ok := tmpTags[vcTags[tag].LabelType]; ok {
+					utils.LogInfo(fmt.Sprintf("VM has 2 or more Tags with the same Category - %s ", vms[object.ObjectId.ID].Name), true)
+					continue
+				}
 				tmpTags[vcTags[tag].LabelType] = vcTags[tag].Tag
 			}
 		}
