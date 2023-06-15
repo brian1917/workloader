@@ -159,6 +159,8 @@ func AwsLabels(labelMapping string, pce *illumioapi.PCE, updatePCE, noPrompt boo
 			UpdateWorkloads: true,
 			UpdatePCE:       updatePCE,
 			NoPrompt:        noPrompt,
+			MaxUpdate:       -1,
+			MaxCreate:       -1,
 		})
 
 	} else {
