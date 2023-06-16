@@ -3,8 +3,10 @@ package vmsync
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/brian1917/illumioapi/v2"
+	"github.com/brian1917/workloader/cmd/wkldimport"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -13,7 +15,8 @@ import (
 var vcenter, datacenter, cluster, folder, userID, secret string
 
 var csvFile string
-var ignoreState, umwl, updatePCE, noPrompt, keepTempFile, keepFQDNHostname, deprecated bool
+var ignoreState, umwl, keepTempFile, keepFQDNHostname, deprecated bool
+var updatePCE, noPrompt bool
 var pce illumioapi.PCE
 var err error
 
@@ -24,16 +27,16 @@ func init() {
 	cobra.EnableCommandSorting = false
 
 	//awsimport options
-	VCenterSyncCmd.Flags().StringVarP(&datacenter, "datacenter", "d", "", "Sync VMs that reside in certain VCenter Datacenter object. (default - \"\"")
-	VCenterSyncCmd.Flags().StringVarP(&cluster, "cluster", "c", "", "Sync VMs that reside in certain VCenter cluster object. (default - \"\"")
-	VCenterSyncCmd.Flags().StringVarP(&folder, "folder", "f", "", "Sync VMs that reside in certain VCenter folder object. (default - \"\"")
+	VCenterSyncCmd.Flags().StringVarP(&datacenter, "datacenter", "d", "", "Sync VMs that reside in a certain VCenter Datacenter object. (default - \"\"")
+	VCenterSyncCmd.Flags().StringVarP(&cluster, "cluster", "c", "", "Sync VMs that reside in a certain VCenter cluster object. (default - \"\"")
+	VCenterSyncCmd.Flags().StringVarP(&folder, "folder", "f", "", "Sync VMs that reside in a certain VCenter folder object. (default - \"\"")
 	VCenterSyncCmd.Flags().StringVarP(&vcenter, "vcenter", "v", "", "Required - FQDN or IP of VCenter instance - e.g vcenter.illumio.com")
 	VCenterSyncCmd.Flags().StringVarP(&userID, "user", "u", "", "Required - username of account with access to VCenter REST API")
 	VCenterSyncCmd.Flags().StringVarP(&secret, "password", "p", "", "Required - password of account with access to VCenter REST API")
-	VCenterSyncCmd.Flags().BoolVarP(&ignoreState, "ignore-state", "i", false, "By default only looks for workloads in a running state")
-	VCenterSyncCmd.Flags().BoolVar(&umwl, "umwl", false, "Create unmanaged workloads for non-matches.")
-	VCenterSyncCmd.Flags().BoolVarP(&keepTempFile, "keep-temp-file", "k", false, "Do not delete the temp CSV file downloaded from SerivceNow.")
-	VCenterSyncCmd.Flags().BoolVarP(&keepFQDNHostname, "keepfqdn", "", false, "By default hostnames with domains are removed.  You can keep FQDN hostnames (e.g., test.domain.com will not become test). ")
+	VCenterSyncCmd.Flags().BoolVarP(&ignoreState, "ignore-state", "i", false, "Currently only finds VCenter VMs in a 'RunningState'")
+	VCenterSyncCmd.Flags().BoolVarP(&umwl, "umwl", "", false, "Import VCenter VMs that dont have worloader in the PCE.  Once imported these will only update labels.")
+	VCenterSyncCmd.Flags().BoolVarP(&keepTempFile, "keep-temp-file", "k", false, "Do not delete the temp CSV file downloaded from Vcenter Sync")
+	VCenterSyncCmd.Flags().BoolVarP(&keepFQDNHostname, "keepfqdn", "", false, "By default hostnames with domains will remove the domain when matching.  This option keep FQDN hostnames (e.g., test.domain.com will not become test). ")
 	VCenterSyncCmd.Flags().BoolVarP(&deprecated, "deprecated", "", false, "use this option if you are running an older version of the API (VCenter 6.5-7.0.u2")
 	VCenterSyncCmd.MarkFlagRequired("userID")
 	VCenterSyncCmd.MarkFlagRequired("secret")
@@ -84,4 +87,77 @@ var VCenterSyncCmd = &cobra.Command{
 		//Sync VMs to Workloads or create UMWL VMs for all machines in VCenter not running VEN
 		callWkldImport(keyMap, &pce, vcenterBuildPCEInputData(keyMap))
 	},
+}
+
+// CallWkldImport - Function that gets the data structure to build a wkld import file and import.
+func callWkldImport(keyMap map[string]string, pce *illumioapi.PCE, vmMap map[string]vcenterVM) {
+
+	var outputFileName string
+	// Set up the csv headers
+	csvData := [][]string{{"hostname", "description"}}
+	if umwl {
+		csvData[0] = append(csvData[0], "interfaces")
+	}
+	for _, illumioLabelType := range keyMap {
+		csvData[0] = append(csvData[0], illumioLabelType)
+	}
+
+	//csvData := [][]string{{"hostname", "role", "app", "env", "loc", "interfaces", "name"}
+	for _, vm := range vmMap {
+		csvRow := []string{vm.Name, vm.VMID}
+		var tmpInf string
+		if umwl {
+			for c, inf := range vm.Interfaces {
+				if c != 0 {
+					tmpInf = tmpInf + ";"
+				}
+				tmpInf = tmpInf + fmt.Sprintf("%s:%s", inf[0], inf[1])
+			}
+			csvRow = append(csvRow, tmpInf)
+		}
+		for index, header := range csvData[0] {
+
+			// Skip hostname and interfaces if umwls ...they are statically added above
+			if index < 2 {
+				continue
+			} else if umwl && index == 2 {
+				continue
+			}
+			//process hostname by finding Name TAG
+			csvRow = append(csvRow, vm.Tags[header])
+		}
+		csvData = append(csvData, csvRow)
+	}
+
+	if len(vmMap) > 0 {
+		if outputFileName == "" {
+			outputFileName = fmt.Sprintf("workloader-vcenter-sync-%s.csv", time.Now().Format("20060102_150405"))
+		}
+		utils.WriteOutput(csvData, nil, outputFileName)
+		utils.LogInfo(fmt.Sprintf("%d VCenter vms with label data exported", len(csvData)-1), true)
+
+		utils.LogInfo("passing output into wkld-import...", true)
+
+		wkldimport.ImportWkldsFromCSV(wkldimport.Input{
+			PCE:             *pce,
+			ImportFile:      outputFileName,
+			RemoveValue:     "vcenter-label-delete",
+			Umwl:            umwl,
+			UpdateWorkloads: true,
+			UpdatePCE:       updatePCE,
+			NoPrompt:        noPrompt,
+		})
+
+	} else {
+		utils.LogInfo("no Vcenter vms found", true)
+	}
+	// Delete the temp file
+	if !keepTempFile {
+		if err := os.Remove(outputFileName); err != nil {
+			utils.LogWarning(fmt.Sprintf("Could not delete %s", outputFileName), true)
+		} else {
+			utils.LogInfo(fmt.Sprintf("Deleted %s", outputFileName), false)
+		}
+	}
+	utils.LogEndCommand(fmt.Sprintf("%s-sync", "vcenter"))
 }

@@ -1,18 +1,5 @@
 package vmsync
 
-import (
-	"net/http"
-)
-
-// apiResponse contains the information from the response of the API
-type apiResponse struct {
-	RespBody   string
-	StatusCode int
-	Header     http.Header
-	Request    *http.Request
-	ReqBody    string
-}
-
 // vcenterTags - container for tags and their category, categoryId and pce labeltype once matched
 type vcenterTags struct {
 	LabelType  string

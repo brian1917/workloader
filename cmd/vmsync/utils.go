@@ -11,14 +11,15 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/utils"
 	"github.com/pkg/errors"
 )
 
 // httpCall - Generic Function to call VCenter APIs
-func httpCall(httpAction, apiURL string, body []byte, headers [][2]string, login bool) (apiResponse, error) {
+func httpCall(httpAction, apiURL string, body []byte, headers [][2]string, login bool) (illumioapi.APIResponse, error) {
 
-	var response apiResponse
+	var response illumioapi.APIResponse
 	var httpBody *bytes.Buffer
 	//var asyncResults asyncResults
 
@@ -73,6 +74,13 @@ func httpCall(httpAction, apiURL string, body []byte, headers [][2]string, login
 	response.Header = resp.Header
 	response.Request = resp.Request
 
+	//for any deprecated VCenter API call there is a "value:" as the first entry in the data returned.
+	//This command removes the "value:" so that all the responses now have the same structure.
+	if strings.Contains(response.RespBody, "\"value\":") {
+		response.RespBody = response.RespBody[:len(response.RespBody)-1]
+		response.RespBody = response.RespBody[9:]
+	}
+
 	// Check for a 200 response code
 	if strconv.Itoa(resp.StatusCode)[0:1] != "2" {
 		return response, errors.New("http status code of " + strconv.Itoa(response.StatusCode))
@@ -116,13 +124,6 @@ func validateVCenterVersion(headers [][2]string) {
 	if ver := strings.Split(raw.Version, "."); (ver[0] == "7" && ver[2] == "u2" || ver[2] == "u1") || ver[0] == "6" {
 		utils.LogError("Currently this feature only support VCenter '7.0.u2' and above")
 	}
-}
-
-// makeLowerCase - Take any string and make it all lowercase
-// input string
-// output lowercase string
-func makeLowerCase(str string) string {
-	return strings.ToLower(str)
 }
 
 // nameCheck - Match Hostname with or without domain information

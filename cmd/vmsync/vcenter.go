@@ -8,87 +8,14 @@ import (
 	"io"
 	"net/url"
 	"os"
-	"time"
+	"strings"
 
 	"github.com/brian1917/illumioapi/v2"
-	"github.com/brian1917/workloader/cmd/wkldimport"
 	"github.com/brian1917/workloader/utils"
 )
 
+// Number of VMs to place in GetTagsFromVMs API call if you have a large number (greater than 500)
 const NumVM = 500
-
-// CallWkldImport - Function that gets the data structure to build a wkld import file.
-func callWkldImport(keyMap map[string]string, pce *illumioapi.PCE, vmMap map[string]vcenterVM) {
-
-	var outputFileName string
-	// Set up the csv headers
-	csvData := [][]string{{"hostname", "description"}}
-	if umwl {
-		csvData[0] = append(csvData[0], "interfaces")
-	}
-	for _, illumioLabelType := range keyMap {
-		csvData[0] = append(csvData[0], illumioLabelType)
-	}
-
-	//csvData := [][]string{{"hostname", "role", "app", "env", "loc", "interfaces", "name"}
-	for _, vm := range vmMap {
-		csvRow := []string{vm.Name, vm.VMID}
-		var tmpInf string
-		if umwl {
-			for c, inf := range vm.Interfaces {
-				if c != 0 {
-					tmpInf = tmpInf + ";"
-				}
-				tmpInf = tmpInf + fmt.Sprintf("%s:%s", inf[0], inf[1])
-			}
-			csvRow = append(csvRow, tmpInf)
-		}
-		for index, header := range csvData[0] {
-
-			// Skip hostname and interfaces if umwls ...they are statically added above
-			if index < 2 {
-				continue
-			} else if umwl && index == 2 {
-				continue
-			}
-			//process hostname by finding Name TAG
-			csvRow = append(csvRow, vm.Tags[header])
-		}
-		csvData = append(csvData, csvRow)
-	}
-
-	if len(vmMap) > 0 {
-		if outputFileName == "" {
-			outputFileName = fmt.Sprintf("workloader-vcenter-sync-%s.csv", time.Now().Format("20060102_150405"))
-		}
-		utils.WriteOutput(csvData, nil, outputFileName)
-		utils.LogInfo(fmt.Sprintf("%d VCenter vms with label data exported", len(csvData)-1), true)
-
-		utils.LogInfo("passing output into wkld-import...", true)
-
-		wkldimport.ImportWkldsFromCSV(wkldimport.Input{
-			PCE:             *pce,
-			ImportFile:      outputFileName,
-			RemoveValue:     "vcenter-label-delete",
-			Umwl:            umwl,
-			UpdateWorkloads: true,
-			UpdatePCE:       updatePCE,
-			NoPrompt:        noPrompt,
-		})
-
-	} else {
-		utils.LogInfo("no Vcenter vms found", true)
-	}
-	// Delete the temp file
-	if !keepTempFile {
-		if err := os.Remove(outputFileName); err != nil {
-			utils.LogWarning(fmt.Sprintf("Could not delete %s", outputFileName), true)
-		} else {
-			utils.LogInfo(fmt.Sprintf("Deleted %s", outputFileName), false)
-		}
-	}
-	utils.LogEndCommand(fmt.Sprintf("%s-sync", "vcenter"))
-}
 
 // readKeyFile - Reads file that maps TAG names to PCE RAEL labels.   File is added as the first argument.
 // the first entry in the CSV should be the VCenter Category.  The second is the PCE label type.
@@ -132,7 +59,6 @@ func readKeyFile(filename string) map[string]string {
 
 // getTagDetail - Get the details of a specific tag by sending the tagID as the filter.
 func getTagDetail(headers [][2]string, tagID string) tagDetail {
-	var response apiResponse
 
 	tmpurl := "/api/cis/tagging/tag/" + tagID
 	if deprecated {
@@ -140,24 +66,16 @@ func getTagDetail(headers [][2]string, tagID string) tagDetail {
 	}
 	apiURL, err := url.Parse("https://" + vcenter + tmpurl)
 	if err != nil {
-		utils.LogError(fmt.Sprintf("getCategoryDetail URL Parse Failed - %s", err))
+		utils.LogError(fmt.Sprintf("getTagDetail URL Parse Failed - %s", err))
 	}
+
+	var response illumioapi.APIResponse
 	response, err = httpCall("GET", apiURL.String(), []byte{}, headers, false)
+	utils.LogMultiAPIRespV2(map[string]illumioapi.APIResponse{"getTagDetail": response})
 	if err != nil {
 		utils.LogInfo(fmt.Sprintf("VM Detail access to VCenter failed - %s", err), false)
 	}
 
-	//Unmarshal older API response
-	if deprecated {
-		var tmptag struct {
-			Value tagDetail `json:"value"`
-		}
-		err = json.Unmarshal([]byte(response.RespBody), &tmptag)
-		if err != nil {
-			utils.LogError(fmt.Sprintf("JSON parsing failed for VM Get - %s", err))
-		}
-		return tmptag.Value
-	}
 	//Unmarshal using new API response
 	var tmptag tagDetail
 	err = json.Unmarshal([]byte(response.RespBody), &tmptag)
@@ -169,7 +87,6 @@ func getTagDetail(headers [][2]string, tagID string) tagDetail {
 
 // getTagFromCateegories - Return all the different tagIds for a specific category.
 func getTagFromCategories(headers [][2]string, categoryID string) []string {
-	var response apiResponse
 
 	tmpurl := "/api/cis/tagging/tag?action=list-tags-for-category"
 	if deprecated {
@@ -177,27 +94,23 @@ func getTagFromCategories(headers [][2]string, categoryID string) []string {
 	}
 	tmpbody := []byte{}
 	if !deprecated {
-		tmpbody, _ = json.Marshal(map[string]string{"category_id": categoryID})
+		tmpbody, err = json.Marshal(map[string]string{"category_id": categoryID})
+		if err != nil {
+			utils.LogError(fmt.Sprintf("getTagFromCategories Marshal failed - %s", err))
+		}
 	}
 	apiURL, err := url.Parse("https://" + vcenter + tmpurl)
 	if err != nil {
 		utils.LogError(fmt.Sprintf("getTagFromCategories URL Parse Failed - %s", err))
 	}
+
+	var response illumioapi.APIResponse
 	response, err = httpCall("POST", apiURL.String(), tmpbody, headers, false)
+	utils.LogMultiAPIRespV2(map[string]illumioapi.APIResponse{"getTagFromCategories": response})
 	if err != nil {
 		utils.LogInfo(fmt.Sprintf("Get Tags from Category API failed - %s", err), false)
 	}
-	//If using older API make sure to use a different object for unmarshaling response
-	if deprecated {
-		var tagFromCat struct {
-			Value []string `json:"value"`
-		}
-		err = json.Unmarshal([]byte(response.RespBody), &tagFromCat)
-		if err != nil {
-			utils.LogError(fmt.Sprintf("JSON parsing failed for Get Tags from Category - %s", err))
-		}
-		return tagFromCat.Value
-	}
+
 	var tagFromCat []string
 	err = json.Unmarshal([]byte(response.RespBody), &tagFromCat)
 	if err != nil {
@@ -209,7 +122,6 @@ func getTagFromCategories(headers [][2]string, categoryID string) []string {
 // getObjectID - This will call the VCenter API to get the objectID of a Datacenter or Cluster.  These objectID
 // are used as filters when getting all the VMs.
 func getObjectID(headers [][2]string, object, filter string) vcenterObjects {
-	var response apiResponse
 
 	if object != "datacenter" && object != "cluster" && object != "folder" {
 		utils.LogError(fmt.Sprintf("GetObjectID getting invalid object type - %s", object))
@@ -221,7 +133,7 @@ func getObjectID(headers [][2]string, object, filter string) vcenterObjects {
 
 	apiURL, err := url.Parse("https://" + vcenter + tmpurl + object)
 	if err != nil {
-		utils.LogError(fmt.Sprintf("getCategoryDetail URL Parse Failed - %s", err))
+		utils.LogError(fmt.Sprintf("getAllVMs URL Parse Failed - %s", err))
 	}
 	var escapedParams string
 	if deprecated {
@@ -231,24 +143,13 @@ func getObjectID(headers [][2]string, object, filter string) vcenterObjects {
 	}
 	apiURL.RawQuery = url.PathEscape(escapedParams)
 
+	var response illumioapi.APIResponse
 	response, err = httpCall("GET", apiURL.String(), []byte{}, headers, false)
+	utils.LogMultiAPIRespV2(map[string]illumioapi.APIResponse{"getObjectID": response})
 	if err != nil {
 		utils.LogInfo(fmt.Sprintf("VCenter API call for Objects(datacenter, cluster, folder) failed - %s", err), false)
 	}
-	if deprecated {
-		var obj struct {
-			Objects []vcenterObjects `json:"value"`
-		}
-		err = json.Unmarshal([]byte(response.RespBody), &obj)
-		if err != nil {
-			utils.LogError(fmt.Sprintf("JSON parsing failed for VM Get - %s", err))
-		}
 
-		if len(obj.Objects) > 1 {
-			utils.LogError(fmt.Sprintf("Get Datacenter ID return more than one answer - %d", len(obj.Objects)))
-		}
-		return obj.Objects[0]
-	}
 	var obj []vcenterObjects
 	err = json.Unmarshal([]byte(response.RespBody), &obj)
 	if err != nil {
@@ -256,15 +157,13 @@ func getObjectID(headers [][2]string, object, filter string) vcenterObjects {
 	}
 
 	if len(obj) > 1 {
-		utils.LogError(fmt.Sprintf("Get Datacenter ID return more than one answer - %d", len(obj)))
+		utils.LogError(fmt.Sprintf("Get Vcenter Objects return more than one answer - %d", len(obj)))
 	}
 	return obj[0]
 }
 
 // getCategory - Call GetCategory API to get all the APIs in VCenter.
 func getCategories(headers [][2]string) []string {
-	var response apiResponse
-	var cat []string
 
 	tmpurl := "/api/cis/tagging/category"
 	if deprecated {
@@ -273,24 +172,17 @@ func getCategories(headers [][2]string) []string {
 
 	apiURL, err := url.Parse("https://" + vcenter + tmpurl)
 	if err != nil {
-		utils.LogError(fmt.Sprintf("getCategoryDetail URL Parse Failed - %s", err))
+		utils.LogError(fmt.Sprintf("getCategories URL Parse Failed - %s", err))
 	}
+
+	var response illumioapi.APIResponse
 	response, err = httpCall("GET", apiURL.String(), []byte{}, headers, false)
+	utils.LogMultiAPIRespV2(map[string]illumioapi.APIResponse{"getCategories": response})
 	if err != nil {
 		utils.LogError(fmt.Sprintf("Get All Categories access to VCenter failed - %s", err))
 	}
-	//If using older API make sure to use a different object for unmarshaling response
-	if deprecated {
-		var cat struct {
-			Value []string `json:"value"`
-		}
-		err = json.Unmarshal([]byte(response.RespBody), &cat)
-		if err != nil {
-			utils.LogError(fmt.Sprintf("JSON parsing failed for Get All Categories - %s", err))
-		}
-		return cat.Value
-	}
 
+	var cat []string
 	err = json.Unmarshal([]byte(response.RespBody), &cat)
 	if err != nil {
 		utils.LogError(fmt.Sprintf("JSON parsing failed for Get All Categories - %s", err))
@@ -301,8 +193,6 @@ func getCategories(headers [][2]string) []string {
 // getCategoryDetail - Call API with categoryId to get the details about the category.  Specifically pull the
 // name of the category which will be used to match with the PCE label types.
 func getCategoryDetail(headers [][2]string, categoryid string) categoryDetail {
-	var response apiResponse
-	var catDetail categoryDetail
 
 	tmpurl := "/api/cis/tagging/category/" + categoryid
 	if deprecated {
@@ -314,23 +204,15 @@ func getCategoryDetail(headers [][2]string, categoryid string) categoryDetail {
 	if err != nil {
 		utils.LogError(fmt.Sprintf("getCategoryDetail URL Parse Failed - %s", err))
 	}
+
+	var response illumioapi.APIResponse
 	response, err = httpCall("GET", apiURL.String(), []byte{}, headers, false)
+	utils.LogMultiAPIRespV2(map[string]illumioapi.APIResponse{"getCategoryDetail": response})
 	if err != nil {
 		utils.LogInfo(fmt.Sprintf("getCategory API call failed - %s", err), false)
 	}
 
-	//If using older API make sure to use a different object for unmarshaling response
-	if deprecated {
-		var cat struct {
-			Value categoryDetail `json:"value"`
-		}
-		err = json.Unmarshal([]byte(response.RespBody), &cat)
-		if err != nil {
-			utils.LogError(fmt.Sprintf("JSON parsing failed for getCategoryt - %s", err))
-		}
-		return cat.Value
-	}
-
+	var catDetail categoryDetail
 	err = json.Unmarshal([]byte(response.RespBody), &catDetail)
 	if err != nil {
 		utils.LogError(fmt.Sprintf("JSON parsing failed for getCategoryt - %s", err))
@@ -341,9 +223,6 @@ func getCategoryDetail(headers [][2]string, categoryid string) categoryDetail {
 // getVMDetail - Get specifics about VMs
 func getVMNetworkDetail(headers [][2]string, vm string) []Netinterfaces {
 
-	var response apiResponse
-	var obj []Netinterfaces
-
 	tmpurl := "/api/vcenter/vm/" + vm + "/guest/networking/interfaces"
 	if deprecated {
 		tmpurl = "/rest/vcenter/vm/" + vm + "/guest/networking/interfaces"
@@ -353,25 +232,16 @@ func getVMNetworkDetail(headers [][2]string, vm string) []Netinterfaces {
 	if err != nil {
 		utils.LogError(fmt.Sprintf("getVMNetworkDetail URL Parse Failed - %s", err))
 	}
+
+	var obj []Netinterfaces
+	var response illumioapi.APIResponse
 	response, err = httpCall("GET", apiURL.String(), []byte{}, headers, false)
+	utils.LogMultiAPIRespV2(map[string]illumioapi.APIResponse{"getVMNetworkDetail": response})
 	if err != nil {
-		if response.StatusCode == 503 {
-			utils.LogInfo(fmt.Sprintf("getVMNetworkDetail Return 503 - %s - Service Unavailable - No VMTools", vm), false)
-		} else {
+		if response.StatusCode != 503 {
 			utils.LogError(fmt.Sprintf("getVMNetworkDetail API Call failed - %s", err))
 		}
 	} else {
-		if deprecated {
-			var obj struct {
-				Value []Netinterfaces `json:"value"`
-			}
-			err = json.Unmarshal([]byte(response.RespBody), &obj)
-			if err != nil {
-				utils.LogError(fmt.Sprintf("JSON parsing failed for getVMNetworkDetail - %s", err))
-			}
-
-			return obj.Value
-		}
 
 		err = json.Unmarshal([]byte(response.RespBody), &obj)
 		if err != nil {
@@ -385,8 +255,7 @@ func getVMNetworkDetail(headers [][2]string, vm string) []Netinterfaces {
 // getAllVMs - VCenter API call to get all the VCenter VMs.  The call will return no more than 4000 objects.
 // To make sure you can fit all the VMs into a single call you can use the 'datacenter' and 'cluster' filter.
 // Currently only powered on machines are returned.
-func getAllVMs(headers [][2]string) []vcenterVM {
-	var response apiResponse
+func getVCenterVMs(headers [][2]string) []vcenterVM {
 
 	var datacenterId, clusterId, folderId string
 
@@ -396,7 +265,9 @@ func getAllVMs(headers [][2]string) []vcenterVM {
 	}
 
 	apiURL, err := url.Parse("https://" + vcenter + tmpurl)
-
+	if err != nil {
+		utils.LogError(fmt.Sprintf("getAllVMs URL Parse Failed - %s", err))
+	}
 	params := apiURL.Query()
 
 	//Add filter parameters for getting the VMs
@@ -441,27 +312,17 @@ func getAllVMs(headers [][2]string) []vcenterVM {
 
 	apiURL.RawQuery = params.Encode()
 
-	if err != nil {
-		utils.LogError(fmt.Sprintf("getCategoryDetail URL Parse Failed - %s", err))
-	}
+	var response illumioapi.APIResponse
 	response, err = httpCall("GET", apiURL.String(), []byte{}, headers, false)
+	utils.LogMultiAPIRespV2(map[string]illumioapi.APIResponse{"getVcenterVMs": response})
 	if err != nil {
-		utils.LogError(fmt.Sprintf("Sessions Access to VCenter failed - %s", err))
+		utils.LogError(fmt.Sprintf("getAllVMs to VCenter failed - %s", err))
 	}
-	if deprecated {
-		var vms struct {
-			Value []vcenterVM `json:"value"`
-		}
-		err = json.Unmarshal([]byte(response.RespBody), &vms)
-		if err != nil {
-			utils.LogError(fmt.Sprintf("JSON parsing failed for VM Get - %s", err))
-		}
-		return vms.Value
-	}
+
 	var vms []vcenterVM
 	err = json.Unmarshal([]byte(response.RespBody), &vms)
 	if err != nil {
-		utils.LogError(fmt.Sprintf("JSON parsing failed for VM Get - %s", err))
+		utils.LogError(fmt.Sprintf("JSON parsing failed for getAllVMs - %s", err))
 	}
 	return vms
 }
@@ -503,21 +364,11 @@ func getTagsfromVMs(headers [][2]string, vms map[string]vcenterVM, tags map[stri
 
 		//Send Request for tags per VM.
 		response, err := httpCall("POST", apiURL.String(), body, headers, false)
+		utils.LogMultiAPIRespV2(map[string]illumioapi.APIResponse{"getTagsfromVMs": response})
 		if err != nil {
 			utils.LogError(fmt.Sprintf("GetTagsFromVMs API call failed - %s", err))
 		}
 
-		if deprecated {
-			var resObject struct {
-				Value []responseObject `json:"value"`
-			}
-			err = json.Unmarshal([]byte(response.RespBody), &resObject)
-			if err != nil {
-				utils.LogError(fmt.Sprintf("GetTagFromVM Unmarshall Failed - %s", err))
-			}
-			totalResObject = append(totalResObject, resObject.Value...)
-			return totalResObject
-		}
 		//Build Response object to store returned tags for each VM sent in the request.
 		var resObject []responseObject
 		err = json.Unmarshal([]byte(response.RespBody), &resObject)
@@ -543,27 +394,17 @@ func getSessionToken() string {
 		utils.LogError(fmt.Sprintf("getSessionToken URL Parse Failed - %s", err))
 	}
 	response, err := httpCall("POST", apiURL.String(), []byte{}, nil, true)
+	utils.LogMultiAPIRespV2(map[string]illumioapi.APIResponse{"getSessionToken": response})
 	if err != nil {
 		utils.LogError(fmt.Sprintf("Sessions Access to VCenter failed - %s", err))
 	}
-	var rawDep struct {
-		Session string `json:"value"`
-	}
 
-	if deprecated {
-		err = json.Unmarshal([]byte(response.RespBody), &rawDep)
-		if err != nil {
-			return ""
-		}
-		return rawDep.Session
-	}
-
-	var raw string
-	err = json.Unmarshal([]byte(response.RespBody), &raw)
+	var session string
+	err = json.Unmarshal([]byte(response.RespBody), &session)
 	if err != nil {
 		return ""
 	}
-	return raw
+	return session
 
 } // validateKeyMap - Check the KepMap file so it has correct Category to LabelType mapping.  Exit if not correct.
 func validateKeyMap(keyMap map[string]string) {
@@ -651,22 +492,22 @@ func vcenterBuildPCEInputData(keyMap map[string]string) map[string]vcenterVM {
 
 	//return totaltags
 	//var allvms = make(map[string]vmwareDetail)
-	listvms := getAllVMs(httpHeader)
+	listvms := getVCenterVMs(httpHeader)
 
 	//******WHY
 	tmpWklds := make(map[string]illumioapi.Workload)
 	for key, wkldStruct := range pce.Workloads {
-		tmpWklds[makeLowerCase(key)] = wkldStruct
+		tmpWklds[strings.ToLower(key)] = wkldStruct
 	}
 
 	//Cycle through all VMs looking for match if labeling VMs or no match to creat umwls
 	vms := make(map[string]vcenterVM)
 	for _, tmpvm := range listvms {
-		if wkld, ok := tmpWklds[makeLowerCase(tmpvm.Name)]; ok {
+		if wkld, ok := tmpWklds[strings.ToLower(tmpvm.Name)]; ok {
 			if umwl {
 				continue
 			}
-			if makeLowerCase(nameCheck(*wkld.Hostname)) == makeLowerCase(nameCheck(tmpvm.Name)) {
+			if strings.EqualFold(nameCheck(*wkld.Hostname), (nameCheck(tmpvm.Name))) {
 				vms[tmpvm.VMID] = vcenterVM{Name: *wkld.Hostname, VMID: tmpvm.VMID, PowerState: tmpvm.PowerState}
 			}
 		}
