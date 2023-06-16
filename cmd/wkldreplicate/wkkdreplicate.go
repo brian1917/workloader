@@ -14,11 +14,15 @@ import (
 )
 
 var pceList, skipSources, outputFileName string
+var maxCreate, maxUpdate, maxDelete int
 var updatePCE, noPrompt bool
 
 func init() {
 	WkldReplicate.Flags().StringVarP(&pceList, "pce-list", "p", "", "comma-separated list of pce names (not fqdns). see workloader pce-list for options.")
 	WkldReplicate.Flags().StringVarP(&skipSources, "skip-source", "s", "", "comma-separated list of pce names (not fqdns) to skip as a source. the pces still received workloads from other pces.")
+	WkldReplicate.Flags().IntVar(&maxCreate, "max-create", -1, "max workloads that can be created in a pce. -1 is unlimited.")
+	WkldReplicate.Flags().IntVar(&maxUpdate, "max-update", -1, "max workloads that can be updated in a pce. -1 is unlimited.")
+	WkldReplicate.Flags().IntVar(&maxDelete, "max-delete", -1, "max workloads that can be deleted from a pce. -1 is unlimited.")
 	WkldReplicate.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename. there will be a prefix added to each provided filename.")
 }
 
@@ -75,6 +79,11 @@ func wkldReplicate() {
 		if err != nil {
 			utils.LogError(err.Error())
 		}
+		// Validate the pce has labels
+		if len(p.LabelsSlice) == 0 {
+			utils.LogErrorf("%s has 0 labels", p.FriendlyName)
+		}
+		// Add the pce to the slice and map
 		pces = append(pces, p)
 		pceNameMap[pce] = true
 	}
@@ -119,19 +128,22 @@ func wkldReplicate() {
 	} else {
 		labelKeys = append(labelKeys, "role", "app", "env", "loc")
 	}
+	// Validate label keys are populated. There should be a minimum of 4.
+	if len(labelKeys) < 4 {
+		utils.LogErrorf("%s has %d label keys", pces[0].FriendlyName, len(labelKeys))
+	}
 
-	// Start the csv data
-	wkldImportCsvData := [][]string{append(append([]string{"source", wkldexport.HeaderHostname, wkldexport.HeaderDescription}, labelKeys...), wkldexport.HeaderInterfaces, wkldexport.HeaderExternalDataSet, wkldexport.HeaderExternalDataReference)}
+	// Start the csv data for wkld-import
+	wkldImportCsvData := [][]string{{"source", wkldexport.HeaderHostname, wkldexport.HeaderDescription}}
+	wkldImportCsvData[0] = append(wkldImportCsvData[0], labelKeys...)
+	wkldImportCsvData[0] = append(wkldImportCsvData[0], wkldexport.HeaderInterfaces, wkldexport.HeaderExternalDataSet, wkldexport.HeaderExternalDataReference)
+
+	// Start the csv data for delete
 	wkldDeleteCsvdata := [][]string{{"href", "pce_fqdn", "pce_name"}}
 	deleteHrefMap := make(map[string][]string)
 
 	// Iterate through the PCEs and do initial processing of workloads
 	for _, p := range pces {
-
-		// If it's  a skip source, skip it
-		if skipPCENameMap[p.FriendlyName] {
-			continue
-		}
 
 		// Start the delete slice
 		deleteHrefMap[p.FQDN] = []string{}
@@ -156,8 +168,8 @@ func wkldReplicate() {
 				utils.LogErrorf("%s - href: %s - name: %s - wkld-replicate requires hostnames on all workloads. one option to quickly fix is to use wkld-export, edit the csv to have unique hostnames, and use wkld-import to apply.", p.FQDN, w.Href, ia.PtrToVal(w.Name))
 			}
 
-			// Start with managed worklodas
-			if w.GetMode() != "unmanaged" {
+			// Start with managed workloads on the non-skipped PCEs
+			if w.GetMode() != "unmanaged" && !skipPCENameMap[p.FriendlyName] {
 				// Put it in the map
 				managedWkldMap[p.FQDN+ia.PtrToVal(w.Hostname)] = replicateWkld{pce: p, workload: w}
 				managedWkldCnt++
@@ -199,9 +211,11 @@ func wkldReplicate() {
 		if ia.PtrToVal(wkld.workload.ExternalDataSet) != "wkld-replicate" {
 			wkld.workload.ExternalDataSet = ia.Ptr("wkld-replicate")
 			wkld.workload.ExternalDataReference = ia.Ptr(wkld.pce.FQDN + "-unmanaged-wkld-" + wkld.workload.Href)
-			newRow := append([]string{wkld.pce.FriendlyName, ia.PtrToVal(wkld.workload.Hostname), fmt.Sprintf("unmanaged workload on %s", wkld.pce.FQDN)}, labelSlice(wkld.workload, wkld.pce, labelKeys)...)
-			newRow = append(newRow, strings.Join(wkldexport.InterfaceToString(wkld.workload, true), ";"), ia.PtrToVal(wkld.workload.ExternalDataSet), ia.PtrToVal(wkld.workload.ExternalDataReference))
-			wkldImportCsvData = append(wkldImportCsvData, newRow)
+			if !skipPCENameMap[wkld.pce.FriendlyName] {
+				newRow := append([]string{wkld.pce.FriendlyName, ia.PtrToVal(wkld.workload.Hostname), fmt.Sprintf("unmanaged workload on %s", wkld.pce.FQDN)}, labelSlice(wkld.workload, wkld.pce, labelKeys)...)
+				newRow = append(newRow, strings.Join(wkldexport.InterfaceToString(wkld.workload, true), ";"), ia.PtrToVal(wkld.workload.ExternalDataSet), ia.PtrToVal(wkld.workload.ExternalDataReference))
+				wkldImportCsvData = append(wkldImportCsvData, newRow)
+			}
 			continue
 		}
 
@@ -300,19 +314,25 @@ func wkldReplicate() {
 				UpdatePCE:       true,
 				NoPrompt:        true,
 				UpdateWorkloads: true,
+				MaxUpdate:       maxUpdate,
+				MaxCreate:       maxCreate,
 			})
 		}
 
 		// Delete the hrefs
 		if len(wkldDeleteCsvdata) > 1 {
 			utils.LogInfo(fmt.Sprintf("running delete api for %s (%s)", p.FriendlyName, p.FQDN), true)
-			for _, deleteHref := range deleteHrefMap[p.FQDN] {
-				a, err := p.DeleteHref(deleteHref)
-				utils.LogAPIRespV2("DeleteHref", a)
-				if err != nil {
-					utils.LogError(err.Error())
+			if maxDelete != -1 && len(deleteHrefMap[p.FQDN]) > maxDelete {
+				utils.LogWarningf(true, "delete count for %s of %d exceeds maximum of %d. skipping deletes for this pce.", p.FQDN, len(deleteHrefMap[p.FQDN]), maxDelete)
+			} else {
+				for _, deleteHref := range deleteHrefMap[p.FQDN] {
+					a, err := p.DeleteHref(deleteHref)
+					utils.LogAPIRespV2("DeleteHref", a)
+					if err != nil {
+						utils.LogError(err.Error())
+					}
+					utils.LogInfo(fmt.Sprintf("%s is in %s delete - %d", deleteHref, p.FQDN, a.StatusCode), true)
 				}
-				utils.LogInfo(fmt.Sprintf("%s is in %s delete - %d", deleteHref, p.FQDN, a.StatusCode), true)
 			}
 		}
 

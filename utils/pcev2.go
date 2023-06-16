@@ -66,8 +66,8 @@ func GetPCEbyNameV2(name string, GetLabelMaps bool) (illumioapi.PCE, error) {
 			pce.Proxy = viper.Get(name + ".proxy").(string)
 		}
 		if GetLabelMaps {
-			apiResps, err := pce.Load(illumioapi.LoadInput{Labels: true}, UseMulti())
-			LogMultiAPIRespV2(apiResps)
+			apiResp, err := pce.GetLabels(nil)
+			LogAPIRespV2("GetLabels", apiResp)
 			if err != nil {
 				LogError(err.Error())
 			}

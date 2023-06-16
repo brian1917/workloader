@@ -137,6 +137,8 @@ func AzureLabels(labelMapping string, pce *illumioapi.PCE, updatePCE, noPrompt b
 			UpdateWorkloads: true,
 			UpdatePCE:       updatePCE,
 			NoPrompt:        noPrompt,
+			MaxUpdate:       -1,
+			MaxCreate:       -1,
 		})
 
 	} else {

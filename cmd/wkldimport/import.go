@@ -291,27 +291,37 @@ func ImportWkldsFromCSV(input Input) {
 	}
 
 	if len(updatedWklds) > 0 {
-		api, err := input.PCE.BulkWorkload(updatedWklds, "update", true)
-		for _, a := range api {
-			utils.LogAPIRespV2("BulkWorkloadUpdate", a)
+		// Check the maximum allowed updates
+		if input.MaxUpdate != -1 && len(updatedWklds) > input.MaxUpdate {
+			utils.LogWarningf(true, "workload updates of %d exceeds maximum of %d. updates will be skipped", len(updatedWklds), input.MaxUpdate)
+		} else {
+			api, err := input.PCE.BulkWorkload(updatedWklds, "update", true)
+			for _, a := range api {
+				utils.LogAPIRespV2("BulkWorkloadUpdate", a)
+			}
+			if err != nil {
+				utils.LogError(fmt.Sprintf("bulk updating workloads - %s", err))
+			}
+			utils.LogInfo(fmt.Sprintf("bulk update workload successful for %d workloads - status code %d", len(updatedWklds), api[0].StatusCode), true)
 		}
-		if err != nil {
-			utils.LogError(fmt.Sprintf("bulk updating workloads - %s", err))
-		}
-		utils.LogInfo(fmt.Sprintf("bulk update workload successful for %d workloads - status code %d", len(updatedWklds), api[0].StatusCode), true)
 	}
 
 	// Bulk create if we have new workloads
 	if len(newUMWLs) > 0 {
-		api, err := input.PCE.BulkWorkload(newUMWLs, "create", true)
-		for _, a := range api {
-			utils.LogAPIRespV2("BulkWorkloadCreate", a)
+		// Check the maximum allowed updates
+		if input.MaxCreate != -1 && len(newUMWLs) > input.MaxCreate {
+			utils.LogWarningf(true, "workload creations of %d exceeds maximum of %d. creates will be skipped", len(newUMWLs), input.MaxCreate)
+		} else {
+			api, err := input.PCE.BulkWorkload(newUMWLs, "create", true)
+			for _, a := range api {
+				utils.LogAPIRespV2("BulkWorkloadCreate", a)
 
+			}
+			if err != nil {
+				utils.LogError(fmt.Sprintf("bulk creating workloads - %s", err))
+			}
+			utils.LogInfo(fmt.Sprintf("bulk create workload successful for %d unmanaged workloads - status code %d", len(newUMWLs), api[0].StatusCode), true)
 		}
-		if err != nil {
-			utils.LogError(fmt.Sprintf("bulk creating workloads - %s", err))
-		}
-		utils.LogInfo(fmt.Sprintf("bulk create workload successful for %d unmanaged workloads - status code %d", len(newUMWLs), api[0].StatusCode), true)
 	}
 
 	// Log end
