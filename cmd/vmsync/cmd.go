@@ -18,6 +18,7 @@ var csvFile string
 var ignoreState, umwl, keepTempFile, keepFQDNHostname, deprecated bool
 var updatePCE, noPrompt bool
 var pce illumioapi.PCE
+var maxCreate, maxUpdate int
 var err error
 
 // Init builds the commands
@@ -38,6 +39,9 @@ func init() {
 	VCenterSyncCmd.Flags().BoolVarP(&keepTempFile, "keep-temp-file", "k", false, "Do not delete the temp CSV file downloaded from Vcenter Sync")
 	VCenterSyncCmd.Flags().BoolVarP(&keepFQDNHostname, "keepfqdn", "", false, "By default hostnames with domains will remove the domain when matching.  This option keep FQDN hostnames (e.g., test.domain.com will not become test). ")
 	VCenterSyncCmd.Flags().BoolVarP(&deprecated, "deprecated", "", false, "use this option if you are running an older version of the API (VCenter 6.5-7.0.u2")
+	VCenterSyncCmd.Flags().IntVar(&maxCreate, "max-create", -1, "maximum number of unmanaged workloads that can be created. -1 is unlimited.")
+	VCenterSyncCmd.Flags().IntVar(&maxUpdate, "max-update", -1, "maximum number of workloads that can be updated. -1 is unlimited.")
+
 	VCenterSyncCmd.MarkFlagRequired("userID")
 	VCenterSyncCmd.MarkFlagRequired("secret")
 	VCenterSyncCmd.MarkFlagRequired("vcenter")
@@ -146,6 +150,8 @@ func callWkldImport(keyMap map[string]string, pce *illumioapi.PCE, vmMap map[str
 			UpdateWorkloads: true,
 			UpdatePCE:       updatePCE,
 			NoPrompt:        noPrompt,
+			MaxUpdate:       maxUpdate,
+			MaxCreate:       maxCreate,
 		})
 
 	} else {

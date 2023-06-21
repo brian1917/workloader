@@ -533,8 +533,7 @@ func vcenterBuildPCEInputData(keyMap map[string]string) map[string]vcenterVM {
 	}
 	totalVMs := getTagsfromVMs(httpHeader, vms, vcTags)
 
-	//Cycle through all the VMs and add the Tags
-	newVMs := make(map[string]vcenterVM)
+	//Cycle through all the VMs that returned with tags and add the Tags that are importable.  All other VMs will not have Tags.
 	for _, object := range totalVMs {
 		tmpTags := make(map[string]string)
 		for _, tag := range object.TagIds {
@@ -548,11 +547,11 @@ func vcenterBuildPCEInputData(keyMap map[string]string) map[string]vcenterVM {
 				tmpTags[vcTags[tag].LabelType] = vcTags[tag].Tag
 			}
 		}
+		vms[object.ObjectId.ID] = vcenterVM{VMID: vms[object.ObjectId.ID].VMID, Name: vms[object.ObjectId.ID].Name, PowerState: vms[object.ObjectId.ID].PowerState, Tags: tmpTags, Interfaces: vms[object.ObjectId.ID].Interfaces}
 
-		newVMs[object.ObjectId.ID] = vcenterVM{VMID: vms[object.ObjectId.ID].VMID, Name: vms[object.ObjectId.ID].Name, PowerState: vms[object.ObjectId.ID].PowerState, Tags: tmpTags, Interfaces: vms[object.ObjectId.ID].Interfaces}
 	}
 
-	utils.LogInfo(fmt.Sprintf("Total VMs found - %d", len(newVMs)), true)
-	return newVMs
+	utils.LogInfo(fmt.Sprintf("Total VMs found - %d", len(vms)), true)
+	return vms
 
 }
