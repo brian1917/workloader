@@ -133,7 +133,9 @@ func callWkldImport(keyMap map[string]string, pce *illumioapi.PCE, vmMap map[str
 		csvData = append(csvData, csvRow)
 	}
 
-	if len(vmMap) > 0 {
+	if len(vmMap) <= 0 {
+		utils.LogInfo("no Vcenter vms found", true)
+	} else {
 		if outputFileName == "" {
 			outputFileName = fmt.Sprintf("workloader-vcenter-sync-%s.csv", time.Now().Format("20060102_150405"))
 		}
@@ -154,16 +156,15 @@ func callWkldImport(keyMap map[string]string, pce *illumioapi.PCE, vmMap map[str
 			MaxCreate:       maxCreate,
 		})
 
-	} else {
-		utils.LogInfo("no Vcenter vms found", true)
-	}
-	// Delete the temp file
-	if !keepTempFile {
-		if err := os.Remove(outputFileName); err != nil {
-			utils.LogWarning(fmt.Sprintf("Could not delete %s", outputFileName), true)
-		} else {
-			utils.LogInfo(fmt.Sprintf("Deleted %s", outputFileName), false)
+		// Delete the temp file
+		if !keepTempFile {
+			if err := os.Remove(outputFileName); err != nil {
+				utils.LogWarning(fmt.Sprintf("Could not delete %s", outputFileName), true)
+			} else {
+				utils.LogInfo(fmt.Sprintf("Deleted %s", outputFileName), false)
+			}
 		}
 	}
+
 	utils.LogEndCommand(fmt.Sprintf("%s-sync", "vcenter"))
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/utils"
+	"github.com/spf13/viper"
 )
 
 // Number of VMs to place in GetTagsFromVMs API call if you have a large number (greater than 500)
@@ -236,20 +237,20 @@ func getVMNetworkDetail(headers [][2]string, vm string) []Netinterfaces {
 	var obj []Netinterfaces
 	var response illumioapi.APIResponse
 	response, err = httpCall("GET", apiURL.String(), []byte{}, headers, false)
-	utils.LogMultiAPIRespV2(map[string]illumioapi.APIResponse{"getVMNetworkDetail": response})
-	if err != nil {
-		if response.StatusCode != 503 {
-			utils.LogError(fmt.Sprintf("getVMNetworkDetail API Call failed - %s", err))
-		}
-	} else {
-
-		err = json.Unmarshal([]byte(response.RespBody), &obj)
-		if err != nil {
-			utils.LogError(fmt.Sprintf("JSON parsing failed for getVMNetworkDetail - %s", err))
-		}
+	//Check to see if the response says you dont have VMware Tools installed
+	if response.StatusCode == 503 && strings.Contains(response.RespBody, "VMware Tools") && !viper.Get("debug").(bool) {
 		return obj
 	}
+	utils.LogMultiAPIRespV2(map[string]illumioapi.APIResponse{"getVMNetworkDetail": response})
+	if err != nil {
+		utils.LogError(fmt.Sprintf("JSON parsing failed for getVMNetworkDetail - %s", err))
+	}
+	err = json.Unmarshal([]byte(response.RespBody), &obj)
+	if err != nil {
+		utils.LogError(fmt.Sprintf("JSON parsing failed for getVMNetworkDetail - %s", err))
+	}
 	return obj
+
 }
 
 // getAllVMs - VCenter API call to get all the VCenter VMs.  The call will return no more than 4000 objects.
@@ -512,19 +513,22 @@ func vcenterBuildPCEInputData(keyMap map[string]string) map[string]vcenterVM {
 			}
 		}
 		if umwl {
+
+			//get all the interfaces from the VM if VM tools installed
 			infs := getVMNetworkDetail(httpHeader, tmpvm.VMID)
-			if len(infs) == 0 {
-				//utils.LogInfo(fmt.Sprintf("UMWL skipped - %s No Network Object returned", tmpvm.Name), false)
-			} else {
-				var tmpintfs [][]string
-				for _, intf := range infs {
-					count := 0
-					for _, ips := range intf.IP.IPAddresses {
-						var tmpintfips []string
-						count++
-						tmpintfips = []string{fmt.Sprint("eth" + intf.Nic + "-" + fmt.Sprintf("%d", count)), ips.IPAddress}
-						tmpintfs = append(tmpintfs, tmpintfips)
+			var tmpintfs [][]string
+			count := 0
+			for _, intf := range infs {
+				count++
+				uniqueIP := make(map[string]bool)
+				for _, ips := range intf.IP.IPAddresses {
+					if ok := uniqueIP[ips.IPAddress]; ok {
+						continue
+					} else {
+						uniqueIP[ips.IPAddress] = true
 					}
+					tmpintfips := []string{fmt.Sprint("eth" + fmt.Sprintf("%d", count)), ips.IPAddress}
+					tmpintfs = append(tmpintfs, tmpintfips)
 				}
 				vms[tmpvm.VMID] = vcenterVM{Name: tmpvm.Name, VMID: tmpvm.VMID, PowerState: tmpvm.PowerState, Interfaces: tmpintfs}
 			}
@@ -534,24 +538,34 @@ func vcenterBuildPCEInputData(keyMap map[string]string) map[string]vcenterVM {
 	totalVMs := getTagsfromVMs(httpHeader, vms, vcTags)
 
 	//Cycle through all the VMs that returned with tags and add the Tags that are importable.  All other VMs will not have Tags.
+	count := 0
 	for _, object := range totalVMs {
 		tmpTags := make(map[string]string)
+		//Variable to store if VM has Illumio Labels or not
+		found := false
 		for _, tag := range object.TagIds {
 
 			//Check for a tag and to see if you have adont have 2 Tags with the same Category on the same VM
+
 			if _, ok := vcTags[tag]; ok {
+				found = true
 				if _, ok := tmpTags[vcTags[tag].LabelType]; ok {
 					utils.LogInfo(fmt.Sprintf("VM has 2 or more Tags with the same Category - %s ", vms[object.ObjectId.ID].Name), true)
 					continue
 				}
 				tmpTags[vcTags[tag].LabelType] = vcTags[tag].Tag
 			}
+			//If we VM has Illumio Labels count this VM.
+
+		}
+		if found {
+			count++
 		}
 		vms[object.ObjectId.ID] = vcenterVM{VMID: vms[object.ObjectId.ID].VMID, Name: vms[object.ObjectId.ID].Name, PowerState: vms[object.ObjectId.ID].PowerState, Tags: tmpTags, Interfaces: vms[object.ObjectId.ID].Interfaces}
 
 	}
 
-	utils.LogInfo(fmt.Sprintf("Total VMs found - %d", len(vms)), true)
+	utils.LogInfo(fmt.Sprintf("Total VMs found - %d.  Total VMs with Illumio Labels - %d", len(vms), count), true)
 	return vms
 
 }
