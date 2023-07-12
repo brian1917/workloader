@@ -459,6 +459,11 @@ func vcenterBuildPCEInputData(keyMap map[string]string) map[string]vcenterVM {
 		utils.LogError("Either USER or/and SECRET are empty.  Both are required.")
 	}
 
+	//Ignore SSL Certs
+	if insecure {
+		utils.LogInfo(("Ignoring SSL certificates via --insecure option"), false)
+		pce.DisableTLSChecking = true
+	}
 	//Call the VCenter API to get the session token
 	httpHeader := [][2]string{{"Content-Type", "application/json"}, {"vmware-api-session-id", getSessionToken()}}
 
