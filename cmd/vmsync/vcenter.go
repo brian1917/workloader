@@ -12,7 +12,6 @@ import (
 
 	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/utils"
-	"github.com/spf13/viper"
 )
 
 // Number of VMs to place in GetTagsFromVMs API call if you have a large number (greater than 500)
@@ -238,15 +237,14 @@ func getVMNetworkDetail(headers [][2]string, vm string) []Netinterfaces {
 	var response illumioapi.APIResponse
 	response, err = httpCall("GET", apiURL.String(), []byte{}, headers, false)
 	//Check to see if the response says you dont have VMware Tools installed
-	if response.StatusCode == 503 && strings.Contains(response.RespBody, "VMware Tools") && !viper.Get("debug").(bool) {
-		return obj
-	}
 	utils.LogMultiAPIRespV2(map[string]illumioapi.APIResponse{"getVMNetworkDetail": response})
-	if err != nil {
-		utils.LogError(fmt.Sprintf("JSON parsing failed for getVMNetworkDetail - %s", err))
+	if err != nil && response.StatusCode != 503 {
+		utils.LogError(fmt.Sprintf("HTTP GetVMNetworkDetail Error - %s", err))
 	}
+
+	//Make sure the response can be unmarshalled.
 	err = json.Unmarshal([]byte(response.RespBody), &obj)
-	if err != nil {
+	if err != nil && response.StatusCode != 503 {
 		utils.LogError(fmt.Sprintf("JSON parsing failed for getVMNetworkDetail - %s", err))
 	}
 	return obj
@@ -462,7 +460,6 @@ func vcenterBuildPCEInputData(keyMap map[string]string) map[string]vcenterVM {
 	//Ignore SSL Certs
 	if insecure {
 		utils.LogInfo(("Ignoring SSL certificates via --insecure option"), false)
-		pce.DisableTLSChecking = true
 	}
 	//Call the VCenter API to get the session token
 	httpHeader := [][2]string{{"Content-Type", "application/json"}, {"vmware-api-session-id", getSessionToken()}}

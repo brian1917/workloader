@@ -37,7 +37,7 @@ func httpCall(httpAction, apiURL string, body []byte, headers [][2]string, login
 
 	// Create HTTP client and request
 	client := &http.Client{}
-	if pce.DisableTLSChecking {
+	if insecure {
 		client.Transport = &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 	}
 
