@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 
 	"github.com/brian1917/workloader/cmd/svcexport"
 	"github.com/brian1917/workloader/utils"
@@ -18,6 +18,7 @@ var err error
 func init() {
 	SvcImportCmd.Flags().BoolVarP(&input.Provision, "provision", "p", false, "Provision IP Lists after creating and/or updating.")
 	SvcImportCmd.Flags().BoolVar(&input.UpdateOnName, "update-on-name", false, "Update based on a match name vs. requiring href.")
+	SvcImportCmd.Flags().BoolVarP(&input.Meta, "meta", "m", false, "Used for updating descriptions, names, risk information. Leverages the output from svc-export --compressed")
 }
 
 // SvcImportCmd runs the service import command
@@ -48,13 +49,13 @@ Recommended to run without --update-pce first to log of what will change. If --u
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
-		input.PCE, err = utils.GetTargetPCE(true)
+		input.PCE, err = utils.GetTargetPCEV2(true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
 
 		// Get the services
-		input.PCE.Load(illumioapi.LoadInput{Services: true})
+		input.PCE.Load(illumioapi.LoadInput{Services: true}, utils.UseMulti())
 
 		// Set the CSV file
 		if len(args) != 1 {

@@ -96,7 +96,7 @@ func importTemplate() {
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-		svcimport.ImportServices(svcimport.Input{PCE: pce, Data: data, UpdatePCE: updatePCE, NoPrompt: noPrompt, Provision: provision})
+		svcimport.ImportServices(svcimport.Input{PCE: pce2, Data: data, UpdatePCE: updatePCE, NoPrompt: noPrompt, Provision: provision})
 	} else {
 		utils.LogInfo(fmt.Sprintf("%s template does not include services. skipping", template), true)
 	}

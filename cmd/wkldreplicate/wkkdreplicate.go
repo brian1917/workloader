@@ -323,7 +323,7 @@ func wkldReplicate() {
 		if len(wkldDeleteCsvdata) > 1 {
 			utils.LogInfo(fmt.Sprintf("running delete api for %s (%s)", p.FriendlyName, p.FQDN), true)
 			if maxDelete != -1 && len(deleteHrefMap[p.FQDN]) > maxDelete {
-				utils.LogWarningf(true, "delete count for %s of %d exceeds maximum of %d. skipping deletes for this pce.", p.FQDN, len(deleteHrefMap[p.FQDN]), maxDelete)
+				utils.LogErrorfCode(2, "delete count for %s of %d exceeds maximum of %d. terminating run with exit code 2.", p.FQDN, len(deleteHrefMap[p.FQDN]), maxDelete)
 			} else {
 				for _, deleteHref := range deleteHrefMap[p.FQDN] {
 					a, err := p.DeleteHref(deleteHref)

@@ -293,7 +293,7 @@ func ImportWkldsFromCSV(input Input) {
 	if len(updatedWklds) > 0 {
 		// Check the maximum allowed updates
 		if input.MaxUpdate != -1 && len(updatedWklds) > input.MaxUpdate {
-			utils.LogWarningf(true, "workload updates of %d exceeds maximum of %d. updates will be skipped", len(updatedWklds), input.MaxUpdate)
+			utils.LogErrorfCode(2, "update count for %s of %d exceeds maximum of %d. terminating run with exit code 2.", input.PCE.FQDN, len(updatedWklds), input.MaxUpdate)
 		} else {
 			api, err := input.PCE.BulkWorkload(updatedWklds, "update", true)
 			for _, a := range api {
@@ -310,7 +310,7 @@ func ImportWkldsFromCSV(input Input) {
 	if len(newUMWLs) > 0 {
 		// Check the maximum allowed updates
 		if input.MaxCreate != -1 && len(newUMWLs) > input.MaxCreate {
-			utils.LogWarningf(true, "workload creations of %d exceeds maximum of %d. creates will be skipped", len(newUMWLs), input.MaxCreate)
+			utils.LogErrorfCode(2, "create count for %s of %d exceeds maximum of %d. terminating run with exit code 2.", input.PCE.FQDN, len(newUMWLs), input.MaxCreate)
 		} else {
 			api, err := input.PCE.BulkWorkload(newUMWLs, "create", true)
 			for _, a := range api {

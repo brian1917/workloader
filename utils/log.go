@@ -40,6 +40,17 @@ func LogErrorf(format string, a ...any) {
 	LogError(fmt.Sprintf(format, a...))
 }
 
+// LogErrorfCode a custom exitCode and uses string formatting to write to log to workloader.log and always prints msg to stdout.
+func LogErrorfCode(exitCode int, format string, a ...any) {
+	Logger.SetPrefix(time.Now().Format("2006-01-02 15:04:05 "))
+	fmt.Printf("%s [ERROR] - %s see workloader.log for potentially more information.\r\n", time.Now().Format("2006-01-02 15:04:05 "), fmt.Sprintf(format, a...))
+	Logger.Printf("[ERROR] - %s\r\n", fmt.Sprintf(format, a...))
+	if (viper.Get("continue_on_error") != nil && viper.Get("continue_on_error").(bool)) || (viper.Get("continue_on_error_default") != nil && viper.Get("continue_on_error_default").(string) == "continue") {
+		return
+	}
+	os.Exit(exitCode)
+}
+
 // LogWarning writes the log to workloader.log and optionally prints msg to stdout.
 func LogWarning(msg string, stdout bool) {
 	Logger.SetPrefix(time.Now().Format("2006-01-02 15:04:05 "))
