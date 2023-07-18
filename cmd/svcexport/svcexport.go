@@ -16,13 +16,14 @@ import (
 var pce illumioapi.PCE
 var err error
 var outputFileName string
-var noHref, compressed bool
+var riskData, noHref, compressed bool
 
 func init() {
 	SvcExportCmd.Flags().BoolVar(&noHref, "no-href", false, "do not export href column. use this when exporting data to import into different pce. ignored with compressed flag.")
 	SvcExportCmd.Flags().BoolVar(&compressed, "compressed", false, "compress the output to one service per line. this output is not compatible with the svc-import command.")
+	SvcExportCmd.Flags().BoolVar(&riskData, "risk", false, "include risk info.")
+	SvcExportCmd.Flags().MarkHidden("risk")
 	SvcExportCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
-
 }
 
 // SvcExportCmd runs the workload identifier
@@ -84,6 +85,9 @@ func ExportServices(pce illumioapi.PCE, templateFormat bool, outputFileName stri
 
 		// Start the data slice with headers
 		csvData = [][]string{{"name", "description", "service_ports", "window_services", "href"}}
+		if riskData {
+			csvData[0] = append(csvData[0], "ransomware_category", "ransomware_severity", "ransomware_os_platform")
+		}
 
 		for _, s := range targetSvcs {
 
@@ -91,7 +95,11 @@ func ExportServices(pce illumioapi.PCE, templateFormat bool, outputFileName stri
 			windowsServices, servicePorts := s.ParseService()
 
 			// Add to the CSV data
-			csvData = append(csvData, []string{s.Name, s.Description, strings.Join(servicePorts, ";"), strings.Join(windowsServices, ";"), s.Href})
+			row := []string{s.Name, s.Description, strings.Join(servicePorts, ";"), strings.Join(windowsServices, ";"), s.Href}
+			if riskData && s.RiskDetails.Ransomware != nil {
+				row = append(row, s.RiskDetails.Ransomware.Category, s.RiskDetails.Ransomware.Severity, strings.Join(s.RiskDetails.Ransomware.OsPlatforms, ";"))
+			}
+			csvData = append(csvData, row)
 		}
 
 	}
@@ -102,6 +110,9 @@ func ExportServices(pce illumioapi.PCE, templateFormat bool, outputFileName stri
 		headers := []string{HeaderName, HeaderDescription, HeaderWinService, HeaderPort, HeaderProto, HeaderProcess, HeaderService, HeaderICMPCode, HeaderICMPType}
 		if !templateFormat {
 			headers = append(headers, HeaderHref)
+		}
+		if riskData {
+			headers = append(headers, "ransomware_category", "ransomware_severity", "ransomware_os_platform")
 		}
 		csvData = [][]string{headers}
 
@@ -129,6 +140,10 @@ func ExportServices(pce illumioapi.PCE, templateFormat bool, outputFileName stri
 				if !templateFormat {
 					entry = append(entry, s.Href)
 				}
+				if riskData && s.RiskDetails != nil {
+					entry = append(entry, s.RiskDetails.Ransomware.Category, s.RiskDetails.Ransomware.Severity, strings.Join(s.RiskDetails.Ransomware.OsPlatforms, ";"))
+				}
+				// Append to the CSV
 				csvData = append(csvData, entry)
 			}
 
@@ -149,6 +164,12 @@ func ExportServices(pce illumioapi.PCE, templateFormat bool, outputFileName stri
 				if !templateFormat {
 					entry = append(entry, s.Href)
 				}
+
+				if riskData && s.RiskDetails != nil {
+					entry = append(entry, s.RiskDetails.Ransomware.Category, s.RiskDetails.Ransomware.Severity, strings.Join(s.RiskDetails.Ransomware.OsPlatforms, ";"))
+				}
+
+				// Append to the CSV
 				csvData = append(csvData, entry)
 			}
 
