@@ -233,7 +233,6 @@ func getVMNetworkDetail(headers [][2]string, vm string) []Netinterfaces {
 		utils.LogError(fmt.Sprintf("getVMNetworkDetail URL Parse Failed - %s", err))
 	}
 
-	var obj []Netinterfaces
 	var response illumioapi.APIResponse
 	response, err = httpCall("GET", apiURL.String(), []byte{}, headers, false)
 	//Check to see if the response says you dont have VMware Tools installed
@@ -243,6 +242,7 @@ func getVMNetworkDetail(headers [][2]string, vm string) []Netinterfaces {
 	}
 
 	//Make sure the response can be unmarshalled.
+	var obj []Netinterfaces
 	err = json.Unmarshal([]byte(response.RespBody), &obj)
 	if err != nil && response.StatusCode != 503 {
 		utils.LogError(fmt.Sprintf("JSON parsing failed for getVMNetworkDetail - %s", err))
