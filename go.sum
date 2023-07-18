@@ -63,6 +63,8 @@ github.com/brian1917/illumioapi/v2 v2.0.0-beta.14 h1:qocJhSaSuAwvN94wAuhwsvW7KI2
 github.com/brian1917/illumioapi/v2 v2.0.0-beta.14/go.mod h1:2uy7bernq5Ein6PiTS+9a4VvjYEMKi3vAGybByDZ2c8=
 github.com/brian1917/illumioapi/v2 v2.0.0-beta.15 h1:/2Z5Klf0lK/mjYRyHq/b3JdRa+vhJ7w3xrF4lXe6MBY=
 github.com/brian1917/illumioapi/v2 v2.0.0-beta.15/go.mod h1:2uy7bernq5Ein6PiTS+9a4VvjYEMKi3vAGybByDZ2c8=
+github.com/brian1917/illumioapi/v2 v2.0.0-beta.16 h1:L3gLLbuseZZHrkem2NW9bV2Y200k/MyCmGk8dtCoWFc=
+github.com/brian1917/illumioapi/v2 v2.0.0-beta.16/go.mod h1:2uy7bernq5Ein6PiTS+9a4VvjYEMKi3vAGybByDZ2c8=
 github.com/brian1917/ns v1.2.0 h1:8z9dR8WhaqJPTi8Ygyf6VHrYGoP8dbNV8hoD30/k/8c=
 github.com/brian1917/ns v1.2.0/go.mod h1:2MohDxeuiUsV/vtkLkdnU6q0z5yByOK9c2vGPGbCkKo=
 github.com/brian1917/workloader/utils v1.0.0 h1:Lcdb9+4kSrNQe7USBY6Eafe/KaedlRQmy3d5JYyPEI8=
