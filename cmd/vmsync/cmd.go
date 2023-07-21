@@ -15,7 +15,7 @@ import (
 var vcenter, datacenter, cluster, folder, userID, secret string
 
 var csvFile string
-var ignoreState, umwl, keepTempFile, keepFQDNHostname, deprecated, insecure bool
+var ignoreState, umwl, keepTempFile, keepFQDNHostname, deprecated, insecure, allIPs, vcName bool
 var updatePCE, noPrompt bool
 var pce illumioapi.PCE
 var maxCreate, maxUpdate int
@@ -37,9 +37,11 @@ func init() {
 	VCenterSyncCmd.Flags().BoolVarP(&ignoreState, "ignore-state", "i", false, "Currently only finds VCenter VMs in a 'RunningState'")
 	VCenterSyncCmd.Flags().BoolVarP(&umwl, "umwl", "", false, "Import VCenter VMs that dont have worloader in the PCE.  Once imported these will only update labels.")
 	VCenterSyncCmd.Flags().BoolVarP(&keepTempFile, "keep-temp-file", "k", false, "Do not delete the temp CSV file downloaded from Vcenter Sync")
-	VCenterSyncCmd.Flags().BoolVarP(&keepFQDNHostname, "keepfqdn", "", false, "By default hostnames with domains will remove the domain when matching.  This option keep FQDN hostnames (e.g., test.domain.com will not become test). ")
+	VCenterSyncCmd.Flags().BoolVarP(&keepFQDNHostname, "keepfqdn", "", false, "By default hostnames will have the domain removed when matching.  This option will keep FQDN hostnames (e.g., test.domain.com will not become test). ")
+	VCenterSyncCmd.Flags().BoolVarP(&allIPs, "allintf", "a", false, "Use this flag if VM has more than one IP address")
+	VCenterSyncCmd.Flags().BoolVarP(&vcName, "vcname", "", false, "Use this flag if you want to match on VCenter VM name vs using VMTools Hostname")
 	VCenterSyncCmd.Flags().BoolVarP(&insecure, "insecure", "", false, "Ignore SSL certificate validation when communicating with PAN.")
-	VCenterSyncCmd.Flags().BoolVarP(&deprecated, "deprecated", "", false, "use this option if you are running an older version of the API (VCenter 6.5-7.0.u2")
+	//VCenterSyncCmd.Flags().BoolVarP(&deprecated, "deprecated", "", false, "Use this option if you are running an older version of the API (VCenter 6.5-7.0.u2")
 	VCenterSyncCmd.Flags().IntVar(&maxCreate, "max-create", -1, "maximum number of unmanaged workloads that can be created. -1 is unlimited.")
 	VCenterSyncCmd.Flags().IntVar(&maxUpdate, "max-update", -1, "maximum number of workloads that can be updated. -1 is unlimited.")
 
@@ -54,13 +56,11 @@ func init() {
 var VCenterSyncCmd = &cobra.Command{
 	Use:   "vmsync",
 	Short: "Integrate Azure VMs into PCE.",
-	Long: `Sync VCenter VM Tags with PCE workload Labels.  The command requires a CSV file that maps VCenter Categories to PCE label types.
-	There are options to filter the VMs from VCenter using VCenter objects(datacenter, clusters, folders, power state).  PCE hostnames and VM names
-	are used to match PCE workloads to VCenter VMs.   There is an option to remove a FQDN hostname domain to match with the VM name in VCenter
+	Long: `Sync VCenter VM Tags with PCE workload Labels.  The command requires a CSV file that maps VCenter Categories to PCE label types.  There are options to filter the VMs from VCenter using VCenter objects(datacenter, clusters, folders, power state).  You have an option to match PCE hostnames with VM hostnames discovered via VMTools(must be installed) or you can match just on the VCenter VM name.   By default hostname domains will be removed to match with VCenter VMs.  There is an option to keep the domain.
 	
-	There is also an UMWL option to find all VMs that are not running the Illumio VEN.  Any VCenter VM no matching a PCE workload will
-	be considered as an UMWL.  To correctly configure the IP address for these UWML VMTools should be installed to pull that data from the 
-	API.`,
+	There is also an UMWL option to find all VMs that do not have an existing workload(unmanaged or managed) found in the PCE.  Any VCenter VM not matching a PCE workload will	be considered as an UMWL.  UMWL creation requires an IP address and if VMtools is not installed on the VM this tool cannot discover the IP. By default only a single IP that is shown in the VCenter display is used. There is an option to get all interfaces and all IPs.
+	
+	Support VCenter version > 7.0.u2`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 

@@ -251,6 +251,36 @@ func getVMNetworkDetail(headers [][2]string, vm string) []Netinterfaces {
 
 }
 
+// getVMIdentity - Get specifics about VMs like IP, Hostname and OS Family
+func getVMIdentity(headers [][2]string, vm string) VMIdentity {
+
+	tmpurl := "/api/vcenter/vm/" + vm + "/guest/identity"
+	if deprecated {
+		tmpurl = "/rest/vcenter/vm/" + vm + "/guest/identity"
+	}
+
+	apiURL, err := url.Parse("https://" + vcenter + tmpurl)
+	if err != nil {
+		utils.LogError(fmt.Sprintf("getVMIdentity URL Parse Failed - %s", err))
+	}
+
+	var response illumioapi.APIResponse
+	response, err = httpCall("GET", apiURL.String(), []byte{}, headers, false)
+	//Check to see if the response says you dont have VMware Tools installed
+	utils.LogMultiAPIRespV2(map[string]illumioapi.APIResponse{"getVMIdentity": response})
+	if err != nil && response.StatusCode != 503 {
+		utils.LogError(fmt.Sprintf("HTTP GetVMIdentity Error - %s", err))
+	}
+
+	//Make sure the response can be unmarshalled.
+	var obj VMIdentity
+	err = json.Unmarshal([]byte(response.RespBody), &obj)
+	if err != nil && response.StatusCode != 503 {
+		utils.LogError(fmt.Sprintf("JSON parsing failed for getVMNetworkDetail - %s", err))
+	}
+	return obj
+}
+
 // getAllVMs - VCenter API call to get all the VCenter VMs.  The call will return no more than 4000 objects.
 // To make sure you can fit all the VMs into a single call you can use the 'datacenter' and 'cluster' filter.
 // Currently only powered on machines are returned.
@@ -500,40 +530,78 @@ func vcenterBuildPCEInputData(keyMap map[string]string) map[string]vcenterVM {
 	//******WHY
 	tmpWklds := make(map[string]illumioapi.Workload)
 	for key, wkldStruct := range pce.Workloads {
-		tmpWklds[strings.ToLower(key)] = wkldStruct
+		tmpWklds[strings.ToLower(nameCheck(key))] = wkldStruct
 	}
 
 	//Cycle through all VMs looking for match if labeling VMs or no match to creat umwls
 	vms := make(map[string]vcenterVM)
+	//variable to store the correct name
+
 	for _, tmpvm := range listvms {
-		if wkld, ok := tmpWklds[strings.ToLower(tmpvm.Name)]; ok {
-			if umwl {
-				continue
-			}
-			if strings.EqualFold(nameCheck(*wkld.Hostname), (nameCheck(tmpvm.Name))) {
-				vms[tmpvm.VMID] = vcenterVM{Name: *wkld.Hostname, VMID: tmpvm.VMID, PowerState: tmpvm.PowerState}
+		var tmpName string
+		//Search VMTools Hostname for existing PCE workload or use VCenter Name to match
+		tmpName = tmpvm.Name
+		if !vcName {
+			tmpvm.VMDetail = getVMIdentity(httpHeader, tmpvm.VMID)
+			if name := tmpvm.VMDetail.HostName; name != "" {
+				tmpName = name
 			}
 		}
-		if umwl {
 
-			//get all the interfaces from the VM if VM tools installed
-			infs := getVMNetworkDetail(httpHeader, tmpvm.VMID)
-			var tmpintfs [][]string
-			count := 0
-			for _, intf := range infs {
-				count++
-				uniqueIP := make(map[string]bool)
-				for _, ips := range intf.IP.IPAddresses {
-					if ok := uniqueIP[ips.IPAddress]; ok {
-						continue
-					} else {
-						uniqueIP[ips.IPAddress] = true
-					}
-					tmpintfips := []string{fmt.Sprint("eth" + fmt.Sprintf("%d", count)), ips.IPAddress}
-					tmpintfs = append(tmpintfs, tmpintfips)
-				}
-				vms[tmpvm.VMID] = vcenterVM{Name: tmpvm.Name, VMID: tmpvm.VMID, PowerState: tmpvm.PowerState, Interfaces: tmpintfs}
+		if wkld, ok := tmpWklds[strings.ToLower(nameCheck(tmpName))]; ok {
+			if !umwl {
+				vms[tmpvm.VMID] = vcenterVM{Name: *wkld.Hostname, VMID: tmpvm.VMID, PowerState: tmpvm.PowerState, VMDetail: tmpvm.VMDetail}
 			}
+			continue
+		}
+		//else {
+		// 	//Check if the VCenter Name matches to a workload.
+		// 	tmpName = tmpvm.Name
+		// 	if wkld, ok := tmpWklds[strings.ToLower(nameCheck(tmpvm.Name))]; ok {
+		// 		if !umwl {
+		// 			vms[tmpvm.VMID] = vcenterVM{Name: *wkld.Hostname, VMID: tmpvm.VMID, PowerState: tmpvm.PowerState, VMDetail: tmpvm.VMDetail}
+		// 		}
+		// 		continue
+		// 	}
+		// }
+		if umwl {
+			var tmpintfs [][]string
+			if allIPs {
+				tmpvm.VMInterfaces = getVMNetworkDetail(httpHeader, tmpvm.VMID)
+
+				count := 0
+				for _, intf := range tmpvm.VMInterfaces {
+					count++
+					//VMware will provide the same IP multiple times but PCE doesnt like that.  Only get unique IPs
+					uniqueIP := make(map[string]bool)
+					for _, ips := range intf.IP.IPAddresses {
+						if ok := uniqueIP[ips.IPAddress]; ok {
+							continue
+						} else {
+							uniqueIP[ips.IPAddress] = true
+						}
+						tmpintfips := []string{fmt.Sprint("eth" + fmt.Sprintf("%d", count)), ips.IPAddress}
+						tmpintfs = append(tmpintfs, tmpintfips)
+					}
+				}
+
+			} else {
+				//If we are using VCenter Name to match no VMtools was called earlier.  Call to get an IP if available
+
+				if vcName {
+					tmpvm.VMDetail = getVMIdentity(httpHeader, tmpvm.VMID)
+				}
+
+				//Make sure there is an IP to add otherwise skip to next VM.  You need an IP for an UWML
+				if tmpvm.VMDetail.IPAddress != "" {
+					tmpintfs = [][]string{{"eth0", tmpvm.VMDetail.IPAddress}}
+				} else {
+					continue
+				}
+			}
+
+			vms[tmpvm.VMID] = vcenterVM{Name: tmpName, VMID: tmpvm.VMID, PowerState: tmpvm.PowerState, Interfaces: tmpintfs}
+
 		}
 
 	}

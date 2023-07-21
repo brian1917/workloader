@@ -29,11 +29,25 @@ type tagDetail struct {
 
 // vcenterVM - Struct used to gather all VM informatoin to be the basis of the wkld.import file
 type vcenterVM struct {
-	VMID       string `json:"vm"`
-	Name       string `json:"name"`
-	PowerState string `json:"power_state"`
-	Tags       map[string]string
-	Interfaces [][]string
+	VMID         string `json:"vm"`
+	Name         string `json:"name"`
+	PowerState   string `json:"power_state"`
+	Tags         map[string]string
+	Interfaces   [][]string
+	VMDetail     VMIdentity
+	VMInterfaces []Netinterfaces
+}
+type VMIdentity struct {
+	Family   string `json:"family"`
+	FullName struct {
+		Args           []string `json:"args"`
+		DefaultMessage string   `json:"default_message"`
+		ID             string   `json:"id"`
+		Localized      string   `json:"localized"`
+	} `json:"full_name"`
+	HostName  string `json:"host_name"`
+	IPAddress string `json:"ip_address"`
+	Name      string `json:"name"`
 }
 
 // vcenterObjects - Struct that is used for filtering VMs.
