@@ -86,3 +86,30 @@ type Netinterfaces struct {
 	Nic        string `json:"nic"`
 	MacAddress string `json:"mac_address"`
 }
+
+// VCenter getVersion API
+type VCVersion struct {
+	Build       string `json:"build"`
+	InstallTime string `json:"install_time"`
+	Product     string `json:"product"`
+	Releasedate string `json:"releasedate"`
+	Summary     string `json:"summary"`
+	Type        string `json:"type"`
+	Version     string `json:"version"`
+}
+
+// VCenter represents a VMware VCenter environment
+// API  calls are methods on VCenter
+type VCenter struct {
+	VCenterURL         string
+	User               string
+	Secret             string
+	DisableTLSChecking bool
+	VCVersion          VCVersion
+	KeyMap             map[string]string
+	Categories         []string
+	VCTags             map[string]vcenterTags
+	VCVMs              map[string]vcenterVM
+	VCVMSlice          []vcenterVM
+	Header             map[string]string
+}

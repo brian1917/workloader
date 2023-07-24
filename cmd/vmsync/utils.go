@@ -17,7 +17,7 @@ import (
 )
 
 // httpCall - Generic Function to call VCenter APIs
-func httpCall(httpAction, apiURL string, body []byte, headers [][2]string, login bool) (illumioapi.APIResponse, error) {
+func httpCall(httpAction, apiURL string, body []byte, login bool) (illumioapi.APIResponse, error) {
 
 	var response illumioapi.APIResponse
 	var httpBody *bytes.Buffer
@@ -48,12 +48,12 @@ func httpCall(httpAction, apiURL string, body []byte, headers [][2]string, login
 
 	// Set basic authentication and headers
 	if login {
-		req.SetBasicAuth(userID, secret)
+		req.SetBasicAuth(vc.User, vc.Secret)
 	}
 
-	// Set the user provided headers
-	for _, h := range headers {
-		req.Header.Set(h[0], h[1])
+	// Set basic authentication and headers
+	for k, v := range vc.Header {
+		req.Header.Set(k, v)
 	}
 
 	// Make HTTP Request
@@ -90,42 +90,6 @@ func httpCall(httpAction, apiURL string, body []byte, headers [][2]string, login
 	return response, nil
 }
 
-// getVCenterVersion - Gets the version of VCenter running so we can make sure to correctly build the VCenter APIs
-// After 7.0.u2 there is new syntax for the api.
-// pre 7.0.u2 - https:<vcenter>/rest/com/vmware/cis/<tag APIs> and https:<vcenter>/rest/vcenter/vm<VM APIs>
-// post 7.0.u2 - https:<vcenter>/api/vcenter/<All APIs>
-func validateVCenterVersion(headers [][2]string) {
-
-	apiURL, err := url.Parse(fmt.Sprintf("https://%s/api/appliance/system/version", vcenter))
-	if err != nil {
-		utils.LogError(fmt.Sprintf("validateVCenterVersio URL Parse Failed - %s", err))
-	}
-	response, err := httpCall("GET", apiURL.String(), []byte{}, headers, false)
-	if err != nil {
-		utils.LogError(fmt.Sprintf("validateVCenterVersio API call failed - %s", err))
-	}
-
-	//vmware version json response.
-	var raw struct {
-		Build       string `json:"build"`
-		InstallTime string `json:"install_time"`
-		Product     string `json:"product"`
-		Releasedate string `json:"releasedate"`
-		Summary     string `json:"summary"`
-		Type        string `json:"type"`
-		Version     string `json:"version"`
-	}
-
-	err = json.Unmarshal([]byte(response.RespBody), &raw)
-	if err != nil {
-		utils.LogError(fmt.Sprintf("marshal validateVCenterVersion response failed - %s", err))
-	}
-	utils.LogInfo(fmt.Sprintf("The current version of VCenter is %s", raw.Version), false)
-	if ver := strings.Split(raw.Version, "."); (ver[0] == "7" && ver[2] == "u2" || ver[2] == "u1") || ver[0] == "6" {
-		utils.LogError("Currently this feature only support VCenter '7.0.u2' and above")
-	}
-}
-
 // nameCheck - Match Hostname with or without domain information
 // input string with or without a domain.
 // output sting without domain
@@ -136,4 +100,88 @@ func nameCheck(name string) string {
 		return fullname[0]
 	}
 	return name
+}
+
+// cleanFQDN cleans up the provided PCE FQDN in case of common errors
+func (v *VCenter) cleanFQDN() string {
+	// Remove trailing slash if included
+	v.VCenterURL = strings.TrimSuffix(v.VCenterURL, "/")
+	// Remove HTTPS if included
+	v.VCenterURL = strings.TrimPrefix(v.VCenterURL, "https://")
+	return v.VCenterURL
+}
+
+// GetCollectionHeaders returns a collection of Illumio objects and allows for customizing headers of HTTP request
+// func (v *VCenter) Get(endpoint string, queryParameters, headers map[string]string, login bool, response interface{}, calledAPI string) (api illumioapi.APIResponse, err error) {
+func (v *VCenter) Get(endpoint string, queryParameters map[string]string, login bool, response interface{}, calledAPI string) {
+	// Build the API URL
+	url, err := url.Parse("https://" + v.cleanFQDN() + endpoint)
+	if err != nil {
+		utils.LogError(fmt.Sprintf("%s Unable to Parse URL - %s", calledAPI, err))
+		//return illumioapi.APIResponse{}, err
+	}
+
+	// Set the query parameters
+	for key, value := range queryParameters {
+		q := url.Query()
+		q.Set(key, value)
+		url.RawQuery = q.Encode()
+	}
+
+	// Call the API
+	api, err := httpCall("GET", url.String(), []byte{}, login)
+	utils.LogMultiAPIRespV2(map[string]illumioapi.APIResponse{calledAPI: api})
+	//Check for ServiceNot available for getVMIdentity or getNetInterfaces because lack of VMTools
+	if (err != nil && api.StatusCode != 503) && (calledAPI == "getVMIdentity" || calledAPI == "getVMNetworkDetail") {
+		utils.LogError(fmt.Sprintf("%s access to VCenter failed - %s", calledAPI, err))
+		//return api, err
+	} else if err != nil && api.StatusCode == 503 {
+		return
+	}
+
+	// Unmarshal response to struct and return
+	err = json.Unmarshal([]byte(api.RespBody), &response)
+	if err != nil {
+		utils.LogError(fmt.Sprintf("Unmarshal of %s object failed - %s", calledAPI, err))
+		//return api, err
+	}
+	//return api, nil
+
+}
+
+// Post sends a POST request to the VCenter
+func (v *VCenter) Post(endpoint string, object, createdObject interface{}, login bool, calledAPI string) (api illumioapi.APIResponse, err error) {
+
+	// Build the API URL
+	apiURL, err := url.Parse("https://" + v.cleanFQDN() + endpoint)
+	if err != nil {
+		utils.LogError(fmt.Sprintf("%s Unable to Parse URL - %s", calledAPI, err))
+		//return api, err
+	}
+
+	// Create payload
+	jsonBytes, err := json.Marshal(object)
+	if err != nil {
+		utils.LogError(fmt.Sprintf("Unmarshal of %s object failed - %s", calledAPI, err))
+		//return api, err
+	}
+
+	// Call the API
+	api, err = httpCall("POST", apiURL.String(), jsonBytes, login)
+	//api, err = httpCall("POST", apiURL.String(), jsonBytes, map[string]string{"Content-Type": "application/json"}, true)
+	api.ReqBody = string(jsonBytes)
+	utils.LogMultiAPIRespV2(map[string]illumioapi.APIResponse{calledAPI: api})
+	if err != nil {
+		utils.LogError(fmt.Sprintf("%s access to VCenter failed - %s", calledAPI, err))
+		//return api, err
+	}
+
+	// Unmarshal new label
+	err = json.Unmarshal([]byte(api.RespBody), &createdObject)
+	if err != nil {
+		utils.LogError(fmt.Sprintf("Unmarshal of %s object failed - %s", calledAPI, err))
+		//return api, err
+	}
+
+	return api, nil
 }

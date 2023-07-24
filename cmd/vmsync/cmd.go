@@ -18,6 +18,7 @@ var csvFile string
 var ignoreState, umwl, keepTempFile, keepFQDNHostname, deprecated, insecure, allIPs, vcName bool
 var updatePCE, noPrompt bool
 var pce illumioapi.PCE
+var vc VCenter
 var maxCreate, maxUpdate int
 var err error
 
@@ -89,13 +90,21 @@ var VCenterSyncCmd = &cobra.Command{
 		//Make sure the keyMap file doesnt have incorrect labeltypes.  Exit if it does.
 		validateKeyMap(keyMap)
 
+		vc.KeyMap = keyMap
+		vc.VCenterURL = vcenter
+		vc.User = userID
+		vc.Secret = secret
+		vc.DisableTLSChecking = insecure
+		vc.Header = make(map[string]string)
+
+		vc.compileVCenterData(keyMap)
 		//Sync VMs to Workloads or create UMWL VMs for all machines in VCenter not running VEN
-		callWkldImport(keyMap, &pce, vcenterBuildPCEInputData(keyMap))
+		vc.callWkldImport(keyMap, &pce)
 	},
 }
 
 // CallWkldImport - Function that gets the data structure to build a wkld import file and import.
-func callWkldImport(keyMap map[string]string, pce *illumioapi.PCE, vmMap map[string]vcenterVM) {
+func (vc *VCenter) callWkldImport(keyMap map[string]string, pce *illumioapi.PCE) {
 
 	var outputFileName string
 	// Set up the csv headers
@@ -108,7 +117,7 @@ func callWkldImport(keyMap map[string]string, pce *illumioapi.PCE, vmMap map[str
 	}
 
 	//csvData := [][]string{{"hostname", "role", "app", "env", "loc", "interfaces", "name"}
-	for _, vm := range vmMap {
+	for _, vm := range vc.VCVMs {
 		csvRow := []string{vm.Name, vm.VMID}
 		var tmpInf string
 		if umwl {
@@ -134,7 +143,7 @@ func callWkldImport(keyMap map[string]string, pce *illumioapi.PCE, vmMap map[str
 		csvData = append(csvData, csvRow)
 	}
 
-	if len(vmMap) <= 0 {
+	if len(vc.VCVMs) <= 0 {
 		utils.LogInfo("no Vcenter vms found", true)
 	} else {
 		if outputFileName == "" {
