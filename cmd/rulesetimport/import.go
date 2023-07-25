@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
@@ -14,9 +14,9 @@ import (
 )
 
 type Input struct {
-	PCE                                          illumioapi.PCE
-	UpdatePCE, NoPrompt, Provision, CreateLabels bool
-	ImportFile, ProvisionComment                 string
+	PCE                            illumioapi.PCE
+	UpdatePCE, NoPrompt, Provision bool
+	ImportFile, ProvisionComment   string
 }
 
 var input Input
@@ -24,7 +24,6 @@ var input Input
 func init() {
 	RuleSetImportCmd.Flags().BoolVar(&input.Provision, "provision", false, "Provision changes.")
 	RuleSetImportCmd.Flags().StringVar(&input.ProvisionComment, "provision-comments", "", "Provision comment.")
-	RuleSetImportCmd.Flags().BoolVar(&input.CreateLabels, "create-labels", false, "Create labels in scope if they do not exist.")
 }
 
 // RuleSetImportCmd runs the import command
@@ -57,7 +56,7 @@ Recommended to run without --update-pce first to log what will change.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		var err error
-		input.PCE, err = utils.GetTargetPCE(true)
+		input.PCE, err = utils.GetTargetPCEV2(true)
 		if err != nil {
 			utils.Logger.Fatalf("error getting PCE for csv command - %s", err)
 		}
@@ -83,29 +82,17 @@ func ImportRuleSetsFromCSV(input Input) {
 	utils.LogStartCommand("ruleset-import")
 
 	// Get all rulesets
-	pceRuleSets, a, err := input.PCE.GetRulesets(nil, "draft")
-	utils.LogAPIResp("GetAllRuleSets", a)
+	a, err := input.PCE.GetRulesets(nil, "draft")
+	utils.LogAPIRespV2("GetAllRuleSets", a)
 	if err != nil {
 		utils.LogError(err.Error())
-	}
-
-	// Create the Ruleset HREF map
-	rsMap := make(map[string]illumioapi.RuleSet)
-	for _, rs := range pceRuleSets {
-		rsMap[rs.Name] = rs
-		rsMap[rs.Href] = rs
 	}
 
 	// Get the Label Groups
-	allLabelGroups, a, err := input.PCE.GetLabelGroups(nil, "draft")
-	utils.LogAPIResp("GetAllLabelGroups", a)
+	a, err = input.PCE.GetLabelGroups(nil, "draft")
+	utils.LogAPIRespV2("GetAllLabelGroups", a)
 	if err != nil {
 		utils.LogError(err.Error())
-	}
-	labelGroupMap := make(map[string]illumioapi.LabelGroup)
-	for _, lg := range allLabelGroups {
-		labelGroupMap[lg.Name] = lg
-		labelGroupMap[lg.Href] = lg
 	}
 
 	// Parse the CSV file
@@ -139,7 +126,7 @@ csvEntries:
 		// If the ruleset href column is provided and there is a value, make sure it's valid.
 		if rsHrefCol, ok := hm["href"]; ok && l[hm["href"]] != "" {
 			var rs illumioapi.RuleSet
-			if rs, ok = rsMap[l[rsHrefCol]]; !ok {
+			if rs, ok = input.PCE.RuleSets[l[rsHrefCol]]; !ok {
 				utils.LogError(fmt.Sprintf("csv line %d - provided ruleset href does not exist", i+1))
 			}
 			// Begin update checks
@@ -151,10 +138,10 @@ csvEntries:
 				rs.Name = l[hm["name"]]
 			}
 			// Description
-			if rs.Description != l[hm["description"]] {
-				utils.LogInfo(fmt.Sprintf("csv line %d - ruleset description needs to be updated from %s to %s", i+1, rs.Description, l[hm["description"]]), false)
+			if illumioapi.PtrToVal(rs.Description) != l[hm["description"]] {
+				utils.LogInfo(fmt.Sprintf("csv line %d - ruleset description needs to be updated from %s to %s", i+1, illumioapi.PtrToVal(rs.Description), l[hm["description"]]), false)
 				update = true
-				rs.Description = l[hm["description"]]
+				rs.Description = illumioapi.Ptr(l[hm["description"]])
 			}
 			// Enabled
 			csvEnabled, err := strconv.ParseBool(l[hm["enabled"]])
@@ -178,7 +165,7 @@ csvEntries:
 		// Build a new ruleset with name and description
 		rs := illumioapi.RuleSet{
 			Name:        l[hm["name"]],
-			Description: l[hm["description"]]}
+			Description: illumioapi.Ptr(l[hm["description"]])}
 
 		t, err := strconv.ParseBool(l[hm["enabled"]])
 		if err != nil {
@@ -209,11 +196,11 @@ csvEntries:
 		// Iterate over the slice of slices to process each scope
 
 		// Star the scopes slice
-		rs.Scopes = &[][]*illumioapi.Scopes{}
+		rs.Scopes = &[][]illumioapi.Scopes{}
 
 		if csvScopesStr != "" {
 			for _, scope := range csvScopes {
-				rsScope := []*illumioapi.Scopes{}
+				rsScope := []illumioapi.Scopes{}
 				for _, entity := range scope {
 					if strings.HasPrefix(entity, "lg:") {
 						// Remove the lg
@@ -221,10 +208,10 @@ csvEntries:
 						// Remove the key
 						entity = strings.TrimPrefix(entity, strings.Split(entity, ":")[0]+":")
 						// Get the label Group
-						if lg, exists := labelGroupMap[entity]; !exists {
+						if lg, exists := input.PCE.LabelGroups[entity]; !exists {
 							utils.LogError(fmt.Sprintf("csv line %d - %s doesn't exist as a label group", i+1, entity))
 						} else {
-							rsScope = append(rsScope, &illumioapi.Scopes{LabelGroup: &illumioapi.LabelGroup{Href: lg.Href}})
+							rsScope = append(rsScope, illumioapi.Scopes{LabelGroup: &illumioapi.LabelGroup{Href: lg.Href}})
 						}
 						continue
 					}
@@ -235,7 +222,7 @@ csvEntries:
 					if label, exists := input.PCE.Labels[key+value]; !exists {
 						utils.LogError(fmt.Sprintf("csv line %d - %s doesn't exist as a label of type %s.", i+1, value, key))
 					} else {
-						rsScope = append(rsScope, &illumioapi.Scopes{Label: &illumioapi.Label{Href: label.Href}})
+						rsScope = append(rsScope, illumioapi.Scopes{Label: &illumioapi.Label{Href: label.Href}})
 					}
 				}
 				*rs.Scopes = append(*rs.Scopes, rsScope)
@@ -277,7 +264,7 @@ csvEntries:
 	if len(newRuleSets) > 0 {
 		for _, newRuleSet := range newRuleSets {
 			ruleset, a, err := input.PCE.CreateRuleset(newRuleSet.ruleSet)
-			utils.LogAPIResp("CreateRuleSetRule", a)
+			utils.LogAPIRespV2("CreateRuleSetRule", a)
 			if err != nil {
 				utils.LogError(err.Error())
 			}
@@ -289,7 +276,7 @@ csvEntries:
 	if len(updateRuleSets) > 0 {
 		for _, updateRuleSet := range updateRuleSets {
 			a, err := input.PCE.UpdateRuleset(updateRuleSet.ruleSet)
-			utils.LogAPIResp("UpateRuleSet", a)
+			utils.LogAPIRespV2("UpateRuleSet", a)
 			if err != nil {
 				utils.LogError(err.Error())
 			}
@@ -302,7 +289,7 @@ csvEntries:
 	// Provision any changes
 	if input.Provision {
 		a, err := input.PCE.ProvisionHref(provisionHrefs, input.ProvisionComment)
-		utils.LogAPIResp("ProvisionHref", a)
+		utils.LogAPIRespV2("ProvisionHref", a)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
