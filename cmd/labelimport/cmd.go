@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
@@ -51,7 +51,7 @@ Recommended to run without --update-pce first to log of what will change. If --u
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
-		pce, err = utils.GetTargetPCE(true)
+		pce, err = utils.GetTargetPCEV2(true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -83,16 +83,16 @@ func ImportLabels(pce illumioapi.PCE, inputFile string, updatePCE, noPrompt bool
 	utils.LogStartCommand("label-import")
 
 	// Open CSV File
-	file, err := os.Open(csvFile)
+	file, err := os.Open(inputFile)
 	if err != nil {
-		utils.LogError(err.Error())
+		utils.LogErrorf("error opening %s - %s", csvFile, err)
 	}
 	defer file.Close()
 	reader := csv.NewReader(utils.ClearBOM(bufio.NewReader(file)))
 
 	// Get all the labels
-	apiResps, err := pce.Load(illumioapi.LoadInput{Labels: true})
-	utils.LogMultiAPIResp(apiResps)
+	apiResps, err := pce.Load(illumioapi.LoadInput{Labels: true}, utils.UseMulti())
+	utils.LogMultiAPIRespV2(apiResps)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -147,10 +147,10 @@ func ImportLabels(pce illumioapi.PCE, inputFile string, updatePCE, noPrompt bool
 					Key:   line[*headers[HeaderKey]],
 					Value: line[*headers[HeaderValue]]}
 				if headers[HeaderExtDataSetRef] != nil {
-					label.ExternalDataReference = line[*headers[HeaderExtDataSetRef]]
+					label.ExternalDataReference = illumioapi.Ptr(line[*headers[HeaderExtDataSetRef]])
 				}
 				if headers[HeaderExtDataSet] != nil {
-					label.ExternalDataSet = line[*headers[HeaderExtDataSet]]
+					label.ExternalDataSet = illumioapi.Ptr(line[*headers[HeaderExtDataSet]])
 				}
 				labelsToCreate = append(labelsToCreate, csvLabel{label: label, csvLine: i})
 				label.Href = "To-Be-Created-From-This-Workloader-Run"
@@ -173,15 +173,15 @@ func ImportLabels(pce illumioapi.PCE, inputFile string, updatePCE, noPrompt bool
 					update = true
 					val.Value = line[*headers[HeaderValue]]
 				}
-				if headers[HeaderExtDataSetRef] != nil && val.ExternalDataReference != line[*headers[HeaderExtDataSetRef]] {
-					comments = append(comments, fmt.Sprintf("external_data_ref will be updated from %s to %s", val.ExternalDataReference, line[*headers[HeaderExtDataSetRef]]))
+				if headers[HeaderExtDataSetRef] != nil && illumioapi.PtrToVal(val.ExternalDataReference) != line[*headers[HeaderExtDataSetRef]] {
+					comments = append(comments, fmt.Sprintf("external_data_ref will be updated from %s to %s", illumioapi.PtrToVal(val.ExternalDataReference), line[*headers[HeaderExtDataSetRef]]))
 					update = true
-					val.ExternalDataReference = line[*headers[HeaderExtDataSetRef]]
+					val.ExternalDataReference = illumioapi.Ptr(line[*headers[HeaderExtDataSetRef]])
 				}
-				if headers[HeaderExtDataSet] != nil && val.ExternalDataSet != line[*headers[HeaderExtDataSet]] {
-					comments = append(comments, fmt.Sprintf("external_data_set will be updated from %s to %s", val.ExternalDataSet, line[*headers[HeaderExtDataSet]]))
+				if headers[HeaderExtDataSet] != nil && illumioapi.PtrToVal(val.ExternalDataSet) != line[*headers[HeaderExtDataSet]] {
+					comments = append(comments, fmt.Sprintf("external_data_set will be updated from %s to %s", illumioapi.PtrToVal(val.ExternalDataSet), line[*headers[HeaderExtDataSet]]))
 					update = true
-					val.ExternalDataSet = line[*headers[HeaderExtDataSet]]
+					val.ExternalDataSet = illumioapi.Ptr(line[*headers[HeaderExtDataSet]])
 				}
 				if update {
 					labelsToUpdate = append(labelsToUpdate, csvLabel{csvLine: i, label: val})
@@ -224,7 +224,7 @@ func ImportLabels(pce illumioapi.PCE, inputFile string, updatePCE, noPrompt bool
 
 	for _, newLabel := range labelsToCreate {
 		label, a, err := pce.CreateLabel(newLabel.label)
-		utils.LogAPIResp("CreateLabel", a)
+		utils.LogAPIRespV2("CreateLabel", a)
 		if err != nil && a.StatusCode != 406 {
 			utils.LogError(fmt.Sprintf("csv line %d - %s - ending run - %d labels created - %d labels updated", newLabel.csvLine, err, createdLabels, updatedLabels))
 		}
@@ -242,7 +242,7 @@ func ImportLabels(pce illumioapi.PCE, inputFile string, updatePCE, noPrompt bool
 	// Update IPLs
 	for _, updateLabel := range labelsToUpdate {
 		a, err := pce.UpdateLabel(updateLabel.label)
-		utils.LogAPIResp("UpdateLabel", a)
+		utils.LogAPIRespV2("UpdateLabel", a)
 		if err != nil && a.StatusCode != 406 {
 			utils.LogError(fmt.Sprintf("csv line %d - %s - ending run - %d labels created - %d labels updated", updateLabel.csvLine, err, createdLabels, updatedLabels))
 		}

@@ -6,15 +6,13 @@ import (
 	"os"
 	"strings"
 
+	"github.com/brian1917/workloader/cmd/iplimport"
+	"github.com/brian1917/workloader/cmd/labelimport"
 	"github.com/brian1917/workloader/cmd/ruleimport"
+	"github.com/brian1917/workloader/cmd/svcimport"
 
 	"github.com/brian1917/workloader/cmd/rulesetimport"
 
-	"github.com/brian1917/workloader/cmd/iplimport"
-
-	"github.com/brian1917/workloader/cmd/svcimport"
-
-	"github.com/brian1917/illumioapi"
 	illumioapiv2 "github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
@@ -23,7 +21,6 @@ import (
 
 // Global variables
 var template, directory string
-var pce illumioapi.PCE
 var pce2 illumioapiv2.PCE
 var provision, updatePCE, noPrompt bool
 var err error
@@ -43,10 +40,6 @@ Use template-list command to see available templates.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetTargetPCE(true)
-		if err != nil {
-			utils.Logger.Fatalf("Error getting PCE for csv command - %s", err)
-		}
 		pce2, err = utils.GetTargetPCEV2(true)
 		if err != nil {
 			utils.Logger.Fatalf("Error getting PCE for csv command - %s", err)
@@ -88,6 +81,17 @@ func importTemplate() {
 		directory = fmt.Sprintf("%s%s", directory, string(os.PathSeparator))
 	}
 
+	utils.LogInfof(false, "path: %s%s", directory, template)
+
+	// Labels
+	fmt.Println("\r\n------------------------------------------ LABELS -------------------------------------------")
+	labelFile := fmt.Sprintf("%s%s.labels.csv", directory, template)
+	if _, err := os.Stat(labelFile); err == nil {
+		labelimport.ImportLabels(pce2, labelFile, updatePCE, noPrompt)
+	} else {
+		utils.LogInfo(fmt.Sprintf("%s template does not include services. skipping", template), true)
+	}
+
 	// Services
 	fmt.Println("\r\n------------------------------------------ SERVICES -------------------------------------------")
 	svcFile := fmt.Sprintf("%s%s.services.csv", directory, template)
@@ -112,9 +116,15 @@ func importTemplate() {
 
 	// Rulesets
 	fmt.Println("\r\n------------------------------------------ RULE SETS ------------------------------------------")
+	// Reload the apps
+	api, err := pce2.GetLabels(nil)
+	utils.LogAPIRespV2("GetLabels", api)
+	if err != nil {
+		utils.LogError(err.Error())
+	}
 	rsFile := fmt.Sprintf("%s%s.rulesets.csv", directory, template)
 	if _, err := os.Stat(rsFile); err == nil {
-		rulesetimport.ImportRuleSetsFromCSV(rulesetimport.Input{PCE: pce, UpdatePCE: updatePCE, NoPrompt: noPrompt, Provision: provision, CreateLabels: true, ImportFile: rsFile, ProvisionComment: "workloader template-import"})
+		rulesetimport.ImportRuleSetsFromCSV(rulesetimport.Input{PCE: pce2, UpdatePCE: updatePCE, NoPrompt: noPrompt, Provision: provision, ImportFile: rsFile, ProvisionComment: "workloader template-import"})
 	} else {
 		utils.LogInfo(fmt.Sprintf("%s template does not include rule sets. skipping", template), true)
 	}
