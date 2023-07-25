@@ -136,7 +136,7 @@ func (vc *VCenter) getCategoryDetail(categoryid string) categoryDetail {
 	return obj
 }
 
-// getVMDetail - Get specifics about VMs
+// getVMNetworkDetail - Get specifics about VMs network interfaces - requires VMtools
 func (vc *VCenter) getVMNetworkDetail(vm string) []Netinterfaces {
 
 	tmpurl := "/api/vcenter/vm/" + vm + "/guest/networking/interfaces"
@@ -150,7 +150,7 @@ func (vc *VCenter) getVMNetworkDetail(vm string) []Netinterfaces {
 
 }
 
-// getVMIdentity - Get specifics about VMs like IP, Hostname and OS Family
+// getVMIdentity - Get specifics about VMs like IP, Hostname and OS Family - requires VMtools
 func (vc *VCenter) getVMIdentity(vm string) VMIdentity {
 
 	tmpurl := "/api/vcenter/vm/" + vm + "/guest/identity"
@@ -163,7 +163,7 @@ func (vc *VCenter) getVMIdentity(vm string) VMIdentity {
 	return obj
 }
 
-// getAllVMs - VCenter API call to get all the VCenter VMs.  The call will return no more than 4000 objects.
+// getVCenterVMs - VCenter API call to get all the VCenter VMs.  The call will return no more than 4000 objects.
 // To make sure you can fit all the VMs into a single call you can use the 'datacenter' and 'cluster' filter.
 // Currently only powered on machines are returned.
 func (vc *VCenter) getVCenterVMs() {
@@ -212,7 +212,7 @@ func (vc *VCenter) getVCenterVMs() {
 
 }
 
-// GetVMsFromTags - Function that will get all VMs that have a certain tag.
+// getTagsfromVMs - Function that will get all VMs that have a certain tag.
 func (vc *VCenter) getTagsfromVMs(vms map[string]vcenterVM, tags map[string]vcenterTags) []responseObject {
 
 	tmpurl := "/api/cis/tagging/tag-association?action=list-attached-tags-on-objects"
@@ -278,70 +278,9 @@ func (vc *VCenter) getVCenterVersion() {
 	}
 }
 
-// validateKeyMap - Check the KepMap file so it has correct Category to LabelType mapping.  Exit if not correct.
-func validateKeyMap(keyMap map[string]string) {
-
-	// Get the PCE version
-	version, api, err := pce.GetVersion()
-	utils.LogAPIRespV2("GetVersion", api)
-	if err != nil {
-		utils.LogError(err.Error())
-	}
-
-	needLabelDimensions := false
-	if (version.Major > 22 || (version.Major == 22 && version.Minor >= 5)) && len(pce.LabelDimensionsSlice) == 0 {
-		needLabelDimensions = true
-	}
-
-	//Call PCE load data to get all the machines.
-	apiResps, err := pce.Load(illumioapi.LoadInput{Workloads: true, Labels: true, LabelDimensions: needLabelDimensions}, utils.UseMulti())
-	utils.LogMultiAPIRespV2(apiResps)
-	if err != nil {
-		utils.LogError(err.Error())
-	}
-
-	// Create a map of label keys and depending on version either populate with API or with role, app, env, and loc.
-	labelKeysMap := make(map[string]bool)
-	if version.Major > 22 || (version.Major == 22 && version.Minor >= 5) {
-		for _, l := range pce.LabelDimensionsSlice {
-			labelKeysMap[l.Key] = true
-		}
-	} else {
-		labelKeysMap["role"] = true
-		labelKeysMap["app"] = true
-		labelKeysMap["env"] = true
-		labelKeysMap["loc"] = true
-	}
-	utils.LogInfo(fmt.Sprintf("label keys map: %v", labelKeysMap), false)
-
-	for _, val := range keyMap {
-		if !labelKeysMap[val] {
-			utils.LogError(fmt.Sprintf("Following PCE LabelType '%s' is not configured on the PCE", val))
-		}
-	}
-}
-
-// vcenterGetPCEInputData - Function that will pull categories, tags, and vms.  These will map to PCE labeltypes, labels and workloads.
-// The function will find all the tags for each vm that is either running a VEN or desired all machines that are not running a VEN.
-// The output will of the function will be easily imported buy the workload wkld.import feature.
-func (vc *VCenter) compileVCenterData(keyMap map[string]string) {
-
-	if vc.User == "" || vc.Secret == "" {
-		utils.LogError("Either USER or/and SECRET are empty.  Both are required.")
-	}
-
-	//Ignore SSL Certs
-	if vc.DisableTLSChecking {
-		utils.LogInfo(("Ignoring SSL certificates via --insecure option"), false)
-	}
-	//Call the VCenter API to get the session token
-	vc.Header["Content-Type"] = "application/json"
-	vc.Header["vmware-api-session-id"] = vc.getSessionToken()
-
-	//Get if VCenter is 7.0.u2 or older
-	if !deprecated {
-		vc.getVCenterVersion()
-	}
+// buildVCTagMap - Call the VCenter APIs to build a list of Tags and their category.  These will be used when finding all the VMs
+// that will be discovered based on the filters and options used.
+func (vc *VCenter) buildVCTagMap(keyMap map[string]string) {
 
 	//Get all VCenter Categories
 	utils.LogInfo("Call Get Category VCenter API - ", false)
@@ -362,6 +301,65 @@ func (vc *VCenter) compileVCenterData(keyMap map[string]string) {
 				vc.VCTags[tagid] = vcenterTags{Category: catDetail.Name, LabelType: keyMap[catDetail.Name], CategoryID: catDetail.ID, Tag: taginfo.Name}
 			}
 		}
+	}
+}
+
+// validateKeyMap - Check the KepMap file so it has correct Category to LabelType mapping.  Exit if not correct.
+func validateKeyMap(keyMap map[string]string) {
+
+	needLabelDimensions := false
+	if pce.Version.Major > 22 || (pce.Version.Major == 22 && pce.Version.Minor >= 5) && len(pce.LabelDimensionsSlice) == 0 {
+		needLabelDimensions = true
+	}
+
+	//Call PCE load data to get all the machines.
+	apiResps, err := pce.Load(illumioapi.LoadInput{Workloads: true, Labels: true, LabelDimensions: needLabelDimensions}, utils.UseMulti())
+	utils.LogMultiAPIRespV2(apiResps)
+	if err != nil {
+		utils.LogError(err.Error())
+	}
+
+	// Create a map of label keys and depending on version either populate with API or with role, app, env, and loc.
+	labelKeysMap := make(map[string]bool)
+	if pce.Version.Major > 22 || (pce.Version.Major == 22 && pce.Version.Minor >= 5) {
+		for _, l := range pce.LabelDimensionsSlice {
+			labelKeysMap[l.Key] = true
+		}
+	} else {
+		labelKeysMap["role"] = true
+		labelKeysMap["app"] = true
+		labelKeysMap["env"] = true
+		labelKeysMap["loc"] = true
+	}
+	utils.LogInfo(fmt.Sprintf("label keys map: %v", labelKeysMap), false)
+
+	for _, val := range keyMap {
+		if !labelKeysMap[val] {
+			utils.LogError(fmt.Sprintf("Following PCE LabelType '%s' is not configured on the PCE", val))
+		}
+	}
+}
+
+// compileVMData - Function that will pull categories, tags, and vms.  These will map to PCE labeltypes, labels and workloads.
+// The function will find all the tags for each vm that is either running a VEN or desired all machines that are not running a VEN.
+// The output will of the function will be easily imported buy the workload wkld.import feature.
+func (vc *VCenter) compileVMData() {
+
+	if vc.User == "" || vc.Secret == "" {
+		utils.LogError("Either USER or/and SECRET are empty.  Both are required.")
+	}
+
+	//Ignore SSL Certs
+	if vc.DisableTLSChecking {
+		utils.LogInfo(("Ignoring SSL certificates via --insecure option"), false)
+	}
+	//Call the VCenter API to get the session token
+	vc.Header["Content-Type"] = "application/json"
+	vc.Header["vmware-api-session-id"] = vc.getSessionToken()
+
+	//Get if VCenter is 7.0.u2 or older
+	if !deprecated {
+		vc.getVCenterVersion()
 	}
 
 	//return totaltags
@@ -469,5 +467,4 @@ func (vc *VCenter) compileVCenterData(keyMap map[string]string) {
 	}
 
 	utils.LogInfo(fmt.Sprintf("Total VMs found - %d.  Total VMs with Illumio Labels - %d", len(vc.VCVMs), count), true)
-
 }

@@ -97,14 +97,16 @@ var VCenterSyncCmd = &cobra.Command{
 		vc.DisableTLSChecking = insecure
 		vc.Header = make(map[string]string)
 
-		vc.compileVCenterData(keyMap)
+		vc.buildVCTagMap(keyMap)
+
+		vc.compileVMData()
 		//Sync VMs to Workloads or create UMWL VMs for all machines in VCenter not running VEN
-		vc.callWkldImport(keyMap, &pce)
+		buildWkldImport(keyMap, &pce)
 	},
 }
 
-// CallWkldImport - Function that gets the data structure to build a wkld import file and import.
-func (vc *VCenter) callWkldImport(keyMap map[string]string, pce *illumioapi.PCE) {
+// buildWkldImport - Function that gets the data structure to build a wkld import file and import.
+func buildWkldImport(keyMap map[string]string, pce *illumioapi.PCE) {
 
 	var outputFileName string
 	// Set up the csv headers
