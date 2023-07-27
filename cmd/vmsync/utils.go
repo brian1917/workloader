@@ -115,7 +115,7 @@ func (v *VCenter) cleanFQDN() string {
 // func (v *VCenter) Get(endpoint string, queryParameters, headers map[string]string, login bool, response interface{}, calledAPI string) (api illumioapi.APIResponse, err error) {
 func (v *VCenter) Get(endpoint string, queryParameters map[string]string, login bool, response interface{}, calledAPI string) {
 	// Build the API URL
-	url, err := url.Parse("https://" + v.cleanFQDN() + endpoint)
+	tmpurl, err := url.Parse("https://" + v.cleanFQDN() + endpoint)
 	if err != nil {
 		utils.LogError(fmt.Sprintf("%s Unable to Parse URL - %s", calledAPI, err))
 		//return illumioapi.APIResponse{}, err
@@ -123,13 +123,20 @@ func (v *VCenter) Get(endpoint string, queryParameters map[string]string, login 
 
 	// Set the query parameters
 	for key, value := range queryParameters {
-		q := url.Query()
-		q.Set(key, value)
-		url.RawQuery = q.Encode()
+		//Necessary check because golang net/url Encodes a space character as "+".  VCenter needs that to be %20
+		if calledAPI == "getObjectID" {
+			tmp := key + "=" + value
+			tmpurl.RawQuery = url.PathEscape(tmp)
+		} else {
+			q := tmpurl.Query()
+			q.Set(key, value)
+			tmpurl.RawQuery = q.Encode()
+
+		}
 	}
 
 	// Call the API
-	api, err := httpCall("GET", url.String(), []byte{}, login)
+	api, err := httpCall("GET", tmpurl.String(), []byte{}, login)
 	utils.LogMultiAPIRespV2(map[string]illumioapi.APIResponse{calledAPI: api})
 	//Check for ServiceNot available for getVMIdentity or getNetInterfaces because lack of VMTools
 	if (err != nil && api.StatusCode != 503) && (calledAPI == "getVMIdentity" || calledAPI == "getVMNetworkDetail") {

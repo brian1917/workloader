@@ -31,10 +31,11 @@ type tagDetail struct {
 type vcenterVM struct {
 	VMID         string `json:"vm"`
 	Name         string `json:"name"`
+	VCName       string
 	PowerState   string `json:"power_state"`
 	Tags         map[string]string
 	Interfaces   [][]string
-	VMDetail     VMIdentity
+	IPs          map[string]bool
 	VMInterfaces []Netinterfaces
 }
 type VMIdentity struct {

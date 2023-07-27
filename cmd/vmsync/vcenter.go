@@ -7,8 +7,10 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/brian1917/illumioapi/v2"
+	"github.com/brian1917/workloader/cmd/wkldimport"
 	"github.com/brian1917/workloader/utils"
 )
 
@@ -90,23 +92,23 @@ func (vc *VCenter) getObjectID(object, filter string) vcenterObjects {
 	if object != "datacenter" && object != "cluster" && object != "folder" {
 		utils.LogError(fmt.Sprintf("GetObjectID getting invalid object type - %s", object))
 	}
-	tmpurl := "/api/vcenter/"
+	tmpurl := "/api/vcenter/" + object
 	if deprecated {
-		tmpurl = "/rest/vcenter/"
+		tmpurl = "/rest/vcenter/" + object
 	}
 
 	queryParam := make(map[string]string)
 	if deprecated {
 		queryParam["filter.names"] = filter
 	} else {
-		queryParam["names="] = filter
+		queryParam["names"] = filter
 	}
 
 	var obj []vcenterObjects
 	vc.Get(tmpurl, queryParam, false, &obj, "getObjectID")
 
-	if len(obj) > 1 {
-		utils.LogError(fmt.Sprintf("Get Vcenter Objects return more than one answer - %d", len(obj)))
+	if len(obj) == 0 {
+		utils.LogError(fmt.Sprintf("Error Get Vcenter \"%s\" object \"%s\" returned %d entries.  Check for correctness. ", object, filter, len(obj)))
 	}
 	return obj[0]
 }
@@ -168,7 +170,7 @@ func (vc *VCenter) getVMIdentity(vm string) VMIdentity {
 // Currently only powered on machines are returned.
 func (vc *VCenter) getVCenterVMs() {
 
-	tmpurl := "/api/vcenter/vm/"
+	tmpurl := "/api/vcenter/vm"
 	if deprecated {
 		tmpurl = "/rest/vcenter/vm"
 	}
@@ -194,18 +196,18 @@ func (vc *VCenter) getVCenterVMs() {
 	if cluster != "" {
 		object := vc.getObjectID("cluster", cluster)
 		if deprecated {
-			queryParam["filter.cluster"] = object.Cluster
+			queryParam["filter.clusters"] = object.Cluster
 		} else {
-			queryParam["cluster"] = object.Cluster
+			queryParam["clusters"] = object.Cluster
 		}
 	}
 
 	if folder != "" {
 		object := vc.getObjectID("folder", folder)
 		if deprecated {
-			queryParam["filter.cluster"] = object.Folder
+			queryParam["filter.folders"] = object.Folder
 		} else {
-			queryParam["cluster"] = object.Folder
+			queryParam["folders"] = object.Folder
 		}
 	}
 	vc.Get(tmpurl, queryParam, false, &vc.VCVMSlice, "getVCenterVMs")
@@ -278,6 +280,27 @@ func (vc *VCenter) getVCenterVersion() {
 	}
 }
 
+// setupVCenterSession -
+func (vc *VCenter) setupVCenterSession() {
+
+	if vc.User == "" || vc.Secret == "" {
+		utils.LogError("Either USER or/and SECRET are empty.  Both are required.")
+	}
+
+	//Ignore SSL Certs
+	if vc.DisableTLSChecking {
+		utils.LogInfo(("Ignoring SSL certificates via --insecure option"), false)
+	}
+	//Call the VCenter API to get the session token
+	vc.Header["Content-Type"] = "application/json"
+	vc.Header["vmware-api-session-id"] = vc.getSessionToken()
+
+	//Get if VCenter is 7.0.u2 or older
+	if !deprecated {
+		vc.getVCenterVersion()
+	}
+}
+
 // buildVCTagMap - Call the VCenter APIs to build a list of Tags and their category.  These will be used when finding all the VMs
 // that will be discovered based on the filters and options used.
 func (vc *VCenter) buildVCTagMap(keyMap map[string]string) {
@@ -305,7 +328,7 @@ func (vc *VCenter) buildVCTagMap(keyMap map[string]string) {
 }
 
 // validateKeyMap - Check the KepMap file so it has correct Category to LabelType mapping.  Exit if not correct.
-func validateKeyMap(keyMap map[string]string) {
+func validateKeyMap(keyMap map[string]string, pce *illumioapi.PCE) {
 
 	needLabelDimensions := false
 	if pce.Version.Major > 22 || (pce.Version.Major == 22 && pce.Version.Minor >= 5) && len(pce.LabelDimensionsSlice) == 0 {
@@ -340,27 +363,101 @@ func validateKeyMap(keyMap map[string]string) {
 	}
 }
 
+// isIPv6 - CHecks to see if the IP address provided is Ipv6. returns true if yes
+func isIPv6(ip string) bool {
+	return strings.Count(ip, ":") >= 2
+
+}
+
+// buildWkldImport - Function that gets the data structure to build a wkld import file and import.
+func buildWkldImport(pce *illumioapi.PCE) {
+
+	var outputFileName string
+	// Set up the csv headers
+	csvData := [][]string{{"hostname", "description"}}
+	if umwl {
+		csvData[0] = append(csvData[0], "interfaces")
+	}
+	for _, illumioLabelType := range vc.KeyMap {
+		csvData[0] = append(csvData[0], illumioLabelType)
+	}
+
+	//csvData := [][]string{{"hostname", "role", "app", "env", "loc", "interfaces", "name"}
+	for _, vm := range vc.VCVMs {
+		csvRow := []string{vm.Name, vm.VMID + " - " + "VCenterName = " + vm.VCName}
+		var tmpInf string
+		if umwl {
+			for c, inf := range vm.Interfaces {
+				if c != 0 {
+					tmpInf = tmpInf + ";"
+				}
+				tmpInf = tmpInf + fmt.Sprintf("%s:%s", inf[0], inf[1])
+			}
+			csvRow = append(csvRow, tmpInf)
+		}
+		for index, header := range csvData[0] {
+
+			// Skip hostname and interfaces if umwls ...they are statically added above
+			if index < 2 {
+				continue
+			} else if umwl && index == 2 {
+				continue
+			}
+			//process hostname by finding Name TAG
+			csvRow = append(csvRow, vm.Tags[header])
+		}
+		csvData = append(csvData, csvRow)
+	}
+
+	if len(vc.VCVMs) <= 0 {
+		utils.LogInfo("No Vcenter VMs found", true)
+	} else {
+		if outputFileName == "" {
+			outputFileName = fmt.Sprintf("workloader-vcenter-sync-%s.csv", time.Now().Format("20060102_150405"))
+		}
+		utils.WriteOutput(csvData, nil, outputFileName)
+		utils.LogInfo(fmt.Sprintf("%d VCenter vms with label data exported", len(csvData)-1), true)
+
+		utils.LogInfo("passing output into wkld-import...", true)
+
+		wkldimport.ImportWkldsFromCSV(wkldimport.Input{
+			PCE:             *pce,
+			ImportFile:      outputFileName,
+			RemoveValue:     "vcenter-label-delete",
+			Umwl:            umwl,
+			UpdateWorkloads: true,
+			UpdatePCE:       updatePCE,
+			NoPrompt:        noPrompt,
+			MaxUpdate:       maxUpdate,
+			MaxCreate:       maxCreate,
+		})
+
+		// Delete the temp file
+		if !keepFile {
+			if err := os.Remove(outputFileName); err != nil {
+				utils.LogWarning(fmt.Sprintf("Could not delete %s", outputFileName), true)
+			} else {
+				utils.LogInfo(fmt.Sprintf("Deleted %s", outputFileName), false)
+			}
+		}
+	}
+
+	utils.LogEndCommand(fmt.Sprintf("%s-sync", "vcenter"))
+}
+
 // compileVMData - Function that will pull categories, tags, and vms.  These will map to PCE labeltypes, labels and workloads.
 // The function will find all the tags for each vm that is either running a VEN or desired all machines that are not running a VEN.
 // The output will of the function will be easily imported buy the workload wkld.import feature.
-func (vc *VCenter) compileVMData() {
+func (vc *VCenter) compileVMData(keyMap map[string]string) {
 
-	if vc.User == "" || vc.Secret == "" {
-		utils.LogError("Either USER or/and SECRET are empty.  Both are required.")
+	//Get all the PCE data
+	pce, err := utils.GetTargetPCEV2(false)
+	if err != nil {
+		utils.LogError(fmt.Sprintf("Error getting PCE - %s", err.Error()))
 	}
 
-	//Ignore SSL Certs
-	if vc.DisableTLSChecking {
-		utils.LogInfo(("Ignoring SSL certificates via --insecure option"), false)
-	}
-	//Call the VCenter API to get the session token
-	vc.Header["Content-Type"] = "application/json"
-	vc.Header["vmware-api-session-id"] = vc.getSessionToken()
-
-	//Get if VCenter is 7.0.u2 or older
-	if !deprecated {
-		vc.getVCenterVersion()
-	}
+	//Make sure the keyMap file doesnt have incorrect labeltypes.  Exit if it does.
+	validateKeyMap(keyMap, &pce)
 
 	//return totaltags
 	vc.getVCenterVMs()
@@ -376,66 +473,82 @@ func (vc *VCenter) compileVMData() {
 	//variable to store the correct name
 
 	for _, tmpvm := range vc.VCVMSlice {
-		var tmpName string
+
+		var tmpintfs [][]string
+		count := 0
+		vmTools := true
+
+		tmpvm.IPs = make(map[string]bool)
 		//Search VMTools Hostname for existing PCE workload or use VCenter Name to match
-		tmpName = tmpvm.Name
-		if !vcName {
-			tmpvm.VMDetail = vc.getVMIdentity(tmpvm.VMID)
-			if name := tmpvm.VMDetail.HostName; name != "" {
-				tmpName = name
+		tmpvm.VCName = tmpvm.Name
+		vmIdentity := vc.getVMIdentity(tmpvm.VMID)
+		//If not hostname then VMtools not installed.  Ignore Hostname if using vcenter Name as match.
+		if name := vmIdentity.HostName; name != "" {
+			if !vcName {
+				tmpvm.Name = name
 			}
+			//IP address is found with getVMIdentity so add it to the map to make sure its only added 1 time to this machine.
+			if vmIdentity.IPAddress != "" {
+				count++
+				tmpvm.IPs[vmIdentity.IPAddress] = true
+				tmpintfips := []string{fmt.Sprint("eth" + fmt.Sprintf("%d", count)), vmIdentity.IPAddress}
+				tmpintfs = [][]string{tmpintfips}
+			}
+		} else {
+			vmTools = false
 		}
 
-		if wkld, ok := tmpWklds[strings.ToLower(nameCheck(tmpName))]; ok {
+		if wkld, ok := tmpWklds[strings.ToLower(nameCheck(tmpvm.Name))]; ok {
 			if !umwl {
-				vc.VCVMs[tmpvm.VMID] = vcenterVM{Name: *wkld.Hostname, VMID: tmpvm.VMID, PowerState: tmpvm.PowerState, VMDetail: tmpvm.VMDetail}
+				vc.VCVMs[tmpvm.VMID] = vcenterVM{VCName: tmpvm.VCName, Name: *wkld.Hostname, VMID: tmpvm.VMID, PowerState: tmpvm.PowerState}
 			}
 			continue
 		}
 
 		if umwl {
-			var tmpintfs [][]string
+
 			if allIPs {
-				tmpvm.VMInterfaces = vc.getVMNetworkDetail(tmpvm.VMID)
-				if len(tmpvm.VMInterfaces) <= 0 {
+				//If you the VMIdentity API doesnt provide data then no VMtools - Skip getting NetworkDetails.
+				if vmTools {
+					tmpvm.VMInterfaces = vc.getVMNetworkDetail(tmpvm.VMID)
+				}
+				if len(tmpintfs) == 0 && len(tmpvm.VMInterfaces) == 0 {
 					continue
 				}
-				count := 0
 				for _, intf := range tmpvm.VMInterfaces {
+					//increment eth for more interfaces
 					count++
 					//VMware will provide the same IP multiple times but PCE doesnt like that.  Only get unique IPs
-					uniqueIP := make(map[string]bool)
 					for _, ips := range intf.IP.IPAddresses {
-						if ok := uniqueIP[ips.IPAddress]; ok {
+						if isIPv6(ips.IPAddress) && !ipv6 {
+							// bydefault skip all IPv6 address unless added as an option
+							continue
+						}
+						if ok := tmpvm.IPs[ips.IPAddress]; ok {
 							continue
 						} else {
-							uniqueIP[ips.IPAddress] = true
+							tmpvm.IPs[ips.IPAddress] = true
 						}
+
 						tmpintfips := []string{fmt.Sprint("eth" + fmt.Sprintf("%d", count)), ips.IPAddress}
 						tmpintfs = append(tmpintfs, tmpintfips)
 					}
 				}
 
-			} else {
-				//If we are using VCenter Name to match no VMtools was called earlier.  Call to get an IP if available
-
-				if vcName {
-					tmpvm.VMDetail = vc.getVMIdentity(tmpvm.VMID)
-				}
-
-				//Make sure there is an IP to add otherwise skip to next VM.  You need an IP for an UWML
-				if tmpvm.VMDetail.IPAddress != "" {
-					tmpintfs = [][]string{{"eth0", tmpvm.VMDetail.IPAddress}}
-				} else {
-					continue
-				}
 			}
 
-			vc.VCVMs[tmpvm.VMID] = vcenterVM{Name: tmpName, VMID: tmpvm.VMID, PowerState: tmpvm.PowerState, Interfaces: tmpintfs, VMDetail: tmpvm.VMDetail}
-
+			//Make sure there is an is an interface that has an IP otherwise VM should not be added as an UWM
+			if len(tmpintfs) == 0 {
+				continue
+			}
+			vc.VCVMs[tmpvm.VMID] = vcenterVM{VCName: tmpvm.VCName, Name: tmpvm.Name, VMID: tmpvm.VMID, PowerState: tmpvm.PowerState, Interfaces: tmpintfs}
 		}
-
 	}
+
+	//After getting all the VMs build a keymap for all the Categories matched in the keyMap to be used for labeling
+	vc.buildVCTagMap(keyMap)
+
+	//Get all the Tags for VMs that were found above.
 	totalVMs := vc.getTagsfromVMs(vc.VCVMs, vc.VCTags)
 
 	//Cycle through all the VMs that returned with tags and add the Tags that are importable.  All other VMs will not have Tags.
@@ -459,12 +572,16 @@ func (vc *VCenter) compileVMData() {
 			//If we VM has Illumio Labels count this VM.
 
 		}
+
+		//count up all the VMs and total labels.
 		if found {
 			count++
 		}
-		vc.VCVMs[object.ObjectId.ID] = vcenterVM{VMID: vc.VCVMs[object.ObjectId.ID].VMID, Name: vc.VCVMs[object.ObjectId.ID].Name, PowerState: vc.VCVMs[object.ObjectId.ID].PowerState, Tags: tmpTags, Interfaces: vc.VCVMs[object.ObjectId.ID].Interfaces}
-
+		vc.VCVMs[object.ObjectId.ID] = vcenterVM{VMID: vc.VCVMs[object.ObjectId.ID].VMID, VCName: vc.VCVMs[object.ObjectId.ID].VCName, Name: vc.VCVMs[object.ObjectId.ID].Name, PowerState: vc.VCVMs[object.ObjectId.ID].PowerState, Tags: tmpTags, Interfaces: vc.VCVMs[object.ObjectId.ID].Interfaces}
 	}
 
 	utils.LogInfo(fmt.Sprintf("Total VMs found - %d.  Total VMs with Illumio Labels - %d", len(vc.VCVMs), count), true)
+
+	//Build call wkld-Import using the VMs and the tags found in VCenter.
+	buildWkldImport(&pce)
 }
