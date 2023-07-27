@@ -10,3 +10,5 @@
 *.zip
 version_notes
 go.sum
+workloader
+go.work
