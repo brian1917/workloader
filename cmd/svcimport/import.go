@@ -78,23 +78,41 @@ func ImportServices(input Input) {
 		if input.Meta {
 			update := false
 
+			// Set the match flag
+			matchStr := ""
+
 			// Get the href
-			var href string
+			var href, name string
 			if hrefCol, ok := input.Headers[svcexport.HeaderHref]; !ok {
-				utils.LogError("href header required with meta flag")
+				// utils.LogError("href header required with meta flag")
 			} else {
 				href = data[hrefCol]
 				if href == "" {
 					utils.LogErrorf("csv line %d - no header provided.", csvLine)
 				}
+				matchStr = href
+			}
+
+			if matchStr == "" {
+				if nameCol, ok := input.Headers[svcexport.HeaderName]; !ok {
+					utils.LogError("either href or name column must be present")
+				} else {
+					name = data[nameCol]
+					if name == "" {
+						utils.LogErrorf("csv line %d - no name or href provided.", csvLine)
+					}
+					matchStr = name
+				}
+
 			}
 
 			// Get the service
 			var newSvc illumioapi.Service
 			var ok bool
-			if newSvc, ok = input.PCE.Services[href]; !ok {
+			if newSvc, ok = input.PCE.Services[matchStr]; !ok {
 				utils.LogErrorf("csv line %d - %s does not exist", csvLine, href)
 			}
+			href = newSvc.Href
 			if illumioapi.PtrToVal(illumioapi.PtrToVal(newSvc.RiskDetails).Ransomware).Category == "" {
 				newSvc.RiskDetails = nil
 			}
