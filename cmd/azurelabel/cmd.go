@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"os"
+	"os/exec"
 	"strings"
 	"time"
 
-	"github.com/Azure/go-autorest/autorest/azure/cli"
 	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/cmd/wkldimport"
 	"github.com/brian1917/workloader/utils"
@@ -16,12 +16,14 @@ import (
 	"github.com/spf13/viper"
 )
 
-var labelMapping, outputFileName, azureOptions string
+var labelMapping, outputFileName, azureOptions, debugFile string
 
 func init() {
 	AzureLabelCmd.Flags().StringVarP(&labelMapping, "mapping", "m", "", "mappings of azure tags to illumio labels. the format is a comma-separated list of azure-tag:illumio-label. For example, \"application:app,type:role\" maps the Azure tag of application to the Illumio app label and the Azure type tag to the Illumio role label.")
 	AzureLabelCmd.Flags().StringVarP(&azureOptions, "options", "o", "", "AWS CLI can be extended using this option.  Anything added after -o inside quotes will be passed as is(e.g \"--region us-west-1\"")
 	AzureLabelCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+	AzureLabelCmd.Flags().StringVar(&debugFile, "debug-file", "", "file of json data to use instead of Azure CLI output.")
+	AzureLabelCmd.Flags().MarkHidden("debug-file")
 	AzureLabelCmd.MarkFlagRequired("mapping")
 	AzureLabelCmd.Flags().SortFlags = false
 }
@@ -77,28 +79,39 @@ func AzureLabels(labelMapping string, pce *illumioapi.PCE, updatePCE, noPrompt b
 		csvData[0] = append(csvData[0], illumioLabel)
 	}
 
-	// Get the location of the Azure
-	cmd := cli.GetAzureCLICommand()
+	// Get the bytes from either the CLI or the debug json file
+	var bytes []byte
+	if debugFile == "" {
+		// Run the AZ command
+		cmd := exec.Command("az", "vm", "list")
+		if azureOptions != "" {
+			cmd.Args = append(cmd.Args, strings.Split(azureOptions, " ")...)
+		}
+		pipe, err := cmd.StdoutPipe()
+		if err != nil {
+			utils.LogError(fmt.Sprintf("pipe error - %s", err.Error()))
+		}
 
-	// Build the VM list command with a pipe
-	cmd.Args = []string{cmd.Path, "vm", "list"}
-	if azureOptions != "" {
-		cmd.Args = append(cmd.Args, strings.Split(azureOptions, " ")...)
-	}
-	pipe, err := cmd.StdoutPipe()
-	if err != nil {
-		utils.LogError(fmt.Sprintf("pipe error - %s", err.Error()))
-	}
+		// Run the command
+		utils.LogInfof(true, "running command: %s", cmd.String())
+		if err := cmd.Start(); err != nil {
+			utils.LogError(fmt.Sprintf("run error - %s", err.Error()))
+		}
 
-	// Run the command
-	if err := cmd.Start(); err != nil {
-		utils.LogError(fmt.Sprintf("run error - %s", err.Error()))
-	}
-
-	// Read the stout
-	bytes, err := io.ReadAll(pipe)
-	if err != nil {
-		log.Fatal(err)
+		// Read the stout
+		bytes, err = io.ReadAll(pipe)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+	} else {
+		jsonFile, err := os.Open(debugFile)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		bytes, err = io.ReadAll(jsonFile)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
 	}
 
 	// Unmarshall the JSON
