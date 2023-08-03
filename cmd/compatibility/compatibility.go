@@ -153,7 +153,8 @@ func compatibilityReport() {
 		cr, a, err := pce.GetCompatibilityReport(w)
 		utils.LogAPIRespV2("GetCompatibilityReport", a)
 		if err != nil {
-			utils.LogError(fmt.Sprintf("getting compatibility report for %s (%s) - %s", illumioapi.PtrToVal(w.Hostname), w.Href, err))
+			utils.LogWarningf(true, "error compatibility report for %s (%s) - %s - skipping", illumioapi.PtrToVal(w.Hostname), w.Href, err)
+			continue
 		}
 
 		// Get the online status
