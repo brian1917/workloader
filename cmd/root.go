@@ -20,7 +20,6 @@ import (
 	"github.com/brian1917/workloader/cmd/dupecheck"
 	"github.com/brian1917/workloader/cmd/ebexport"
 	"github.com/brian1917/workloader/cmd/ebimport"
-	"github.com/brian1917/workloader/cmd/explorer"
 	"github.com/brian1917/workloader/cmd/extract"
 	"github.com/brian1917/workloader/cmd/flowimport"
 	"github.com/brian1917/workloader/cmd/flowsummary"
@@ -54,6 +53,7 @@ import (
 	"github.com/brian1917/workloader/cmd/svcimport"
 	"github.com/brian1917/workloader/cmd/templateimport"
 	"github.com/brian1917/workloader/cmd/templatelist"
+	"github.com/brian1917/workloader/cmd/traffic"
 	"github.com/brian1917/workloader/cmd/umwlcleanup"
 	"github.com/brian1917/workloader/cmd/unpair"
 	"github.com/brian1917/workloader/cmd/unusedumwl"
@@ -185,7 +185,7 @@ func init() {
 	RootCmd.AddCommand(mislabel.MisLabelCmd)
 	RootCmd.AddCommand(dupecheck.DupeCheckCmd)
 	RootCmd.AddCommand(flowsummary.FlowSummaryCmd)
-	RootCmd.AddCommand(explorer.ExplorerCmd)
+	RootCmd.AddCommand(traffic.TrafficCmd)
 	RootCmd.AddCommand(nicexport.NICExportCmd)
 	RootCmd.AddCommand(servicefinder.ServiceFinderCmd)
 	RootCmd.AddCommand(processexport.ProcessExportCmd)

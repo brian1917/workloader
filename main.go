@@ -56,6 +56,18 @@ func main() {
 			}
 			return
 		}
+
+		if os.Args[1] == "explorer" {
+			utils.LogWarning("this command has been renamed to traffic. please use \"workloader traffic\" in the future", true)
+			command := exec.Command(os.Args[0], append([]string{"traffic"}, os.Args[2:]...)...)
+			utils.LogInfof(true, "executing the following: %s", command.String())
+			stdout, err := command.Output()
+			if err != nil {
+				utils.LogError(err.Error())
+			}
+			fmt.Println(string(stdout))
+			return
+		}
 	}
 
 	// Run command for all other scenarios
