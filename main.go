@@ -57,6 +57,7 @@ func main() {
 			return
 		}
 
+		// Explorer renamed to traffic
 		if os.Args[1] == "explorer" {
 			utils.LogWarning("this command has been renamed to traffic. please use \"workloader traffic\" in the future", true)
 			command := exec.Command(os.Args[0], append([]string{"traffic"}, os.Args[2:]...)...)
@@ -66,6 +67,21 @@ func main() {
 				utils.LogError(err.Error())
 			}
 			fmt.Println(string(stdout))
+			return
+		}
+
+		// Moved flow summary
+		if os.Args[1] == "flowsummary" {
+			utils.LogWarning("this command has been renamed to appgroup-flow-summary. please use \"workloader appgroup-flow-summary\" in the future", true)
+			if len(os.Args) > 2 && os.Args[2] == "appgroup" {
+				command := exec.Command(os.Args[0], append([]string{"appgroup-flow-summary"}, os.Args[3:]...)...)
+				utils.LogInfof(true, "executing the following: %s", command.String())
+				stdout, err := command.Output()
+				if err != nil {
+					utils.LogError(err.Error())
+				}
+				fmt.Println(string(stdout))
+			}
 			return
 		}
 	}

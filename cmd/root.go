@@ -7,6 +7,7 @@ import (
 
 	"github.com/brian1917/workloader/utils"
 
+	"github.com/brian1917/workloader/cmd/appgroupflowsummary"
 	"github.com/brian1917/workloader/cmd/awslabel"
 	"github.com/brian1917/workloader/cmd/azurelabel"
 	"github.com/brian1917/workloader/cmd/checkversion"
@@ -22,7 +23,6 @@ import (
 	"github.com/brian1917/workloader/cmd/ebimport"
 	"github.com/brian1917/workloader/cmd/extract"
 	"github.com/brian1917/workloader/cmd/flowimport"
-	"github.com/brian1917/workloader/cmd/flowsummary"
 	"github.com/brian1917/workloader/cmd/gcplabel"
 	"github.com/brian1917/workloader/cmd/getpairingkey"
 	"github.com/brian1917/workloader/cmd/hostparse"
@@ -184,7 +184,7 @@ func init() {
 	RootCmd.AddCommand(portusage.PortUsageCmd)
 	RootCmd.AddCommand(mislabel.MisLabelCmd)
 	RootCmd.AddCommand(dupecheck.DupeCheckCmd)
-	RootCmd.AddCommand(flowsummary.FlowSummaryCmd)
+	RootCmd.AddCommand(appgroupflowsummary.AppGroupFlowSummaryCmd)
 	RootCmd.AddCommand(traffic.TrafficCmd)
 	RootCmd.AddCommand(nicexport.NICExportCmd)
 	RootCmd.AddCommand(servicefinder.ServiceFinderCmd)
@@ -211,7 +211,6 @@ func init() {
 		c.SetUsageTemplate(utils.SubCmdTemplate())
 	}
 	RootCmd.SetUsageTemplate(utils.RootTemplate())
-	flowsummary.FlowSummaryCmd.SetUsageTemplate(utils.SRootCmdTemplate())
 
 	// Setup Viper
 	viper.SetConfigType("yaml")

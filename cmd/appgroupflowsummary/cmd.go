@@ -1,4 +1,4 @@
-package flowsummary
+package appgroupflowsummary
 
 import (
 	"fmt"
@@ -36,7 +36,7 @@ func init() {
 
 // AppGroupFlowSummaryCmd summarizes flows
 var AppGroupFlowSummaryCmd = &cobra.Command{
-	Use:   "appgroup",
+	Use:   "appgroup-flow-summary",
 	Short: "Summarize flows by port and protocol between app groups.",
 	Long: `
 Summarize flows by port and protocol between app groups.
