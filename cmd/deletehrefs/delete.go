@@ -197,6 +197,7 @@ func DeleteHrefs(input Input) {
 			if strings.Contains(href, "/ip_lists/") ||
 				strings.Contains(href, "/services/") ||
 				strings.Contains(href, "/rule_sets/") ||
+				strings.Contains(href, "/enforcement_boundaries/") ||
 				strings.Contains(href, "/label_groups/") ||
 				strings.Contains(href, "/virtual_services/") ||
 				strings.Contains(href, "/virtual_servers/") ||
