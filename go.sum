@@ -42,8 +42,6 @@ github.com/aws/aws-sdk-go v1.44.243 h1:f5cNDSVfU/TsH0FXi+DwPjOY4XAv9ehubfw/7yTQQ
 github.com/aws/aws-sdk-go v1.44.243/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
 github.com/brian1917/illumioapi v1.83.0 h1:hTg2Xz+kBWfi+9wwXNSpYmA29zbQLVfmzPYglm+LF+Y=
 github.com/brian1917/illumioapi v1.83.0/go.mod h1:jREIUsMQeaaL7Mde0nTG2ehSDJjRSU79WFgFXcm0XhQ=
-github.com/brian1917/illumioapi/v2 v2.0.0-beta.16 h1:L3gLLbuseZZHrkem2NW9bV2Y200k/MyCmGk8dtCoWFc=
-github.com/brian1917/illumioapi/v2 v2.0.0-beta.16/go.mod h1:2uy7bernq5Ein6PiTS+9a4VvjYEMKi3vAGybByDZ2c8=
 github.com/brian1917/illumioapi/v2 v2.0.0-beta.17 h1:x1sAiTTlZYa2fOU+qMfPGpXjYJM7UM94AuIob0mnWM4=
 github.com/brian1917/illumioapi/v2 v2.0.0-beta.17/go.mod h1:2uy7bernq5Ein6PiTS+9a4VvjYEMKi3vAGybByDZ2c8=
 github.com/brian1917/ns v1.2.0 h1:8z9dR8WhaqJPTi8Ygyf6VHrYGoP8dbNV8hoD30/k/8c=
