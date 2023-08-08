@@ -6,14 +6,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var app, start, end, outputFileName string
-var exclAllowed, exclPotentiallyBlocked, exclBlocked, appGroupLoc, ignoreIPGroup, consolidate, debug bool
+var exclAllowed, exclPotentiallyBlocked, exclBlocked, appGroupLoc, ignoreIPGroup, consolidate bool
 var pce illumioapi.PCE
 var err error
 
@@ -68,13 +67,10 @@ The update-pce and --no-prompt flags are ignored for this command.
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetTargetPCE(true)
+		pce, err = utils.GetTargetPCEV2(true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-
-		// Get the debug value from viper
-		debug = viper.Get("debug").(bool)
 
 		flowSummary()
 	},
@@ -96,7 +92,7 @@ type svcSummary struct {
 
 func flowSummary() {
 
-	utils.LogStartCommand("flowsummary appgroup")
+	utils.LogStartCommand("appgroup-flow-summary")
 
 	// Build policy status slice
 	var pStatus []string
@@ -109,71 +105,64 @@ func flowSummary() {
 	if !exclBlocked {
 		pStatus = append(pStatus, "blocked")
 	}
-	utils.LogInfo(fmt.Sprintf("policy state: %s", pStatus), false)
-
-	// Get the state and end date
-	startDate, err := time.Parse("2006-01-02 MST", fmt.Sprintf("%s %s", start, "UTC"))
-	if err != nil {
-		utils.LogError(err.Error())
-	}
-	startDate = startDate.In(time.UTC)
-	utils.LogInfo(fmt.Sprintf("Start date: %s", startDate.String()), false)
-
-	endDate, err := time.Parse("2006-01-02 MST", fmt.Sprintf("%s %s", end, "UTC"))
-	if err != nil {
-		utils.LogError(err.Error())
-	}
-	endDate = endDate.In(time.UTC)
-	utils.LogInfo(fmt.Sprintf("End date: %s", endDate.String()), false)
 
 	// Create the default query struct
 	tq := illumioapi.TrafficQuery{
-		StartTime:                       startDate,
-		EndTime:                         endDate,
 		PolicyStatuses:                  pStatus,
-		MaxFLows:                        100000,
+		MaxFLows:                        200000,
 		ExcludeWorkloadsFromIPListQuery: true}
+
+	// Get the start date
+	tq.StartTime, err = time.Parse("2006-01-02 MST", fmt.Sprintf("%s %s", start, "UTC"))
+	if err != nil {
+		utils.LogError(err.Error())
+	}
+	tq.StartTime = tq.StartTime.In(time.UTC)
+
+	// Get the end date
+	tq.EndTime, err = time.Parse("2006-01-02 15:04:05 MST", fmt.Sprintf("%s 23:59:59 %s", end, "UTC"))
+	if err != nil {
+		utils.LogError(err.Error())
+	}
+	tq.EndTime = tq.EndTime.In(time.UTC)
 
 	// If an app is provided, adjust query to include it
 	if app != "" {
-		utils.LogInfo(fmt.Sprintf("Provided app label value: %s", app), false)
+		utils.LogInfof(false, "app label value: %s", app)
 		label, a, err := pce.GetLabelByKeyValue("app", app)
-		utils.LogAPIResp("GetLabelbyKeyValue", a)
+		utils.LogAPIRespV2("GetLabelbyKeyValue", a)
 		if err != nil {
-			utils.LogError(fmt.Sprintf("getting label HREF - %s", err))
+			utils.LogErrorf("getting label HREF - %s", err)
 		}
 		if label.Href == "" {
-			utils.LogError(fmt.Sprintf("%s does not exist as an app label.", app))
+			utils.LogErrorf("%s does not exist as an app label.", app)
 		}
-		utils.LogInfo(fmt.Sprintf("Provided app label href: %s", label.Href), false)
+		utils.LogInfof(false, "app label href: %s", label.Href)
 		tq.SourcesInclude = [][]string{{label.Href}}
 	}
 
 	// Run traffic query
 	traffic, a, err := pce.GetTrafficAnalysis(tq)
-	if debug {
-		utils.LogAPIResp("GetTrafficAnalysis", a)
-	}
+	utils.LogAPIRespV2("GetTrafficAnalysis", a)
+	utils.LogInfof(false, "explorer query body: %s", a.ReqBody)
 	if err != nil {
-		utils.LogError(fmt.Sprintf("making explorer API call - %s", err))
+		utils.LogError(err.Error())
 	}
-
-	utils.LogInfo(fmt.Sprintf("First explorer query result count: %d", len(traffic)), false)
+	utils.LogInfof(false, "first traffic query result count: %d", len(traffic))
 
 	// If app is provided, switch to the destination include, clear the sources include, run query again, append to previous result
 	if app != "" {
 		tq.DestinationsInclude = tq.SourcesInclude
 		tq.SourcesInclude = [][]string{}
 		traffic2, a, err := pce.GetTrafficAnalysis(tq)
-		if debug {
-			utils.LogAPIResp("GetTrafficAnalysis", a)
-		}
+		utils.LogAPIRespV2("GetTrafficAnalysis", a)
+		utils.LogInfof(false, "explorer query body: %s", a.ReqBody)
 		if err != nil {
-			utils.LogError(fmt.Sprintf("making second explorer API call - %s", err))
+			utils.LogError(err.Error())
 		}
-		utils.LogInfo(fmt.Sprintf("Second explorer query result count: %d", len(traffic2)), false)
+		utils.LogInfo(fmt.Sprintf("second traffic query result count: %d", len(traffic2)), false)
 		traffic = append(traffic, traffic2...)
-		utils.LogInfo(fmt.Sprintf("Combined explorer query result count: %d", len(traffic)), false)
+		utils.LogInfo(fmt.Sprintf("combined traffic query result count: %d", len(traffic)), false)
 	}
 
 	// Get the protocol list
@@ -219,7 +208,7 @@ func flowSummary() {
 		}
 		svc := svcSummary{port: t.ExpSrv.Port, proto: protoMap[t.ExpSrv.Proto]}
 		//svc := fmt.Sprintf("%d %s", t.ExpSrv.Port, protoMap[t.ExpSrv.Proto])
-		entryMap[entry][svc] = entryMap[entry][svc] + t.NumConnections
+		entryMap[entry][svc] = entryMap[entry][svc] + int(t.NumConnections)
 	}
 
 	// Build the data slices
