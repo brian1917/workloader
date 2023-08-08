@@ -32,9 +32,6 @@ jobs:
       - name: Make directories and copy CSV files
         run: |
           mkdir windows-v${{ steps.get_version.outputs.version }} mac-v${{ steps.get_version.outputs.version }} linux-v${{ steps.get_version.outputs.version }}
-          cp workload-identifier-default.csv ./windows-v${{ steps.get_version.outputs.version }}
-          cp workload-identifier-default.csv ./mac-v${{ steps.get_version.outputs.version }}
-          cp workload-identifier-default.csv ./linux-v${{ steps.get_version.outputs.version }}
           cp -r illumio-templates ./windows-v${{ steps.get_version.outputs.version }}/
           cp -r illumio-templates ./mac-v${{ steps.get_version.outputs.version }}/
           cp -r illumio-templates ./linux-v${{ steps.get_version.outputs.version }}/
