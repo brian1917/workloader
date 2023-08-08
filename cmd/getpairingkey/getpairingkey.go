@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
@@ -18,7 +18,7 @@ var profile, pkFile string
 
 // Init handles flags
 func init() {
-	GetPairingKey.Flags().StringVarP(&profile, "profile", "p", "default", "Pairing profile name.")
+	GetPairingKey.Flags().StringVarP(&profile, "profile", "p", "Default (Servers)", "Pairing profile name.")
 	GetPairingKey.Flags().StringVarP(&pkFile, "file", "f", "", "File to store pairing key")
 	GetPairingKey.Flags().SortFlags = false
 }
@@ -34,7 +34,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
-		pce, err = utils.GetTargetPCE(true)
+		pce, err = utils.GetTargetPCEV2(true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -49,16 +49,18 @@ func getPK() {
 	utils.LogStartCommand("get-pk")
 
 	// Get all pairing profiles
-	pps, a, err := pce.GetPairingProfiles(nil)
-	utils.LogAPIResp("GetAllPairingProfiles", a)
+	pps, a, err := pce.GetPairingProfiles((map[string]string{"name": profile}))
+	utils.LogAPIRespV2("GetAllPairingProfiles", a)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
 
+	match := false
 	for _, pp := range pps {
 		if pp.Name == profile {
+			match = true
 			pk, a, err := pce.CreatePairingKey(pp)
-			utils.LogAPIResp("CreatePairingKey", a)
+			utils.LogAPIRespV2("CreatePairingKey", a)
 			if err != nil {
 				utils.LogError(err.Error())
 			}
@@ -78,6 +80,12 @@ func getPK() {
 			}
 		}
 	}
-	utils.LogEndCommand("get-pk")
+
+	if !match {
+		utils.LogErrorf("pairing profile %s does not exist", profile)
+	}
+
+	// Log the end of the command (don't use utils.LogEndCommand so we don't print to stdout)
+	utils.LogInfo("get-pk completed", false)
 
 }
