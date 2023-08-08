@@ -61,6 +61,7 @@ import (
 	"github.com/brian1917/workloader/cmd/venexport"
 	"github.com/brian1917/workloader/cmd/venhealth"
 	"github.com/brian1917/workloader/cmd/venimport"
+	"github.com/brian1917/workloader/cmd/vmsync"
 	"github.com/brian1917/workloader/cmd/wkldexport"
 	"github.com/brian1917/workloader/cmd/wkldimport"
 	"github.com/brian1917/workloader/cmd/wkldiplmapping"
@@ -161,6 +162,7 @@ func init() {
 	RootCmd.AddCommand(subnet.SubnetCmd)
 	RootCmd.AddCommand(hostparse.HostnameCmd)
 	RootCmd.AddCommand(dagsync.DAGSyncCmd)
+	RootCmd.AddCommand(vmsync.VCenterSyncCmd)
 
 	// Workload management
 	RootCmd.AddCommand(compatibility.CompatibilityCmd)
