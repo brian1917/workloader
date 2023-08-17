@@ -21,6 +21,10 @@ const (
 	HeaderValue         = "value"
 	HeaderExtDataSet    = "ext_dataset"
 	HeaderExtDataSetRef = "ext_dataset_ref"
+	HeaderCreatedAt     = "created_at"
+	HeaderCreatedBy     = "created_by"
+	HeaderUpdatedAt     = "updated_at"
+	HeaderUpdatedBy     = "updated_by"
 )
 
 // Declare local global variables
