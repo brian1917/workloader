@@ -512,7 +512,7 @@ func (pan *PAN) checkHA() bool {
 	if strings.ToLower(dagResp.Result.Enabled) == "no" {
 		return true
 	}
-	if strings.ToLower(dagResp.Result.Group.LocalInfo.State) == "active" || strings.ToLower(dagResp.Result.Group.LocalInfo.State) == "active-primary" {
+	if strings.ToLower(dagResp.Result.Group.LocalInfo.State) == "active" || strings.ToLower(dagResp.Result.Group.LocalInfo.State) == "primary-active" {
 		return true
 	}
 	return false
