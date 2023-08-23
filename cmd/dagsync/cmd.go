@@ -66,11 +66,12 @@ type UIDResponse struct {
 
 // Result - Declare Result container of PAN API call
 type Result struct {
-	Entry   []Entry `xml:"entry,omitempty"`
-	Count   int     `xml:"count,omitempty"`
-	Error   string  `xml:"error,omitempty"`
-	Enabled string  `xml:"enabled,omitempty"`
-	Group   Group   `xml:"group,omitempty"`
+	Entry     []Entry   `xml:"entry,omitempty"`
+	Count     int       `xml:"count,omitempty"`
+	Error     string    `xml:"error,omitempty"`
+	Enabled   string    `xml:"enabled,omitempty"`
+	LocalInfo LocalInfo `xml:"local-info,omitempty"`
+	Group     Group     `xml:"group,omitempty"`
 }
 
 // Entry - Declare Entry container of PAN API call
@@ -102,7 +103,7 @@ type Member struct {
 	Timeout string `xml:"timeout,attr,omitempty"`
 }
 
-//PAN structure used to
+// PAN structure used to
 type PAN struct {
 	Key          string
 	URL          string
@@ -110,7 +111,7 @@ type PAN struct {
 	RegIPs       map[string]IPTags
 }
 
-//List of New or Updates RegisteredIPs
+// List of New or Updates RegisteredIPs
 type IPTags struct {
 	Labels    []string
 	HrefLabel string
@@ -226,7 +227,7 @@ func httpSetUp(httpAction, apiURL string, body []byte, disableTLSChecking bool, 
 	return response, nil
 }
 
-//panHTTP - Function to setup HTTP POST with necessary headers and other requirements
+// panHTTP - Function to setup HTTP POST with necessary headers and other requirements
 func (pan *PAN) callHTTP(cmdType string, cmd string) DagResponse {
 
 	var dagResp DagResponse
@@ -259,7 +260,7 @@ func (pan *PAN) callHTTP(cmdType string, cmd string) DagResponse {
 	return dagResp
 }
 
-//ipv6Check - Function that checks IP string for valid IP.  Also checks to see if Ipv6 and if IPv6 should be included
+// ipv6Check - Function that checks IP string for valid IP.  Also checks to see if Ipv6 and if IPv6 should be included
 func ipCheck(ip string) string {
 
 	//make sure ip string is a valid IP.
@@ -282,7 +283,7 @@ func ipCheck(ip string) string {
 	return ""
 }
 
-//workloadIPMap - Build a map of all workloads IPs and their corresponding labels.
+// workloadIPMap - Build a map of all workloads IPs and their corresponding labels.
 func workloadIPMap(filterList []map[string]string) map[string]IPTags {
 	var pceIpMap = make(map[string]IPTags)
 
@@ -346,7 +347,7 @@ func workloadIPMap(filterList []map[string]string) map[string]IPTags {
 	return pceIpMap
 }
 
-//getPanRegisteredIPs - Get all currently loaded Registered IPs from PAN.  Uses to compare against PCE workload IPs to sync.
+// getPanRegisteredIPs - Get all currently loaded Registered IPs from PAN.  Uses to compare against PCE workload IPs to sync.
 func (pan *PAN) LoadRegisteredIPs() {
 
 	var dagResp DagResponse
@@ -426,7 +427,7 @@ func (pan *PAN) LoadRegisteredIPs() {
 
 }
 
-//UnRegister - Call PAN to remove IPs or Labels.
+// UnRegister - Call PAN to remove IPs or Labels.
 func (pan *PAN) UnRegister(listRegisterIP map[string]IPTags) {
 	var request DagRequest
 	var entries []Entry
@@ -464,7 +465,7 @@ func (pan *PAN) UnRegister(listRegisterIP map[string]IPTags) {
 	utils.LogInfo(fmt.Sprintf("%d IP(s) removed + %d Tag(s) deleted from RegisteredIPs on PanOS", removeCounter, updateCounter), true)
 }
 
-//Register - Call PAN to add IPs and labels to Registered IPs
+// Register - Call PAN to add IPs and labels to Registered IPs
 func (pan *PAN) Register(listRegisterIP map[string]IPTags) {
 	var request DagRequest
 	var entries []Entry
@@ -502,7 +503,7 @@ func (pan *PAN) Register(listRegisterIP map[string]IPTags) {
 	utils.LogInfo(fmt.Sprintf("%d Registered changes will be made. For specifics check workloader.log", len(listRegisterIP)), true)
 }
 
-//checkHAPrimary - make sure we are adding Registered IPs to primary PAN in a HA
+// checkHAPrimary - make sure we are adding Registered IPs to primary PAN in a HA
 func (pan *PAN) checkHA() bool {
 
 	//Send show HA API request.  panHttp check for success within the response message.  Fails if not successful.
@@ -512,6 +513,9 @@ func (pan *PAN) checkHA() bool {
 	if strings.ToLower(dagResp.Result.Enabled) == "no" {
 		return true
 	}
+	if strings.ToLower(dagResp.Result.LocalInfo.State) == "active" || strings.ToLower(dagResp.Result.LocalInfo.State) == "primary-active" {
+		return true
+	}
 	if strings.ToLower(dagResp.Result.Group.LocalInfo.State) == "active" || strings.ToLower(dagResp.Result.Group.LocalInfo.State) == "primary-active" {
 		return true
 	}
@@ -519,7 +523,7 @@ func (pan *PAN) checkHA() bool {
 
 }
 
-//isEqual -  compare function for arrays - Order not guaranteed.  Return
+// isEqual -  compare function for arrays - Order not guaranteed.  Return
 func isEqual(a1 []string, a2 []string) (bool, []string, []string) {
 
 	var remove []string
@@ -551,7 +555,7 @@ func isEqual(a1 []string, a2 []string) (bool, []string, []string) {
 	return equal, remove, addLabels
 }
 
-//dagSync - Compares IPs already registered on PAN with those on the PCE also compare the labels/tags currently configured.  If different labels/tags
+// dagSync - Compares IPs already registered on PAN with those on the PCE also compare the labels/tags currently configured.  If different labels/tags
 func dagSync() {
 
 	//Enter Start Log for PAN DAG Sync
