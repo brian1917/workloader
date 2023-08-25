@@ -156,6 +156,11 @@ func ImportLabels(pce illumioapi.PCE, inputFile string, updatePCE, noPrompt bool
 				if headers[HeaderExtDataSet] != nil {
 					label.ExternalDataSet = illumioapi.Ptr(line[*headers[HeaderExtDataSet]])
 				}
+				// If either data reference or dataset is blank, don't include them
+				if illumioapi.PtrToVal(label.ExternalDataReference) == "" || illumioapi.PtrToVal(label.ExternalDataSet) == "" {
+					label.ExternalDataReference = nil
+					label.ExternalDataSet = nil
+				}
 				labelsToCreate = append(labelsToCreate, csvLabel{label: label, csvLine: i})
 				label.Href = "To-Be-Created-From-This-Workloader-Run"
 				pce.Labels[line[*headers[HeaderKey]]+line[*headers[HeaderValue]]] = label
