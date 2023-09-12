@@ -10,13 +10,14 @@ import (
 
 // Declare global variables
 var managedOnly, unmanagedOnly, onlineOnly, noHref, includeVuln, removeDescNewLines bool
-var headers, globalOutputFileName string
+var headers, globalOutputFileName, subnetInclude string
 
 func init() {
 	WkldExportCmd.Flags().StringVar(&headers, "headers", "", "comma-separated list of headers for export. default is all headers.")
 	WkldExportCmd.Flags().BoolVarP(&managedOnly, "managed-only", "m", false, "only export managed workloads.")
 	WkldExportCmd.Flags().BoolVarP(&unmanagedOnly, "unmanaged-only", "u", false, "only export unmanaged workloads.")
 	WkldExportCmd.Flags().BoolVarP(&onlineOnly, "online-only", "o", false, "only export online workloads.")
+	WkldExportCmd.Flags().StringVarP(&subnetInclude, "subnet", "s", "", "subnet filter to only export workloads with an interface in that subnet.")
 	WkldExportCmd.Flags().BoolVarP(&includeVuln, "incude-vuln-data", "v", false, "include vulnerability data.")
 	WkldExportCmd.Flags().BoolVar(&noHref, "no-href", false, "do not export href column. use this when exporting data to import into different pce.")
 	WkldExportCmd.Flags().StringVar(&globalOutputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")

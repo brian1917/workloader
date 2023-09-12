@@ -3,6 +3,7 @@ package wkldexport
 import (
 	"fmt"
 	"math"
+	"net"
 	"sort"
 	"strconv"
 	"strings"
@@ -60,6 +61,26 @@ func (e *WkldExport) CsvData() (csvData [][]string) {
 		// Skip deleted workloads
 		if *w.Deleted {
 			continue
+		}
+
+		// Check the interfaces
+		if subnetInclude != "" {
+
+			// Validate the subnet
+			_, network, err := net.ParseCIDR(subnetInclude)
+			if err != nil {
+				utils.LogErrorf("invalid subnet cidr - %s", subnetInclude)
+			}
+			nicInSubnet := false
+			for _, nic := range illumioapi.PtrToVal(w.Interfaces) {
+				ip := net.ParseIP(nic.Address)
+				if network.Contains(ip) {
+					nicInSubnet = true
+				}
+			}
+			if !nicInSubnet {
+				continue
+			}
 		}
 
 		// Get interfaces
