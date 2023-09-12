@@ -20,6 +20,12 @@ var SetProxyCmd = &cobra.Command{
 Set workloader-specific proxy.
 
 Workloader uses HTTP_PROXY and HTTPS_PROXY environment variables natively. This command is only if the proxy needs to be explicitly set for workloader outside those variables.
+
+The command requires two arguments: pce name and proxy in format of http://fqdn:port (or http://ip:port).
+
+For example, the following command sets the proxy for default-pce to http://proxy.com:8080
+
+workloader set-proxy default-pce http://proxy.com:8080
 `,
 	PreRun: func(cmd *cobra.Command, args []string) {
 		configFilePath, err = filepath.Abs(viper.ConfigFileUsed())
@@ -28,7 +34,7 @@ Workloader uses HTTP_PROXY and HTTPS_PROXY environment variables natively. This 
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		utils.LogStartCommand("set-proxy [pce name] [proxy string as http://fqdn:port]")
+		utils.LogStartCommand("set-proxy")
 		if len(args) != 2 {
 			utils.LogError("command requires 2 arguments for the pce name and the proxy string as fqdn:port. See usage help.")
 		}
