@@ -12,10 +12,15 @@ import (
 
 // Logger is the global logger for Workloader
 var Logger log.Logger
+var logFile string
 
 func init() {
 
-	f, err := os.OpenFile("workloader.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+	logFile = os.Getenv("WORKLOADER_LOG")
+	if logFile == "" {
+		logFile = "workloader.log"
+	}
+	f, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0755)
 	if err != nil {
 		log.Fatal(err)
 	}

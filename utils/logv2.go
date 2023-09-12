@@ -2,22 +2,10 @@ package utils
 
 import (
 	"fmt"
-	"log"
-	"os"
 
 	"github.com/brian1917/illumioapi/v2"
 	"github.com/spf13/viper"
 )
-
-func init() {
-
-	f, err := os.OpenFile("workloader.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	Logger.SetOutput(f)
-
-}
 
 // LogAPIResp will log the HTTP Requset, Request Header, Response Status Code, and Response Body
 // The callType should be the name of call: GetAllLabels, GetAllWorkloads, etc. This is just for logging purposes and any string will be accepted.
