@@ -65,17 +65,20 @@ func (e *WkldExport) CsvData() (csvData [][]string) {
 
 		// Check the interfaces
 		if subnetInclude != "" {
+			subnets := strings.Split(subnetInclude, ",")
 
 			// Validate the subnet
-			_, network, err := net.ParseCIDR(subnetInclude)
-			if err != nil {
-				utils.LogErrorf("invalid subnet cidr - %s", subnetInclude)
-			}
 			nicInSubnet := false
-			for _, nic := range illumioapi.PtrToVal(w.Interfaces) {
-				ip := net.ParseIP(nic.Address)
-				if network.Contains(ip) {
-					nicInSubnet = true
+			for _, s := range subnets {
+				_, network, err := net.ParseCIDR(s)
+				if err != nil {
+					utils.LogErrorf("invalid subnet cidr - %s", s)
+				}
+				for _, nic := range illumioapi.PtrToVal(w.Interfaces) {
+					ip := net.ParseIP(nic.Address)
+					if network.Contains(ip) {
+						nicInSubnet = true
+					}
 				}
 			}
 			if !nicInSubnet {
