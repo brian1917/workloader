@@ -17,10 +17,11 @@ func processServices(input Input, data []string, csvLine int) (winSvc illumioapi
 	// If the port column is there and not blank, process it.
 	if col, ok := input.Headers[svcexport.HeaderPort]; ok && data[col] != "" {
 		// The port is the first entry after splitting on the "-" and removing spaces
-		winSvc.Port, err = strconv.Atoi(strings.Split(strings.Replace(data[col], " ", "", -1), "-")[0])
+		intValue, err := strconv.Atoi(strings.Split(strings.Replace(data[col], " ", "", -1), "-")[0])
 		if err != nil {
 			utils.LogError(fmt.Sprintf("CSV line %d - invalid %s", csvLine, svcexport.HeaderPort))
 		}
+		winSvc.Port = &intValue
 		// Make the service port the same as the WinSvc
 		svcPort.Port = winSvc.Port
 
@@ -36,7 +37,7 @@ func processServices(input Input, data []string, csvLine int) (winSvc illumioapi
 	}
 
 	// Process the protocol column
-	if col, ok := input.Headers[svcexport.HeaderProto]; !ok && winSvc.Port != 0 {
+	if col, ok := input.Headers[svcexport.HeaderProto]; !ok && illumioapi.PtrToVal(winSvc.Port) != 0 {
 		utils.LogError(fmt.Sprintf("CSV line %d - protocol is required when port is provided", csvLine))
 	} else if ok && data[col] != "" {
 		proto := 0

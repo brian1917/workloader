@@ -293,19 +293,19 @@ func ImportServices(input Input) {
 					// Create a map of the pceSvc. The key is going to be name-port-toport-protocol-process-svc-icmpcode-icmptype
 					pceSvcMapSvcs := make(map[string]string)
 					for _, ws := range illumioapi.PtrToVal(pceSvc.WindowsServices) {
-						pceSvcMapSvcs[fmt.Sprintf("%s-%d-%d-%d-%s-%s-%d-%d", pceSvc.Href, ws.Port, ws.ToPort, ws.Protocol, ws.ProcessName, ws.ServiceName, ws.IcmpCode, ws.IcmpType)] = fmt.Sprintf("Port: %d; To Port: %d; Proto: %d; ProcessName: %s; Service: %s; ICMP Code: %d; ICMP Type: %d", ws.Port, ws.ToPort, ws.Protocol, ws.ProcessName, ws.ServiceName, ws.IcmpCode, ws.IcmpType)
+						pceSvcMapSvcs[fmt.Sprintf("%s-%d-%d-%d-%s-%s-%d-%d", pceSvc.Href, illumioapi.PtrToVal(ws.Port), ws.ToPort, ws.Protocol, ws.ProcessName, ws.ServiceName, ws.IcmpCode, ws.IcmpType)] = fmt.Sprintf("Port: %d; To Port: %d; Proto: %d; ProcessName: %s; Service: %s; ICMP Code: %d; ICMP Type: %d", illumioapi.PtrToVal(ws.Port), ws.ToPort, ws.Protocol, ws.ProcessName, ws.ServiceName, ws.IcmpCode, ws.IcmpType)
 					}
 					for _, svp := range illumioapi.PtrToVal(pceSvc.ServicePorts) {
-						pceSvcMapSvcs[fmt.Sprintf("%s-%d-%d-%d-%d-%d", pceSvc.Href, svp.Port, svp.ToPort, svp.Protocol, svp.IcmpCode, svp.IcmpType)] = fmt.Sprintf("Port: %d; To Port: %d; Proto: %d; ICMP Code: %d; ICMP Type: %d", svp.Port, svp.ToPort, svp.Protocol, svp.IcmpCode, svp.IcmpType)
+						pceSvcMapSvcs[fmt.Sprintf("%s-%d-%d-%d-%d-%d", pceSvc.Href, illumioapi.PtrToVal(svp.Port), svp.ToPort, svp.Protocol, svp.IcmpCode, svp.IcmpType)] = fmt.Sprintf("Port: %d; To Port: %d; Proto: %d; ICMP Code: %d; ICMP Type: %d", illumioapi.PtrToVal(svp.Port), svp.ToPort, svp.Protocol, svp.IcmpCode, svp.IcmpType)
 					}
 
 					// Create a map of csvSvc with the same key
 					csvSvcMapSvcs := make(map[string]string)
 					for _, ws := range illumioapi.PtrToVal(csvSvc.service.WindowsServices) {
-						csvSvcMapSvcs[fmt.Sprintf("%s-%d-%d-%d-%s-%s-%d-%d", csvSvc.service.Href, ws.Port, ws.ToPort, ws.Protocol, ws.ProcessName, ws.ServiceName, ws.IcmpCode, ws.IcmpType)] = fmt.Sprintf("Port: %d; To Port: %d; Proto: %d; ProcessName: %s; Service: %s; ICMP Code: %d; ICMP Type: %d", ws.Port, ws.ToPort, ws.Protocol, ws.ProcessName, ws.ServiceName, ws.IcmpCode, ws.IcmpType)
+						csvSvcMapSvcs[fmt.Sprintf("%s-%d-%d-%d-%s-%s-%d-%d", csvSvc.service.Href, illumioapi.PtrToVal(ws.Port), ws.ToPort, ws.Protocol, ws.ProcessName, ws.ServiceName, ws.IcmpCode, ws.IcmpType)] = fmt.Sprintf("Port: %d; To Port: %d; Proto: %d; ProcessName: %s; Service: %s; ICMP Code: %d; ICMP Type: %d", illumioapi.PtrToVal(ws.Port), ws.ToPort, ws.Protocol, ws.ProcessName, ws.ServiceName, ws.IcmpCode, ws.IcmpType)
 					}
 					for _, svp := range illumioapi.PtrToVal(csvSvc.service.ServicePorts) {
-						csvSvcMapSvcs[fmt.Sprintf("%s-%d-%d-%d-%d-%d", csvSvc.service.Href, svp.Port, svp.ToPort, svp.Protocol, svp.IcmpCode, svp.IcmpType)] = fmt.Sprintf("Port: %d; To Port: %d; Proto: %d; ICMP Code: %d; ICMP Type: %d", svp.Port, svp.ToPort, svp.Protocol, svp.IcmpCode, svp.IcmpType)
+						csvSvcMapSvcs[fmt.Sprintf("%s-%d-%d-%d-%d-%d", csvSvc.service.Href, illumioapi.PtrToVal(svp.Port), svp.ToPort, svp.Protocol, svp.IcmpCode, svp.IcmpType)] = fmt.Sprintf("Port: %d; To Port: %d; Proto: %d; ICMP Code: %d; ICMP Type: %d", illumioapi.PtrToVal(svp.Port), svp.ToPort, svp.Protocol, svp.IcmpCode, svp.IcmpType)
 					}
 
 					update := false

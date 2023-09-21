@@ -127,7 +127,7 @@ func ExportServices(pce illumioapi.PCE, templateFormat bool, outputFileName stri
 				if p.ToPort != 0 {
 					port = fmt.Sprintf("%d-%d", p.Port, p.ToPort)
 				} else {
-					port = strconv.Itoa(p.Port)
+					port = strconv.Itoa(illumioapi.PtrToVal(p.Port))
 				}
 				if p.Protocol == 6 {
 					proto = "tcp"
@@ -151,7 +151,7 @@ func ExportServices(pce illumioapi.PCE, templateFormat bool, outputFileName stri
 				if p.ToPort != 0 {
 					port = fmt.Sprintf("%d-%d", p.Port, p.ToPort)
 				} else {
-					port = strconv.Itoa(p.Port)
+					port = strconv.Itoa(illumioapi.PtrToVal(p.Port))
 				}
 				if p.Protocol == 6 {
 					proto = "tcp"
