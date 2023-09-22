@@ -35,6 +35,7 @@ import (
 	"github.com/brian1917/workloader/cmd/labelgroupexport"
 	"github.com/brian1917/workloader/cmd/labelgroupimport"
 	"github.com/brian1917/workloader/cmd/labelimport"
+	explorer "github.com/brian1917/workloader/cmd/legacy-explorer"
 	"github.com/brian1917/workloader/cmd/mislabel"
 	"github.com/brian1917/workloader/cmd/mode"
 	"github.com/brian1917/workloader/cmd/netscalersync"
@@ -188,6 +189,7 @@ func init() {
 	RootCmd.AddCommand(dupecheck.DupeCheckCmd)
 	RootCmd.AddCommand(appgroupflowsummary.AppGroupFlowSummaryCmd)
 	RootCmd.AddCommand(traffic.TrafficCmd)
+	RootCmd.AddCommand(explorer.ExplorerCmd)
 	RootCmd.AddCommand(nicexport.NICExportCmd)
 	RootCmd.AddCommand(servicefinder.ServiceFinderCmd)
 	RootCmd.AddCommand(processexport.ProcessExportCmd)

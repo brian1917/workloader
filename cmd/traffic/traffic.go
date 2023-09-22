@@ -44,9 +44,9 @@ func init() {
 // TrafficCmd summarizes flows
 var TrafficCmd = &cobra.Command{
 	Use:   "traffic",
-	Short: "Export explorer traffic data enhanced with some additional information (e.g., subnet, default gateway, interface name, etc.).",
+	Short: "Export traffic data.",
 	Long: `
-Export explorer traffic data enhanced with some additional information (e.g., subnet, default gateway, interface name, etc.).
+Export traffic data.
 
 See the flags for filtering options.
 
