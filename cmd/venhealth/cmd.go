@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
@@ -73,7 +73,7 @@ The monitored events are listed below:` + "\r\n\r\n" + strings.Join(venHealthEve
 		utils.LogStartCommand("ven-health")
 
 		// Get the PCE
-		pce, err = utils.GetTargetPCE(true)
+		pce, err = utils.GetTargetPCEV2(true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -145,8 +145,8 @@ func eventMonitor(targetEvents []string) {
 
 		// Make the API request
 		qp["event_type"] = event
-		events, a, err := pce.GetAllEvents(qp)
-		utils.LogAPIResp("GetAllEvents", a)
+		events, a, err := pce.GetEvents(qp)
+		utils.LogAPIRespV2("GetAllEvents", a)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -162,6 +162,35 @@ func eventMonitor(targetEvents []string) {
 				agentMap[e.EventCreatedBy.Agent] = append(agentMap[e.EventCreatedBy.Agent], e.EventType)
 				agentCount[e.EventCreatedBy.Agent.Href+e.EventType] = agentCount[e.EventCreatedBy.Agent.Href+e.EventType] + 1
 			}
+			for _, n := range illumioapi.PtrToVal(e.Notifications) {
+				if n.Info != nil && n.Info.Agent != nil {
+					uniqueAgents[n.Info.Agent.Href] = true
+					agentMap[*n.Info.Agent] = append(agentMap[*n.Info.Agent], e.EventType)
+					agentCount[n.Info.Agent.Href+e.EventType] = agentCount[n.Info.Agent.Href+e.EventType] + 1
+				}
+			}
+
+			for _, r := range illumioapi.PtrToVal(e.ResourceChanges) {
+				if r.Resource.Workload.Href != "" {
+					// Get the workloads if we don't have them
+					if len(pce.WorkloadsSlice) == 0 {
+						api, err := pce.GetWklds(map[string]string{"managed": "true"})
+						utils.LogAPIRespV2("GetWklds", api)
+						if err != nil {
+							utils.LogErrorf("getting workloads - %s", err)
+						}
+					}
+					if pce.Workloads[r.Resource.Workload.Href].Agent != nil {
+						uniqueAgents[pce.Workloads[r.Resource.Workload.Href].Agent.Href] = true
+						pce.Workloads[r.Resource.Workload.Href].Agent.Hostname = *pce.Workloads[r.Resource.Workload.Href].Hostname
+						agentMap[*pce.Workloads[r.Resource.Workload.Href].Agent] = append(agentMap[*pce.Workloads[r.Resource.Workload.Href].Agent], e.EventType)
+						agentCount[pce.Workloads[r.Resource.Workload.Href].Agent.Href+e.EventType] = agentCount[pce.Workloads[r.Resource.Workload.Href].Agent.Href+e.EventType] + 1
+					} else {
+						utils.LogWarningf(true, "workload %s does not currently have associated agent. it might be unpaired", r.Resource.Workload.Href)
+					}
+				}
+			}
+
 		}
 		summaryMap[event] = fmt.Sprintf("%d events over %d agents", len(events), len(uniqueAgents))
 
@@ -196,7 +225,7 @@ func eventMonitor(targetEvents []string) {
 	}
 
 	if includeEventList && len(allEvents) > 0 {
-		csvOut := [][]string{[]string{"event_type", "timestamp", "created_by_href", "created_by_details"}}
+		csvOut := [][]string{{"event_type", "timestamp", "created_by_href", "created_by_details"}}
 		for _, e := range allEvents {
 			csvOut = append(csvOut, []string{e.EventType, time.Time.String(e.Timestamp), e.EventCreatedBy.Href, e.EventCreatedBy.Name})
 		}
