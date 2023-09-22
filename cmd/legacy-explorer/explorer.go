@@ -66,7 +66,8 @@ Use the following commands to get necessary HREFs for include/exlude files: labe
 
 The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
-
+		// Log start
+		utils.LogStartCommand("legacy-explorer")
 		pce, err = utils.GetTargetPCE(true)
 		if err != nil {
 			utils.LogError(err.Error())
@@ -76,13 +77,11 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 		viper.Set("output_format", "csv")
 
 		explorerExport()
+		utils.LogEndCommand("legacy-explorer")
 	},
 }
 
 func explorerExport() {
-
-	// Log start
-	utils.LogStartCommand("legacy-explorer")
 
 	// Run some checks on iterative query value
 	if iterativeThreshold > 0 && iterativeThreshold > maxResults {
