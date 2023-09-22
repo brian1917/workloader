@@ -8,7 +8,7 @@ import (
 
 	"github.com/brian1917/workloader/cmd/labelimport"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
@@ -38,7 +38,7 @@ Create a CSV export of all labels in the PCE. The update-pce and --no-prompt fla
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
-		pce, err = utils.GetTargetPCE(true)
+		pce, err = utils.GetTargetPCEV2(true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -61,8 +61,8 @@ func exportLabels() {
 	stdOutData := [][]string{{"href", "key", "value"}}
 
 	// Get all labels
-	labels, a, err := pce.GetLabels(map[string]string{"usage": "true"})
-	utils.LogAPIResp("GetAllLabels", a)
+	a, err := pce.GetLabels(map[string]string{"usage": "true"})
+	utils.LogAPIRespV2("GetAllLabels", a)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
@@ -70,27 +70,30 @@ func exportLabels() {
 	// Check our search term
 	newLabels := []illumioapi.Label{}
 	if search != "" {
-		for _, l := range labels {
+		for _, l := range pce.LabelsSlice {
 			if strings.Contains(strings.ToLower(l.Value), strings.ToLower(search)) {
 				newLabels = append(newLabels, l)
 			}
 		}
-		labels = newLabels
+		pce.LabelsSlice = newLabels
 	}
 
-	for _, l := range labels {
+	for _, l := range pce.LabelsSlice {
 
 		// Skip deleted workloads
-		if l.Deleted {
+		if illumioapi.PtrToVal(l.Deleted) {
 			continue
 		}
 
 		// Append to data slice
-		if noHref {
-			csvData = append(csvData, []string{l.Key, l.Value, l.CreatedBy.Href, l.CreatedAt, l.UpdatedBy.Href, l.UpdatedAt, l.ExternalDataSet, l.ExternalDataReference, strconv.FormatBool(l.LabelUsage.VirtualServer), strconv.FormatBool(l.LabelUsage.LabelGroup), strconv.FormatBool(l.LabelUsage.Ruleset), strconv.FormatBool(l.LabelUsage.StaticPolicyScopes), strconv.FormatBool(l.LabelUsage.PairingProfile), strconv.FormatBool(l.LabelUsage.Permission), strconv.FormatBool(l.LabelUsage.Workload), strconv.FormatBool(l.LabelUsage.ContainerWorkload), strconv.FormatBool(l.LabelUsage.FirewallCoexistenceScope), strconv.FormatBool(l.LabelUsage.ContainersInheritHostPolicyScopes), strconv.FormatBool(l.LabelUsage.ContainerWorkloadProfile), strconv.FormatBool(l.LabelUsage.BlockedConnectionRejectScope), strconv.FormatBool(l.LabelUsage.EnforcementBoundary), strconv.FormatBool(l.LabelUsage.LoopbackInterfacesInPolicyScopes), strconv.FormatBool(l.LabelUsage.VirtualService)})
-		} else {
-			csvData = append(csvData, []string{l.Href, l.Key, l.Value, l.CreatedBy.Href, l.CreatedAt, l.UpdatedBy.Href, l.UpdatedAt, l.ExternalDataSet, l.ExternalDataReference, strconv.FormatBool(l.LabelUsage.VirtualServer), strconv.FormatBool(l.LabelUsage.LabelGroup), strconv.FormatBool(l.LabelUsage.Ruleset), strconv.FormatBool(l.LabelUsage.StaticPolicyScopes), strconv.FormatBool(l.LabelUsage.PairingProfile), strconv.FormatBool(l.LabelUsage.Permission), strconv.FormatBool(l.LabelUsage.Workload), strconv.FormatBool(l.LabelUsage.ContainerWorkload), strconv.FormatBool(l.LabelUsage.FirewallCoexistenceScope), strconv.FormatBool(l.LabelUsage.ContainersInheritHostPolicyScopes), strconv.FormatBool(l.LabelUsage.ContainerWorkloadProfile), strconv.FormatBool(l.LabelUsage.BlockedConnectionRejectScope), strconv.FormatBool(l.LabelUsage.EnforcementBoundary), strconv.FormatBool(l.LabelUsage.LoopbackInterfacesInPolicyScopes), strconv.FormatBool(l.LabelUsage.VirtualService)})
+		csvRow := []string{}
+		if !noHref {
+			csvRow = append(csvRow, l.Href)
 		}
+		csvRow = append(csvRow, l.Key, l.Value, l.CreatedBy.Href, l.CreatedAt, l.UpdatedBy.Href, l.UpdatedAt, illumioapi.PtrToVal(l.ExternalDataSet), illumioapi.PtrToVal(l.ExternalDataReference))
+		labelUsage := illumioapi.PtrToVal(l.LabelUsage)
+		csvRow = append(csvRow, strconv.FormatBool(labelUsage.VirtualServer), strconv.FormatBool(labelUsage.LabelGroup), strconv.FormatBool(labelUsage.Ruleset), strconv.FormatBool(labelUsage.StaticPolicyScopes), strconv.FormatBool(labelUsage.PairingProfile), strconv.FormatBool(labelUsage.Permission), strconv.FormatBool(labelUsage.Workload), strconv.FormatBool(labelUsage.ContainerWorkload), strconv.FormatBool(labelUsage.FirewallCoexistenceScope), strconv.FormatBool(labelUsage.ContainersInheritHostPolicyScopes), strconv.FormatBool(labelUsage.ContainerWorkloadProfile), strconv.FormatBool(labelUsage.BlockedConnectionRejectScope), strconv.FormatBool(labelUsage.EnforcementBoundary), strconv.FormatBool(labelUsage.LoopbackInterfacesInPolicyScopes), strconv.FormatBool(labelUsage.VirtualService))
+		csvData = append(csvData, csvRow)
 		stdOutData = append(stdOutData, []string{l.Href, l.Key, l.Value})
 	}
 
