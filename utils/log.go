@@ -25,6 +25,8 @@ func init() {
 		log.Fatal(err)
 	}
 	Logger.SetOutput(f)
+	Logger.Println("-----------------------------------------------------------------------------")
+	LogInfo(fmt.Sprintf("workloader version %s", GetVersion()), false)
 
 }
 
@@ -130,8 +132,7 @@ func LogMultiAPIResp(APIResps map[string]illumioapi.APIResponse) {
 
 // LogStartCommand is used at the beginning of each command
 func LogStartCommand(commandName string) {
-	Logger.Println("-----------------------------------------------------------------------------")
-	LogInfo(fmt.Sprintf("workloader version %s - started %s", GetVersion(), commandName), false)
+	LogInfo(fmt.Sprintf("started %s", commandName), false)
 	if viper.IsSet("target_pce") && viper.Get("target_pce") != nil && viper.Get("target_pce").(string) != "" {
 		LogInfo(fmt.Sprintf("using %s pce - %s", viper.Get("target_pce").(string), viper.Get(viper.Get("target_pce").(string)+".pce_version")), false)
 	} else {
