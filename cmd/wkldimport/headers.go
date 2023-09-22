@@ -84,43 +84,6 @@ func fieldMapping() map[string]string {
 	fieldMapping["host_name"] = "hostname"
 	fieldMapping["host name"] = "hostname"
 
-	// Alternate names for role
-	fieldMapping["role label"] = "role"
-	fieldMapping["role_label"] = "role"
-	fieldMapping["rolelabel"] = "role"
-	fieldMapping["suggested_role"] = "role" // for traffic command
-	fieldMapping["edge_group"] = "role"     // for edge
-
-	// Alternate names for app
-	fieldMapping["app label"] = "app"
-	fieldMapping["app_label"] = "app"
-	fieldMapping["applabel"] = "app"
-	fieldMapping["application"] = "app"
-	fieldMapping["application label"] = "app"
-	fieldMapping["application_label"] = "app"
-	fieldMapping["applicationlabel"] = "app"
-	fieldMapping["suggested_app"] = "app" // for traffic command
-
-	// Alternate names for env
-	fieldMapping["env label"] = "env"
-	fieldMapping["env_label"] = "env"
-	fieldMapping["envlabel"] = "env"
-	fieldMapping["environment"] = "env"
-	fieldMapping["environment label"] = "env"
-	fieldMapping["environment"] = "env"
-	fieldMapping["environmentlabel"] = "env"
-	fieldMapping["suggested_env"] = "env" // for traffic command
-
-	// Alternate names for loc
-	fieldMapping["Loc label"] = "loc"
-	fieldMapping["loc_label"] = "loc"
-	fieldMapping["loclabel"] = "loc"
-	fieldMapping["location"] = "loc"
-	fieldMapping["location label"] = "loc"
-	fieldMapping["location"] = "loc"
-	fieldMapping["locationlabel"] = "loc"
-	fieldMapping["suggested_loc"] = "env" // for traffic command
-
 	// Alternate names for interfaces
 	fieldMapping["interface"] = "interfaces"
 	fieldMapping["ifaces"] = "interfaces"
