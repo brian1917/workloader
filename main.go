@@ -59,9 +59,9 @@ func main() {
 
 		// Explorer renamed to traffic
 		if os.Args[1] == "explorer" {
-			utils.LogWarning("this command has been renamed to traffic. please use \"workloader traffic\" in the future", true)
-			command := exec.Command(os.Args[0], append([]string{"traffic"}, os.Args[2:]...)...)
-			utils.LogInfof(true, "executing the following: %s", command.String())
+			// utils.LogWarning("this command has been renamed to traffic. please use \"workloader traffic\" in the future", true)
+			command := exec.Command(os.Args[0], append([]string{"legacy-explorer"}, os.Args[2:]...)...)
+			utils.LogInfof(false, "executing the following: %s", command.String())
 			stdout, err := command.Output()
 			if err != nil {
 				utils.LogError(err.Error())
