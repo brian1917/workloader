@@ -45,6 +45,8 @@ const (
 	HeaderVulnPortExposure         = "vuln_port_exposure"
 	HeaderAnyVulnExposure          = "any_ip_vuln_exposure"
 	HeaderIpListVulnExposure       = "ip_list_vuln_exposure"
+	HeaderRansomewareExposure      = "ransomware_exposure"
+	HeaderProtectionCoverageScore  = "protection_coverage_score"
 )
 
 func AllHeaders(inclVuln bool, inclHref bool) []string {
@@ -75,6 +77,8 @@ func AllHeaders(inclVuln bool, inclHref bool) []string {
 		HeaderHoursSinceLastHeartbeat,
 		HeaderOsID,
 		HeaderOsDetail,
+		HeaderRansomewareExposure,
+		HeaderProtectionCoverageScore,
 		HeaderVenHref,
 		HeaderAgentVersion,
 		HeaderAgentID,

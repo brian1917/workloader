@@ -178,6 +178,10 @@ func (e *WkldExport) CsvData() (csvData [][]string) {
 		csvRow[HeaderDataCenterZone] = illumioapi.PtrToVal(w.DataCenterZone)
 		csvRow[HeaderExternalDataReference] = illumioapi.PtrToVal(w.ExternalDataReference)
 		csvRow[HeaderExternalDataSet] = illumioapi.PtrToVal(w.ExternalDataSet)
+		if w.RiskSummary != nil {
+			csvRow[HeaderRansomewareExposure] = w.RiskSummary.Ransomware.WorkloadExposureSeverity
+			csvRow[HeaderProtectionCoverageScore] = fmt.Sprintf("%f%%", w.RiskSummary.Ransomware.RansomwareProtectionPercent)
+		}
 
 		if e.IncludeVuln {
 			var maxVulnScore, vulnScore, vulnExposureScore string
