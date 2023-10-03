@@ -125,7 +125,7 @@ func ExportServices(pce illumioapi.PCE, templateFormat bool, outputFileName stri
 			var port, proto string
 			for _, p := range illumioapi.PtrToVal(s.ServicePorts) {
 				if p.ToPort != 0 {
-					port = fmt.Sprintf("%d-%d", p.Port, p.ToPort)
+					port = fmt.Sprintf("%d-%d", illumioapi.PtrToVal(p.Port), p.ToPort)
 				} else {
 					port = strconv.Itoa(illumioapi.PtrToVal(p.Port))
 				}
@@ -149,7 +149,7 @@ func ExportServices(pce illumioapi.PCE, templateFormat bool, outputFileName stri
 
 			for _, p := range illumioapi.PtrToVal(s.WindowsServices) {
 				if p.ToPort != 0 {
-					port = fmt.Sprintf("%d-%d", p.Port, p.ToPort)
+					port = fmt.Sprintf("%d-%d", illumioapi.PtrToVal(p.Port), p.ToPort)
 				} else {
 					port = strconv.Itoa(illumioapi.PtrToVal(p.Port))
 				}
