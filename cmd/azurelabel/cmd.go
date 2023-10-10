@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/brian1917/illumioapi/v2"
+	"github.com/brian1917/workloader/cmd/wkldexport"
 	"github.com/brian1917/workloader/cmd/wkldimport"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
@@ -76,12 +77,12 @@ func AzureLabels(labelMapping string, pce *illumioapi.PCE, updatePCE, noPrompt b
 	}
 
 	// Set up the csv headers
-	csvData := [][]string{{"hostname"}}
+	csvData := [][]string{{wkldexport.HeaderHostname}}
 	for illumioLabel := range illumioAzMap {
 		csvData[0] = append(csvData[0], illumioLabel)
 	}
 	if umwl {
-		csvData[0] = append(csvData[0], "interfaces")
+		csvData[0] = append(csvData[0], wkldexport.HeaderInterfaces, wkldexport.HeaderExternalDataSet, wkldexport.HeaderExternalDataReference)
 	}
 
 	// Get the bytes from either the CLI or the debug json file
@@ -163,7 +164,7 @@ func AzureLabels(labelMapping string, pce *illumioapi.PCE, updatePCE, noPrompt b
 		// Update the list with the tags
 		for i, vm := range azureVMs {
 			ips := []string{}
-			if vm, ok := azureVmIpMap[vm.OsProfile.ComputerName]; ok {
+			if vm, ok := azureVmIpMap[vm.Name]; ok {
 				for i, privateIP := range vm.Network.PrivateIPAddresses {
 					ips = append(ips, fmt.Sprintf("umwl-%d:%s", i, privateIP))
 				}
@@ -179,16 +180,21 @@ func AzureLabels(labelMapping string, pce *illumioapi.PCE, updatePCE, noPrompt b
 	// Iterate through the azure VMs
 	for _, vm := range azureVMs {
 		// Start the new csv row
-		csvRow := []string{vm.OsProfile.ComputerName}
+
+		// Run a check on the name for os profile name and vm name
+		if vm.OsProfile != nil && vm.OsProfile.ComputerName != vm.Name {
+			utils.LogWarningf(true, "vm.OsProfile.ComputerName (%s) does not match vm.Name (%s)", vm.OsProfile.ComputerName, vm.Name)
+		}
+
+		csvRow := []string{vm.Name}
 		for _, header := range csvData[0] {
-			// Process hostname
-			if header == "hostname" || header == "interfaces" {
+			if header == wkldexport.HeaderHostname || header == wkldexport.HeaderInterfaces || header == wkldexport.HeaderExternalDataSet || header == wkldexport.HeaderExternalDataReference {
 				continue
 			}
 			csvRow = append(csvRow, vm.Tags[illumioAzMap[header]])
 		}
 		if umwl {
-			csvRow = append(csvRow, vm.InterfaceList)
+			csvRow = append(csvRow, vm.InterfaceList, "workloader-azure-label", vm.Name)
 		}
 		csvData = append(csvData, csvRow)
 	}
