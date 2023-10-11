@@ -10,6 +10,7 @@ import (
 	"github.com/brian1917/workloader/cmd/appgroupflowsummary"
 	"github.com/brian1917/workloader/cmd/awslabel"
 	"github.com/brian1917/workloader/cmd/azurelabel"
+	"github.com/brian1917/workloader/cmd/azurenetwork"
 	"github.com/brian1917/workloader/cmd/checkversion"
 	"github.com/brian1917/workloader/cmd/compatibility"
 	"github.com/brian1917/workloader/cmd/containmentswitch"
@@ -160,6 +161,7 @@ func init() {
 	RootCmd.AddCommand(azurelabel.AzureLabelCmd)
 	RootCmd.AddCommand(awslabel.AwsLabelCmd)
 	RootCmd.AddCommand(gcplabel.GcpLabelCmd)
+	RootCmd.AddCommand(azurenetwork.AzureNetworkCmd)
 	RootCmd.AddCommand(subnet.SubnetCmd)
 	RootCmd.AddCommand(hostparse.HostnameCmd)
 	RootCmd.AddCommand(dagsync.DAGSyncCmd)
