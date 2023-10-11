@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/aws/aws-sdk-go v1.44.243
 	github.com/brian1917/illumioapi v1.85.0
-	github.com/brian1917/illumioapi/v2 v2.0.0-beta.29
+	github.com/brian1917/illumioapi/v2 v2.0.0-beta.30
 	github.com/brian1917/ns v1.2.0
 	github.com/brian1917/workloader/utils v1.0.0
 	github.com/google/uuid v1.1.2
@@ -15,6 +15,8 @@ require (
 	github.com/spf13/viper v1.15.0
 	golang.org/x/term v0.5.0
 )
+
+replace github.com/brian1917/illumioapi/v2 => /Users/brian.pitta/go/src/github.com/brian1917/illumioapi
 
 require (
 	github.com/frankban/quicktest v1.14.4 // indirect
