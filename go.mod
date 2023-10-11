@@ -16,8 +16,6 @@ require (
 	golang.org/x/term v0.5.0
 )
 
-replace github.com/brian1917/illumioapi/v2 => /Users/brian.pitta/go/src/github.com/brian1917/illumioapi
-
 require (
 	github.com/frankban/quicktest v1.14.4 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect

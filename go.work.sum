@@ -4,6 +4,8 @@ github.com/brian1917/illumioapi/v2 v2.0.0-beta.6 h1:/g3eXtzp9J8HyJf2cvDoTpW6HE6K
 github.com/brian1917/illumioapi/v2 v2.0.0-beta.6/go.mod h1:l3VSCF3j/9C8dKN3qeOjiuAlB6+vJH5xemXhgjHIhDs=
 github.com/brian1917/illumioapi/v2 v2.0.0-beta.12 h1:JntMBgE0671XqkwjCkVeFk9edGvSO1bitbrV5wOBsIw=
 github.com/brian1917/illumioapi/v2 v2.0.0-beta.12/go.mod h1:2uy7bernq5Ein6PiTS+9a4VvjYEMKi3vAGybByDZ2c8=
+github.com/brian1917/illumioapi/v2 v2.0.0-beta.30 h1:B+ynJ0v/+tD1Xt2/KPqpU5wIaCCjU2+wrmGhIl8QQcs=
+github.com/brian1917/illumioapi/v2 v2.0.0-beta.30/go.mod h1:2uy7bernq5Ein6PiTS+9a4VvjYEMKi3vAGybByDZ2c8=
 github.com/cespare/xxhash v1.1.0/go.mod h1:XrSqR1VqqWfGrhpAt58auRo0WTKS1nRRg3ghfAqPWnc=
 github.com/cilium/ebpf v0.7.0/go.mod h1:/oI2+1shJiTGAMgl6/RgJr36Eo1jzrRcAWbcXO2usCA=
 github.com/cilium/ebpf v0.10.0/go.mod h1:DPiVdY/kT534dgc9ERmvP8mWA+9gvwgKfRvk4nNWnoE=
