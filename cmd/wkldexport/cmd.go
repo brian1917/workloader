@@ -9,8 +9,8 @@ import (
 )
 
 // Declare global variables
-var managedOnly, unmanagedOnly, onlineOnly, noHref, includeVuln, removeDescNewLines bool
-var headers, globalOutputFileName, subnetInclude string
+var managedOnly, unmanagedOnly, onlineOnly, noHref, includeVuln, removeDescNewLines, labelSummary bool
+var headers, uniqueLabelKeys, globalOutputFileName, subnetInclude string
 
 func init() {
 	WkldExportCmd.Flags().StringVar(&headers, "headers", "", "comma-separated list of headers for export. default is all headers.")
@@ -20,6 +20,8 @@ func init() {
 	WkldExportCmd.Flags().StringVarP(&subnetInclude, "subnet", "s", "", "subnet filter to only export workloads with an interface in that subnet. multiple subnets should be comma-separated (e.g., \"10.0.0.64/26,10.0.0.128/26\")")
 	WkldExportCmd.Flags().BoolVarP(&includeVuln, "incude-vuln-data", "v", false, "include vulnerability data.")
 	WkldExportCmd.Flags().BoolVar(&noHref, "no-href", false, "do not export href column. use this when exporting data to import into different pce.")
+	WkldExportCmd.Flags().BoolVar(&labelSummary, "label-summary", false, "include an export of unique label combinations.")
+	WkldExportCmd.Flags().StringVar(&uniqueLabelKeys, "label-summary-keys", "", "comma-separated list of keys to include for determining uniqueness. blank uses all keys.")
 	WkldExportCmd.Flags().StringVar(&globalOutputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 	WkldExportCmd.Flags().BoolVar(&removeDescNewLines, "remove-desc-newline", false, "will remove new line characters in description field.")
 
@@ -42,7 +44,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 
 		// Get the PCE
 		var err error
-		wkldExport := WkldExport{PCE: &illumioapi.PCE{}, IncludeVuln: includeVuln, RemoveDescNewLines: removeDescNewLines}
+		wkldExport := WkldExport{PCE: &illumioapi.PCE{}, IncludeVuln: includeVuln, RemoveDescNewLines: removeDescNewLines, IncludeLabelSummary: labelSummary}
 		*wkldExport.PCE, err = utils.GetTargetPCEV2(false)
 		if err != nil {
 			utils.LogError(err.Error())

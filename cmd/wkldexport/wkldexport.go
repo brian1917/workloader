@@ -16,10 +16,11 @@ import (
 
 // WkldExport is used to export workloads
 type WkldExport struct {
-	PCE                *illumioapi.PCE
-	IncludeVuln        bool
-	RemoveDescNewLines bool
-	Headers            []string
+	PCE                 *illumioapi.PCE
+	IncludeLabelSummary bool
+	IncludeVuln         bool
+	RemoveDescNewLines  bool
+	Headers             []string
 }
 
 // CsvData returns wkld export in a csv format of slice of slice of strings
@@ -38,6 +39,47 @@ func (e *WkldExport) CsvData() (csvData [][]string) {
 	}
 	// Sort the slice of label keys
 	sort.Strings(labelsKeySlice)
+
+	// Process label summary
+	if e.IncludeLabelSummary {
+		uniqueLabelKeysSlice := []string{}
+		if uniqueLabelKeys == "" {
+			uniqueLabelKeysSlice = labelsKeySlice
+		} else {
+			uniqueLabelKeys = strings.Replace(uniqueLabelKeys, ", ", ",", -1)
+			uniqueLabelKeysSlice = strings.Split(uniqueLabelKeys, ",")
+		}
+		includeHeaderRow := append(uniqueLabelKeysSlice, "count")
+		includeCsvData := [][]string{includeHeaderRow}
+		labelSummaryMap := make(map[string]int)
+		for _, w := range e.PCE.WorkloadsSlice {
+			wkldLabelValueSlice := []string{}
+			for _, l := range uniqueLabelKeysSlice {
+				label := w.GetLabelByKey(l, e.PCE.Labels)
+				if label.Value == "" {
+					label.Value = fmt.Sprintf("empty_%s", l)
+				}
+				wkldLabelValueSlice = append(wkldLabelValueSlice, label.Value)
+			}
+			labelSummaryMap[strings.Join(wkldLabelValueSlice, ";")] = labelSummaryMap[strings.Join(wkldLabelValueSlice, ";")] + 1
+		}
+		for uniqueLabels, count := range labelSummaryMap {
+			row := append(strings.Split(uniqueLabels, ";"), strconv.Itoa(count))
+			includeCsvData = append(includeCsvData, row)
+		}
+		if len(includeCsvData) > 1 {
+			if globalOutputFileName == "" {
+				globalOutputFileName = fmt.Sprintf("workloader-wkld-export-unique-labels-%s.csv", time.Now().Format("20060102_150405"))
+			} else {
+				globalOutputFileName = fmt.Sprintf("%s-%s", "unique-labels", globalOutputFileName)
+			}
+			utils.WriteOutput(includeCsvData, nil, globalOutputFileName)
+			utils.LogInfo(fmt.Sprintf("%d unique label combinations exported", len(includeCsvData)-1), true)
+		} else {
+			// Log command execution for 0 results
+			utils.LogInfo("no workloads in PCE.", true)
+		}
+	}
 
 	// Start the outputdata
 	headerRow := []string{}
