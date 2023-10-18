@@ -7,6 +7,7 @@ import (
 
 	"github.com/brian1917/workloader/utils"
 
+	"github.com/brian1917/workloader/cmd/adgroupexport"
 	"github.com/brian1917/workloader/cmd/adgroupimport"
 	"github.com/brian1917/workloader/cmd/appgroupflowsummary"
 	"github.com/brian1917/workloader/cmd/awslabel"
@@ -153,6 +154,7 @@ func init() {
 	RootCmd.AddCommand(ebimport.EbImportCmd)
 	RootCmd.AddCommand(cwpexport.ContainerProfileExportCmd)
 	RootCmd.AddCommand(cwpimport.ContainerProfileImportCmd)
+	RootCmd.AddCommand(adgroupexport.ADGroupExportCmd)
 	RootCmd.AddCommand(adgroupimport.AdGroupImportCmd)
 	RootCmd.AddCommand(flowimport.FlowImportCmd)
 	RootCmd.AddCommand(templateimport.TemplateImportCmd)
