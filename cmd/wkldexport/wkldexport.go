@@ -71,7 +71,11 @@ func (e *WkldExport) CsvData() (csvData [][]string) {
 			if globalOutputFileName == "" {
 				globalOutputFileName = fmt.Sprintf("workloader-wkld-export-unique-labels-%s.csv", time.Now().Format("20060102_150405"))
 			} else {
-				globalOutputFileName = fmt.Sprintf("%s-%s", "unique-labels", globalOutputFileName)
+				if strings.HasSuffix(globalOutputFileName, ".csv") {
+					globalOutputFileName = fmt.Sprintf("%s-%s.csv", strings.TrimSuffix(globalOutputFileName, ".csv"), "unique-labels")
+				} else {
+					globalOutputFileName = fmt.Sprintf("%s-unique-labels.csv", globalOutputFileName)
+				}
 			}
 			utils.WriteOutput(includeCsvData, nil, globalOutputFileName)
 			utils.LogInfo(fmt.Sprintf("%d unique label combinations exported", len(includeCsvData)-1), true)

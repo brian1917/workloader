@@ -25,7 +25,7 @@ func init() {
 
 // LabelDimensionExportCmd runs the label-dimension-export command
 var ADGroupExportCmd = &cobra.Command{
-	Use:   "ad-group-export",
+	Use:   "adgroup-export",
 	Short: "Create a CSV export of all AD groups in the PCE.",
 	Long: `
 	Create a CSV export of all AD groups in the PCE. The update-pce and --no-prompt flags are ignored for this command.`,
