@@ -11,7 +11,7 @@ func RootTemplate() string {
   Import/Export Commands:{{range .Commands}}{{if (or (eq .Name "wkld-export") (eq .Name "wkld-import") (eq .Name "ven-export") (eq .Name "ven-import") (eq .Name "ipl-export") (eq .Name "ipl-import") (eq .Name "ipl-replace") (eq .Name "label-export") (eq .Name "label-import") (eq .Name "label-dimension-export") (eq .Name "label-dimension-import") (eq .Name "svc-export") (eq .Name "svc-import") (eq .Name "rule-export") (eq .Name "rule-import") (eq .Name "ruleset-export") (eq .Name "ruleset-import") (eq .Name "eb-export") (eq .Name "eb-import") (eq .Name "labelgroup-export") (eq .Name "labelgroup-import") (eq .Name "cwp-export") (eq .Name "cwp-import") (eq .Name "adgroup-export") (eq .Name "adgroup-import") (eq .Name "flow-import"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 	  
-  Automation Commands:{{range .Commands}}{{if (or (eq .Name "azure-label") (eq .Name "aws-label") (eq .Name "gcp-label") (eq .Name "azure-network") (eq .Name "subnet") (eq .Name "hostparse") (eq .Name "dag-sync"))}}
+  Automation Commands:{{range .Commands}}{{if (or (eq .Name "azure-label") (eq .Name "aws-label") (eq .Name "gcp-label") (eq .Name "azure-network") (eq .Name "vmsync") (eq .Name "subnet") (eq .Name "hostparse") (eq .Name "dag-sync"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
   Workload Management Commands:{{range .Commands}}{{if (or (eq .Name "compatibility") (eq .Name "mode") (eq .Name "upgrade") (eq .Name "unpair") (eq .Name "get-pk") (eq .Name "umwl-cleanup") (eq .Name "nic-manage") (eq .Name "containment-switch") (eq .Name "increase-ven-rate") (eq .Name "wkld-replicate") (eq .Name "wkld-label"))}}

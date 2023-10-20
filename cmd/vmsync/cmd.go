@@ -24,20 +24,20 @@ func init() {
 	cobra.EnableCommandSorting = false
 
 	//awsimport options
-	VCenterSyncCmd.Flags().StringVarP(&vcenter, "vcenter", "v", "", "Required - FQDN or IP of VCenter instance - e.g vcenter.illumio.com")
-	VCenterSyncCmd.Flags().StringVarP(&userID, "user", "u", "", "Required - username of account with access to VCenter REST API")
-	VCenterSyncCmd.Flags().StringVarP(&secret, "password", "p", "", "Required - password of account with access to VCenter REST API")
-	VCenterSyncCmd.Flags().StringVarP(&datacenter, "datacenter", "d", "", "Sync VMs that reside in a certain VCenter Datacenter object. (default - \"\"")
-	VCenterSyncCmd.Flags().StringVarP(&cluster, "cluster", "c", "", "Sync VMs that reside in a certain VCenter cluster object. (default - \"\"")
-	VCenterSyncCmd.Flags().StringVarP(&folder, "folder", "f", "", "Sync VMs that reside in a certain VCenter folder object. (default - \"\"")
-	VCenterSyncCmd.Flags().BoolVarP(&insecure, "insecure", "i", false, "Ignore SSL certificate validation when communicating with VCenter.")
-	VCenterSyncCmd.Flags().BoolVarP(&umwl, "umwl", "", false, "Import VCenter VMs that dont have worloader in the PCE.  Once imported only labels updates will occur.  No Ip address/interface updates.")
-	VCenterSyncCmd.Flags().BoolVarP(&allIPs, "allintf", "a", false, "Use this flag if VM has more than one IP address")
-	VCenterSyncCmd.Flags().BoolVarP(&ipv6, "ipv6", "", false, "Use this flag in additon to \"--allintf\" if you want the IPv6 address also included")
-	VCenterSyncCmd.Flags().BoolVarP(&ignoreState, "ignore-state", "", false, "Currently only finds VCenter VMs 'Powered_on'")
-	VCenterSyncCmd.Flags().BoolVarP(&vcName, "vcentername", "", false, "Use this flag if you want to match on VCenter VM name vs using VMTools Hostname")
-	VCenterSyncCmd.Flags().BoolVarP(&keepFile, "keepfile", "", false, "Do not delete the temp CSV file downloaded from Vcenter Sync")
-	VCenterSyncCmd.Flags().BoolVarP(&keepFQDNHostname, "keepfqdn", "", false, "By default hostnames will have the domain removed when matching.  This option will match with FQDN names.")
+	VCenterSyncCmd.Flags().StringVarP(&vcenter, "vcenter", "v", "", "fqdn or ip of vcenter instance (e.g., vcenter.illumio.com)")
+	VCenterSyncCmd.Flags().StringVarP(&userID, "user", "u", "", "vcenter username with access to vcenter api")
+	VCenterSyncCmd.Flags().StringVarP(&secret, "password", "p", "", "vcenter password with access to vcenter api")
+	VCenterSyncCmd.Flags().BoolVarP(&insecure, "insecure", "i", false, "ignore vcenter ssl certificate validation.")
+	VCenterSyncCmd.Flags().StringVarP(&datacenter, "datacenter", "d", "", "limit sync a specific vcenter catacenter.")
+	VCenterSyncCmd.Flags().StringVarP(&cluster, "cluster", "c", "", "limit sync to a specific vcenter cluster.")
+	VCenterSyncCmd.Flags().StringVarP(&folder, "folder", "f", "", "limit sync to a specific vcenter folder.")
+	VCenterSyncCmd.Flags().BoolVarP(&umwl, "umwl", "", false, "create unmanaged workloads for VMs that do not exist in the PCE. future updtaes will only update labels.")
+	VCenterSyncCmd.Flags().BoolVarP(&allIPs, "all-int", "a", false, "enable syncing multiple interfaces")
+	VCenterSyncCmd.Flags().BoolVarP(&ipv6, "ipv6", "", false, "used with all-int to sync ipv6 addresses.")
+	VCenterSyncCmd.Flags().BoolVarP(&ignoreState, "ignore-state", "", false, "sync workloads in states other than \"Powered_on\".")
+	VCenterSyncCmd.Flags().BoolVarP(&vcName, "vcentername", "", false, "match on vcenter VM name vs. using VMTools hostname.")
+	VCenterSyncCmd.Flags().BoolVarP(&keepFile, "keep-file", "", false, "keep the csv file used for assigning labels.")
+	VCenterSyncCmd.Flags().BoolVarP(&keepFQDNHostname, "keep-fqdn", "", false, "keep fqdn vs. removing the domain from the hostname.")
 	//VCenterSyncCmd.Flags().BoolVarP(&deprecated, "deprecated", "", false, "Use this option if you are running an older version of the API (VCenter 6.5-7.0.u2")
 	VCenterSyncCmd.Flags().IntVar(&maxCreate, "max-create", -1, "maximum number of unmanaged workloads that can be created. -1 is unlimited.")
 	VCenterSyncCmd.Flags().IntVar(&maxUpdate, "max-update", -1, "maximum number of workloads that can be updated. -1 is unlimited.")
@@ -51,14 +51,14 @@ func init() {
 
 // VCenterSyncCmd checks if the keyfilename is entered.
 var VCenterSyncCmd = &cobra.Command{
-	Use:   "vmsync",
-	Short: "Integrate Azure VMs into PCE.",
+	Use:   "vmsync [csv with mapping]",
+	Short: "Sync VCenter VM tags with PCE workload labels.",
 	Long: `
-	Copy VCenter VM Tags with PCE workload Labels.  The command requires a CSV file that maps VCenter Categories to PCE label types.  There are options to filter the VMs from VCenter using VCenter objects(datacenter, clusters, folders, power state).  By default mtaching will use VMtools Hostname to PCE hostnames.  You can match just on the VCenter VM name.   By default hostname domains will be removed during match.  There is an option to keep the domain.
+Sync VCenter VM tags with PCE workload labels.
+
+The first argument is the location of a csv file that maps VCenter Categories to PCE label keys. The csv skips the first row for headers. The VCenter category should be in the first column and the corredsponding illumio label key in the second.
 	
-	There is also an UMWL option, "--umwl", that finds all VMs that do not have an existing workload(unmanaged or managed) found in the PCE.  Any VCenter VM not matching a PCE workload hostname will be considered an UMWL.  UMWL creation requires an IP address which VMTools discovers.  If VMtools is not installed the VM will be skipped. By default the tool only gets the primary IP address. There is an option to get all unique IP addresses across all interfaces on a VM via "--allintf" option.  Capturing IPv6 addresses requires both the "--allintf" and "--ipv6" options.
-	
-	Support VCenter version > 7.0.u2`,
+Support VCenter version > 7.0.u2`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 
