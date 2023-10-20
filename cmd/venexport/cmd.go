@@ -24,6 +24,8 @@ func init() {
 	VenExportCmd.Flags().BoolVar(&exclServer, "excl-server", false, "exclude server vens.")
 	VenExportCmd.Flags().BoolVar(&exclEndpoint, "excl-endpoint", false, "exclude server vens.")
 	VenExportCmd.Flags().BoolVar(&exclContainerized, "excl-containerized", false, "exclude containerized vens.")
+	VenExportCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+
 	VenExportCmd.Flags().SortFlags = false
 }
 
