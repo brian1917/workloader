@@ -91,7 +91,7 @@ func (i *Input) getHrefs(userInput string) {
 		}
 		for i, line := range csvData {
 			if i == 0 && !strings.Contains(line[col], "/orgs/") {
-				utils.LogInfo(fmt.Sprintf("CSV Line - %d - first row is header - skipping", i+1), true)
+				utils.LogInfo(fmt.Sprintf("csv Line - %d - first row is header - skipping", i+1), true)
 				continue
 			}
 			input.Hrefs = append(input.Hrefs, line[col])
@@ -134,6 +134,8 @@ func DeleteHrefs(input Input) {
 			key = "pairing_profiles"
 		} else if strings.Contains(entry, "/sec_rules/") {
 			key = "rules"
+		} else if strings.Contains(entry, "/enforcement_boundaries/") {
+			key = "enforcement_boundary"
 		} else if strings.Contains(entry, "/rule_sets/") {
 			key = "rule_sets"
 		} else if strings.Contains(entry, "/users/") {
