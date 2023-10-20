@@ -15,4 +15,25 @@ const (
 	HeaderWorkloads        = "workloads"
 	HeaderContainerCluster = "container_cluster"
 	HeaderHealth           = "ven_health"
+	HeaderWkldHref         = "wkld_href"
 )
+
+func AllHeaders() []string {
+	return []string{
+		HeaderHref,
+		HeaderName,
+		HeaderDescription,
+		HeaderVenType,
+		HeaderHostname,
+		HeaderUID,
+		HeaderStatus,
+		HeaderVersion,
+		HeaderActivationType,
+		HeaderActivePceFqdn,
+		HeaderTargetPceFqdn,
+		HeaderWorkloads,
+		HeaderContainerCluster,
+		HeaderHealth,
+		HeaderWkldHref,
+	}
+}

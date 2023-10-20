@@ -2,6 +2,7 @@ package venexport
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -15,7 +16,16 @@ import (
 // Declare local global variables
 var pce illumioapi.PCE
 var err error
-var outputFileName string
+var headers, outputFileName string
+var exclServer, exclEndpoint, exclContainerized bool
+
+func init() {
+	VenExportCmd.Flags().StringVar(&headers, "headers", "", "comma-separated list of headers for export. default is all headers.")
+	VenExportCmd.Flags().BoolVar(&exclServer, "excl-server", false, "exclude server vens.")
+	VenExportCmd.Flags().BoolVar(&exclEndpoint, "excl-endpoint", false, "exclude server vens.")
+	VenExportCmd.Flags().BoolVar(&exclContainerized, "excl-containerized", false, "exclude containerized vens.")
+	VenExportCmd.Flags().SortFlags = false
+}
 
 // WkldExportCmd runs the workload identifier
 var VenExportCmd = &cobra.Command{
@@ -26,21 +36,116 @@ Create a CSV export of all VENs in the PCE. This file can be used in the ven-imp
 
 The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		// Log command execution
+		utils.LogStartCommand("ven-export")
 
 		// Get the PCE
 		pce, err = utils.GetTargetPCEV2(false)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
+		headersSlice := []string{}
+		if headers != "" {
+			headers = strings.Replace(headers, ", ", ",", -1)
+			headersSlice = strings.Split(headers, ",")
+		}
 
-		exportVens()
+		exportVens(&pce, headersSlice)
 	},
 }
 
-func exportVens() {
+// WkldExport is used to export workloads
+type VenExport struct {
+	PCE     *illumioapi.PCE
+	Headers []string
+}
 
-	// Log command execution
-	utils.LogStartCommand("ven-export")
+func (e *VenExport) CsvData() (csvData [][]string) {
+	// Get the labels that are in use by the workloads
+	labelsKeyMap := make(map[string]bool)
+	for _, w := range e.PCE.WorkloadsSlice {
+		for _, label := range *w.Labels {
+			labelsKeyMap[e.PCE.Labels[label.Href].Key] = true
+		}
+	}
+	labelsKeySlice := []string{}
+	for labelKey := range labelsKeyMap {
+		labelsKeySlice = append(labelsKeySlice, labelKey)
+	}
+	// Sort the slice of label keys
+	sort.Strings(labelsKeySlice)
+
+	// Get workload export data
+	wkldExport := wkldexport.WkldExport{
+		PCE:                e.PCE,
+		RemoveDescNewLines: false,
+		Headers:            append([]string{"ven_href", wkldexport.HeaderHref}, labelsKeySlice...),
+	}
+	wkldMap := wkldExport.MapData()
+
+	// Start the outputdata
+	headerRow := []string{}
+	// If no user headers provided, get all the headers
+	if len(e.Headers) == 0 {
+		for _, header := range AllHeaders() {
+			headerRow = append(headerRow, header)
+			// Insert the labels either after description
+			if header == HeaderDescription {
+				headerRow = append(headerRow, labelsKeySlice...)
+			}
+		}
+		csvData = append(csvData, headerRow)
+	} else {
+		csvData = append(csvData, e.Headers)
+	}
+
+	for _, v := range pce.VENsSlice {
+		csvRow := make(map[string]string)
+
+		// Get container cluster
+		if v.ContainerCluster != nil {
+			if val, ok := pce.ContainerClusters[v.ContainerCluster.Href]; ok {
+				csvRow[HeaderContainerCluster] = val.Name
+			}
+		}
+
+		// Get the VEN health
+		csvRow[HeaderHealth] = "healthy"
+		healthMessages := []string{}
+		if len(illumioapi.PtrToVal(v.Conditions)) > 0 {
+			for _, c := range illumioapi.PtrToVal(v.Conditions) {
+				healthMessages = append(healthMessages, c.LatestEvent.NotificationType)
+			}
+			csvRow[HeaderHealth] = strings.Join(healthMessages, "; ")
+		}
+
+		csvRow[HeaderName] = illumioapi.PtrToVal(v.Name)
+		csvRow[HeaderHostname] = illumioapi.PtrToVal(v.Hostname)
+		csvRow[HeaderDescription] = illumioapi.PtrToVal(v.Description)
+		csvRow[HeaderVenType] = v.VenType
+		csvRow[HeaderStatus] = v.Status
+		csvRow[HeaderVersion] = v.Version
+		csvRow[HeaderActivationType] = v.ActivationType
+		csvRow[HeaderActivePceFqdn] = v.ActivePceFqdn
+		csvRow[HeaderTargetPceFqdn] = illumioapi.PtrToVal(v.TargetPceFqdn)
+		csvRow[HeaderWorkloads] = wkldMap[v.Href][wkldexport.HeaderHostname]
+		csvRow[HeaderHref] = v.Href
+		csvRow[HeaderUID] = v.UID
+		csvRow[HeaderWkldHref] = wkldMap[v.Href][wkldexport.HeaderHref]
+		for _, ld := range labelsKeySlice {
+			csvRow[ld] = wkldMap[v.Href][ld]
+
+		}
+		newRow := []string{}
+		for _, header := range csvData[0] {
+			newRow = append(newRow, csvRow[header])
+		}
+		csvData = append(csvData, newRow)
+	}
+	return csvData
+}
+
+func exportVens(pce *illumioapi.PCE, headers []string) {
 
 	// Load the pce
 	utils.LogInfo("getting workloads, vens, labels, label dimensions, container clusters, and container workloads...", true)
@@ -58,57 +163,34 @@ func exportVens() {
 		utils.LogError(err.Error())
 	}
 
-	// Set up label dimesnions slice
-	labelDimensions := []string{}
-	for _, ld := range pce.LabelDimensionsSlice {
-		labelDimensions = append(labelDimensions, ld.Key)
+	// Eliminate VEN types
+	venSlice := []illumioapi.VEN{}
+	for key, ven := range pce.VENs {
+		if (exclServer && ven.VenType == "server") || (exclEndpoint && ven.VenType == "endpoint") || (exclContainerized && ven.VenType == "containerized") {
+			delete(pce.VENs, key)
+		}
+	}
+	for _, ven := range pce.VENsSlice {
+		if (exclServer && ven.VenType == "server") || (exclEndpoint && ven.VenType == "endpoint") || (exclContainerized && ven.VenType == "containerized") {
+			continue
+		}
+		venSlice = append(venSlice, ven)
+	}
+	pce.VENsSlice = venSlice
+
+	// Get the csvData
+	e := VenExport{
+		PCE:     pce,
+		Headers: headers,
 	}
 
-	// Get workload export data
-	wkldExport := wkldexport.WkldExport{
-		PCE:                &pce,
-		RemoveDescNewLines: false,
-		Headers:            append([]string{"ven_href"}, labelDimensions...),
-	}
-	wkldMap := wkldExport.MapData()
-
-	// Start the data slice with headers
-	csvData := [][]string{{HeaderName, HeaderHostname, HeaderDescription, HeaderVenType, HeaderStatus, HeaderHealth, HeaderVersion, HeaderActivationType, HeaderActivePceFqdn, HeaderTargetPceFqdn, HeaderWorkloads, HeaderContainerCluster, HeaderHref, HeaderUID}}
-	csvData[0] = append(csvData[0], labelDimensions...)
-
-	for _, v := range pce.VENsSlice {
-
-		// Get container cluster
-		ccName := ""
-		if v.ContainerCluster != nil {
-			if val, ok := pce.ContainerClusters[v.ContainerCluster.Href]; ok {
-				ccName = val.Name
-			}
-		}
-
-		// Get the VEN health
-		health := "healthy"
-		healthMessages := []string{}
-		if len(illumioapi.PtrToVal(v.Conditions)) > 0 {
-			for _, c := range illumioapi.PtrToVal(v.Conditions) {
-				healthMessages = append(healthMessages, c.LatestEvent.NotificationType)
-			}
-			health = strings.Join(healthMessages, "; ")
-		}
-
-		row := []string{illumioapi.PtrToVal(v.Name), illumioapi.PtrToVal(v.Hostname), illumioapi.PtrToVal(v.Description), v.VenType, v.Status, health, v.Version, v.ActivationType, v.ActivePceFqdn, illumioapi.PtrToVal(v.TargetPceFqdn), wkldMap[v.Href][wkldexport.HeaderHostname], ccName, v.Href, v.UID}
-		for _, ld := range labelDimensions {
-			row = append(row, wkldMap[v.Href][ld])
-		}
-
-		csvData = append(csvData, row)
-	}
+	csvData := e.CsvData()
 
 	if len(csvData) > 1 {
 		if outputFileName == "" {
 			outputFileName = fmt.Sprintf("workloader-ven-export-%s.csv", time.Now().Format("20060102_150405"))
 		}
-		utils.WriteOutput(csvData, csvData, outputFileName)
+		utils.WriteOutput(csvData, nil, outputFileName)
 		utils.LogInfo(fmt.Sprintf("%d vens exported", len(csvData)-1), true)
 	} else {
 		// Log command execution for 0 results

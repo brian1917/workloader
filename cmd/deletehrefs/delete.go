@@ -95,9 +95,6 @@ func (i *Input) getHrefs(userInput string) {
 				continue
 			}
 			input.Hrefs = append(input.Hrefs, line[col])
-
-			// Log column
-			utils.LogInfo(fmt.Sprintf("hrefs are in col %d", col+1), false)
 		}
 	}
 }
