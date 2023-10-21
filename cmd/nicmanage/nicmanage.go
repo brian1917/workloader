@@ -161,7 +161,7 @@ func nicManage() {
 	// End run there are no updates required
 	if interfaceChangeCount == 0 {
 		utils.LogInfo("no changes identified", true)
-		utils.LogEndCommand("nic-manage")
+
 		return
 	}
 
@@ -171,7 +171,7 @@ func nicManage() {
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
 		utils.LogInfo("See workloader.log for more details. To implement the changes, run again using --update-pce flag.", true)
-		utils.LogEndCommand("nic-manage")
+
 		return
 	}
 
@@ -182,7 +182,7 @@ func nicManage() {
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo(fmt.Sprintf("prompt denied to update %d workloads.", len(updatedWklds)), true)
-			utils.LogEndCommand("nic-manage")
+
 			return
 		}
 	}

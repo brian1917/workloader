@@ -201,14 +201,14 @@ func ImportLabels(pce illumioapi.PCE, inputFile string, updatePCE, noPrompt bool
 	// End run if we have nothing to do
 	if len(labelsToCreate) == 0 && len(labelsToUpdate) == 0 {
 		utils.LogInfo("nothing to be done.", true)
-		utils.LogEndCommand("label-import")
+
 		return
 	}
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
 		utils.LogInfo(fmt.Sprintf("workloader identified %d labels to create and %d labels to update. See workloader.log for all identified changes. To do the import, run again using --update-pce flag", len(labelsToCreate), len(labelsToUpdate)), true)
-		utils.LogEndCommand("label-import")
+
 		return
 	}
 
@@ -220,7 +220,7 @@ func ImportLabels(pce illumioapi.PCE, inputFile string, updatePCE, noPrompt bool
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo(fmt.Sprintf("Prompt denied for creating %d labels and updating %d labels.", len(labelsToCreate), len(labelsToUpdate)), true)
-			utils.LogEndCommand("label-import")
+
 			return
 		}
 	}
@@ -262,7 +262,5 @@ func ImportLabels(pce illumioapi.PCE, inputFile string, updatePCE, noPrompt bool
 			updatedLabels++
 		}
 	}
-
-	utils.LogEndCommand("label-import")
 
 }

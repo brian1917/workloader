@@ -332,7 +332,7 @@ func ImportServices(input Input) {
 	// End run if we have nothing to do
 	if len(newServices) == 0 && len(updatedServices) == 0 {
 		utils.LogInfo("nothing to be done.", true)
-		utils.LogEndCommand("svc-import")
+
 		return
 	}
 
@@ -349,7 +349,7 @@ func ImportServices(input Input) {
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo(fmt.Sprintf("Prompt denied for creating %d iplists and updating %d iplists.", len(newServices), len(updatedServices)), true)
-			utils.LogEndCommand("ipl-import")
+
 			return
 		}
 	}
@@ -406,6 +406,5 @@ func ImportServices(input Input) {
 			utils.LogInfo(fmt.Sprintf("Provisioning successful - status code %d", a.StatusCode), true)
 		}
 
-		utils.LogEndCommand("svc-import")
 	}
 }

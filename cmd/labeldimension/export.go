@@ -106,6 +106,4 @@ func exportLabelDimensions() {
 		utils.LogInfo("no label dimensions in PCE.", true)
 	}
 
-	utils.LogEndCommand("label-dimension-export")
-
 }

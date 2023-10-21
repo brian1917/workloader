@@ -551,5 +551,5 @@ func hostnameParser() {
 			fmt.Println("**** PCE Error **** Cannot update Labels or Hostnames to Upload **** Check Output file ****")
 		}
 	}
-	utils.LogEndCommand("hostparse")
+
 }

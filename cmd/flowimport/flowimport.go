@@ -207,6 +207,4 @@ func uploadFlows() {
 		i++
 	}
 
-	utils.LogEndCommand("flow-import")
-
 }

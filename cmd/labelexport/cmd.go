@@ -105,6 +105,4 @@ func exportLabels() {
 		utils.LogInfo("no labels in PCE.", true)
 	}
 
-	utils.LogEndCommand("label-export")
-
 }

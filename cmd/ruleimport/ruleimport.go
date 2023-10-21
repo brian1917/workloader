@@ -751,14 +751,14 @@ CSVEntries:
 	// End run if we have nothing to do
 	if len(newRules) == 0 && len(updatedRules) == 0 {
 		utils.LogInfo("nothing to be done", true)
-		utils.LogEndCommand("rule-import")
+
 		return
 	}
 
 	// Log findings
 	if !input.UpdatePCE {
 		utils.LogInfo(fmt.Sprintf("workloader identified %d rules to create and %d rules to update. See workloader.log for details. To do the import, run again using --update-pce flag.", len(newRules), len(updatedRules)), true)
-		utils.LogEndCommand("rule-import")
+
 		return
 	}
 
@@ -769,7 +769,7 @@ CSVEntries:
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo("prompt denied.", true)
-			utils.LogEndCommand("rule-import")
+
 			return
 		}
 	}
@@ -815,6 +815,4 @@ CSVEntries:
 		utils.LogInfo(fmt.Sprintf("provisioning complete - status code %d", a.StatusCode), true)
 	}
 
-	// Log end
-	utils.LogEndCommand("rule-import")
 }

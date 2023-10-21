@@ -149,6 +149,4 @@ func dupeCheck() {
 		utils.LogInfo("No duplicates found", true)
 	}
 
-	// Log End
-	utils.LogEndCommand("dupecheck")
 }

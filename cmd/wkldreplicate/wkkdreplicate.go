@@ -286,7 +286,7 @@ func wkldReplicate() {
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
 		utils.LogInfo("see workloader.log for more details. to do the import, run again using --update-pce flag.", true)
-		utils.LogEndCommand("wkld-replicate")
+
 		return
 	}
 
@@ -297,7 +297,7 @@ func wkldReplicate() {
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo("prompt denied", true)
-			utils.LogEndCommand("wkld-replicate")
+
 			return
 		}
 	}
@@ -338,7 +338,5 @@ func wkldReplicate() {
 
 		utils.LogInfo("------------------------------", true)
 	}
-
-	utils.LogEndCommand("wkld-replicate")
 
 }

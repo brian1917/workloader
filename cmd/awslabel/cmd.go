@@ -167,6 +167,4 @@ func AwsLabels(labelMapping string, pce *illumioapi.PCE, updatePCE, noPrompt boo
 		utils.LogInfo("no aws vms found", true)
 	}
 
-	utils.LogEndCommand("aws-label")
-
 }

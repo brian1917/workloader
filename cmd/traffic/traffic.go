@@ -224,8 +224,5 @@ func explorerExport() {
 
 	utils.WriteOutput(traffic, nil, outFileName)
 	utils.LogInfo(fmt.Sprintf("%d traffic records exported", len(traffic)-1), true)
-	utils.LogEndCommand("explorer")
 
-	// Log end
-	utils.LogEndCommand("explorer")
 }

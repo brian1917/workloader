@@ -74,6 +74,6 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 		}
 
 		wkldExport.WriteToCsv(globalOutputFileName)
-		utils.LogEndCommand("wkld-export")
+
 	},
 }

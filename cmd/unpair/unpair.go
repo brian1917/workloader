@@ -225,7 +225,7 @@ func unpair() {
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
 		utils.LogInfo(fmt.Sprintf("workloader identified %d workloads requiring unpairing. See %s for details. To do the unpair, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.", len(targetWklds), outputFileName), true)
-		utils.LogEndCommand("unpair")
+
 		return
 	}
 
@@ -236,7 +236,7 @@ func unpair() {
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo(fmt.Sprintf("prompt denied to unpair %d workloads.", len(targetWklds)), true)
-			utils.LogEndCommand("unpair")
+
 			return
 		}
 	}
@@ -270,5 +270,4 @@ func unpair() {
 		}
 	}
 
-	utils.LogEndCommand("unpair")
 }

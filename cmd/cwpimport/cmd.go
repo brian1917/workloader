@@ -277,7 +277,7 @@ func importContainerProfiles(pce illumioapi.PCE, importFile, removeValue string,
 	// Process updates
 	if len(updatedCWPs) == 0 {
 		utils.LogInfo("nothing to be done", true)
-		utils.LogEndCommand("cwp-import")
+
 		return
 	}
 
@@ -287,7 +287,7 @@ func importContainerProfiles(pce illumioapi.PCE, importFile, removeValue string,
 	// Stop if not updating pce
 	if !updatePCE {
 		utils.LogInfo("see workloader.log for more details. to do the import, run again using the --update-pce flag.", true)
-		utils.LogEndCommand("cwp-import")
+
 		return
 	}
 
@@ -298,7 +298,7 @@ func importContainerProfiles(pce illumioapi.PCE, importFile, removeValue string,
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo("prompt denied", true)
-			utils.LogEndCommand("cwp-import")
+
 			return
 		}
 	}
@@ -333,7 +333,5 @@ func importContainerProfiles(pce illumioapi.PCE, importFile, removeValue string,
 		}
 		utils.LogInfo(fmt.Sprintf("csv line %d - updated %s - %d", update.csvLine, update.cwp.Href, api.StatusCode), true)
 	}
-
-	utils.LogEndCommand("cwp-import")
 
 }

@@ -75,7 +75,7 @@ func unusedPorts() {
 
 	if resultsFile != "" {
 		getResults(resultsFile)
-		utils.LogEndCommand("unused-ports")
+
 		return
 
 	}
@@ -256,5 +256,4 @@ func unusedPorts() {
 		}
 	}
 
-	utils.LogEndCommand("unused-ports")
 }

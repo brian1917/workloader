@@ -334,6 +334,5 @@ func extract() {
 	utils.LogInfo(fmt.Sprintf("%s removed", fullPathOutDir), true)
 
 	// Log start of command
-	utils.LogEndCommand("extract")
 
 }

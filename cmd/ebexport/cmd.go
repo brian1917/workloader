@@ -230,6 +230,4 @@ func ExportEBs(pce ia.PCE, outputFileName string, noHref bool) {
 		utils.LogInfo("no enforcement boundaries in pce", true)
 	}
 
-	utils.LogEndCommand("eb-export")
-
 }

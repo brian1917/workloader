@@ -100,6 +100,4 @@ func removePce() {
 
 	utils.LogInfo("Removed pce infomration from pce.yaml.", true)
 
-	utils.LogEndCommand("pce-remove")
-
 }

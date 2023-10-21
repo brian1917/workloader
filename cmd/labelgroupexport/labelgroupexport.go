@@ -108,6 +108,4 @@ func exportLabels() {
 		utils.LogInfo("no label-groups in PCE.", true)
 	}
 
-	utils.LogEndCommand("labelgroup-export")
-
 }

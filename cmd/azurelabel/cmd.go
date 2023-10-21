@@ -225,6 +225,4 @@ func AzureLabels(labelMapping string, pce *illumioapi.PCE, updatePCE, noPrompt b
 		utils.LogInfo("no azure vms found", true)
 	}
 
-	utils.LogEndCommand("az-label")
-
 }

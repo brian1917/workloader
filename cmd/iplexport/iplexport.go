@@ -118,7 +118,7 @@ func ExportIPL(pce ia.PCE, iplName, outputFileName string) {
 			// Log command execution for 0 results
 			utils.LogInfo("no iplists in PCE.", true)
 		}
-		utils.LogEndCommand("ipl-export")
+
 		return
 	}
 

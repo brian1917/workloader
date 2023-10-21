@@ -57,5 +57,4 @@ func labelsDeleteUnused() {
 		}
 	}
 
-	utils.LogEndCommand("labels-delete-unused")
 }

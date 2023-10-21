@@ -165,7 +165,7 @@ func portLock(port int, protocol string) {
 		// Check that we should make changes to the PCE.
 		if !updatePCE {
 			utils.LogInfo("run with --update-pce and optionally --no-prompt flag to implement containment-switch.", true)
-			utils.LogEndCommand("containment-switch")
+
 			return
 		}
 
@@ -189,7 +189,7 @@ func portLock(port int, protocol string) {
 			fmt.Scanln(&prompt)
 			if strings.ToLower(prompt) != "yes" {
 				utils.LogInfo("prompt denied", true)
-				utils.LogEndCommand("containment-switch")
+
 				return
 			}
 			fmt.Println()
@@ -313,5 +313,5 @@ func portLock(port int, protocol string) {
 		}
 	}
 	// Log the end of the command
-	utils.LogEndCommand("containment-switch")
+
 }

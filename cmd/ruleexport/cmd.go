@@ -253,7 +253,7 @@ func (r *RuleExport) ExportToCsv() {
 			fmt.Scanln(&prompt)
 			if strings.ToLower(prompt) != "yes" {
 				utils.LogInfo("prompt denied to continue after workload logging warning.", true)
-				utils.LogEndCommand("rule-export")
+
 				return
 			}
 		}
@@ -561,6 +561,5 @@ func (r *RuleExport) ExportToCsv() {
 		utils.LogWarning(fmt.Sprintf("%d rules skipped because could not create valid traffic query", skippedRules), true)
 	}
 	utils.LogInfo(fmt.Sprintf("output file: %s", input.OutputFileName), true)
-	utils.LogEndCommand("rule-export")
 
 }

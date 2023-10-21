@@ -196,5 +196,4 @@ func exportVens(pce *illumioapi.PCE, headers []string) {
 		utils.LogInfo("no vens in PCE.", true)
 	}
 
-	utils.LogEndCommand("ven-export")
 }

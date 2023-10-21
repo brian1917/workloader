@@ -271,6 +271,4 @@ func flowSummary() {
 		utils.LogInfo("no explorer data to summarize", true)
 	}
 
-	utils.LogEndCommand("flowsummary appgroup")
-
 }

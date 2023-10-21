@@ -262,7 +262,7 @@ func modeUpdate() {
 		// If updatePCE is disabled, we are just going to alert the user what will happen and log
 		if !updatePCE {
 			utils.LogInfo(fmt.Sprintf("workloader identified %d workloads requiring mode change in %s (%s). To update their modes, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.", len(data)-1, pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string)), true)
-			utils.LogEndCommand("mode")
+
 			return
 		}
 
@@ -273,7 +273,7 @@ func modeUpdate() {
 			fmt.Scanln(&prompt)
 			if strings.ToLower(prompt) != "yes" {
 				utils.LogInfo(fmt.Sprintf("prompt denied to change mode for %d workloads.", len(data)-1), true)
-				utils.LogEndCommand("mode")
+
 				return
 			}
 
@@ -283,7 +283,7 @@ func modeUpdate() {
 				fmt.Println()
 				if strings.ToLower(prompt) != "enforce" {
 					utils.LogInfo(fmt.Sprintf("prompt denied to change mode for %d workloads.", len(data)-1), true)
-					utils.LogEndCommand("mode")
+
 					return
 				}
 			}
@@ -311,5 +311,5 @@ func modeUpdate() {
 
 	// Print completion to the terminal
 	utils.LogInfo(fmt.Sprintf("%d workloads mode updated. See workloader.log for details.", len(workloadUpdates)), true)
-	utils.LogEndCommand("mode")
+
 }

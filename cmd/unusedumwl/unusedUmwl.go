@@ -103,7 +103,4 @@ func unusedUmwl() {
 		utils.LogInfo("no records exported matching criteria", true)
 	}
 
-	// Log End
-	utils.LogEndCommand("unused-umwl")
-
 }

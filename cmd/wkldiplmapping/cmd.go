@@ -219,6 +219,5 @@ func wkldToIPLMapping(input input) {
 	} else {
 		utils.LogInfo("no mapped workloads", true)
 	}
-	utils.LogEndCommand("wkld-ipl-mapping")
 
 }

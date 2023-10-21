@@ -143,14 +143,14 @@ func ImportADGroups(pce illumioapi.PCE, inputFile string, updatePCE, noPrompt bo
 	// End run if we have nothing to do
 	if len(adGroupsToCreate) == 0 && len(adGroupsToUpdate) == 0 {
 		utils.LogInfo("nothing to be done.", true)
-		utils.LogEndCommand("adgroup-import")
+
 		return
 	}
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
 		utils.LogInfo(fmt.Sprintf("workloader identified %d ad groups to create and %d ad groups to update. See workloader.log for all identified changes. To do the import, run again using --update-pce flag", len(adGroupsToCreate), len(adGroupsToUpdate)), true)
-		utils.LogEndCommand("adgroup-import")
+
 		return
 	}
 
@@ -162,7 +162,7 @@ func ImportADGroups(pce illumioapi.PCE, inputFile string, updatePCE, noPrompt bo
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo("Prompt denied.", true)
-			utils.LogEndCommand("adgroup-import")
+
 			return
 		}
 	}
@@ -204,7 +204,5 @@ func ImportADGroups(pce illumioapi.PCE, inputFile string, updatePCE, noPrompt bo
 			updatedAdGroups++
 		}
 	}
-
-	utils.LogEndCommand("adgroup-import")
 
 }

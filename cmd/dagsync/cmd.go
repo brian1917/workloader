@@ -634,18 +634,18 @@ func dagSync() {
 			fmt.Scanln(&prompt)
 			if strings.ToLower(prompt) != "yes" {
 				utils.LogInfo(fmt.Sprintf("prompt denied flushing %d of total %d RegisteredIP.", pan.FoundCounter, len(pan.RegIPs)), true)
-				utils.LogEndCommand("wkld-import")
+
 				return
 			}
 		}
 		if !update {
 			utils.LogInfo(fmt.Sprintf("%d Register changes will NOT be made - must enter \"--update-panos\" to make changes to PAN!!!", len(pan.RegIPs)), true)
-			utils.LogEndCommand("dag-sync")
+
 			return
 		} else {
 			utils.LogInfo(fmt.Sprintf("Flushing %d Register-IPs", len(pan.RegIPs)), true)
 			pan.UnRegister(pan.RegIPs)
-			utils.LogEndCommand("dag-sync")
+
 			return
 		}
 	}
@@ -658,17 +658,17 @@ func dagSync() {
 			fmt.Scanln(&prompt)
 			if strings.ToLower(prompt) != "yes" {
 				utils.LogInfo(fmt.Sprintf("prompt denied to registered %d IPs/Tags.", len(workloadsMap)), true)
-				utils.LogEndCommand("wkld-import")
+
 				return
 			}
 		}
 		if !update {
 			utils.LogInfo(fmt.Sprintf("%d Register changes will NOT be made - must enter \"--update-panos\" to make changes to PanOS!!!", len(workloadsMap)), true)
-			utils.LogEndCommand("dag-sync")
+
 			return
 		} else {
 			pan.Register(workloadsMap)
-			utils.LogEndCommand("dag-sync")
+
 			return
 		}
 	}
@@ -726,7 +726,7 @@ func dagSync() {
 
 	if len(regEntries) == 0 && len(unregEntries) == 0 {
 		utils.LogInfo("No Change. No Add/Update/Removals needed on PanOS.", true)
-		utils.LogEndCommand("dag-sync")
+
 		return
 	}
 
@@ -737,7 +737,7 @@ func dagSync() {
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo(fmt.Sprintf("prompt denied to registered %d and unregistered %d IPs/Tags.", len(regEntries), len(unregEntries)), true)
-			utils.LogEndCommand("wkld-import")
+
 			return
 		}
 	}
@@ -748,5 +748,5 @@ func dagSync() {
 	if len(unregEntries) != 0 {
 		pan.UnRegister(unregEntries)
 	}
-	utils.LogEndCommand("dag-sync")
+
 }

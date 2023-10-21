@@ -131,6 +131,4 @@ func AzureNetworks(pce *illumioapi.PCE, provision, updatePCE, noPrompt bool) {
 		utils.LogInfo("no azure networks found", true)
 	}
 
-	utils.LogEndCommand("az-network")
-
 }

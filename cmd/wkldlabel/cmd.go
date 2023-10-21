@@ -89,7 +89,4 @@ func LabelWkld(pce *illumioapi.PCE, hostname, labels string, updatePCE, noPrompt
 		MaxCreate:       -1,
 	})
 
-	// Log End
-	utils.LogEndCommand("wkld-label")
-
 }

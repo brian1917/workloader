@@ -108,5 +108,5 @@ package templatecreate
 // 		directory = fmt.Sprintf("%s%s", directory, string(os.PathSeparator))
 // 	}
 
-// 	utils.LogEndCommand("template-create")
+//
 // }

@@ -95,14 +95,14 @@ func increaseVENUpdateRate() {
 
 	// If we have zero workloads, we are done.
 	if len(pce.WorkloadsSlice) == 0 {
-		utils.LogEndCommand("increase-ven-rate")
+
 		return
 	}
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
 		utils.LogInfo(fmt.Sprintf("workloader identified %d workloads requiring VEN update rate incease in %s (%s). To update, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.", len(pce.WorkloadsSlice), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string)), true)
-		utils.LogEndCommand("increase-ven-rate")
+
 		return
 	}
 
@@ -113,7 +113,7 @@ func increaseVENUpdateRate() {
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo(fmt.Sprintf("prompt denied for %d workloads.", len(pce.WorkloadsSlice)), true)
-			utils.LogEndCommand("increase-ven-rate")
+
 			return
 		}
 	}
@@ -150,6 +150,5 @@ func increaseVENUpdateRate() {
 			time.Sleep(600 * time.Second)
 		}
 	}
-	utils.LogEndCommand("increase-ven-rate")
 
 }

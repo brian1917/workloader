@@ -174,7 +174,7 @@ func iplReplace() {
 		} else {
 			utils.LogInfo(fmt.Sprintf("workloader identified %d ip entries and %d fqdn entries to replace the existing %d ip entries and %d fqdn entries in %s ip list. to do the replace, run again using --update-pce flag", ipCount, fqdnCount, len(*pceIPL.IPRanges), len(*pceIPL.FQDNs), pceIPL.Name), true)
 		}
-		utils.LogEndCommand("ipl-replace")
+
 		return
 	}
 
@@ -189,7 +189,7 @@ func iplReplace() {
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo("prompt denied", true)
-			utils.LogEndCommand("ipl-replace")
+
 			return
 		}
 	}

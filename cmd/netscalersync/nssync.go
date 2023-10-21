@@ -158,7 +158,7 @@ func nsSync(pce illumioapi.PCE, netscaler ns.NetScaler) {
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
 		utils.LogInfo("See workloader.log for more details. To do the import, run again using --update-pce flag.", true)
-		utils.LogEndCommand("netscaler-sync")
+
 		return
 	}
 
@@ -169,7 +169,7 @@ func nsSync(pce illumioapi.PCE, netscaler ns.NetScaler) {
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo("prompt denied.", true)
-			utils.LogEndCommand("netscaler-sync")
+
 			return
 		}
 	}
@@ -253,7 +253,6 @@ func nsSync(pce illumioapi.PCE, netscaler ns.NetScaler) {
 	}
 	utils.LogInfo(fmt.Sprintf("provisioning virtual service changes - %d", api.StatusCode), true)
 
-	utils.LogEndCommand("netscaler-sync")
 }
 
 func snipName(ip, mask string) string {

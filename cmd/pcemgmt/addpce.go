@@ -265,5 +265,5 @@ func addPCE() {
 	} else {
 		fmt.Printf("\r\nAdded PCE information to %s\r\n\r\n", configFilePath)
 	}
-	utils.LogEndCommand("pce-add")
+
 }

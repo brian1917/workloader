@@ -165,7 +165,7 @@ func DeleteHrefs(input Input) {
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo("prompt denied.", true)
-			utils.LogEndCommand("delete")
+
 			return
 		}
 	}
@@ -247,5 +247,4 @@ func DeleteHrefs(input Input) {
 		utils.LogInfo(fmt.Sprintf("provisioning complete - status code %d", a.StatusCode), true)
 	}
 
-	utils.LogEndCommand("delete")
 }

@@ -393,14 +393,14 @@ func ImportBoundariesFromCSV(input Input) {
 	// End run if we have nothing to do
 	if len(newBoundaries) == 0 && len(updatedBoundaries) == 0 {
 		utils.LogInfo("nothing to be done", true)
-		utils.LogEndCommand("eb-import")
+
 		return
 	}
 
 	// Log findings
 	if !input.UpdatePCE {
 		utils.LogInfo(fmt.Sprintf("workloader identified %d boundaries to create and %d boundaries to update. see workloader.log for details. to do the import, run again using --update-pce flag.", len(newBoundaries), len(updatedBoundaries)), true)
-		utils.LogEndCommand("eb-import")
+
 		return
 	}
 
@@ -411,7 +411,7 @@ func ImportBoundariesFromCSV(input Input) {
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo("prompt denied.", true)
-			utils.LogEndCommand("rule-import")
+
 			return
 		}
 	}
@@ -451,8 +451,5 @@ func ImportBoundariesFromCSV(input Input) {
 		}
 		utils.LogInfo(fmt.Sprintf("provisioning complete - status code %d", a.StatusCode), true)
 	}
-
-	// Log end
-	utils.LogEndCommand("rule-import")
 
 }

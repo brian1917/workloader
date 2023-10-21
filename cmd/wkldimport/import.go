@@ -213,7 +213,7 @@ func ImportWkldsFromCSV(input Input) {
 	// End run if we have nothing to do
 	if len(updatedWklds) == 0 && len(newUMWLs) == 0 {
 		utils.LogInfo("nothing to be done", true)
-		utils.LogEndCommand("wkld-import")
+
 		return
 	}
 
@@ -226,7 +226,7 @@ func ImportWkldsFromCSV(input Input) {
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !input.UpdatePCE {
 		utils.LogInfo("See workloader.log for more details. To do the import, run again using --update-pce flag.", true)
-		utils.LogEndCommand("wkld-import")
+
 		return
 	}
 
@@ -237,7 +237,7 @@ func ImportWkldsFromCSV(input Input) {
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo("prompt denied", true)
-			utils.LogEndCommand("wkld-import")
+
 			return
 		}
 	}
@@ -321,6 +321,4 @@ func ImportWkldsFromCSV(input Input) {
 		}
 	}
 
-	// Log end
-	utils.LogEndCommand("wkld-import")
 }

@@ -170,14 +170,14 @@ func ImportLabelDimensions(pce *illumioapi.PCE, inputFile string, updatePCE, noP
 	// End run if we have nothing to do
 	if len(newLabelDimensions) == 0 && len(updateLabelDimensions) == 0 {
 		utils.LogInfo("nothing to be done.", true)
-		utils.LogEndCommand("label-dimension-import")
+
 		return
 	}
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
 		utils.LogInfo(fmt.Sprintf("workloader identified %d label dimensions to create and %d label dimensions to update. See workloader.log for all identified changes. To do the import, run again using --update-pce flag", len(newLabelDimensions), len(updateLabelDimensions)), true)
-		utils.LogEndCommand("label-import")
+
 		return
 	}
 
@@ -189,7 +189,7 @@ func ImportLabelDimensions(pce *illumioapi.PCE, inputFile string, updatePCE, noP
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo("Prompt denied", true)
-			utils.LogEndCommand("label-import")
+
 			return
 		}
 	}
@@ -218,6 +218,5 @@ func ImportLabelDimensions(pce *illumioapi.PCE, inputFile string, updatePCE, noP
 	}
 
 	// Log command end
-	utils.LogEndCommand("label-dimension-import")
 
 }

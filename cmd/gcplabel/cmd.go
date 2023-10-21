@@ -161,6 +161,4 @@ func GCPLabels(labelMapping string, pce *illumioapi.PCE, updatePCE, noPrompt boo
 		utils.LogInfo("no GCP vms found", true)
 	}
 
-	utils.LogEndCommand("gcp-label")
-
 }

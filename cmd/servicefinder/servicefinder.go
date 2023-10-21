@@ -178,5 +178,4 @@ func serviceFinder() {
 		utils.LogInfo("no workloads identified that match port requirements.", true)
 	}
 
-	utils.LogEndCommand("service-finder")
 }

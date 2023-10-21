@@ -274,7 +274,6 @@ func misLabel() {
 		utils.LogInfo(fmt.Sprintln("no potentially mislabeled workloads detected."), true)
 	}
 
-	utils.LogEndCommand("mislabel")
 }
 
 func appGroupManagedCounter(allWklds []illumioapi.Workload) map[string]int {

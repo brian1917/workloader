@@ -152,6 +152,6 @@ workloads:
 		utils.WriteOutput(data, data, outputFileName)
 	}
 
-	// Log end of command
-	utils.LogEndCommand("umwl-cleanup")
+	 of command
+
 }

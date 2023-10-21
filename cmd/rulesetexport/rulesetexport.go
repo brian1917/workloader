@@ -155,6 +155,5 @@ func ExportRuleSets(pce illumioapi.PCE, outputFileName string, templateFormat bo
 		// Log command execution for 0 results
 		utils.LogInfo("no rulesets in PCE.", true)
 	}
-	utils.LogEndCommand("ruleset-export")
 
 }

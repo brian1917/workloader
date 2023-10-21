@@ -75,7 +75,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 		viper.Set("output_format", "csv")
 
 		explorerExport()
-		utils.LogEndCommand("legacy-explorer")
+
 	},
 }
 
@@ -281,8 +281,7 @@ func explorerExport() {
 		} else {
 			utils.LogInfo(fmt.Sprintf("%d traffic records exported", len(traffic)), true)
 		}
-		// Log end
-		utils.LogEndCommand("explorer")
+
 		return
 	}
 
@@ -389,8 +388,6 @@ func explorerExport() {
 		}
 	}
 
-	// Log end
-	utils.LogEndCommand("explorer")
 }
 
 func wkldGW(hostname string, wkldHostMap map[string]illumioapi.Workload) string {

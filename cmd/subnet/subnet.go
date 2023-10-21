@@ -251,7 +251,7 @@ func subnetParser() {
 		// If updatePCE is disabled, we are just going to alert the user what will happen and log
 		if !updatePCE {
 			utils.LogInfo(fmt.Sprintf("workloader identified %d workloads requiring label change. To update their labels, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.", len(data)-1), true)
-			utils.LogEndCommand("subnet")
+
 			return
 		}
 
@@ -262,7 +262,7 @@ func subnetParser() {
 			fmt.Scanln(&prompt)
 			if strings.ToLower(prompt) != "yes" {
 				utils.LogInfo(fmt.Sprintf("prompt denied to change labels of %d workloads.", len(data)-1), true)
-				utils.LogEndCommand("subnet")
+
 				return
 			}
 		}
@@ -287,5 +287,5 @@ func subnetParser() {
 	} else {
 		utils.LogInfo(fmt.Sprintln("no workloads identified for label change"), true)
 	}
-	utils.LogEndCommand("subnet")
+
 }

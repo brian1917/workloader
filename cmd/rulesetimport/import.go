@@ -233,14 +233,14 @@ csvEntries:
 	// End run if we have nothing to do
 	if len(newRuleSets) == 0 && len(updateRuleSets) == 0 {
 		utils.LogInfo("nothing to be done", true)
-		utils.LogEndCommand("ruleset-import")
+
 		return
 	}
 
 	// Log findings
 	if !input.UpdatePCE {
 		utils.LogInfo(fmt.Sprintf("workloader identified %d rulesets to create and %d rulesets to update. To do the import, run again using --update-pce flag.", len(newRuleSets), len(updateRuleSets)), true)
-		utils.LogEndCommand("ruleset-import")
+
 		return
 	}
 
@@ -251,7 +251,7 @@ csvEntries:
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo("prompt denied.", true)
-			utils.LogEndCommand("ruleset-import")
+
 			return
 		}
 	}
@@ -293,8 +293,6 @@ csvEntries:
 		utils.LogInfo(fmt.Sprintf("provisioning complete - status code %d", a.StatusCode), true)
 	}
 
-	// Log end
-	utils.LogEndCommand("ruleset-import")
 }
 
 func processHeaders(headerRow []string) map[string]int {

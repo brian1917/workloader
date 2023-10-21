@@ -234,5 +234,4 @@ func eventMonitor(targetEvents []string) {
 		utils.WriteOutput(csvOut, csvOut, outputFileName)
 	}
 
-	utils.LogEndCommand("event-monitor")
 }

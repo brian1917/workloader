@@ -55,7 +55,6 @@ workloader set-proxy default-pce http://proxy.com:8080
 		if err := viper.WriteConfig(); err != nil {
 			utils.LogError(err.Error())
 		}
-		utils.LogEndCommand("set-proxy")
 
 	},
 }
@@ -85,7 +84,6 @@ Clear workloader-specific proxy.
 		if err := viper.WriteConfig(); err != nil {
 			utils.LogError(err.Error())
 		}
-		utils.LogEndCommand("clear-proxy")
 
 	},
 }

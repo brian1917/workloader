@@ -82,10 +82,7 @@ func exportADGroups() {
 		utils.WriteOutput(csvData, csvData, outputFileName)
 		utils.LogInfo(fmt.Sprintf("%d ad groups exported.", len(csvData)-1), true)
 	} else {
-		// Log command execution for 0 results
 		utils.LogInfo("no ad groups in PCE.", true)
 	}
-
-	utils.LogEndCommand("ad-group-export")
 
 }

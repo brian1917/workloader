@@ -324,14 +324,14 @@ CSVEntries:
 	// End run if we have nothing to do
 	if len(newLabelGroups) == 0 && len(updatedLabelGroups) == 0 {
 		utils.LogInfo("nothing to be done.", true)
-		utils.LogEndCommand("labelgroup-import")
+
 		return
 	}
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
 		utils.LogInfo(fmt.Sprintf("workloader identified %d label groups to create and %d label groups to update. See workloader.log for all identified changes. To do the import, run again using --update-pce flag", len(newLabelGroups), len(updatedLabelGroups)), true)
-		utils.LogEndCommand("labelgroup-import")
+
 		return
 	}
 
@@ -343,7 +343,7 @@ CSVEntries:
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo(fmt.Sprintf("prompt denied for creating %d label groups and updating %d label groups.", len(newLabelGroups), len(updatedLabelGroups)), true)
-			utils.LogEndCommand("labelgroup-import")
+
 			return
 		}
 	}

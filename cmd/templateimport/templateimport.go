@@ -153,5 +153,4 @@ func importTemplate() {
 		}
 	}
 
-	utils.LogEndCommand("template-import")
 }

@@ -364,14 +364,14 @@ csvEntries:
 	// End run if we have nothing to do
 	if len(IPLsToCreate) == 0 && len(IPLsToUpdate) == 0 {
 		utils.LogInfo("nothing to be done.", true)
-		utils.LogEndCommand("ipl-import")
+
 		return
 	}
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
 		utils.LogInfo(fmt.Sprintf("workloader identified %d ip-lists to create and %d ip-lists to update. see workloader.log for all identified changes. to do the import, run again using --update-pce flag", len(IPLsToCreate), len(IPLsToUpdate)), true)
-		utils.LogEndCommand("ipl-import")
+
 		return
 	}
 
@@ -383,7 +383,7 @@ csvEntries:
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo(fmt.Sprintf("prompt denied for creating %d iplists and updating %d iplists.", len(IPLsToCreate), len(IPLsToUpdate)), true)
-			utils.LogEndCommand("ipl-import")
+
 			return
 		}
 	}
@@ -444,7 +444,5 @@ csvEntries:
 		}
 		utils.LogInfo(fmt.Sprintf("provisioning successful - status code %d", a.StatusCode), true)
 	}
-
-	utils.LogEndCommand("ipl-import")
 
 }
