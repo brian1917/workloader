@@ -152,6 +152,4 @@ workloads:
 		utils.WriteOutput(data, data, outputFileName)
 	}
 
-	 of command
-
 }

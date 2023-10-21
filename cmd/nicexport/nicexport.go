@@ -123,6 +123,4 @@ func nicExport() {
 	}
 	utils.WriteOutput(data, data, outputFileName)
 
-	 of command
-
 }
