@@ -146,7 +146,11 @@ func LogStartCommand(fullCommand string) {
 
 // LogEndCommand is used at the end of each command
 func LogEndCommand(commandName string) {
-	LogInfo(fmt.Sprintf("%s completed", commandName), true)
+	stdOut := true
+	if commandName == "get-pk" {
+		stdOut = false
+	}
+	LogInfo(fmt.Sprintf("%s completed", commandName), stdOut)
 }
 
 // Replaces a blank string with <empty>
