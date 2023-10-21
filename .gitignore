@@ -9,4 +9,4 @@
 *.yaml
 *.zip
 version_notes
-
+cmd/virtualserviceimport/*
