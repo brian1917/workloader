@@ -82,7 +82,4 @@ func getPK() {
 		utils.LogErrorf("pairing profile %s does not exist", profile)
 	}
 
-	// Log the end of the command (don't use utils.LogEndCommand so we don't print to stdout)
-	utils.LogInfo("get-pk completed", false)
-
 }

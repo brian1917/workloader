@@ -441,8 +441,6 @@ func buildWkldImport(pce *illumioapi.PCE) {
 			}
 		}
 	}
-
-	utils.LogEndCommand(fmt.Sprintf("%s-sync", "vcenter"))
 }
 
 // compileVMData - Function that will pull categories, tags, and vms.  These will map to PCE labeltypes, labels and workloads.
