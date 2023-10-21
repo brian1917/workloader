@@ -34,7 +34,6 @@ workloader set-proxy default-pce http://proxy.com:8080
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		utils.LogStartCommand("set-proxy")
 		if len(args) != 2 {
 			utils.LogError("command requires 2 arguments for the pce name and the proxy string as fqdn:port. See usage help.")
 		}
@@ -75,7 +74,6 @@ Clear workloader-specific proxy.
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		utils.LogStartCommand("clear-proxy")
 		if len(args) != 1 {
 			utils.LogError("command requires 1 argument for the pce name. See usage help.")
 		}

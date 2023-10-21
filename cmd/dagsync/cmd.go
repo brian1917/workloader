@@ -558,9 +558,6 @@ func isEqual(a1 []string, a2 []string) (bool, []string, []string) {
 // dagSync - Compares IPs already registered on PAN with those on the PCE also compare the labels/tags currently configured.  If different labels/tags
 func dagSync() {
 
-	//Enter Start Log for PAN DAG Sync
-	utils.LogStartCommand(fmt.Sprintf("PanOS DAG Sync - change=%t, insecure=%t, ipv6=%t, flush=%t, rmeoveOld=%t", update, insecure, addIPv6, clean, removeOld))
-
 	//Check for valid panURL, panKey, and panVsys values from OS environment vars or via CLI
 	if tmp := os.Getenv("PANOS_URL"); tmp != "" && panURL == "" {
 		panURL = tmp

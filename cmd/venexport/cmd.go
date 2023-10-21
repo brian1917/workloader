@@ -38,9 +38,6 @@ Create a CSV export of all VENs in the PCE. This file can be used in the ven-imp
 
 The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Log command execution
-		utils.LogStartCommand("ven-export")
-
 		// Get the PCE
 		pce, err = utils.GetTargetPCEV2(false)
 		if err != nil {

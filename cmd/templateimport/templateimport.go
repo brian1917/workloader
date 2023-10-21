@@ -71,9 +71,6 @@ func init() {
 // Process template file
 func importTemplate() {
 
-	// Log start of command
-	utils.LogStartCommand("template-import")
-
 	// Get the directory
 	if directory == "" {
 		directory = "illumio-templates/"

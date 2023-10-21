@@ -60,9 +60,6 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 
 func ExportIPL(pce ia.PCE, iplName, outputFileName string) {
 
-	// Log command execution
-	utils.LogStartCommand("ipl-export")
-
 	if iplName == "" {
 
 		// Start the data slice with headers

@@ -82,18 +82,18 @@ An input CSV specifics the regex functions to use to assign labels. An example i
 	},
 }
 
-//data structure built from the parser.csv
+// data structure built from the parser.csv
 type regex struct {
 	Regexdata []regexstruct
 }
 
-//regex structure with regex and array of replace regex to build the labels
+// regex structure with regex and array of replace regex to build the labels
 type regexstruct struct {
 	regex   string
 	labelcg map[string]string
 }
 
-//ReadCSV - Open CSV for hostfile and parser file
+// ReadCSV - Open CSV for hostfile and parser file
 func ReadCSV(file string) [][]string {
 	csvfile, err := os.Open(file)
 	if err != nil {
@@ -231,7 +231,7 @@ func (r *regex) RelabelFromHostname(failedPCE bool, wkld illumioapi.Workload, lb
 	return match, tmpwkld
 }
 
-//Load the Regex CSV Into the parser struct -
+// Load the Regex CSV Into the parser struct -
 func (r *regex) load(data [][]string) {
 
 	//Cycle through all the parse data rows in the parse data xls
@@ -257,7 +257,7 @@ func (r *regex) load(data [][]string) {
 	}
 }
 
-//updatedLabels - Function to update  workload with new labels
+// updatedLabels - Function to update  workload with new labels
 func updateLabels(w *illumioapi.Workload, lblhref map[string]illumioapi.Label) {
 
 	var tmplbls []*illumioapi.Label
@@ -268,7 +268,7 @@ func updateLabels(w *illumioapi.Workload, lblhref map[string]illumioapi.Label) {
 	*w.Labels = tmplbls
 }
 
-//labelvalues - Return all the Label values from the labels of a workload
+// labelvalues - Return all the Label values from the labels of a workload
 func labelvalues(labels []*illumioapi.Label) (string, string, string, string) {
 
 	loc, env, app, role := "", "", "", ""
@@ -302,11 +302,8 @@ func changeCase(str string) string {
 	}
 }
 
-//hostnameParser - Main function to parse hostnames either on the PCE on in a hostfile using regex file and created labels from results.
+// hostnameParser - Main function to parse hostnames either on the PCE on in a hostfile using regex file and created labels from results.
 func hostnameParser() {
-
-	// Log the start of the command
-	utils.LogStartCommand("hostparse")
 
 	// Set output file
 	if outputFileName == "" {

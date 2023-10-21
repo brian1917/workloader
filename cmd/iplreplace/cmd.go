@@ -79,9 +79,6 @@ Recommended to run without --update-pce first to log of what will change. If --u
 
 func iplReplace() {
 
-	// Log command execution
-	utils.LogStartCommand("ipl-replace")
-
 	// Offset the columns by 1
 	ipCol--
 	ipDescCol--

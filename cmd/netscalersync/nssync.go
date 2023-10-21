@@ -16,8 +16,6 @@ import (
 
 func nsSync(pce illumioapi.PCE, netscaler ns.NetScaler) {
 
-	utils.LogStartCommand("netscaler-sync")
-
 	// Get all the Virtual Services in Illumio
 	pceVirtualServices, api, err := pce.GetVirtualServices(nil, "draft")
 	utils.LogAPIResp("GetVirtualServices", api)

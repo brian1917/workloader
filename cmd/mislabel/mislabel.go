@@ -114,11 +114,8 @@ func getExclPorts(filename string) [][2]int {
 	return exclPorts
 }
 
-//misLabel determines if workloads in an app-group only communicate outside the app-group.
+// misLabel determines if workloads in an app-group only communicate outside the app-group.
 func misLabel() {
-
-	// Log start
-	utils.LogStartCommand("mislabel")
 
 	// Get ports we should ignore
 	exclPorts := [][2]int{{5355, 17}, {137, 17}, {138, 17}, {139, 17}}

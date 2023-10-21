@@ -166,9 +166,6 @@ func parseCsv(filename string) []target {
 
 func modeUpdate() {
 
-	// Log start of execution
-	utils.LogStartCommand("mode")
-
 	// Get targets
 	targets := parseCsv(csvFile)
 

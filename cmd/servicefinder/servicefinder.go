@@ -58,9 +58,6 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 
 func serviceFinder() {
 
-	// Log Start of command
-	utils.LogStartCommand("service-finder")
-
 	// Remove spaces in our lists
 	portList := strings.ReplaceAll(ports, ", ", ",")
 	processList := strings.ReplaceAll(processes, ", ", ",")

@@ -71,9 +71,6 @@ type csvLabelDimension struct {
 // ImportLabels imports IP Lists to a target PCE from a CSV file
 func ImportLabelDimensions(pce *illumioapi.PCE, inputFile string, updatePCE, noPrompt bool) {
 
-	// Log command start
-	utils.LogStartCommand("label-dimension-import")
-
 	// Get the existing label dimensions
 	api, err := pce.GetLabelDimensions(nil)
 	utils.LogAPIRespV2("GetLabelDimensions", api)

@@ -79,8 +79,6 @@ The --update-pce flag is required for Steps 2 through 7. If the --update-pce fla
 }
 
 func portLock(port int, protocol string) {
-	// Log the start of the command
-	utils.LogStartCommand("containment-switch")
 
 	// Get visibility only workloads
 	api, err := pce.GetWklds(map[string]string{"managed": "true", "enforcement_mode": "visibility_only"})

@@ -84,9 +84,6 @@ Recommended to run without --update-pce first to log of what will change. If --u
 // ImportRulesFromCSV imports a CSV to modify/create rules
 func ImportBoundariesFromCSV(input Input) {
 
-	// Log the start of the command
-	utils.LogStartCommand("eb-import")
-
 	// Load the PCE
 	utils.LogInfo("getting boundaries, labels, label groups, iplists, and services...", true)
 	apiResps, err := input.PCE.Load(illumioapi.LoadInput{

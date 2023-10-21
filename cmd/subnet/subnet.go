@@ -139,8 +139,6 @@ func locParser(csvFile string, netCol, envCol, locCol int) []subnet {
 
 func subnetParser() {
 
-	utils.LogStartCommand("subnet")
-
 	utils.LogDebug(fmt.Sprintf("CSV Columns. Network: %d; Env: %d; Loc: %d", netCol, envCol, locCol))
 
 	// Adjust the columns so they are one less (first column should be 0)

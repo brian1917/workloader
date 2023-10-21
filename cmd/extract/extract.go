@@ -281,9 +281,6 @@ func traffic() {
 
 func extract() {
 
-	// Log start of command
-	utils.LogStartCommand("extract")
-
 	// Set outdir
 	outDir = "pce-extract"
 

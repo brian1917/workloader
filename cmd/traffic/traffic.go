@@ -69,9 +69,6 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 
 func explorerExport() {
 
-	// Log start
-	utils.LogStartCommand("explorer")
-
 	// Create the default query struct
 	tq := illumioapi.TrafficQuery{ExcludeWorkloadsFromIPListQuery: exclWorkloadsFromIPListQuery}
 

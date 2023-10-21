@@ -32,8 +32,6 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 
 func labelsDeleteUnused() {
 
-	utils.LogStartCommand("labels-delete-unused")
-
 	// Get all labels
 	labels, a, err := pce.GetLabels(nil)
 	utils.LogAPIResp("GetAllLabels", a)

@@ -46,7 +46,6 @@ The --update-pce and --no-prompt flags are ignored for this command.`,
 }
 
 func dupeCheck() {
-	utils.LogStartCommand("dupecheck")
 
 	// Get all workloads
 	apiResps, err := pce.Load(ia.LoadInput{Workloads: true, Labels: true, LabelDimensions: true}, utils.UseMulti())

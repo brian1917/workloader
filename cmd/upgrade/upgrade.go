@@ -62,8 +62,6 @@ Default output is a CSV file with what would be upgraded. Use the --update-pce c
 
 func wkldUpgrade() {
 
-	utils.LogStartCommand("upgrade")
-
 	// Set up the target slices
 	var targetVENs []illumioapi.VEN
 	var targetWorkloads []illumioapi.Workload

@@ -54,9 +54,6 @@ package templatecreate
 // // Process template file
 // func importTemplate() {
 
-// 	// Log start of command
-// 	utils.LogStartCommand("template-create")
-
 // 	// Load the PCE with RuleSets
 // 	apiResps, err := pce.Load(illumioapi.LoadInput{RuleSets: true})
 // 	utils.LogMultiAPIResp(apiResps)

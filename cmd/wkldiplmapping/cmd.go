@@ -93,9 +93,6 @@ func ipCheck(ip string, ipl illumioapi.IPList) (bool, error) {
 
 func wkldToIPLMapping(input input) {
 
-	// Log start
-	utils.LogStartCommand("wkld-ipl-mapping")
-
 	// Load the PCE
 	apiResps, err := input.pce.Load(illumioapi.LoadInput{Labels: true, IPLists: true, Workloads: false})
 	utils.LogMultiAPIResp(apiResps)

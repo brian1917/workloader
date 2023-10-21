@@ -54,9 +54,6 @@ Head input CSV requires a header row with at least two headers: wkld_href and ig
 
 func nicManage() {
 
-	// Log Start
-	utils.LogStartCommand("nic-manage")
-
 	// Parse the CSV file
 	csvData, err := utils.ParseCSV(csvFile)
 	if err != nil {

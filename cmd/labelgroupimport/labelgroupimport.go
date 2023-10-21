@@ -78,8 +78,6 @@ Recommended to run without --update-pce first to log of what will change. If --u
 }
 
 func labelGroupImport() {
-	// Log start of command
-	utils.LogStartCommand("labelgroup-import")
 
 	// Parse the CSV
 	csvData, err := utils.ParseCSV(csvFile)

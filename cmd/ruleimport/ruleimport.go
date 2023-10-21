@@ -104,9 +104,6 @@ Recommended to run without --update-pce first to log of what will change. If --u
 // ImportRulesFromCSV imports a CSV to modify/create rules
 func ImportRulesFromCSV(input Input) {
 
-	// Log start of the command
-	utils.LogStartCommand("rule-import")
-
 	// Set the global as the local for when it comes from other functions
 	globalInput = input
 

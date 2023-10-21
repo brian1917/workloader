@@ -39,9 +39,6 @@ func intSliceToStrSlice(integers []int) []string {
 // ImportServices imports services
 func ImportServices(input Input) {
 
-	// Log command execution
-	utils.LogStartCommand("svc-import")
-
 	// Check for duplicate service names
 	svcNameMap := make(map[string]int)
 	for _, svc := range input.PCE.ServicesSlice {

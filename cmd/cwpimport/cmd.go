@@ -76,9 +76,6 @@ func checkLabel(pce illumioapi.PCE, label illumioapi.Label) illumioapi.Label {
 
 func importContainerProfiles(pce illumioapi.PCE, importFile, removeValue string, updatePCE, noPrompt bool) {
 
-	// Log start of command
-	utils.LogStartCommand("cwp-import")
-
 	// Parse the input file
 	csvData, err := utils.ParseCSV(importFile)
 	if err != nil {

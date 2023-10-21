@@ -48,9 +48,6 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 
 func exportLabels() {
 
-	// Log command execution
-	utils.LogStartCommand("labelgroup-export")
-
 	// Check active/draft
 	provisionStatus := "draft"
 	if useActive {

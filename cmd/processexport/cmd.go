@@ -57,11 +57,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-
-		// Log command execution
-		utils.LogStartCommand("process-export")
 		ExportProcesses(pce, outputFileName)
-		utils.LogEndCommand("process-export")
 	},
 }
 

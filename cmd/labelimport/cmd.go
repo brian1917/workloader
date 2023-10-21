@@ -83,9 +83,6 @@ type csvLabel struct {
 // ImportLabels imports IP Lists to a target PCE from a CSV file
 func ImportLabels(pce illumioapi.PCE, inputFile string, updatePCE, noPrompt bool) {
 
-	// Log command execution
-	utils.LogStartCommand("label-import")
-
 	// Open CSV File
 	file, err := os.Open(inputFile)
 	if err != nil {

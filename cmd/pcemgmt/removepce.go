@@ -47,8 +47,6 @@ var RemovePCECmd = &cobra.Command{
 
 func removePce() {
 
-	utils.LogStartCommand("pce-remove")
-
 	// Start by clearing API keys
 	if clear {
 

@@ -16,9 +16,6 @@ import (
 // ImportWkldsFromCSV imports a CSV to label unmanaged workloads and create unmanaged workloads
 func ImportWkldsFromCSV(input Input) {
 
-	// Log start of the command
-	utils.LogStartCommand("wkld-import")
-
 	// Create a newLabels slice
 	var newLabels []illumioapi.Label
 

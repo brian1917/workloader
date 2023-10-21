@@ -85,9 +85,6 @@ Recommended to run without --update-pce first to log of what will change. If --u
 // ImportIPLists imports IP Lists to a target PCE from a CSV file
 func ImportIPLists(pce ia.PCE, csvFile string, updatePCE, noPrompt, debug, provision bool) {
 
-	// Log command execution
-	utils.LogStartCommand("ipl-import")
-
 	// Parse the CSV
 	csvData, err := utils.ParseCSV(csvFile)
 	if err != nil {

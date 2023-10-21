@@ -69,9 +69,6 @@ The monitored events are listed below:` + "\r\n\r\n" + strings.Join(venHealthEve
 
 	Run: func(cmd *cobra.Command, args []string) {
 
-		// Log start of run
-		utils.LogStartCommand("ven-health")
-
 		// Get the PCE
 		pce, err = utils.GetTargetPCEV2(true)
 		if err != nil {

@@ -49,9 +49,6 @@ The command leverages the wkld-import command. The  workloader.log file will log
 
 func LabelWkld(pce *illumioapi.PCE, hostname, labels string, updatePCE, noPrompt bool) {
 
-	// Log Start
-	utils.LogStartCommand("wkld-label")
-
 	// Get the hostname
 	wkld, api, err := pce.GetWkldByHostname(hostname)
 	utils.LogAPIRespV2("GetWkldByHostname", api)

@@ -68,9 +68,6 @@ The --update-pce and --no-prompt flags are ignored for this command.
 // addPCE creates a YAML file for authentication
 func addPCE() {
 
-	// Log start
-	utils.LogStartCommand("pce-add")
-
 	var err error
 	var pce illumioapi.PCE
 	var pceName, fqdn, user, pwd, disableTLSStr, proxyServer string

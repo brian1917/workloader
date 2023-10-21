@@ -60,8 +60,6 @@ The forMinutes flag can be used to have workloader run the command every 10 minu
 }
 
 func increaseVENUpdateRate() {
-	// Log start of execution
-	utils.LogStartCommand("increase-ven-rate")
 
 	// Get the labels
 	apiResps, err := pce.Load(illumioapi.LoadInput{Labels: true})

@@ -72,9 +72,6 @@ type csvAdGroup struct {
 // ImportLabels imports IP Lists to a target PCE from a CSV file
 func ImportADGroups(pce illumioapi.PCE, inputFile string, updatePCE, noPrompt bool) {
 
-	// Log command execution
-	utils.LogStartCommand("adgroup-import")
-
 	// Get the CSV data
 	csvData, err := utils.ParseCSV(inputFile)
 	if err != nil {

@@ -80,9 +80,6 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 // ExportRules exports rules from the PCE
 func (r *RuleExport) ExportToCsv() {
 
-	// Log command execution
-	utils.LogStartCommand("rule-export")
-
 	// Initialize Slice
 	input.RulesetHrefs = &[]string{}
 

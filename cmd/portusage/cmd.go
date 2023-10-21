@@ -73,9 +73,6 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 
 func unusedPorts() {
 
-	// Log Start of command
-	utils.LogStartCommand("unused-ports")
-
 	if resultsFile != "" {
 		getResults(resultsFile)
 		utils.LogEndCommand("unused-ports")

@@ -55,9 +55,6 @@ Create a CSV export of all label dimensions in the PCE. The update-pce and --no-
 
 func exportLabelDimensions() {
 
-	// Log command execution
-	utils.LogStartCommand("label-dimension-export")
-
 	// Start the data slice with headers
 	csvData := [][]string{{HeaderKey, HeaderDisplayName, HeaderFGColor, HeaderBGColor, HeaderInitial, HeaderDisplayPlural, HeaderIcon, HeaderExternalDataSet, HeaderExternalDataRef}}
 	if !noHref {

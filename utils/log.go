@@ -131,8 +131,10 @@ func LogMultiAPIResp(APIResps map[string]illumioapi.APIResponse) {
 }
 
 // LogStartCommand is used at the beginning of each command
-func LogStartCommand(commandName string) {
+func LogStartCommand(fullCommand string) {
+	commandName := os.Args[1]
 	LogInfo(fmt.Sprintf("started %s", commandName), false)
+	LogInfof(false, "full command: %s", fullCommand)
 	if viper.IsSet("target_pce") && viper.Get("target_pce") != nil && viper.Get("target_pce").(string) != "" {
 		LogInfo(fmt.Sprintf("using %s pce - %s", viper.Get("target_pce").(string), viper.Get(viper.Get("target_pce").(string)+".pce_version")), false)
 	} else {

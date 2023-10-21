@@ -39,9 +39,6 @@ Create a CSV export of all workloads in the PCE.
 The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		// Log command execution
-		utils.LogStartCommand("wkld-export")
-
 		// Get the PCE
 		var err error
 		wkldExport := WkldExport{PCE: &illumioapi.PCE{}, IncludeVuln: includeVuln, RemoveDescNewLines: removeDescNewLines, IncludeLabelSummary: labelSummary}

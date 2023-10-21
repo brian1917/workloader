@@ -50,9 +50,6 @@ Additionally, the output can be passed into the delete command with the --header
 
 func umwlCleanUp() {
 
-	// Log start of command
-	utils.LogStartCommand("umwl-cleanup")
-
 	// Get all workloads, labels and label dimensions
 	apiResps, err := pce.Load(ia.LoadInput{Workloads: true, LabelDimensions: true, Labels: true}, utils.UseMulti())
 	utils.LogMultiAPIRespV2(apiResps)

@@ -70,8 +70,6 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 }
 
 func uploadFlows() {
-	// Log start
-	utils.LogStartCommand("flow-import")
 
 	// Get all workloads in a map by hostname
 	_, a, err := pce.GetWklds(nil)

@@ -68,9 +68,6 @@ type updateVEN struct {
 
 func importVens() {
 
-	// Log start
-	utils.LogStartCommand("ven-import")
-
 	// Load PCE
 	apiResps, err := pce.Load(illumioapi.LoadInput{VENs: true})
 	utils.LogMultiAPIResp(apiResps)

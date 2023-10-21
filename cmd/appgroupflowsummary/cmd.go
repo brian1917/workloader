@@ -92,8 +92,6 @@ type svcSummary struct {
 
 func flowSummary() {
 
-	utils.LogStartCommand("appgroup-flow-summary")
-
 	// Build policy status slice
 	var pStatus []string
 	if !exclAllowed {

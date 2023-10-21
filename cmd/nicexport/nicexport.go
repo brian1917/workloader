@@ -42,9 +42,6 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 
 func nicExport() {
 
-	// Log start of command
-	utils.LogStartCommand("nic-export")
-
 	// Build our CSV data output
 	headerRow := []string{"wkld_hostname", "wkld_href", "wkld_polcy_state", "nic_name", "ignored", "address", "cidr", "ipv4_net_mask", "default_gw"}
 	data := [][]string{headerRow}

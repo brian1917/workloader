@@ -11,8 +11,6 @@ import (
 )
 
 func unusedUmwl() {
-	// Log start
-	utils.LogStartCommand("unused-umwl")
 
 	// Get the unmanaged workloads
 	umwls, a, err := pce.GetWklds(map[string]string{"managed": "false"})

@@ -102,9 +102,6 @@ func (i *Input) getHrefs(userInput string) {
 // Delete runs the delete command
 func DeleteHrefs(input Input) {
 
-	// Log Start of the command
-	utils.LogStartCommand("delete")
-
 	var deleted, skipped int
 
 	// Create the provision slice

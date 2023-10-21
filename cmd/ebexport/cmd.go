@@ -48,9 +48,6 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 
 func ExportEBs(pce ia.PCE, outputFileName string, noHref bool) {
 
-	// Log command execution
-	utils.LogStartCommand("eb-export")
-
 	// Get needed obects
 	utils.LogInfo("getting boundaries, labels, label groups, iplists, and services...", true)
 	apiResps, err := pce.Load(ia.LoadInput{

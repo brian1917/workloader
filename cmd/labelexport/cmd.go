@@ -49,9 +49,6 @@ Create a CSV export of all labels in the PCE. The update-pce and --no-prompt fla
 
 func exportLabels() {
 
-	// Log command execution
-	utils.LogStartCommand("label-export")
-
 	// Start the data slice with headers
 	csvData := [][]string{{labelimport.HeaderHref, labelimport.HeaderKey, labelimport.HeaderValue, labelimport.HeaderCreatedBy, labelimport.HeaderCreatedAt, labelimport.HeaderUpdatedBy, labelimport.HeaderUpdatedAt, labelimport.HeaderExtDataSet, labelimport.HeaderExtDataSetRef, "virtual_server_usage", "label_group_usage", "ruleset_usage", "static_policy_scopes_usage", "pairing_profile_usage", "permission_usage", "workload_usage", "container_workload_usage", "firewall_coexistence_scope_usage", "containers_inherit_host_policy_scopes_usage", "container_workload_profile_usage", "blocked_connection_reject_scope_usage", "enforcement_boundary_usage", "loopback_interfaces_in_policy_scopes_usage", "virtual_service_usage"}}
 	if noHref {

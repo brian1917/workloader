@@ -47,8 +47,6 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 }
 
 func ExportRuleSets(pce illumioapi.PCE, outputFileName string, templateFormat bool, hrefs []string) {
-	// Log the start of the command
-	utils.LogStartCommand("ruleset-export")
 
 	// Start the csvData
 	headers := []string{"ruleset_name", "enabled", "description", "scope", "contains_custom_iptables_rules"}

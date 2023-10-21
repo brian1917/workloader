@@ -50,9 +50,6 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 // If hrefs is an empty slice, all services are exported. If there are entries in the hrefs slice, only those services will be exported
 func ExportServices(pce illumioapi.PCE, templateFormat bool, outputFileName string, hrefs []string) {
 
-	// Log command execution
-	utils.LogStartCommand("svc-export")
-
 	// GetAllServices
 	a, err := pce.GetServices(nil, "draft")
 	utils.LogAPIRespV2("GetAllSvcs", a)

@@ -56,10 +56,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 			utils.LogError(err.Error())
 		}
 
-		// Log command
-		utils.LogStartCommand("compatibility")
 		compatibilityReport()
-		utils.LogEndCommand("compatibility")
 	},
 }
 

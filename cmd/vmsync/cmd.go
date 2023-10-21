@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -77,8 +76,6 @@ Support VCenter version > 7.0.u2`,
 		//debug = viper.Get("debug").(bool)
 		updatePCE = viper.Get("update_pce").(bool)
 		noPrompt = viper.Get("no_prompt").(bool)
-
-		utils.LogStartCommand("vcenter-sync")
 
 		//load keymapfile, This file will have the Catagories to Label Type mapping
 		keyMap := readKeyFile(csvFile)

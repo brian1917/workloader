@@ -43,9 +43,6 @@ var ADGroupExportCmd = &cobra.Command{
 
 func exportADGroups() {
 
-	// Log command execution
-	utils.LogStartCommand("ad-group-export")
-
 	// Start the data slice with headers
 	csvData := [][]string{{adgroupimport.HeaderName, adgroupimport.HeaderSid, adgroupimport.HeaderDescription}}
 	if !noHref {

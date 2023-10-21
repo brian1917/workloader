@@ -45,9 +45,6 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 
 func getPK() {
 
-	// Log command execution
-	utils.LogStartCommand("get-pk")
-
 	// Get all pairing profiles
 	pps, a, err := pce.GetPairingProfiles((map[string]string{"name": profile}))
 	utils.LogAPIRespV2("GetAllPairingProfiles", a)

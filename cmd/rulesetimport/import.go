@@ -78,9 +78,6 @@ Recommended to run without --update-pce first to log what will change.`,
 
 func ImportRuleSetsFromCSV(input Input) {
 
-	// Log the start of the command
-	utils.LogStartCommand("ruleset-import")
-
 	// Get all rulesets
 	a, err := input.PCE.GetRulesets(nil, "draft")
 	utils.LogAPIRespV2("GetAllRuleSets", a)
