@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/term"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/utils"
 
 	"github.com/spf13/cobra"
@@ -213,7 +213,7 @@ func addPCE() {
 			pce = illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS}
 			userLogin, apiResponses, err = pce.Login(user, pwd)
 			for _, a := range apiResponses {
-				utils.LogAPIResp("Login", a)
+				utils.LogAPIRespV2("Login", a)
 			}
 			if err != nil {
 				utils.LogError(fmt.Sprintf("logging into PCE - %s", err))
@@ -228,7 +228,7 @@ func addPCE() {
 			pce = illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS}
 			userLogin, apiResponses, err = pce.LoginAPIKey(user, pwd, "workloader", "created by workloader")
 			for _, a := range apiResponses {
-				utils.LogAPIResp("LoginAPIKey", a)
+				utils.LogAPIRespV2("LoginAPIKey", a)
 			}
 			if err != nil {
 				utils.LogError(fmt.Sprintf("error generating API key - %s", err))
@@ -255,6 +255,16 @@ func addPCE() {
 		viper.Set("default_pce_name", pceName)
 	}
 
+	if err := viper.WriteConfig(); err != nil {
+		utils.LogError(err.Error())
+	}
+
+	_, api, err := pce.GetVersion()
+	utils.LogAPIRespV2("GetVersion", api)
+	if err != nil {
+		utils.LogErrorf("getting pce version - %s - %s - %d", err, api.RespBody, api.StatusCode)
+	}
+	viper.Set(pceName+".pce_version", fmt.Sprintf("%d.%d.%d-%d", pce.Version.Major, pce.Version.Minor, pce.Version.Patch, pce.Version.Build))
 	if err := viper.WriteConfig(); err != nil {
 		utils.LogError(err.Error())
 	}
