@@ -104,11 +104,15 @@ Workloader is a tool that helps manage resources in an Illumio PCE.`,
 		}
 
 		// Log the command
-		utils.LogStartCommand(strings.Join(os.Args, " "))
+		if len(os.Args) > 1 {
+			utils.LogStartCommand(strings.Join(os.Args, " "))
+		}
 
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
-		utils.LogEndCommand(os.Args[1])
+		if len(os.Args) > 1 {
+			utils.LogEndCommand(os.Args[1])
+		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 
