@@ -18,6 +18,7 @@ import (
 type WkldExport struct {
 	PCE                 *illumioapi.PCE
 	IncludeLabelSummary bool
+	LabelSummaryKeys    string
 	IncludeVuln         bool
 	RemoveDescNewLines  bool
 	Headers             []string
@@ -42,17 +43,22 @@ func (e *WkldExport) CsvData() (csvData [][]string) {
 
 	// Process label summary
 	if e.IncludeLabelSummary {
-		uniqueLabelKeysSlice := []string{}
-		if uniqueLabelKeys == "" {
+		var uniqueLabelKeysSlice []string
+		if e.LabelSummaryKeys == "" {
 			uniqueLabelKeysSlice = labelsKeySlice
 		} else {
-			uniqueLabelKeys = strings.Replace(uniqueLabelKeys, ", ", ",", -1)
-			uniqueLabelKeysSlice = strings.Split(uniqueLabelKeys, ",")
+			uniqueLabelKeys = strings.Replace(e.LabelSummaryKeys, ", ", ",", -1)
+			uniqueLabelKeysSlice = strings.Split(e.LabelSummaryKeys, ",")
 		}
+		utils.LogInfof(false, "unique label keys: %s", strings.Join(uniqueLabelKeysSlice, ","))
 		includeHeaderRow := append(uniqueLabelKeysSlice, "count")
 		includeCsvData := [][]string{includeHeaderRow}
 		labelSummaryMap := make(map[string]int)
 		for _, w := range e.PCE.WorkloadsSlice {
+			// Check the interfaces
+			if !validateSubnet(w, subnetInclude) {
+				continue
+			}
 			wkldLabelValueSlice := []string{}
 			for _, l := range uniqueLabelKeysSlice {
 				label := w.GetLabelByKey(l, e.PCE.Labels)
@@ -110,26 +116,8 @@ func (e *WkldExport) CsvData() (csvData [][]string) {
 		}
 
 		// Check the interfaces
-		if subnetInclude != "" {
-			subnets := strings.Split(subnetInclude, ",")
-
-			// Validate the subnet
-			nicInSubnet := false
-			for _, s := range subnets {
-				_, network, err := net.ParseCIDR(s)
-				if err != nil {
-					utils.LogErrorf("invalid subnet cidr - %s", s)
-				}
-				for _, nic := range illumioapi.PtrToVal(w.Interfaces) {
-					ip := net.ParseIP(nic.Address)
-					if network.Contains(ip) {
-						nicInSubnet = true
-					}
-				}
-			}
-			if !nicInSubnet {
-				continue
-			}
+		if !validateSubnet(w, subnetInclude) {
+			continue
 		}
 
 		// Get interfaces
@@ -308,4 +296,28 @@ func InterfaceToString(w illumioapi.Workload, replaceDots bool) (interfaces []st
 		interfaces = append(interfaces, ipAddress)
 	}
 	return interfaces
+}
+
+func validateSubnet(w illumioapi.Workload, subnetInclude string) (nicInSubnet bool) {
+
+	if subnetInclude != "" {
+		subnets := strings.Split(subnetInclude, ",")
+
+		// Validate the subnet
+		for _, s := range subnets {
+			_, network, err := net.ParseCIDR(s)
+			if err != nil {
+				utils.LogErrorf("invalid subnet cidr - %s", s)
+			}
+			for _, nic := range illumioapi.PtrToVal(w.Interfaces) {
+				ip := net.ParseIP(nic.Address)
+				if network.Contains(ip) {
+					nicInSubnet = true
+				}
+			}
+		}
+		return nicInSubnet
+	}
+	return true
+
 }

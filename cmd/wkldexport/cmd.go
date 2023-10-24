@@ -41,7 +41,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 
 		// Get the PCE
 		var err error
-		wkldExport := WkldExport{PCE: &illumioapi.PCE{}, IncludeVuln: includeVuln, RemoveDescNewLines: removeDescNewLines, IncludeLabelSummary: labelSummary}
+		wkldExport := WkldExport{PCE: &illumioapi.PCE{}, IncludeVuln: includeVuln, RemoveDescNewLines: removeDescNewLines, IncludeLabelSummary: labelSummary, LabelSummaryKeys: uniqueLabelKeys}
 		*wkldExport.PCE, err = utils.GetTargetPCEV2(false)
 		if err != nil {
 			utils.LogError(err.Error())
