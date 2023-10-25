@@ -87,7 +87,7 @@ func exportLabels() {
 		if !noHref {
 			csvRow = append(csvRow, l.Href)
 		}
-		csvRow = append(csvRow, l.Key, l.Value, l.CreatedBy.Href, l.CreatedAt, l.UpdatedBy.Href, l.UpdatedAt, illumioapi.PtrToVal(l.ExternalDataSet), illumioapi.PtrToVal(l.ExternalDataReference))
+		csvRow = append(csvRow, l.Key, l.Value, illumioapi.PtrToVal(l.CreatedBy).Href, l.CreatedAt, illumioapi.PtrToVal(l.UpdatedBy).Href, l.UpdatedAt, illumioapi.PtrToVal(l.ExternalDataSet), illumioapi.PtrToVal(l.ExternalDataReference))
 		labelUsage := illumioapi.PtrToVal(l.LabelUsage)
 		csvRow = append(csvRow, strconv.FormatBool(labelUsage.VirtualServer), strconv.FormatBool(labelUsage.LabelGroup), strconv.FormatBool(labelUsage.Ruleset), strconv.FormatBool(labelUsage.StaticPolicyScopes), strconv.FormatBool(labelUsage.PairingProfile), strconv.FormatBool(labelUsage.Permission), strconv.FormatBool(labelUsage.Workload), strconv.FormatBool(labelUsage.ContainerWorkload), strconv.FormatBool(labelUsage.FirewallCoexistenceScope), strconv.FormatBool(labelUsage.ContainersInheritHostPolicyScopes), strconv.FormatBool(labelUsage.ContainerWorkloadProfile), strconv.FormatBool(labelUsage.BlockedConnectionRejectScope), strconv.FormatBool(labelUsage.EnforcementBoundary), strconv.FormatBool(labelUsage.LoopbackInterfacesInPolicyScopes), strconv.FormatBool(labelUsage.VirtualService))
 		csvData = append(csvData, csvRow)
