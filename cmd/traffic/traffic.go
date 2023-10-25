@@ -12,7 +12,7 @@ import (
 )
 
 var inclHrefDstFile, exclHrefDstFile, inclHrefSrcFile, exclHrefSrcFile, inclServiceCSV, exclServiceCSV, inclProcessCSV, exclProcessCSV, start, end, outputFileName string
-var exclAllowed, exclPotentiallyBlocked, exclBlocked, exclUnknown, nonUni, exclWorkloadsFromIPListQuery bool
+var exclAllowed, exclPotentiallyBlocked, exclBlocked, exclUnknown, nonUni, exclWorkloadsFromIPListQuery, draftPolicy bool
 var maxResults int
 var pce illumioapi.PCE
 var err error
@@ -36,6 +36,7 @@ func init() {
 	TrafficCmd.Flags().BoolVar(&exclUnknown, "excl-unknown", false, "excludes unkown policy decision traffic flows.")
 	TrafficCmd.Flags().BoolVar(&nonUni, "incl-non-unicast", false, "includes non-unicast (broadcast and multicast) flows in the output. Default is unicast only.")
 	TrafficCmd.Flags().IntVarP(&maxResults, "max-results", "m", 100000, "max results in explorer. Maximum value is 200000.")
+	TrafficCmd.Flags().BoolVar(&draftPolicy, "draft", false, "include draft policy decision in results (added time to queries).")
 	TrafficCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename. If iterating through labels, the labels will be appended to the provided name before the provided file extension. To name the files for the labels, use just an extension (--output-file .csv).")
 
 	TrafficCmd.Flags().SortFlags = false
@@ -209,7 +210,7 @@ func explorerExport() {
 
 	// Set some variables for traffic analysis
 
-	traffic, a, err := pce.GetTrafficAnalysisCsv(tq)
+	traffic, a, err := pce.GetTrafficAnalysisCsv(tq, draftPolicy)
 	utils.LogInfo("making explorer query", false)
 	utils.LogInfo(a.ReqBody, false)
 	utils.LogAPIRespV2("GetTrafficAnalysis", a)
