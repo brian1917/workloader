@@ -1,51 +1,27 @@
 package subnet
 
 import (
-	"bufio"
-	"encoding/csv"
 	"fmt"
-	"io"
 	"net"
-	"os"
-	"strings"
+	"strconv"
 	"time"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
+	"github.com/brian1917/workloader/cmd/wkldimport"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-var csvFile, role, app, env, loc, outputFileName string
-var netCol, envCol, locCol int
-var debug, updatePCE, noPrompt, setLabelExcl bool
+var csvFile, labelFile, outputFileName string
+var inclUmwl, updatePCE, noPrompt bool
 var pce illumioapi.PCE
 var err error
 
-type match struct {
-	workload illumioapi.Workload
-	oldLoc   string
-	oldEnv   string
-}
-
-type subnet struct {
-	network net.IPNet
-	loc     string
-	env     string
-}
-
 func init() {
-	SubnetCmd.MarkFlagRequired("in")
-	SubnetCmd.Flags().IntVar(&netCol, "net-col", 1, "Column number with network. First column is 1.")
-	SubnetCmd.Flags().IntVar(&envCol, "env-col", 2, "Column number with new env label.")
-	SubnetCmd.Flags().IntVar(&locCol, "loc-col", 3, "Column number with new loc label.")
-	SubnetCmd.Flags().StringVarP(&role, "role", "r", "", "Role Label. Blank means all roles.")
-	SubnetCmd.Flags().StringVarP(&app, "app", "a", "", "Application Label. Blank means all applications.")
-	SubnetCmd.Flags().StringVarP(&env, "env", "e", "", "Environment Label. Blank means all environments.")
-	SubnetCmd.Flags().StringVarP(&loc, "loc", "l", "", "Location Label. Blank means all locations.")
-	SubnetCmd.Flags().BoolVarP(&setLabelExcl, "exclude-labels", "x", false, "Use provided label filters as excludes.")
 	SubnetCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
-
+	SubnetCmd.Flags().BoolVar(&inclUmwl, "incl-umwl", false, "include unmanaged workloads.")
+	SubnetCmd.Flags().StringVar(&labelFile, "label-file", "", "csv file with labels to filter query. the file should have 4 headers: role, app, env, and loc. The four columns in each row is an \"AND\" operation. Each row is an \"OR\" operation.")
 	SubnetCmd.Flags().SortFlags = false
 
 }
@@ -53,36 +29,51 @@ func init() {
 // SubnetCmd runs the workload identifier
 var SubnetCmd = &cobra.Command{
 	Use:   "subnet [csv file with subnet inputs]",
-	Short: "Assign environment and location labels based on a workload's network.",
+	Short: "Assign labels based on a workload's network.",
 	Long: `
-Assign envrionment and location labels based on a workload's network.
+Assign labels based on a workload's network.
 	
-All interfaces on a workload are searched to identify a match.
+If a workload has more than one interface, the first interface with a default gateway that is matched to a network is used.
 
-The input CSV requires headers and at least three columns: network, environment label, and location label. The names of the headers do not matter. If there are additional columns or the columns are not in the default order below, specify the column numbers using the appropriate flags. If you do not wish to assign environment or location labels, leave the fields blank, but the column must still exist. Example default input:
+The input csv requires a "network" header as well as a header for each label key that should be updated. Order of columns does not matter. See below for an example input file. 
 
 +----------------+------+-----+
-|    Network     | Env  | Loc |
+|    network     | env  | loc |
 +----------------+------+-----+
-| 10.0.0.0/8     | PROD | BOS |
-| 192.168.0.0/16 | DEV  | NYC |
-+----------------+------+-----+`,
+| 10.0.0.0/8     | prod | bos |
+| 192.168.0.0/16 | dev  | nyc |
++----------------+------+-----+
+
+If a workload matches multiple subnets, the first subnet on the input CSV is used.
+
+If no label-file is used all workloads are processed. The first row of a label-file should be label keys. The workload query uses an AND operator for entries on the same row and an OR operator for the separate rows. An example label file is below:
++------+-----+-----+-----+----+
+| role | app | env | loc | bu |
++------+-----+-----+-----+----+
+| web  | erp |     |     |    |
+|      |     |     | bos | it |
+|      | crm |     |     |    |
++------+-----+-----+-----+----+
+This example queries all idle workloads that are
+- web (role) AND erp (app) 
+- OR bos(loc) AND it (bu)
+- OR CRM (app)
+
+Recommended to run without --update-pce first to log of what will change in a csv file. To disable the prompt for updates, use --no-prompt.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetTargetPCE(true)
+		pce, err = utils.GetTargetPCEV2(true)
 		if err != nil {
-			utils.Logger.Fatalf("Error getting PCE for subnet command - %s", err)
+			utils.LogErrorf("getting pce - %s", err)
 		}
 
 		// Get CSV file
 		if len(args) != 1 {
-			fmt.Println("Command requires 1 argument for the csv file. See usage help.")
-			os.Exit(0)
+			utils.LogErrorf("1 argument required for the csv file. see help menu for details.")
 		}
 		csvFile = args[0]
 
 		// Get Viper configuration
-		debug = viper.Get("debug").(bool)
 		updatePCE = viper.Get("update_pce").(bool)
 		noPrompt = viper.Get("no_prompt").(bool)
 
@@ -90,202 +81,142 @@ The input CSV requires headers and at least three columns: network, environment 
 	},
 }
 
-// locParser used to parse subnet to environment and location labels
-func locParser(csvFile string, netCol, envCol, locCol int) []subnet {
-	var results []subnet
-
-	// Open CSV File
-	file, err := os.Open(csvFile)
-	if err != nil {
-		utils.LogError(err.Error())
-	}
-	defer file.Close()
-	reader := csv.NewReader(bufio.NewReader(file))
-
-	// Start the counter
-	i := 0
-
-	// Iterate through CSV entries
-	for {
-
-		// Increment the counter
-		i++
-
-		// Read the line
-		line, err := reader.Read()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			utils.LogError(err.Error())
-		}
-
-		// Skip the header row
-		if i == 1 {
-			continue
-		}
-
-		//Place subnet into net.IPNet data structure as part of subnetLabel struct
-		_, network, err := net.ParseCIDR(line[netCol])
-		if err != nil {
-			utils.LogError(fmt.Sprintf("CSV line %d - the subnet cannot be parsed.  The format is 10.10.10.0/24", i))
-		}
-
-		//Set struct values
-		results = append(results, subnet{network: *network, env: line[envCol], loc: line[locCol]})
-	}
-
-	return results
+type userProvidedNetwork struct {
+	providedNetwork string
+	labels          map[string]string
+	network         net.IPNet
+	csvLine         int
 }
 
 func subnetParser() {
 
-	utils.LogDebug(fmt.Sprintf("CSV Columns. Network: %d; Env: %d; Loc: %d", netCol, envCol, locCol))
-
-	// Adjust the columns so they are one less (first column should be 0)
-	netCol = netCol - 1
-	envCol = envCol - 1
-	locCol = locCol - 1
+	userNetworks := []userProvidedNetwork{}
+	labelKeySlice := []string{}
 
 	// Parse the input CSV
-	subnetLabels := locParser(csvFile, netCol, envCol, locCol)
-
-	// GetAllWorkloads
-	allWklds, a, err := pce.GetWklds(nil)
-	utils.LogAPIResp("GetAllWorkloads", a)
+	inputData, err := utils.ParseCSV(csvFile)
 	if err != nil {
-		utils.LogError(err.Error())
+		utils.LogErrorf("parsing input csv - %s", err)
+	}
+	labelColumns := make(map[string]int)
+	networkIndex := 0
+	networkMatch := false
+	// Iterate through each row
+	for rowIndex, rowData := range inputData {
+		// Process headers
+		if rowIndex == 0 {
+			for colIndex, colData := range rowData {
+				if colData == "network" {
+					networkIndex = colIndex
+					networkMatch = true
+					continue
+				}
+				labelColumns[colData] = colIndex
+				labelKeySlice = append(labelKeySlice, colData)
+			}
+			if !networkMatch {
+				utils.LogError("input file must contain network header")
+			}
+			continue
+		}
+
+		// Process other rows
+		labels := make(map[string]string)
+		for colIndex, colData := range rowData {
+			if colData == "network" {
+				continue
+			}
+			labels[inputData[0][colIndex]] = rowData[colIndex]
+		}
+		network := userProvidedNetwork{providedNetwork: rowData[networkIndex], labels: labels, csvLine: rowIndex + 1}
+		_, net, err := net.ParseCIDR(network.providedNetwork)
+		if err != nil {
+			utils.LogErrorf("csv line %d - %s is invalid cidr - %s", rowIndex+1, network.providedNetwork, err)
+		}
+		network.network = *net
+		userNetworks = append(userNetworks, network)
 	}
 
-	// Confirm it's not unmanaged and check the labels to find our matches.
-	wklds := []illumioapi.Workload{}
-	for _, w := range allWklds {
+	// GetAllWorkloads
+	qp := make(map[string]string)
 
-		roleCheck, appCheck, envCheck, locCheck := true, true, true, true
-		if app != "" && w.GetApp(pce.Labels).Value != app {
-			appCheck = false
+	// Managed or unmanaged
+	if !inclUmwl {
+		qp["managed"] = "true"
+	}
+	// Process a label file if one is provided
+	if labelFile != "" {
+		labelCsvData, err := utils.ParseCSV(labelFile)
+		if err != nil {
+			utils.LogErrorf("parsing labelFile - %s", err)
 		}
-		if role != "" && w.GetRole(pce.Labels).Value != role {
-			roleCheck = false
+
+		labelQuery, err := pce.WorkloadQueryLabelParameter(labelCsvData)
+		if err != nil {
+			utils.LogErrorf("getting label parameter query - %s", err)
 		}
-		if env != "" && w.GetEnv(pce.Labels).Value != env {
-			envCheck = false
+		if len(labelQuery) > 10000 {
+			utils.LogErrorf("the query is too large. the total character count is %d and the limit for this command is 10,000", len(labelQuery))
 		}
-		if loc != "" && w.GetLoc(pce.Labels).Value != loc {
-			locCheck = false
-		}
-		if roleCheck && appCheck && locCheck && envCheck && !setLabelExcl {
-			wklds = append(wklds, w)
-		} else if (!roleCheck || !appCheck || !locCheck || !envCheck) && setLabelExcl {
-			wklds = append(wklds, w)
-		}
+		qp["labels"] = labelQuery
+	}
+	if len(qp) == 0 {
+		qp = nil
+	}
+	api, err := pce.GetWklds(qp)
+	utils.LogAPIRespV2("GetWklds", api)
+	if err != nil {
+		utils.LogErrorf("GetWklds - %s", err)
 	}
 
 	// Create a slice to store our results
-	updatedWklds := []illumioapi.Workload{}
-	matches := []match{}
+	csvData := [][]string{{"hostname", "href", "ip", "network", "csv_line_from_input"}}
+	csvData[0] = append(csvData[0], labelKeySlice...)
 
 	// Iterate through workloads
-	for _, w := range wklds {
-		m := match{}
-		changed := false
-		// For each workload we need to check the subnets provided in CSV
-		for _, nets := range subnetLabels {
-			// Check to see if it matches
-			for _, i := range w.Interfaces {
-				// If the workload is managed and the interface is not the interface with default gateway, skip it
-				if w.GetMode() != "unmanaged" && i.DefaultGatewayAddress == "" {
-					continue
-				}
-				if nets.network.Contains(net.ParseIP(i.Address)) {
-					// Update labels (not in PCE yet, just on object)
-					if nets.loc != "" && nets.loc != w.GetLoc(pce.Labels).Value {
-						changed = true
-						m.oldLoc = w.GetLoc(pce.Labels).Value
-						pce, err = w.ChangeLabel(pce, "loc", nets.loc)
-						if err != nil {
-							utils.LogError(err.Error())
+
+workloads:
+	for _, w := range pce.WorkloadsSlice {
+		// Iterate through the interfaces
+		for _, nic := range illumioapi.PtrToVal(w.Interfaces) {
+			if len(illumioapi.PtrToVal(w.Interfaces)) > 1 && nic.DefaultGatewayAddress == "" {
+				continue
+			}
+			// Check networks
+			for _, userNetwork := range userNetworks {
+				if userNetwork.network.Contains(net.ParseIP(nic.Address)) {
+					csvRow := []string{illumioapi.PtrToVal(w.Hostname), w.Href, nic.Address, userNetwork.providedNetwork, strconv.Itoa(userNetwork.csvLine)}
+					for _, col := range csvData[0] {
+						if col == "hostname" || col == "href" || col == "ip" || col == "network" || col == "csv_line_from_input" {
+							continue
 						}
-						m.workload = w
+						csvRow = append(csvRow, userNetwork.labels[col])
 					}
-					if nets.env != "" && nets.env != w.GetEnv(pce.Labels).Value {
-						changed = true
-						m.oldEnv = w.GetEnv(pce.Labels).Value
-						pce, err = w.ChangeLabel(pce, "env", nets.env)
-						if err != nil {
-							utils.LogError(err.Error())
-						}
-						m.workload = w
-					}
+					csvData = append(csvData, csvRow)
+					continue workloads
 				}
 			}
-		}
-		if changed {
-			matches = append(matches, m)
-			updatedWklds = append(updatedWklds, w)
 		}
 	}
 
-	// Bulk update if we have workloads that need updating
-	if len(updatedWklds) > 0 {
-
-		// Create our data slice
-		data := [][]string{{"hostname", "name", "role", "app", "updated_env", "updated_loc", "interfaces", "original_env", "original_loc", "href"}}
-		for _, m := range matches {
-			// Get interfaces
-			interfaceSlice := []string{}
-			for _, i := range m.workload.Interfaces {
-				interfaceSlice = append(interfaceSlice, fmt.Sprintf("%s:%s", i.Name, i.Address))
-			}
-			data = append(data, []string{m.workload.Hostname, m.workload.Name, m.workload.GetRole(pce.Labels).Value, m.workload.GetApp(pce.Labels).Value, m.workload.GetEnv(pce.Labels).Value, m.workload.GetLoc(pce.Labels).Value, strings.Join(interfaceSlice, ";"), m.oldEnv, m.oldLoc, m.workload.Href})
-		}
-
-		// Write the output file
+	if len(csvData) > 1 {
 		if outputFileName == "" {
-			outputFileName = fmt.Sprintf("workloader-subnet-%s.csv", time.Now().Format("20060102_150405"))
+			outputFileName = fmt.Sprintf("workloader-subnet-wkld-import-%s.csv", time.Now().Format("20060102_150405"))
 		}
-		utils.WriteOutput(data, data, outputFileName)
-
-		// Print number of workloads requiring update to the terminal
-		utils.LogInfo(fmt.Sprintf("%d workloads requiring label update.\r\n", len(updatedWklds)), true)
-
-		// If updatePCE is disabled, we are just going to alert the user what will happen and log
-		if !updatePCE {
-			utils.LogInfo(fmt.Sprintf("workloader identified %d workloads requiring label change. To update their labels, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.", len(data)-1), true)
-
-			return
+		utils.WriteOutput(csvData, nil, outputFileName)
+		wkldImport := wkldimport.Input{
+			PCE:                     pce,
+			ImportFile:              outputFileName,
+			RemoveValue:             "<subnet_remove_value>",
+			Umwl:                    false,
+			AllowEnforcementChanges: false,
+			UpdateWorkloads:         true,
+			UpdatePCE:               updatePCE,
+			NoPrompt:                noPrompt,
+			MaxUpdate:               -1,
+			MaxCreate:               0,
 		}
-
-		// If updatePCE is set, but not noPrompt, we will prompt the user.
-		if updatePCE && !noPrompt {
-			var prompt string
-			fmt.Printf("[PROMPT] - workloader will change the labels of %d workloads in %s (%s). Do you want to run the change (yes/no)? ", len(data)-1, pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
-			fmt.Scanln(&prompt)
-			if strings.ToLower(prompt) != "yes" {
-				utils.LogInfo(fmt.Sprintf("prompt denied to change labels of %d workloads.", len(data)-1), true)
-
-				return
-			}
-		}
-
-		// If we get here, user accepted prompt or no-prompt was set.
-		api, err := pce.BulkWorkload(updatedWklds, "update", true)
-		if debug {
-			for _, a := range api {
-				utils.LogAPIResp("BulkWorkloadUpdate", a)
-			}
-		}
-		if err != nil {
-			utils.LogError(fmt.Sprintf("running bulk update - %s", err))
-		}
-		// Log successful run.
-		utils.LogInfo(fmt.Sprintf("bulk updated %d workloads.", len(updatedWklds)), false)
-		if !debug {
-			for _, a := range api {
-				utils.LogInfo(a.RespBody, false)
-			}
-		}
-	} else {
-		utils.LogInfo(fmt.Sprintln("no workloads identified for label change"), true)
+		wkldimport.ImportWkldsFromCSV(wkldImport)
 	}
 
 }
