@@ -54,7 +54,7 @@ If no label-file is used all workloads are processed. The first row of a label-f
 |      |     |     | bos | it |
 |      | crm |     |     |    |
 +------+-----+-----+-----+----+
-This example queries all idle workloads that are
+This example queries all workloads that are
 - web (role) AND erp (app) 
 - OR bos(loc) AND it (bu)
 - OR CRM (app)
