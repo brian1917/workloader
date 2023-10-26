@@ -86,12 +86,16 @@ Workloader is a tool that helps manage resources in an Illumio PCE.`,
 		viper.Set("no_prompt", noPrompt)
 		viper.Set("verbose", verbose)
 		viper.Set("continue_on_error", continueOnError)
+		viper.Set("log_file", logFile)
 		// If the targetPCE is not set in the persistent flag, we clear it from the YAML
 		if targetPCE == "" {
 			viper.Set("target_pce", "")
 		} else {
 			viper.Set("target_pce", targetPCE)
 		}
+
+		// Set up Logging
+		utils.SetUpLogging()
 
 		//Output format
 		outFormat = strings.ToLower(outFormat)
@@ -121,7 +125,7 @@ Workloader is a tool that helps manage resources in an Illumio PCE.`,
 }
 
 var updatePCE, continueOnError, noPrompt, debug, verbose bool
-var outFormat, targetPCE string
+var outFormat, targetPCE, configFile, logFile string
 
 // All subcommand flags are taken care of in their package's init.
 // Root init sets up everything else - all usage templates, Viper, etc.
@@ -232,16 +236,9 @@ func init() {
 	}
 	RootCmd.SetUsageTemplate(utils.RootTemplate())
 
-	// Setup Viper
-	viper.SetConfigType("yaml")
-	if os.Getenv("ILLUMIO_CONFIG") != "" {
-		viper.SetConfigFile(os.Getenv("ILLUMIO_CONFIG"))
-	} else {
-		viper.SetConfigFile("./pce.yaml")
-	}
-	viper.ReadInConfig()
-
 	// Persistent flags that will be passed into root command pre-run.
+	RootCmd.PersistentFlags().StringVar(&configFile, "config-file", "", "path for workloader pce.yaml file.")
+	RootCmd.PersistentFlags().StringVar(&logFile, "log-file", "workloader.log", "path for workloader log file.")
 	RootCmd.PersistentFlags().BoolVar(&updatePCE, "update-pce", false, "Command will update the PCE after a single user prompt. Default will just log potentially changes to workloads.")
 	RootCmd.PersistentFlags().BoolVar(&noPrompt, "no-prompt", false, "Remove the user prompt when used with update-pce.")
 	RootCmd.PersistentFlags().BoolVar(&continueOnError, "continue-on-error", false, "Do not not exit on error. Use the workloader error-default command to set default behavior.")
@@ -251,6 +248,25 @@ func init() {
 	RootCmd.PersistentFlags().StringVar(&targetPCE, "pce", "", "PCE to use in command if not using default PCE.")
 
 	RootCmd.Flags().SortFlags = false
+
+	// Get Viper config location - need to do it here because this is running in init
+	var configFileLocation string
+	for i, arg := range os.Args {
+		if arg == "--config-file" {
+			configFileLocation = os.Args[i+1]
+		}
+	}
+
+	// Setup Viper
+	viper.SetConfigType("yaml")
+	if configFileLocation != "" {
+		viper.SetConfigFile(configFileLocation)
+	} else if os.Getenv("ILLUMIO_CONFIG") != "" {
+		viper.SetConfigFile(os.Getenv("ILLUMIO_CONFIG"))
+	} else {
+		viper.SetConfigFile("./pce.yaml")
+	}
+	viper.ReadInConfig()
 
 }
 

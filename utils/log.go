@@ -14,10 +14,13 @@ import (
 var Logger log.Logger
 var logFile string
 
-func init() {
+func SetUpLogging() {
 
+	// First check env variable, then config file, then use default
 	logFile = os.Getenv("WORKLOADER_LOG")
-	if logFile == "" {
+	if logFile == "" && viper.Get("log_file") != nil && viper.Get("log_file").(string) != "" {
+		logFile = viper.Get("log_file").(string)
+	} else {
 		logFile = "workloader.log"
 	}
 	f, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0755)
@@ -25,8 +28,6 @@ func init() {
 		log.Fatal(err)
 	}
 	Logger.SetOutput(f)
-	Logger.Println("-----------------------------------------------------------------------------")
-	LogInfo(fmt.Sprintf("workloader version %s", GetVersion()), false)
 
 }
 
@@ -132,6 +133,8 @@ func LogMultiAPIResp(APIResps map[string]illumioapi.APIResponse) {
 
 // LogStartCommand is used at the beginning of each command
 func LogStartCommand(fullCommand string) {
+	Logger.Println("-----------------------------------------------------------------------------")
+	LogInfo(fmt.Sprintf("workloader version %s", GetVersion()), false)
 	commandName := os.Args[1]
 	LogInfo(fmt.Sprintf("started %s", commandName), false)
 	LogInfof(false, "full command: %s", fullCommand)

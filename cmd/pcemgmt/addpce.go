@@ -19,10 +19,17 @@ import (
 
 // Set global variables for flags
 var session, useAPIKey, noAuth, proxy bool
-var configFilePath string
+var configFilePath, pceNameFlag, pceFQDNFlag, pcePortFlag, pceUserFlag, pcePasswordFlag, pceDisableTLSFlag, pceLoginServer string
 var err error
 
 func init() {
+	AddPCECmd.Flags().StringVar(&pceNameFlag, "name", "", "name of pce. will be prompted if left blank.")
+	AddPCECmd.Flags().StringVar(&pceFQDNFlag, "fqdn", "", "fqdn of pce. will be prompted if left blank.")
+	AddPCECmd.Flags().StringVar(&pcePortFlag, "port", "", "port of pce. will be prompted if left blank.")
+	AddPCECmd.Flags().StringVar(&pceUserFlag, "email", "", "email to login to pce. will be prompted if left blank.")
+	AddPCECmd.Flags().StringVar(&pcePasswordFlag, "pwd", "", "password to login to pce. will be prompted if left blank.")
+	AddPCECmd.Flags().StringVar(&pceDisableTLSFlag, "disable-tls-verification", "", "disable tls verification to pce. must be blank, true, or false")
+	AddPCECmd.Flags().StringVar(&pceLoginServer, "login-server", "", "login server. almost always blank")
 	AddPCECmd.Flags().BoolVarP(&session, "session", "s", false, "authentication will be temporary session token. No API Key will be generated.")
 	AddPCECmd.Flags().BoolVarP(&proxy, "proxy", "p", false, "set a proxy. can be changed later with clear-proxy and set-proxy commands.")
 	AddPCECmd.Flags().BoolVarP(&useAPIKey, "api-key", "a", false, "use pre-generated api credentials from an api key or a service account.")
@@ -37,19 +44,10 @@ var AddPCECmd = &cobra.Command{
 	Long: `
 Adds a PCE to the pce.yaml file.
 
-The default file name is pce.yaml stored in the current directory.
-Set ILLUMIO_CONFIG environment variable for a custom file location, including file name.
-This envrionment variable must be set for future use so Workloader knows where to look for it. Example:
+The default file name is pce.yaml stored in the current directory. Use the --config-file flag to set a custom file and use the --config-flag on all subsequent commands. You also use ILLUMIO_CONFIG environment variable.
 
-export ILLUMIO_CONFIG="/Users/brian/Desktop/login.yaml"
-
-By default, the command will create an API ID and Secret. The --session (-s) flag can be used
-to generate a session token that is valid for 10 minutes after inactivity.
-
-The command can be automated (avoid prompt) by setting the following environment variables:
+The command can be automated (avoid prompt) by using flags or the following following environment variables:
 PCE_NAME, PCE_FQDN, PCE_PORT, PCE_USER, PCE_PWD, PCE_DISABLE_TLS, PCE_PROXY.
-
-The ILLUMIO_LOGIN_SERVER environment variable can be used to specify a login server (note - rarely needed).
 
 The --update-pce and --no-prompt flags are ignored for this command.
 `,
@@ -88,7 +86,10 @@ func addPCE() {
 		fmt.Println("")
 	}
 
-	pceName = os.Getenv("PCE_NAME")
+	pceName = pceNameFlag
+	if pceName == "" {
+		pceName = os.Getenv("PCE_NAME")
+	}
 	if pceName == "" {
 		fmt.Print("Name of PCE (no spaces or periods) [default-pce]: ")
 		fmt.Scanln(&pceName)
@@ -108,13 +109,19 @@ func addPCE() {
 		defaultPCE = false
 	}
 
-	fqdn = os.Getenv("PCE_FQDN")
+	fqdn = pceFQDNFlag
+	if fqdn == "" {
+		fqdn = os.Getenv("PCE_FQDN")
+	}
 	if fqdn == "" {
 		fmt.Print("PCE FQDN: ")
 		fmt.Scanln(&fqdn)
 	}
 
-	portStr := os.Getenv("PCE_PORT")
+	portStr := pcePortFlag
+	if portStr == "" {
+		portStr = os.Getenv("PCE_PORT")
+	}
 	if portStr == "" {
 		fmt.Print("PCE Port: ")
 		fmt.Scanln(&port)
@@ -158,14 +165,20 @@ func addPCE() {
 
 	// If not using an API key or skipping auth, get the email and password
 	if !noAuth && !useAPIKey {
-		user = os.Getenv("PCE_USER")
+		user = pceUserFlag
+		if user == "" {
+			user = os.Getenv("PCE_USER")
+		}
 		if user == "" {
 			fmt.Print("Email: ")
 			fmt.Scanln(&user)
 		}
 		user = strings.ToLower(user)
 
-		pwd = os.Getenv("PCE_PWD")
+		pwd = pcePasswordFlag
+		if pwd == "" {
+			pwd = os.Getenv("PCE_PWD")
+		}
 		if pwd == "" {
 			fmt.Print("Password: ")
 			bytePassword, _ := term.ReadPassword(int(syscall.Stdin))
@@ -176,14 +189,18 @@ func addPCE() {
 
 	// Get the disable tls
 	disableTLS := false
-	disableTLSEnv := os.Getenv("PCE_DISABLE_TLS")
-	if strings.ToLower(disableTLSEnv) == "true" {
-		disableTLS = true
-	} else if disableTLSEnv == "" {
-		fmt.Print("Disable TLS verification (true/false) [false]: ")
-		fmt.Scanln(&disableTLSStr)
-		if strings.ToLower(disableTLSStr) == "true" {
+	if strings.ToLower(pceDisableTLSFlag) == "true" || strings.ToLower(pceDisableTLSFlag) == "false" {
+		disableTLS, _ = strconv.ParseBool(pceDisableTLSFlag)
+	} else {
+		disableTLSEnv := os.Getenv("PCE_DISABLE_TLS")
+		if strings.ToLower(disableTLSEnv) == "true" {
 			disableTLS = true
+		} else if disableTLSEnv == "" {
+			fmt.Print("Disable TLS verification (true/false) [false]: ")
+			fmt.Scanln(&disableTLSStr)
+			if strings.ToLower(disableTLSStr) == "true" {
+				disableTLS = true
+			}
 		}
 	}
 
@@ -211,7 +228,7 @@ func addPCE() {
 		if session {
 			fmt.Println("\r\nAuthenticating ...")
 			pce = illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS}
-			userLogin, apiResponses, err = pce.Login(user, pwd)
+			userLogin, apiResponses, err = pce.Login(user, pwd, pceLoginServer)
 			for _, a := range apiResponses {
 				utils.LogAPIRespV2("Login", a)
 			}
@@ -226,7 +243,7 @@ func addPCE() {
 				fmt.Println("\r\nAuthenticating and generating API Credentials...")
 			}
 			pce = illumioapi.PCE{FQDN: fqdn, Port: port, DisableTLSChecking: disableTLS}
-			userLogin, apiResponses, err = pce.LoginAPIKey(user, pwd, "workloader", "created by workloader")
+			userLogin, apiResponses, err = pce.LoginAPIKey(user, pwd, "workloader", "created by workloader", pceLoginServer)
 			for _, a := range apiResponses {
 				utils.LogAPIRespV2("LoginAPIKey", a)
 			}
