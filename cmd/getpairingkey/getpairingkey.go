@@ -14,12 +14,16 @@ import (
 // Declare local global variables
 var pce illumioapi.PCE
 var err error
-var profile, pkFile string
+var create bool
+var profile, pkFile, venType string
 
 // Init handles flags
 func init() {
-	GetPairingKey.Flags().StringVarP(&profile, "profile", "p", "Default (Servers)", "Pairing profile name.")
-	GetPairingKey.Flags().StringVarP(&pkFile, "file", "f", "", "File to store pairing key")
+	GetPairingKey.Flags().StringVarP(&profile, "profile", "p", "Default (Servers)", "pairing profile name.")
+	GetPairingKey.Flags().StringVarP(&pkFile, "file", "f", "", "file to store pairing key")
+	GetPairingKey.Flags().BoolVarP(&create, "create", "c", false, "create pairing profile if it does not exist.")
+	GetPairingKey.Flags().StringVarP(&venType, "ven-type", "v", "", "ven type (endpoint or server) used in conjunction with --create option")
+
 	GetPairingKey.Flags().SortFlags = false
 }
 
@@ -34,9 +38,13 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
-		pce, err = utils.GetTargetPCEV2(true)
+		pce, err = utils.GetTargetPCEV2(false)
 		if err != nil {
 			utils.LogError(err.Error())
+		}
+
+		if create && (venType != "server" && venType != "endpoint") {
+			utils.LogError("ven type must be server or endpoint with create flag.")
 		}
 
 		getPK()
@@ -53,33 +61,47 @@ func getPK() {
 	}
 
 	match := false
+	var targetPairingProfile illumioapi.PairingProfile
 	for _, pp := range pps {
 		if pp.Name == profile {
 			match = true
-			pk, a, err := pce.CreatePairingKey(pp)
-			utils.LogAPIRespV2("CreatePairingKey", a)
-			if err != nil {
-				utils.LogError(err.Error())
-			}
-			fmt.Println(pk.ActivationCode)
-
-			// Write the pairing key to a file
-			if pkFile != "" {
-				file, err := os.Create(pkFile)
-				if err != nil {
-					utils.LogError(err.Error())
-				}
-				defer file.Close()
-				_, err = io.WriteString(file, pk.ActivationCode)
-				if err != nil {
-					utils.LogError(err.Error())
-				}
-			}
+			targetPairingProfile = pp
+			break
 		}
 	}
 
-	if !match {
-		utils.LogErrorf("pairing profile %s does not exist", profile)
+	if !match && create {
+		utils.LogInfof(false, "%s doesn't exist - creating", profile)
+		createdPP, api, err := pce.CreatePairingProfile(illumioapi.PairingProfile{Name: profile, Enabled: illumioapi.Ptr(true), VenType: venType})
+		utils.LogAPIRespV2("CreatePairingProfile", api)
+		if err != nil {
+			utils.LogErrorf("creating pairing profile - %s", err)
+		}
+		targetPairingProfile = createdPP
 	}
 
+	if !match && !create {
+		utils.LogErrorf("%s does not exist. rerun with --create (-c) flag to create it.", profile)
+	}
+
+	// Get pairing key
+	pk, a, err := pce.CreatePairingKey(targetPairingProfile)
+	utils.LogAPIRespV2("CreatePairingKey", a)
+	if err != nil {
+		utils.LogError(err.Error())
+	}
+	fmt.Println(pk.ActivationCode)
+
+	// Write the pairing key to a file
+	if pkFile != "" {
+		file, err := os.Create(pkFile)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+		defer file.Close()
+		_, err = io.WriteString(file, pk.ActivationCode)
+		if err != nil {
+			utils.LogError(err.Error())
+		}
+	}
 }
