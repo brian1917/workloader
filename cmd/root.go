@@ -44,6 +44,7 @@ import (
 	"github.com/brian1917/workloader/cmd/netscalersync"
 	"github.com/brian1917/workloader/cmd/nicexport"
 	"github.com/brian1917/workloader/cmd/nicmanage"
+	"github.com/brian1917/workloader/cmd/pairingprofileexport"
 	"github.com/brian1917/workloader/cmd/pcemgmt"
 	"github.com/brian1917/workloader/cmd/portusage"
 	"github.com/brian1917/workloader/cmd/processexport"
@@ -170,6 +171,7 @@ func init() {
 	RootCmd.AddCommand(cwpimport.ContainerProfileImportCmd)
 	RootCmd.AddCommand(adgroupexport.ADGroupExportCmd)
 	RootCmd.AddCommand(adgroupimport.AdGroupImportCmd)
+	RootCmd.AddCommand(pairingprofileexport.PairingProfileExportCmd)
 	RootCmd.AddCommand(flowimport.FlowImportCmd)
 	RootCmd.AddCommand(templateimport.TemplateImportCmd)
 	RootCmd.AddCommand(templatelist.TemplateListCmd)
