@@ -165,7 +165,6 @@ func portLock(port int, protocol string) {
 		// Check that we should make changes to the PCE.
 		if !updatePCE {
 			utils.LogInfo("run with --update-pce and optionally --no-prompt flag to implement containment-switch.", true)
-
 			return
 		}
 
@@ -222,7 +221,8 @@ func portLock(port int, protocol string) {
 			// Bind the workloads
 			serviceBindings := []illumioapi.ServiceBinding{}
 			for _, w := range targetWorkloads {
-				serviceBindings = append(serviceBindings, illumioapi.ServiceBinding{VirtualService: &vs, Workload: &w})
+				wkld := w
+				serviceBindings = append(serviceBindings, illumioapi.ServiceBinding{VirtualService: &vs, Workload: &wkld})
 			}
 			_, api, err = pce.CreateServiceBinding(serviceBindings)
 			utils.LogAPIRespV2("CreateServiceBinding", api)
