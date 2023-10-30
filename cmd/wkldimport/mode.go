@@ -33,8 +33,8 @@ func (w *importWkld) visibility(input Input) {
 	if input.AllowEnforcementChanges {
 		if index, ok := input.Headers[wkldexport.HeaderVisibility]; ok && strings.ToLower(w.csvLine[index]) != "unmanaged" && w.csvLine[index] != "" {
 			v := strings.ToLower(w.csvLine[index])
-			if v != "blocked_allowed" && v != "blocked" && v != "off" && v != "" {
-				utils.LogWarning(fmt.Sprintf("csv line %d - %s - invalid visibility state. values must be blank, blocked_allowed, blocked, or off. skipping line.", w.csvLineNum, w.compareString), true)
+			if v != "blocked_allowed" && v != "blocked" && v != "off" && v != "" && v != "enhanced_data_collection" {
+				utils.LogWarning(fmt.Sprintf("csv line %d - %s - invalid visibility state. values must be blank, blocked_allowed, blocked, enhanced_data_collection, or off. skipping line.", w.csvLineNum, w.compareString), true)
 				return
 			}
 			if w.wkld.GetVisibilityLevel() != v {
