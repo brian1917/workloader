@@ -344,8 +344,6 @@ var SettingsCmd = &cobra.Command{
 
 		}
 
-		utils.LogEndCommand("settings")
-
 	},
 }
 
