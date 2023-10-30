@@ -24,7 +24,7 @@ func init() {
 	ContainmentSwitchCmd.Flags().StringVarP(&end, "end", "e", time.Now().AddDate(0, 0, -7).In(time.UTC).Format("2006-01-02"), "end date in the format of yyyy-mm-dd.")
 	ContainmentSwitchCmd.Flags().BoolVar(&skipAllow, "skip-allow", false, "do not analyze traffic to see where traffic should be allowed.")
 	ContainmentSwitchCmd.Flags().BoolVar(&skipModeChange, "skip-mode-change", false, "do not move all visibility-only workloads into selective-enforcement.")
-	ContainmentSwitchCmd.Flags().StringVar(&objectName, "object-name", "", "name for created policy objects (virtual services, rules, and enforcement boundaries). if none is provided the default is \"Workloader-Containment-Switch-Port-Protocol\"")
+	ContainmentSwitchCmd.Flags().StringVar(&objectName, "object-name", "", "name for created policy objects (virtual services, rules, and enforcement boundaries). if none is provided the default is \"workloader-containment-switch-Port-Protocol\"")
 
 	ContainmentSwitchCmd.Flags().SortFlags = false
 }
@@ -104,7 +104,7 @@ func portLock(port int, protocol string) {
 
 	// Set the Object Name
 	if objectName == "" {
-		objectName = fmt.Sprintf("Workloader-Containment-Switch-%d-%s", port, protocol)
+		objectName = fmt.Sprintf("workloader-containment-switch-%d-%s", port, protocol)
 	}
 
 	// Get the Any IP List for use in the rule and/or enfourcement boundary.
