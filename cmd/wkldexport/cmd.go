@@ -10,10 +10,11 @@ import (
 
 // Declare global variables
 var managedOnly, unmanagedOnly, onlineOnly, noHref, includeVuln, removeDescNewLines, labelSummary bool
-var headers, uniqueLabelKeys, globalOutputFileName, subnetInclude string
+var headers, labelFile, uniqueLabelKeys, globalOutputFileName, subnetInclude string
 
 func init() {
 	WkldExportCmd.Flags().StringVar(&headers, "headers", "", "comma-separated list of headers for export. default is all headers.")
+	WkldExportCmd.Flags().StringVar(&labelFile, "label-file", "", "csv file with labels to filter query. the file should have 4 headers: role, app, env, and loc. The four columns in each row is an \"AND\" operation. Each row is an \"OR\" operation.")
 	WkldExportCmd.Flags().BoolVarP(&managedOnly, "managed-only", "m", false, "only export managed workloads.")
 	WkldExportCmd.Flags().BoolVarP(&unmanagedOnly, "unmanaged-only", "u", false, "only export unmanaged workloads.")
 	WkldExportCmd.Flags().BoolVarP(&onlineOnly, "online-only", "o", false, "only export online workloads.")
@@ -36,6 +37,19 @@ var WkldExportCmd = &cobra.Command{
 	Long: `
 Create a CSV export of all workloads in the PCE.
 
+If only workloads with certain labels, the first row of the label-file should be label keys. The workload query uses an AND operator for entries on the same row and an OR operator for the separate rows. An example label file is below:
++------+-----+-----+-----+----+
+| role | app | env | loc | bu |
++------+-----+-----+-----+----+
+| web  | erp |     |     |    |
+|      |     |     | bos | it |
+|      | crm |     |     |    |
++------+-----+-----+-----+----+
+This example queries all workloads that are
+- web (role) AND erp (app) 
+- OR bos(loc) AND it (bu)
+- OR CRM (app)
+
 The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
@@ -51,9 +65,37 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 			wkldExport.Headers = strings.Split(strings.Replace(headers, " ", "", -1), ",")
 		}
 
+		preLoadLabels := false
+		if labelFile != "" {
+			preLoadLabels = true
+			api, err := wkldExport.PCE.GetLabels(nil)
+			utils.LogAPIRespV2("GetLabels", api)
+			if err != nil {
+				utils.LogError(err.Error())
+			}
+		}
+
 		// Load the PCE
-		load := illumioapi.LoadInput{Workloads: true, Labels: true}
+		load := illumioapi.LoadInput{Workloads: true, Labels: !preLoadLabels}
 		load.WorkloadsQueryParameters = make(map[string]string)
+
+		// Check the label file
+		if labelFile != "" {
+			labelCsvData, err := utils.ParseCSV(labelFile)
+			if err != nil {
+				utils.LogErrorf("parsing labelFile - %s", err)
+			}
+
+			labelQuery, err := wkldExport.PCE.WorkloadQueryLabelParameter(labelCsvData)
+			if err != nil {
+				utils.LogErrorf("getting label parameter query - %s", err)
+			}
+			if len(labelQuery) > 10000 {
+				utils.LogErrorf("the query is too large. the total character count is %d and the limit for this command is 10,000", len(labelQuery))
+			}
+			load.WorkloadsQueryParameters["labels"] = labelQuery
+		}
+
 		if unmanagedOnly {
 			load.WorkloadsQueryParameters["managed"] = "false"
 		}
