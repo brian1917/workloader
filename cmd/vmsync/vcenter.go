@@ -193,8 +193,8 @@ func (vc *VCenter) getVMIdentity(vm string) VMIdentity {
 
 // getVCenterVMs - VCenter API call to get all the VCenter VMs.  The call will return no more than 4000 objects.
 // To make sure you can fit all the VMs into a single call you can use the 'datacenter' and 'cluster' filter.
-// Currently only powered on machines are returned.
-func (vc *VCenter) getVCenterVMs() {
+// Currently only powered on machines are returned.  Return number of VMs found.
+func (vc *VCenter) getVCenterVMs() int {
 
 	tmpurl := "/api/vcenter/vm"
 	if deprecated {
@@ -212,31 +212,40 @@ func (vc *VCenter) getVCenterVMs() {
 	}
 
 	if datacenter != "" {
-		object := vc.getObjectID("datacenter", []string{datacenter})
+		objects := vc.getObjectID("datacenter", strings.Split(datacenter, ","))
+		if len(objects) == 0 {
+			utils.LogError(fmt.Sprintf("Error Get Vcenter \"%s\" object \"%s\" returned %d entries.  Check for correctness. ", "datacenter", datacenter, len(objects)))
+		}
 		if deprecated {
-			queryParam["filter.datacenters"] = object
+			queryParam["filter.datacenters"] = objects
 		} else {
-			queryParam["datacenters"] = object
+			queryParam["datacenters"] = objects
 		}
 	}
 
 	if cluster != "" {
-		object := vc.getObjectID("cluster", []string{cluster})
+		objects := vc.getObjectID("cluster", strings.Split(cluster, ","))
+		if len(objects) == 0 {
+			utils.LogError(fmt.Sprintf("Error Get Vcenter \"%s\" object \"%s\" returned %d entries.  Check for correctness. ", "cluster", cluster, len(objects)))
+		}
 		if deprecated {
-			queryParam["filter.clusters"] = object
+			queryParam["filter.clusters"] = objects
 		} else {
-			queryParam["clusters"] = object
+			queryParam["clusters"] = objects
 		}
 	}
 
 	//When filtering on folder you can enter multiple folders in the CLI seperating via a comma.  Additionally sub folders
 	//will be discovered.  The endless for loop will walk all folders until there are no more sub folders.
 	if folder != "" {
-		objectId := vc.getObjectID("folder", strings.Split(folder, ","))
-		tmpObjectIds := objectId
+		objects := vc.getObjectID("folder", strings.Split(folder, ","))
+		if len(objects) == 0 {
+			utils.LogError(fmt.Sprintf("Error Get Vcenter \"%s\" object \"%s\" returned %d entries.  Check for correctness. ", "folder", folder, len(objects)))
+		}
+		tmpObjectIds := objects
 		for {
-			subFolderIds := vc.getObjectID("parent_folders", objectId)
-			objectId = subFolderIds
+			subFolderIds := vc.getObjectID("parent_folders", objects)
+			objects = subFolderIds
 			if len(subFolderIds) == 0 {
 				break
 			}
@@ -250,6 +259,7 @@ func (vc *VCenter) getVCenterVMs() {
 		}
 	}
 	vc.Get(tmpurl, queryParam, false, &vc.VCVMSlice, "getVCenterVMs")
+	return len(vc.VCVMSlice)
 
 }
 
@@ -496,8 +506,11 @@ func (vc *VCenter) compileVMData(keyMap map[string]string) {
 	//Make sure the keyMap file doesnt have incorrect labeltypes.  Exit if it does.
 	validateKeyMap(keyMap, &pce)
 
-	//return totaltags
-	vc.getVCenterVMs()
+	//return all VMs with filters
+	if vc.getVCenterVMs() == 0 {
+		utils.LogInfo(fmt.Sprintf("No Vcenter VMs found with current filters datacenter:'%s' cluster:'%s' folder:'%s'", datacenter, cluster, folder), true)
+		return
+	}
 
 	//Have to build a map of PCE wklds with all the names lowercase
 	tmpWklds := make(map[string]illumioapi.Workload)
