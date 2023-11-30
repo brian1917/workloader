@@ -11,7 +11,7 @@ import (
 var vcenter, datacenter, cluster, folder, userID, secret string
 
 var csvFile string
-var ignoreState, umwl, keepFile, keepFQDNHostname, deprecated, insecure, allIPs, vcName, ipv6 bool
+var ignoreState, ignoreSubfolders, umwl, keepFile, keepFQDNHostname, deprecated, insecure, allIPs, vcName, ipv6 bool
 var updatePCE, noPrompt bool
 var vc VCenter
 var maxCreate, maxUpdate int
@@ -29,11 +29,12 @@ func init() {
 	VCenterSyncCmd.Flags().BoolVarP(&insecure, "insecure", "i", false, "ignore vcenter ssl certificate validation.")
 	VCenterSyncCmd.Flags().StringVarP(&datacenter, "datacenter", "d", "", "limit sync a specific vcenter catacenter.")
 	VCenterSyncCmd.Flags().StringVarP(&cluster, "cluster", "c", "", "limit sync to a specific vcenter cluster.")
-	VCenterSyncCmd.Flags().StringVarP(&folder, "folder", "f", "", "limit sync to a specific vcenter folder.")
+	VCenterSyncCmd.Flags().StringVarP(&folder, "folder", "f", "", "limit sync to a specific vcenter folder and subfolders.")
 	VCenterSyncCmd.Flags().BoolVarP(&umwl, "umwl", "", false, "create unmanaged workloads for VMs that do not exist in the PCE. future updtaes will only update labels.")
 	VCenterSyncCmd.Flags().BoolVarP(&allIPs, "all-int", "a", false, "enable syncing multiple interfaces")
 	VCenterSyncCmd.Flags().BoolVarP(&ipv6, "ipv6", "", false, "used with all-int to sync ipv6 addresses.")
 	VCenterSyncCmd.Flags().BoolVarP(&ignoreState, "ignore-state", "", false, "sync workloads in states other than \"Powered_on\".")
+	VCenterSyncCmd.Flags().BoolVarP(&ignoreSubfolders, "ignore-subfolders", "", false, "only searches the 'folders' for VMs.  Doesnt look in subfolders. ")
 	VCenterSyncCmd.Flags().BoolVarP(&vcName, "vcentername", "", false, "match on vcenter VM name vs. using VMTools hostname.")
 	VCenterSyncCmd.Flags().BoolVarP(&keepFile, "keep-file", "", false, "keep the csv file used for assigning labels.")
 	VCenterSyncCmd.Flags().BoolVarP(&keepFQDNHostname, "keep-fqdn", "", false, "keep fqdn vs. removing the domain from the hostname.")

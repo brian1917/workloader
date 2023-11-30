@@ -243,7 +243,7 @@ func (vc *VCenter) getVCenterVMs() int {
 			utils.LogError(fmt.Sprintf("Error Get Vcenter \"%s\" object \"%s\" returned %d entries.  Check for correctness. ", "folder", folder, len(objects)))
 		}
 		tmpObjectIds := objects
-		for {
+		for !ignoreSubfolders {
 			subFolderIds := vc.getObjectID("parent_folders", objects)
 			objects = subFolderIds
 			if len(subFolderIds) == 0 {
