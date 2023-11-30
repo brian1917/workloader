@@ -87,30 +87,56 @@ func (vc *VCenter) getTagFromCategories(categoryID string) []string {
 
 // getObjectID - This will call the VCenter API to get the objectID of a Datacenter or Cluster or folder.  These objectID
 // are used as filters when getting all the VMs.
-func (vc *VCenter) getObjectID(object, filter string) vcenterObjects {
+func (vc *VCenter) getObjectID(object string, filter []string) []string /*vcenterObjects */ {
 
-	if object != "datacenter" && object != "cluster" && object != "folder" {
+	if object != "datacenter" && object != "cluster" && object != "folder" && object != "parent_folders" {
 		utils.LogError(fmt.Sprintf("GetObjectID getting invalid object type - %s", object))
 	}
+
+	//parent_folder still calls 'folder' API so need to change the object to folder if running parent_folders object
+	queryParam := make(map[string][]string)
+	if deprecated {
+		if object == "parent_folders" {
+			object = "folder"
+			queryParam["filter.parent_folders"] = filter
+		} else {
+			queryParam["filter.names"] = filter
+
+		}
+	} else {
+		if object == "parent_folders" {
+			object = "folder"
+			queryParam["parent_folders"] = filter
+		} else {
+			queryParam["names"] = filter
+		}
+	}
+
 	tmpurl := "/api/vcenter/" + object
 	if deprecated {
 		tmpurl = "/rest/vcenter/" + object
 	}
 
-	queryParam := make(map[string]string)
-	if deprecated {
-		queryParam["filter.names"] = filter
-	} else {
-		queryParam["names"] = filter
+	//vc.Get will pull objects like datacenter, cluster or folders from VCenter.   Build an array of the VCenter object id to be used in VM get query
+	var objs []vcenterObjects
+	vc.Get(tmpurl, queryParam, false, &objs, "getObjectID")
+	var tmpObj []string
+	for _, obj := range objs {
+		switch object {
+		case "datacenter":
+			tmpObj = append(tmpObj, obj.Datacenter)
+		case "cluster":
+			tmpObj = append(tmpObj, obj.Cluster)
+		case "folder":
+			tmpObj = append(tmpObj, obj.Folder)
+		}
 	}
 
-	var obj []vcenterObjects
-	vc.Get(tmpurl, queryParam, false, &obj, "getObjectID")
-
-	if len(obj) == 0 {
-		utils.LogError(fmt.Sprintf("Error Get Vcenter \"%s\" object \"%s\" returned %d entries.  Check for correctness. ", object, filter, len(obj)))
-	}
-	return obj[0]
+	/* if len(objs) == 0 {
+		utils.LogError(fmt.Sprintf("Error Get Vcenter \"%s\" object \"%s\" returned %d entries.  Check for correctness. ", object, filter, len(objs)))
+	}*/
+	//return objs[0]
+	return tmpObj
 }
 
 // getCategory - Call GetCategory API to get all the APIs in VCenter.
@@ -175,39 +201,52 @@ func (vc *VCenter) getVCenterVMs() {
 		tmpurl = "/rest/vcenter/vm"
 	}
 
-	queryParam := make(map[string]string)
+	queryParam := make(map[string][]string)
+
 	if !ignoreState {
 		if deprecated {
-			queryParam["filter.power_states"] = "POWERED_ON"
+			queryParam["filter.power_states"] = []string{"POWERED_ON"}
 		} else {
-			queryParam["power_states"] = "POWERED_ON"
+			queryParam["power_states"] = []string{"POWERED_ON"}
 		}
 	}
 
 	if datacenter != "" {
-		object := vc.getObjectID("datacenter", datacenter)
+		object := vc.getObjectID("datacenter", []string{datacenter})
 		if deprecated {
-			queryParam["filter.datacenters"] = object.Datacenter
+			queryParam["filter.datacenters"] = object
 		} else {
-			queryParam["datacenters"] = object.Datacenter
+			queryParam["datacenters"] = object
 		}
 	}
 
 	if cluster != "" {
-		object := vc.getObjectID("cluster", cluster)
+		object := vc.getObjectID("cluster", []string{cluster})
 		if deprecated {
-			queryParam["filter.clusters"] = object.Cluster
+			queryParam["filter.clusters"] = object
 		} else {
-			queryParam["clusters"] = object.Cluster
+			queryParam["clusters"] = object
 		}
 	}
 
+	//When filtering on folder you can enter multiple folders in the CLI seperating via a comma.  Additionally sub folders
+	//will be discovered.  The endless for loop will walk all folders until there are no more sub folders.
 	if folder != "" {
-		object := vc.getObjectID("folder", folder)
+		objectId := vc.getObjectID("folder", strings.Split(folder, ","))
+		tmpObjectIds := objectId
+		for {
+			subFolderIds := vc.getObjectID("parent_folders", objectId)
+			objectId = subFolderIds
+			if len(subFolderIds) == 0 {
+				break
+			}
+			tmpObjectIds = append(tmpObjectIds, subFolderIds...)
+		}
+
 		if deprecated {
-			queryParam["filter.folders"] = object.Folder
+			queryParam["filter.folders"] = tmpObjectIds
 		} else {
-			queryParam["folders"] = object.Folder
+			queryParam["folders"] = tmpObjectIds
 		}
 	}
 	vc.Get(tmpurl, queryParam, false, &vc.VCVMSlice, "getVCenterVMs")

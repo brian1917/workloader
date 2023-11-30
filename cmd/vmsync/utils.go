@@ -113,7 +113,7 @@ func (v *VCenter) cleanFQDN() string {
 
 // GetCollectionHeaders returns a collection of Illumio objects and allows for customizing headers of HTTP request
 // func (v *VCenter) Get(endpoint string, queryParameters, headers map[string]string, login bool, response interface{}, calledAPI string) (api illumioapi.APIResponse, err error) {
-func (v *VCenter) Get(endpoint string, queryParameters map[string]string, login bool, response interface{}, calledAPI string) {
+func (v *VCenter) Get(endpoint string, queryParameters map[string][]string, login bool, response interface{}, calledAPI string) {
 	// Build the API URL
 	tmpurl, err := url.Parse("https://" + v.cleanFQDN() + endpoint)
 	if err != nil {
@@ -122,16 +122,25 @@ func (v *VCenter) Get(endpoint string, queryParameters map[string]string, login 
 	}
 
 	// Set the query parameters
+	values := url.Values{}
 	for key, value := range queryParameters {
-		//Necessary check because golang net/url Encodes a space character as "+".  VCenter needs that to be %20
-		if calledAPI == "getObjectID" {
-			tmp := key + "=" + value
-			tmpurl.RawQuery = url.PathEscape(tmp)
-		} else {
-			q := tmpurl.Query()
-			q.Set(key, value)
-			tmpurl.RawQuery = q.Encode()
+		orgStr := ""
+		for c, val := range value {
 
+			//Necessary check because golang net/url Encodes a space character as "+".  VCenter needs that to be %20
+			if calledAPI == "getObjectID" && key != "parent_folders" {
+				add := ""
+				if c > 0 {
+					add = "&"
+					orgStr = tmpurl.RawQuery
+				}
+				tmp := add + key + "=" + val
+				tmpurl.RawQuery = orgStr + url.PathEscape(tmp)
+			} else {
+				values.Add(key, val)
+				tmpurl.RawQuery = values.Encode()
+
+			}
 		}
 	}
 
@@ -150,9 +159,8 @@ func (v *VCenter) Get(endpoint string, queryParameters map[string]string, login 
 	err = json.Unmarshal([]byte(api.RespBody), &response)
 	if err != nil {
 		utils.LogError(fmt.Sprintf("Unmarshal of %s object failed - %s", calledAPI, err))
-		//return api, err
+
 	}
-	//return api, nil
 
 }
 
