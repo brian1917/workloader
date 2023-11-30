@@ -55,7 +55,10 @@ var VCenterSyncCmd = &cobra.Command{
 	Long: `
 Sync VCenter VM tags with PCE workload labels.
 
-The first argument is the location of a csv file that maps VCenter Categories to PCE label keys. The csv skips the first row for headers. The VCenter category should be in the first column and the corredsponding illumio label key in the second.
+A csv file is needed to map VCenter Categories to PCE label keys. The csv skips the first row expecting headers. 
+The VCenter category should be in the first column and the corredsponding illumio label key in the second.  
+
+For all VCenter object (datacenter, cluster, folder) you can enter more than one.  They need to be seperated by commas without spaces.
 	
 Support VCenter version > 7.0.u2`,
 
