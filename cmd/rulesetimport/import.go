@@ -15,7 +15,7 @@ import (
 
 type Input struct {
 	PCE                            illumioapi.PCE
-	UpdatePCE, NoPrompt, Provision bool
+	UpdatePCE, NoPrompt, Provision, NoTrimming bool
 	ImportFile, ProvisionComment   string
 }
 
@@ -24,6 +24,7 @@ var input Input
 func init() {
 	RuleSetImportCmd.Flags().BoolVar(&input.Provision, "provision", false, "Provision changes.")
 	RuleSetImportCmd.Flags().StringVar(&input.ProvisionComment, "provision-comments", "", "Provision comment.")
+	RuleSetImportCmd.Flags().BoolVar(&input.NoTrimming, "no-trimming", false, "Disable default CSV parsing with trimming of whitespaces for label names (leading and ending whitespaces)")
 }
 
 // RuleSetImportCmd runs the import command
@@ -172,13 +173,16 @@ csvEntries:
 
 		// Process scopes
 
+		csvScopesStr := l[hm["scope"]]
 		// Get rid of spaces
-		csvScopesStr := strings.Replace(l[hm["scope"]], " ;", ";", -1)
-		csvScopesStr = strings.Replace(csvScopesStr, "; ", ";", -1)
-		csvScopesStr = strings.Replace(csvScopesStr, "| ", "|", -1)
-		csvScopesStr = strings.Replace(csvScopesStr, " |", "|", -1)
-		csvScopesStr = strings.TrimSuffix(csvScopesStr, " ")
-		csvScopesStr = strings.TrimPrefix(csvScopesStr, " ")
+		if !input.NoTrimming {
+			csvScopesStr = strings.Replace(csvScopesStr, " ;", ";", -1)
+			csvScopesStr = strings.Replace(csvScopesStr, "; ", ";", -1)
+			csvScopesStr = strings.Replace(csvScopesStr, "| ", "|", -1)
+			csvScopesStr = strings.Replace(csvScopesStr, " |", "|", -1)
+			csvScopesStr = strings.TrimSuffix(csvScopesStr, " ")
+			csvScopesStr = strings.TrimPrefix(csvScopesStr, " ")
+		}
 
 		// Create the csvScopes slice of slices
 		csvScopes := [][]string{}
