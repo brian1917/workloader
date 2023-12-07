@@ -3,8 +3,6 @@ package awslabel
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"log"
 	"os/exec"
 	"strings"
 	"time"
@@ -78,34 +76,22 @@ func AwsLabels(labelMapping string, pce *illumioapi.PCE, updatePCE, noPrompt boo
 	}
 
 	//Include AWS options if user enters any
-	cmd := exec.Command("aws", "ec2", "describe-instances")
+	cmd := exec.Command("aws", "ec2", "describe-instances", "--no-cli-pager")
 	if awsOptions != "" {
 		cmd.Args = append(cmd.Args, strings.Split(awsOptions, " ")...)
 	}
 
-	// Set aws cli to not paginate response.
-	cmd.Env = []string{`AWS_PAGER=""`}
-
-	// Build the VM list command with a pipe
-	pipe, err := cmd.StdoutPipe()
-	if err != nil {
-		utils.LogError(fmt.Sprintf("pipe error - %s", err.Error()))
-	}
-
-	// Run the command
-	if err := cmd.Start(); err != nil {
-		utils.LogError(fmt.Sprintf("run error - %s", err.Error()))
-	}
-
-	// Read the stout
-	bytes, err := io.ReadAll(pipe)
-	if err != nil {
-		log.Fatal(err)
-	}
+	utils.LogInfof(true, "running command: %s", cmd.String())
+	outputBytes, _ := cmd.CombinedOutput()
+	utils.LogDebug(fmt.Sprintf("stdout or stderror: %s", string(outputBytes)))
+	utils.LogInfof(false, "exit code: %d", cmd.ProcessState.ExitCode())
 
 	// Unmarshall the JSON
 	var awsReservations AwsCLIResponse
-	json.Unmarshal(bytes, &awsReservations)
+	if err := json.Unmarshal(outputBytes, &awsReservations); err != nil {
+		utils.LogErrorf("unmarshaling output - %s", err)
+	}
+	//json.Unmarshal([]byte(outbuf.String()), &awsReservations)
 
 	var awsInstanceCount int
 	// Iterate through the AWS VMs
