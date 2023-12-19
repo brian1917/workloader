@@ -42,16 +42,6 @@ github.com/aws/aws-sdk-go v1.44.243 h1:f5cNDSVfU/TsH0FXi+DwPjOY4XAv9ehubfw/7yTQQ
 github.com/aws/aws-sdk-go v1.44.243/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
 github.com/brian1917/illumioapi v1.85.0 h1:f24Qdl4CBGmLATY/w1E4Yw5EC6P+24EawUsk3oaUHes=
 github.com/brian1917/illumioapi v1.85.0/go.mod h1:jREIUsMQeaaL7Mde0nTG2ehSDJjRSU79WFgFXcm0XhQ=
-github.com/brian1917/illumioapi/v2 v2.0.0-beta.30 h1:B+ynJ0v/+tD1Xt2/KPqpU5wIaCCjU2+wrmGhIl8QQcs=
-github.com/brian1917/illumioapi/v2 v2.0.0-beta.30/go.mod h1:2uy7bernq5Ein6PiTS+9a4VvjYEMKi3vAGybByDZ2c8=
-github.com/brian1917/illumioapi/v2 v2.0.0-beta.31 h1:3a8hZDxViOxNKQiTj8AhOro/69RARZlmpVQYUSGzXm4=
-github.com/brian1917/illumioapi/v2 v2.0.0-beta.31/go.mod h1:2uy7bernq5Ein6PiTS+9a4VvjYEMKi3vAGybByDZ2c8=
-github.com/brian1917/illumioapi/v2 v2.0.0-beta.32 h1:OcMTCIx5zOSPo29HLXGsX+PIP6zgrsU7bxBPugFMFHg=
-github.com/brian1917/illumioapi/v2 v2.0.0-beta.32/go.mod h1:2uy7bernq5Ein6PiTS+9a4VvjYEMKi3vAGybByDZ2c8=
-github.com/brian1917/illumioapi/v2 v2.0.0-beta.33 h1:/VQMagDvEVJwH/qv1pvKwSFJMMDGj7oLTe0H98xIKgk=
-github.com/brian1917/illumioapi/v2 v2.0.0-beta.33/go.mod h1:2uy7bernq5Ein6PiTS+9a4VvjYEMKi3vAGybByDZ2c8=
-github.com/brian1917/illumioapi/v2 v2.0.0-beta.34 h1:0iT/eovjvLd53HnWHGlONa/h8huHBlFP0v6/dTyNQVA=
-github.com/brian1917/illumioapi/v2 v2.0.0-beta.34/go.mod h1:2uy7bernq5Ein6PiTS+9a4VvjYEMKi3vAGybByDZ2c8=
 github.com/brian1917/illumioapi/v2 v2.0.0-beta.35 h1:PeCryhh0vpjhnx++dRadIp5gI+FGE+3UKUqG05TJV7M=
 github.com/brian1917/illumioapi/v2 v2.0.0-beta.35/go.mod h1:2uy7bernq5Ein6PiTS+9a4VvjYEMKi3vAGybByDZ2c8=
 github.com/brian1917/ns v1.2.0 h1:8z9dR8WhaqJPTi8Ygyf6VHrYGoP8dbNV8hoD30/k/8c=
