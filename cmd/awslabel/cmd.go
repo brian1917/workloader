@@ -17,7 +17,7 @@ import (
 var labelMapping, outputFileName, awsOptions string
 
 func init() {
-	AwsLabelCmd.Flags().StringVarP(&labelMapping, "mapping", "m", "", "mappings of AWS tags to illumio labels. the format is a comma-separated list of aws-tag:illumio-label. For example, \"application:app,type:role\" maps the AWS tag of application to the Illumio app label and the Azure type tag to the Illumio role label.")
+	AwsLabelCmd.Flags().StringVarP(&labelMapping, "mapping", "m", "", "mappings of AWS tags or other metadata to illumio labels. the format is a comma-separated list of aws:illumio. See below for examples.")
 	AwsLabelCmd.Flags().StringVarP(&awsOptions, "options", "o", "", "AWS CLI can be extended using this option.  Anything added after -o inside quotes will be passed as is(e.g \"--region us-west-1\"")
 	AwsLabelCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 	AwsLabelCmd.MarkFlagRequired("mapping")
@@ -31,13 +31,23 @@ var AwsLabelCmd = &cobra.Command{
 	Long: `
 Import labels for AWS VMs.
 
+In addition to any label key, the following metadata values can be used:
+- region
+- availability_zone 
+- subnet_id
+- vpc_id
+
+For example, the following command will map the aws tag "func" to the Illumio "role label" and map the AWS region to the Illumio "loc" label.
+    workloader aws-label -m "func:role,region:loc"
+
 The command relies on the AWS CLI being installed and authenticated. See here for installing the AWS CLI: https://aws.amazon.com/cli/.
 
 To test the AWS CLI is authenticated, run aws ec2 describe-instances and ensure JSON output is displayed.
 
-A file will be produced that is passed into the wkld-import command. 
+A file will be produced that is automatically passed into the wkld-import command. 
 
-It is recommend to run without --update-pce first to the csv produced and what impacts of the wkld-import command.
+It is recommend to run without --update-pce first to the csv produced and simulate the changes of wkld-import.
+
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 
@@ -101,6 +111,18 @@ func AwsLabels(labelMapping string, pce *illumioapi.PCE, updatePCE, noPrompt boo
 			awsInstanceCount++
 			//Create map for all instances tags(key/values)
 			tagMap := make(map[string]string)
+			// Add other metadata
+			if instance.Placement != nil && instance.Placement.AvailabilityZone != nil {
+				az := *instance.Placement.AvailabilityZone
+				tagMap["availability_zone"] = az
+				tagMap["region"] = az[0 : len(az)-1]
+			}
+			if instance.SubnetId != nil {
+				tagMap["subnet_id "] = *instance.SubnetId
+			}
+			if instance.VpcId != nil {
+				tagMap["vpc_id"] = *instance.VpcId
+			}
 			for _, tag := range instance.Tags {
 				tagMap[*tag.Key] = *tag.Value
 			}
