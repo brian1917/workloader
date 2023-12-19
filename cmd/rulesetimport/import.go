@@ -22,6 +22,7 @@ type Input struct {
 var input Input
 
 func init() {
+	RuleSetImportCmd.Flags().BoolVar(&input.StrictSpaces, "strict-spaces", false, "workloader removes extraneous spaces in scopes by default. using this flag takes input exactly as provided to accomodate spaces in labels. if used, there should be no space between the \"|\" when separating scopes or \";\" when separating labels/label groups.")
 	RuleSetImportCmd.Flags().BoolVar(&input.Provision, "provision", false, "Provision changes.")
 	RuleSetImportCmd.Flags().StringVar(&input.ProvisionComment, "provision-comments", "", "Provision comment.")
 	RuleSetImportCmd.Flags().BoolVar(&input.NoTrimming, "no-trimming", false, "Disable default CSV parsing with trimming of whitespaces for label names (leading and ending whitespaces)")
