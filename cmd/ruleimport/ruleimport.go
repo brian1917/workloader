@@ -24,7 +24,7 @@ type Input struct {
 	ImportFile                                   string
 	ProvisionComment                             string
 	Headers                                      map[string]int
-	Provision, UpdatePCE, NoPrompt, CreateLabels bool
+	Provision, UpdatePCE, NoPrompt, CreateLabels, NoTrimming bool
 }
 
 // Decluare a global input and debug variable
@@ -34,6 +34,7 @@ func init() {
 	RuleImportCmd.Flags().BoolVar(&globalInput.CreateLabels, "create-labels", false, "Create labels if they do not exist.")
 	RuleImportCmd.Flags().BoolVar(&globalInput.Provision, "provision", false, "Provision rule changes.")
 	RuleImportCmd.Flags().StringVar(&globalInput.ProvisionComment, "provision-comment", "", "Comment for when provisioning changes.")
+	RuleImportCmd.Flags().BoolVar(&globalInput.NoTrimming, "no-trimming", false, "Disable default CSV parsing with trimming of whitespaces for label names (leading and ending whitespaces)")
 }
 
 // RuleImportCmd runs the upload command
@@ -381,7 +382,12 @@ CSVEntries:
 		if l[input.Headers[ruleexport.HeaderConsumerLabels]] != "" {
 			csvLabels := []illumioapi.Label{}
 			// Split at the semi-colons
-			userProvidedLabels := strings.Split(strings.Replace(l[input.Headers[ruleexport.HeaderConsumerLabels]], "; ", ";", -1), ";")
+			var userProvidedLabels []string
+			if input.NoTrimming {
+				userProvidedLabels = strings.Split(l[input.Headers[ruleexport.HeaderConsumerLabels]], ";")
+			} else {
+				userProvidedLabels = strings.Split(strings.Replace(l[input.Headers[ruleexport.HeaderConsumerLabels]], "; ", ";", -1), ";")
+			}
 			for _, label := range userProvidedLabels {
 				key := strings.Split(label, ":")[0]
 				value := strings.TrimPrefix(label, key+":")
@@ -441,7 +447,12 @@ CSVEntries:
 		if l[input.Headers[ruleexport.HeaderProviderLabels]] != "" {
 			csvLabels := []illumioapi.Label{}
 			// Split at the semi-colons
-			userProvidedLabels := strings.Split(strings.Replace(l[input.Headers[ruleexport.HeaderProviderLabels]], "; ", ";", -1), ";")
+			var userProvidedLabels []string
+			if input.NoTrimming {
+				userProvidedLabels = strings.Split(l[input.Headers[ruleexport.HeaderProviderLabels]], ";")
+			} else {
+				userProvidedLabels = strings.Split(strings.Replace(l[input.Headers[ruleexport.HeaderProviderLabels]], "; ", ";", -1), ";")
+			}
 			for _, label := range userProvidedLabels {
 				key := strings.Split(label, ":")[0]
 				value := strings.TrimPrefix(label, key+":")

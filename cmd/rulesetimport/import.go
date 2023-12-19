@@ -14,9 +14,9 @@ import (
 )
 
 type Input struct {
-	PCE                                          illumioapi.PCE
-	StrictSpaces, UpdatePCE, NoPrompt, Provision bool
-	ImportFile, ProvisionComment                 string
+	PCE                            illumioapi.PCE
+	UpdatePCE, NoPrompt, Provision, NoTrimming bool
+	ImportFile, ProvisionComment   string
 }
 
 var input Input
@@ -25,6 +25,7 @@ func init() {
 	RuleSetImportCmd.Flags().BoolVar(&input.StrictSpaces, "strict-spaces", false, "workloader removes extraneous spaces in scopes by default. using this flag takes input exactly as provided to accomodate spaces in labels. if used, there should be no space between the \"|\" when separating scopes or \";\" when separating labels/label groups.")
 	RuleSetImportCmd.Flags().BoolVar(&input.Provision, "provision", false, "Provision changes.")
 	RuleSetImportCmd.Flags().StringVar(&input.ProvisionComment, "provision-comments", "", "Provision comment.")
+	RuleSetImportCmd.Flags().BoolVar(&input.NoTrimming, "no-trimming", false, "Disable default CSV parsing with trimming of whitespaces for label names (leading and ending whitespaces)")
 }
 
 // RuleSetImportCmd runs the import command
@@ -173,9 +174,9 @@ csvEntries:
 
 		// Process scopes
 
-		// Get rid of spaces
 		csvScopesStr := l[hm["scope"]]
-		if !input.StrictSpaces {
+		// Get rid of spaces
+		if !input.NoTrimming {
 			csvScopesStr = strings.Replace(csvScopesStr, " ;", ";", -1)
 			csvScopesStr = strings.Replace(csvScopesStr, "; ", ";", -1)
 			csvScopesStr = strings.Replace(csvScopesStr, "| ", "|", -1)
