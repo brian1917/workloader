@@ -26,9 +26,6 @@ func RootTemplate() string {
   Multiple PCE Prefix Commands:{{range .Commands}}{{if (or (eq .Name "all-pces") (eq .Name "target-pces"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
-  Template Commands:{{range .Commands}}{{if (or (eq .Name "template-list") (eq .Name "template-import") (eq .Name "template-create"))}}
-	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
-
   Other Commands:{{range .Commands}}{{if (or (eq .Name "delete") (eq .Name "netscaler-sync"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
