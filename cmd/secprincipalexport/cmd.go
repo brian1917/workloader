@@ -12,7 +12,7 @@ import (
 
 // Declare local global variables
 var outputFileName string
-var noHref bool
+var noHref, groupsOnly bool
 
 const (
 	HeaderHref        = "href"
@@ -23,6 +23,7 @@ const (
 
 func init() {
 	SecPrincipalExportCmd.Flags().BoolVar(&noHref, "no-href", false, "do not export href column. use this when exporting data to import into different pce.")
+	SecPrincipalExportCmd.Flags().BoolVar(&groupsOnly, "groups-only", false, "only export groups.")
 	SecPrincipalExportCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 	SecPrincipalExportCmd.Flags().SortFlags = false
 }
@@ -63,6 +64,10 @@ func exportSecPrincipals(pce illumioapi.PCE) {
 	for _, asp := range pce.AuthSecurityPrincipalsSlices {
 		// Skip blank group
 		if asp.Name == "" && asp.DisplayName == "" && asp.Type == "group" {
+			continue
+		}
+		// Skip if only groups
+		if groupsOnly && asp.Type != "group" {
 			continue
 		}
 		csvRow := make(map[string]string)
