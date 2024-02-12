@@ -13,7 +13,7 @@ import (
 
 // Declare local global variables
 var outputFileName string
-var noHref bool
+var noHref, groupsOnly bool
 
 const (
 	HeaderHref                 = "href"
@@ -26,6 +26,7 @@ const (
 
 func init() {
 	PermissionsExportCmd.Flags().BoolVar(&noHref, "no-href", false, "do not export href column. use this when exporting data to import into different pce.")
+	PermissionsExportCmd.Flags().BoolVar(&groupsOnly, "groups-only", false, "only export permissions attached to groups.")
 	PermissionsExportCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 	PermissionsExportCmd.Flags().SortFlags = false
 }
@@ -64,6 +65,9 @@ func exportPermissions(pce illumioapi.PCE) {
 	}
 
 	for _, permission := range pce.PermissionsSlice {
+		if groupsOnly && pce.AuthSecurityPrincipals[permission.AuthSecurityPrincipal.Href].Type != "group" {
+			continue
+		}
 		csvRow := make(map[string]string)
 		csvRow[HeaderHref] = permission.Href
 		csvRow[HeaderAuthSecPrincipalName] = pce.AuthSecurityPrincipals[permission.AuthSecurityPrincipal.Href].DisplayName
