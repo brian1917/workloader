@@ -12,6 +12,10 @@ import (
 )
 
 func main() {
+
+	// Setup logging
+	utils.SetUpLogging()
+
 	// Process target-pces and all-pces
 	if len(os.Args) > 1 {
 		if os.Args[1] == "target-pces" && os.Args[2] != "-h" && os.Args[2] != "--help" {
@@ -46,7 +50,7 @@ func main() {
 		// Process all-pces
 		if os.Args[1] == "all-pces" && os.Args[2] != "-h" && os.Args[2] != "--help" {
 			for _, pce := range pcemgmt.GetAllPCENames() {
-				utils.LogInfo(fmt.Sprintf("running %s", strings.Join(append(os.Args[2:], "--pce", pce), " ")), true)
+				utils.LogInfof(true, "running %s", strings.Join(append(os.Args[2:], "--pce", pce), " "))
 				command := exec.Command(os.Args[0], append(os.Args[2:], "--pce", pce)...)
 				stdout, err := command.Output()
 				if err != nil {
