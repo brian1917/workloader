@@ -46,12 +46,16 @@ import (
 	"github.com/brian1917/workloader/cmd/nicmanage"
 	"github.com/brian1917/workloader/cmd/pairingprofileexport"
 	"github.com/brian1917/workloader/cmd/pcemgmt"
+	"github.com/brian1917/workloader/cmd/permissionsexport"
+	"github.com/brian1917/workloader/cmd/permissionsimport"
 	"github.com/brian1917/workloader/cmd/portusage"
 	"github.com/brian1917/workloader/cmd/processexport"
 	"github.com/brian1917/workloader/cmd/ruleexport"
 	"github.com/brian1917/workloader/cmd/ruleimport"
 	"github.com/brian1917/workloader/cmd/rulesetexport"
 	"github.com/brian1917/workloader/cmd/rulesetimport"
+	"github.com/brian1917/workloader/cmd/secprincipalexport"
+	"github.com/brian1917/workloader/cmd/secprincipalimport"
 	"github.com/brian1917/workloader/cmd/servicefinder"
 	"github.com/brian1917/workloader/cmd/subnet"
 	"github.com/brian1917/workloader/cmd/svcexport"
@@ -171,6 +175,10 @@ func init() {
 	RootCmd.AddCommand(cwpimport.ContainerProfileImportCmd)
 	RootCmd.AddCommand(adgroupexport.ADGroupExportCmd)
 	RootCmd.AddCommand(adgroupimport.AdGroupImportCmd)
+	RootCmd.AddCommand(permissionsexport.PermissionsExportCmd)
+	RootCmd.AddCommand(permissionsimport.PermissionsImportCmd)
+	RootCmd.AddCommand(secprincipalexport.SecPrincipalExportCmd)
+	RootCmd.AddCommand(secprincipalimport.SecPrincipalImportCmd)
 	RootCmd.AddCommand(pairingprofileexport.PairingProfileExportCmd)
 	RootCmd.AddCommand(flowimport.FlowImportCmd)
 	RootCmd.AddCommand(templateimport.TemplateImportCmd)
