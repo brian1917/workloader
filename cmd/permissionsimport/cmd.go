@@ -63,7 +63,7 @@ Valid role options include the following:
 func importPermissions(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt bool) {
 
 	// Get permissions and auth security principals
-	apiResps, err := pce.Load(illumioapi.LoadInput{Permissions: true, AuthSecurityPrincipals: true, Labels: true, LabelGroups: true, ProvisionStatus: "active"}, true)
+	apiResps, err := pce.Load(illumioapi.LoadInput{Permissions: true, AuthSecurityPrincipals: true, Labels: true, LabelGroups: true, ProvisionStatus: "active"}, utils.UseMulti())
 	utils.LogMultiAPIRespV2(apiResps)
 	if err != nil {
 		utils.LogErrorf("loading pce - %s", err)
