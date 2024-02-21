@@ -81,11 +81,16 @@ func importPermissions(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt b
 
 	// Iterate over the CSV
 	headersMap := make(map[string]int)
+	mode := "create"
 	for rowIndex, row := range csvData {
 		// parse the headers
 		if rowIndex == 0 {
 			for colIndex, header := range row {
 				headersMap[header] = colIndex
+				if header == permissionsexport.HeaderHref {
+					utils.LogInfof(true, "href column provided - only updating permissions")
+					mode = "update"
+				}
 			}
 			continue
 		}
@@ -93,12 +98,12 @@ func importPermissions(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt b
 		// Create the new sec principal
 		permission := illumioapi.Permission{}
 		existingPermission := illumioapi.Permission{}
+		var permissionExists bool
 
 		// Href - determins update or create
 		if colIndex, exists := headersMap[permissionsexport.HeaderHref]; exists {
-			utils.LogInfof(true, "href column provided - only updating permissions")
 			// Get the existing permission
-			if permission, permissionExists := pce.Permissions[row[colIndex]]; !permissionExists {
+			if permission, permissionExists = pce.Permissions[row[colIndex]]; !permissionExists {
 				utils.LogWarningf(true, "csv row %d - %s doesn't exist - skipping", rowIndex+1, row[colIndex])
 				continue
 			} else {
@@ -124,49 +129,52 @@ func importPermissions(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt b
 			}
 		}
 
-		// Auth Principal
-		if colIndex, exists := headersMap[permissionsexport.HeaderAuthSecPrincipalName]; exists {
-			if _, exists := pce.AuthSecurityPrincipals[row[colIndex]]; !exists {
-				utils.LogWarningf(true, "csv row %d - %s does not exist as a authorized security principal - skipping", rowIndex+1, row[colIndex])
-				continue
-			}
-			permission.AuthSecurityPrincipal = &illumioapi.AuthSecurityPrincipal{Href: pce.AuthSecurityPrincipals[row[colIndex]].Href}
-		}
+		if mode == "create" {
 
-		// Scope
-		if colIndex, exists := headersMap[permissionsexport.HeaderScope]; exists {
-			scope := []illumioapi.Scopes{}
-			scopeValue := strings.Replace(row[colIndex], "; ", ";", -1)
-			scopeSlice := strings.Split(scopeValue, ";")
-
-			for _, scopeEntry := range scopeSlice {
-				scopeEntrySlice := strings.Split(scopeEntry, ":")
-				if len(scopeEntrySlice) == 1 {
-					utils.LogWarningf(true, "csv row %d - %s is an invalid scope entry - skipping", rowIndex+1, row[colIndex])
+			// Auth Principal
+			if colIndex, exists := headersMap[permissionsexport.HeaderAuthSecPrincipalName]; exists {
+				if _, exists := pce.AuthSecurityPrincipals[row[colIndex]]; !exists {
+					utils.LogWarningf(true, "csv row %d - %s does not exist as a authorized security principal - skipping", rowIndex+1, row[colIndex])
 					continue
 				}
-				key := scopeEntrySlice[0]
-				value := strings.Join(scopeEntrySlice[1:], ":")
-				if strings.HasSuffix(value, "-lg") {
-					if lg, lgExists := pce.LabelGroups[key+strings.TrimSuffix(value, "-lg")]; !lgExists {
-						utils.LogWarningf(true, "csv row %d - %s:%s does not exist as a label group - skipping", rowIndex+1, key, strings.TrimSuffix(value, "-lg"))
+				permission.AuthSecurityPrincipal = &illumioapi.AuthSecurityPrincipal{Href: pce.AuthSecurityPrincipals[row[colIndex]].Href}
+			}
+
+			// Scope
+			if colIndex, exists := headersMap[permissionsexport.HeaderScope]; exists {
+				scope := []illumioapi.Scopes{}
+				scopeValue := strings.Replace(row[colIndex], "; ", ";", -1)
+				scopeSlice := strings.Split(scopeValue, ";")
+
+				for _, scopeEntry := range scopeSlice {
+					scopeEntrySlice := strings.Split(scopeEntry, ":")
+					if len(scopeEntrySlice) == 1 {
+						utils.LogWarningf(true, "csv row %d - %s is an invalid scope entry - skipping", rowIndex+1, row[colIndex])
 						continue
-					} else {
-						scope = append(scope, illumioapi.Scopes{LabelGroup: &illumioapi.LabelGroup{Href: lg.Href}})
 					}
-				} else {
-					if label, labelExists := pce.Labels[key+value]; !labelExists {
-						utils.LogWarningf(true, "csv row %d - %s:%s does not exist as a label - skipping", rowIndex+1, key, value)
-						continue
+					key := scopeEntrySlice[0]
+					value := strings.Join(scopeEntrySlice[1:], ":")
+					if strings.HasSuffix(value, "-lg") {
+						if lg, lgExists := pce.LabelGroups[key+strings.TrimSuffix(value, "-lg")]; !lgExists {
+							utils.LogWarningf(true, "csv row %d - %s:%s does not exist as a label group - skipping", rowIndex+1, key, strings.TrimSuffix(value, "-lg"))
+							continue
+						} else {
+							scope = append(scope, illumioapi.Scopes{LabelGroup: &illumioapi.LabelGroup{Href: lg.Href}})
+						}
 					} else {
-						scope = append(scope, illumioapi.Scopes{Label: &illumioapi.Label{Href: label.Href}})
+						if label, labelExists := pce.Labels[key+value]; !labelExists {
+							utils.LogWarningf(true, "csv row %d - %s:%s does not exist as a label - skipping", rowIndex+1, key, value)
+							continue
+						} else {
+							scope = append(scope, illumioapi.Scopes{Label: &illumioapi.Label{Href: label.Href}})
+						}
 					}
 				}
+				permission.Scope = &scope
 			}
-			permission.Scope = &scope
-		}
 
-		newPermissions = append(newPermissions, processedPermission{csvLine: rowIndex + 1, permissions: permission})
+			newPermissions = append(newPermissions, processedPermission{csvLine: rowIndex + 1, permissions: permission})
+		}
 	}
 
 	// End run of nothing to do
