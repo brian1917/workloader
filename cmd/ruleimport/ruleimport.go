@@ -20,10 +20,10 @@ import (
 
 // Input is the data structure for the ImportRulesFromCSV command
 type Input struct {
-	PCE                                          illumioapi.PCE
-	ImportFile                                   string
-	ProvisionComment                             string
-	Headers                                      map[string]int
+	PCE                                                      illumioapi.PCE
+	ImportFile                                               string
+	ProvisionComment                                         string
+	Headers                                                  map[string]int
 	Provision, UpdatePCE, NoPrompt, CreateLabels, NoTrimming bool
 }
 
@@ -743,7 +743,11 @@ CSVEntries:
 		}
 
 		// Create the rule
-		csvRule := illumioapi.Rule{Description: &description, UnscopedConsumers: &unscopedConsumers, Consumers: &consumers, ConsumingSecurityPrincipals: &consumingSecPrincipals, Providers: &providers, IngressServices: &ingressSvc, Enabled: &enabled, MachineAuth: &machineAuth, SecConnect: &secConnect, Stateless: &stateless, ResolveLabelsAs: &illumioapi.ResolveLabelsAs{Consumers: &consResolveAs, Providers: &provResolveAs}, UseWorkloadSubnets: &useWkldSubnets, NetworkType: networkType}
+		csp := &consumingSecPrincipals
+		if len(consumingSecPrincipals) == 0 {
+			csp = nil
+		}
+		csvRule := illumioapi.Rule{Description: &description, UnscopedConsumers: &unscopedConsumers, Consumers: &consumers, ConsumingSecurityPrincipals: csp, Providers: &providers, IngressServices: &ingressSvc, Enabled: &enabled, MachineAuth: &machineAuth, SecConnect: &secConnect, Stateless: &stateless, ResolveLabelsAs: &illumioapi.ResolveLabelsAs{Consumers: &consResolveAs, Providers: &provResolveAs}, UseWorkloadSubnets: &useWkldSubnets, NetworkType: networkType}
 
 		// Add to our array
 		// Option 1 - No rule HREF provided, so it's a new rule

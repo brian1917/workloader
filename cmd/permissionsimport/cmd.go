@@ -117,7 +117,11 @@ func importPermissions(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt b
 				utils.LogWarningf(true, "csv row %d - invalid role - skipping", rowIndex+1)
 				continue
 			}
-			permission.Role = &illumioapi.Role{Href: fmt.Sprintf("/orgs/%d/roles/%s", pce.Org, row[colIndex])}
+			if row[colIndex] == "" {
+				permission.Role = &illumioapi.Role{}
+			} else {
+				permission.Role = &illumioapi.Role{Href: fmt.Sprintf("/orgs/%d/roles/%s", pce.Org, row[colIndex])}
+			}
 
 			if existingPermission.Href != "" {
 				if permission.Role.Href != existingPermission.Role.Href {
