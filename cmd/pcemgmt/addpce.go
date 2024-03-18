@@ -19,7 +19,7 @@ import (
 
 // Set global variables for flags
 var session, useAPIKey, noAuth, proxy bool
-var configFilePath, pceNameFlag, pceFQDNFlag, pcePortFlag, pceUserFlag, pcePasswordFlag, pceDisableTLSFlag, pceLoginServer string
+var configFilePath, pceNameFlag, pceFQDNFlag, pcePortFlag, pceUserFlag, pcePasswordFlag, pceApiKeyFlag, pceApiUserFlag, pceDisableTLSFlag, pceLoginServer string
 var err error
 
 func init() {
@@ -27,6 +27,8 @@ func init() {
 	AddPCECmd.Flags().StringVar(&pceFQDNFlag, "fqdn", "", "fqdn of pce. will be prompted if left blank.")
 	AddPCECmd.Flags().StringVar(&pcePortFlag, "port", "", "port of pce. will be prompted if left blank.")
 	AddPCECmd.Flags().StringVar(&pceUserFlag, "email", "", "email to login to pce. will be prompted if left blank.")
+	AddPCECmd.Flags().StringVar(&pceApiUserFlag, "api-user", "", "api user. will be prompted if left blank and using api-key flag.")
+	AddPCECmd.Flags().StringVar(&pceApiKeyFlag, "api-secret", "", "api secret. will be prompted if left blank and using api-key flag.")
 	AddPCECmd.Flags().StringVar(&pcePasswordFlag, "pwd", "", "password to login to pce. will be prompted if left blank.")
 	AddPCECmd.Flags().StringVar(&pceDisableTLSFlag, "disable-tls-verification", "", "disable tls verification to pce. must be blank, true, or false")
 	AddPCECmd.Flags().StringVar(&pceLoginServer, "login-server", "", "login server. almost always blank")
@@ -145,11 +147,23 @@ func addPCE() {
 
 	// Get api key information if flag is set
 	if useAPIKey {
-		fmt.Print("API Authentication Username: ")
-		fmt.Scanln(&apiUser)
+		apiUser = pceApiUserFlag
+		if apiUser == "" {
+			apiUser = os.Getenv("API_USER")
+		}
+		if apiUser == "" {
+			fmt.Print("API Authentication Username: ")
+			fmt.Scanln(&apiUser)
+		}
 
-		fmt.Print("API Secret: ")
-		fmt.Scanln(&apiKey)
+		apiKey = pceApiKeyFlag
+		if apiKey == "" {
+			apiKey = os.Getenv("API_SECRET")
+		}
+		if apiKey == "" {
+			fmt.Print("API Secret: ")
+			fmt.Scanln(&apiKey)
+		}
 
 	}
 
