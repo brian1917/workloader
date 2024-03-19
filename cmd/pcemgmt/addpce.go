@@ -144,7 +144,6 @@ func addPCE() {
 	}
 
 	var apiUser, apiKey string
-	var org int
 
 	// Get api key information if flag is set
 	if useAPIKey {
@@ -220,6 +219,10 @@ func addPCE() {
 	var userLogin illumioapi.UserLogin
 
 	// If using an API key, build the PCE and check authentication
+	org, err := strconv.Atoi(pceOrg)
+	if err != nil {
+		utils.LogError("org value not an int")
+	}
 	if useAPIKey {
 		pce.FQDN = fqdn
 		pce.Port = port
