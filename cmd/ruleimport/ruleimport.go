@@ -426,7 +426,7 @@ CSVEntries:
 		}
 
 		// Labels - exclude
-		if l[input.Headers[ruleexport.HeaderSrcLabelsExclusions]] != "" {
+		if _, ok := input.Headers[ruleexport.HeaderSrcLabelsExclusions]; ok {
 			csvLabels := []illumioapi.Label{}
 			// Split at the semi-colons
 			var userProvidedLabels []string
@@ -515,7 +515,7 @@ CSVEntries:
 		}
 
 		// Labels - exclude
-		if l[input.Headers[ruleexport.HeaderDstLabelsExclusions]] != "" {
+		if _, ok := input.Headers[ruleexport.HeaderDstLabelsExclusions]; ok {
 			csvLabels := []illumioapi.Label{}
 			// Split at the semi-colons
 			var userProvidedLabels []string

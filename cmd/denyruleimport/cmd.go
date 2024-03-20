@@ -119,7 +119,22 @@ func ImportBoundariesFromCSV(input Input) {
 
 		// Process headers on first row and then skip
 		if rowIndex == 0 {
+			headerWarningGiven := false
 			for colIndex, col := range row {
+				if strings.Contains(col, "consumer_") {
+					if !headerWarningGiven {
+						utils.LogWarning("deprecation - headers are using legacy terminology of consumer and provider. switch to src and dst. see help menu for accceptable headers. processing will continue.", true)
+						headerWarningGiven = true
+					}
+					col = strings.Replace(col, "consumer_", "src_", -1)
+				}
+				if strings.Contains(col, "provider_") {
+					if !headerWarningGiven {
+						utils.LogWarning("deprecation - headers are using legacy terminology of consumer and provider. switch to src and dst. see help menu for accceptable headers. processing will continue.", true)
+						headerWarningGiven = true
+					}
+					col = strings.Replace(col, "provider_", "dst_", -1)
+				}
 				input.Headers[col] = colIndex
 			}
 			continue

@@ -93,23 +93,26 @@ func main() {
 		if os.Args[1] == "eb-import" {
 			utils.LogWarning("this command has been renamed to deny-rule-import. please use \"workloader deny-rule-import\" in the future", true)
 			command := exec.Command(os.Args[0], append([]string{"deny-rule-import"}, os.Args[2:]...)...)
+			command.Stdin = os.Stdin
+			command.Stdout = os.Stdout
+			command.Stderr = os.Stderr
 			utils.LogInfof(false, "executing the following: %s", command.String())
-			stdout, err := command.Output()
-			if err != nil {
+			if err := command.Run(); err != nil {
 				utils.LogError(err.Error())
 			}
-			fmt.Println(string(stdout))
+			// fmt.Println(string(stdout))
 			return
 		}
 		if os.Args[1] == "eb-export" {
 			utils.LogWarning("this command has been renamed to deny-rule-export. please use \"workloader deny-rule-export\" in the future", true)
 			command := exec.Command(os.Args[0], append([]string{"deny-rule-export"}, os.Args[2:]...)...)
+			command.Stdin = os.Stdin
+			command.Stdout = os.Stdout
+			command.Stderr = os.Stderr
 			utils.LogInfof(false, "executing the following: %s", command.String())
-			stdout, err := command.Output()
-			if err != nil {
+			if err := command.Run(); err != nil {
 				utils.LogError(err.Error())
 			}
-			fmt.Println(string(stdout))
 			return
 		}
 	}
