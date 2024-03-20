@@ -1,4 +1,4 @@
-package ebexport
+package denyruleexport
 
 import (
 	"fmt"
@@ -17,20 +17,20 @@ var noHref, expandServices bool
 var exportHeaders, outputFileName string
 
 func init() {
-	EbExportCmd.Flags().BoolVar(&noHref, "no-href", false, "do not export href column. use this when exporting data to import into different pce.")
-	EbExportCmd.Flags().BoolVar(&expandServices, "expand-svcs", false, "expand service objects to show ports/protocols (not compatible in eb-import format).")
-	EbExportCmd.Flags().StringVar(&exportHeaders, "headers", "", "comma-separated list of headers for export. default is all headers.")
-	EbExportCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+	DenyRuleExportCmd.Flags().BoolVar(&noHref, "no-href", false, "do not export href column. use this when exporting data to import into different pce.")
+	DenyRuleExportCmd.Flags().BoolVar(&expandServices, "expand-svcs", false, "expand service objects to show ports/protocols (not compatible in deny-rule-import format).")
+	DenyRuleExportCmd.Flags().StringVar(&exportHeaders, "headers", "", "comma-separated list of headers for export. default is all headers.")
+	DenyRuleExportCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 
-	EbExportCmd.Flags().SortFlags = false
+	DenyRuleExportCmd.Flags().SortFlags = false
 }
 
-// EbExportCmd runs the eb-export command
-var EbExportCmd = &cobra.Command{
-	Use:   "eb-export",
-	Short: "Create a CSV export of all enforcement boundaries in the PCE.",
+// DenyRuleExportCmd runs the deny-rule-export command
+var DenyRuleExportCmd = &cobra.Command{
+	Use:   "deny-rule-export",
+	Short: "Create a CSV export of all deny rules in the PCE.",
 	Long: `
-Create a CSV export of all enforcement boundaries in the PCE.
+Create a CSV export of all deny rules in the PCE.
 
 The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -223,11 +223,11 @@ func ExportEBs(pce ia.PCE, outputFileName string, noHref bool) {
 	// Write the output file
 	if len(csvData) > 1 {
 		if outputFileName == "" {
-			outputFileName = fmt.Sprintf("workloader-eb-export-%s.csv", time.Now().Format("20060102_150405"))
+			outputFileName = fmt.Sprintf("workloader-deny-rule-export-%s.csv", time.Now().Format("20060102_150405"))
 		}
 		utils.WriteOutput(csvData, csvData, outputFileName)
 	} else {
-		utils.LogInfo("no enforcement boundaries in pce", true)
+		utils.LogInfo("no deny rules in pce", true)
 	}
 
 }

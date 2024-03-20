@@ -1,4 +1,4 @@
-package ebimport
+package denyruleimport
 
 import (
 	"fmt"
@@ -6,8 +6,7 @@ import (
 	"strings"
 
 	"github.com/brian1917/illumioapi/v2"
-
-	"github.com/brian1917/workloader/cmd/ebexport"
+	"github.com/brian1917/workloader/cmd/denyruleexport"
 	"github.com/brian1917/workloader/cmd/ruleimport"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
@@ -27,35 +26,35 @@ type Input struct {
 var cmdInput Input
 
 func init() {
-	EbImportCmd.Flags().BoolVar(&cmdInput.CreateLabels, "create-labels", false, "create labels if they do not exist.")
-	EbImportCmd.Flags().BoolVar(&cmdInput.Provision, "provision", false, "provision eb creations/changes.")
-	EbImportCmd.Flags().StringVar(&cmdInput.ProvisionComment, "provision-comment", "", "comment for when provisioning changes.")
+	DenyRuleImportCmd.Flags().BoolVar(&cmdInput.CreateLabels, "create-labels", false, "create labels if they do not exist.")
+	DenyRuleImportCmd.Flags().BoolVar(&cmdInput.Provision, "provision", false, "provision eb creations/changes.")
+	DenyRuleImportCmd.Flags().StringVar(&cmdInput.ProvisionComment, "provision-comment", "", "comment for when provisioning changes.")
 }
 
 // RuleImportCmd runs the upload command
-var EbImportCmd = &cobra.Command{
-	Use:   "eb-import [csv file to import]",
-	Short: "Create and update enforcement boundaries in the PCE from a CSV file.",
+var DenyRuleImportCmd = &cobra.Command{
+	Use:   "deny-rule-import [csv file to import]",
+	Short: "Create and update deny rules in the PCE from a CSV file.",
 	Long: `
-Create and update enforcement boundaries in the PCE from a CSV file.
+Create and update deny rules in the PCE from a CSV file.
 
-An easy way to get the input format is to run the workloader eb-export command.
+An easy way to get the input format is to run the workloader deny-rule-export command.
 
 If an href is provided, the existing boundary will be updated. If it's not provided it will be created.
 
 The order of the CSV columns do not matter. The input format accepts the following header values:
-- ` + ebexport.HeaderName + `
-- ` + ebexport.HeaderHref + ` (no href will create a boundary.)
-- ` + ebexport.HeaderEnabled + ` (true/false)
-- ` + ebexport.HeaderProviderAllWorkloads + `(true/false)
-- ` + ebexport.HeaderProviderLabels + ` (semi-colon separated list in format of key:value. e.g., app:erp;role:db)
-- ` + ebexport.HeaderProviderLabelGroups + ` (names of label groups multiple separated by ";")
-- ` + ebexport.HeaderProviderIPLists + ` (names of ip lists. multiple separated by ";")
-- ` + ebexport.HeaderConsumerAllWorkloads + ` (true/false)
-- ` + ebexport.HeaderConsumerLabels + ` (semi-colon separated list in format of key:value. e.g., app:erp;role:db)
-- ` + ebexport.HeaderConsumerLabelGroups + ` (names of label groups multiple separated by ";")
-- ` + ebexport.HeaderConsumerIPLists + ` (names of ip lists. multiple separated by ";")
-- ` + ebexport.HeaderServices + ` (service name, port/proto, or port range/proto. multiple separated by ";")
+- ` + denyruleexport.HeaderName + `
+- ` + denyruleexport.HeaderHref + ` (no href will create a boundary.)
+- ` + denyruleexport.HeaderEnabled + ` (true/false)
+- ` + denyruleexport.HeaderProviderAllWorkloads + `(true/false)
+- ` + denyruleexport.HeaderProviderLabels + ` (semi-colon separated list in format of key:value. e.g., app:erp;role:db)
+- ` + denyruleexport.HeaderProviderLabelGroups + ` (names of label groups multiple separated by ";")
+- ` + denyruleexport.HeaderProviderIPLists + ` (names of ip lists. multiple separated by ";")
+- ` + denyruleexport.HeaderConsumerAllWorkloads + ` (true/false)
+- ` + denyruleexport.HeaderConsumerLabels + ` (semi-colon separated list in format of key:value. e.g., app:erp;role:db)
+- ` + denyruleexport.HeaderConsumerLabelGroups + ` (names of label groups multiple separated by ";")
+- ` + denyruleexport.HeaderConsumerIPLists + ` (names of ip lists. multiple separated by ";")
+- ` + denyruleexport.HeaderServices + ` (service name, port/proto, or port range/proto. multiple separated by ";")
 
 Recommended to run without --update-pce first to log of what will change. If --update-pce is used, import will create labels without prompt, but it will not create/update workloads without user confirmation, unless --no-prompt is used.`,
 
@@ -133,10 +132,10 @@ func ImportBoundariesFromCSV(input Input) {
 		var rowHref string
 
 		// If there is an href provided makae sure it exists
-		if c, ok := input.Headers[ebexport.HeaderHref]; ok && row[c] != "" {
+		if c, ok := input.Headers[denyruleexport.HeaderHref]; ok && row[c] != "" {
 			rowHref = row[c]
 			if _, ebCheck := input.PCE.EnforcementBoundaries[row[c]]; !ebCheck {
-				utils.LogWarning(fmt.Sprintf("csv line %d - %s href does not exist. skipping.", rowIndex+1, row[input.Headers[ebexport.HeaderHref]]), true)
+				utils.LogWarning(fmt.Sprintf("csv line %d - %s href does not exist. skipping.", rowIndex+1, row[input.Headers[denyruleexport.HeaderHref]]), true)
 				continue
 			}
 		}
@@ -154,7 +153,7 @@ func ImportBoundariesFromCSV(input Input) {
 		consumers := []illumioapi.ConsumerOrProvider{}
 
 		// All workloads
-		if c, ok := input.Headers[ebexport.HeaderConsumerAllWorkloads]; ok {
+		if c, ok := input.Headers[denyruleexport.HeaderConsumerAllWorkloads]; ok {
 			csvAllWorkloads, err := strconv.ParseBool(row[c])
 			if err != nil {
 				utils.LogError(fmt.Sprintf("csv line %d - %s is not valid boolean for consumer_all_workloads", rowIndex+1, row[c]))
@@ -178,7 +177,7 @@ func ImportBoundariesFromCSV(input Input) {
 		}
 
 		// IP Lists
-		if c, ok := input.Headers[ebexport.HeaderConsumerIPLists]; ok {
+		if c, ok := input.Headers[denyruleexport.HeaderConsumerIPLists]; ok {
 			consCSVipls := strings.Split(strings.ReplaceAll(row[c], "; ", ";"), ";")
 			if row[c] == "" {
 				consCSVipls = nil
@@ -195,12 +194,12 @@ func ImportBoundariesFromCSV(input Input) {
 		}
 
 		// Label Groups
-		if c, ok := input.Headers[ebexport.HeaderConsumerLabelGroups]; ok {
+		if c, ok := input.Headers[denyruleexport.HeaderConsumerLabelGroups]; ok {
 			consCSVlgs := strings.Split(strings.ReplaceAll(row[c], "; ", ";"), ";")
 			if row[c] == "" {
 				consCSVlgs = nil
 			}
-			lgChange, lgs := ruleimport.LabelGroupComparison(consCSVlgs, mockRule, input.PCE.LabelGroups, rowIndex+1, false)
+			lgChange, lgs := ruleimport.LabelGroupComparison(consCSVlgs, false, mockRule, input.PCE.LabelGroups, rowIndex+1, false)
 			if lgChange {
 				update = true
 			}
@@ -210,16 +209,16 @@ func ImportBoundariesFromCSV(input Input) {
 		}
 
 		// Labels
-		if row[input.Headers[ebexport.HeaderConsumerLabels]] != "" {
+		if row[input.Headers[denyruleexport.HeaderConsumerLabels]] != "" {
 			csvLabels := []illumioapi.Label{}
 			// Split at the semi-colons
-			userProvidedLabels := strings.Split(strings.Replace(row[input.Headers[ebexport.HeaderConsumerLabels]], "; ", ";", -1), ";")
+			userProvidedLabels := strings.Split(strings.Replace(row[input.Headers[denyruleexport.HeaderConsumerLabels]], "; ", ";", -1), ";")
 			for _, label := range userProvidedLabels {
 				key := strings.Split(label, ":")[0]
 				value := strings.TrimPrefix(label, key+":")
 				csvLabels = append(csvLabels, illumioapi.Label{Key: key, Value: value})
 			}
-			labelUpdate, labels := ruleimport.LabelComparison(csvLabels, input.PCE, mockRule, rowIndex+1, false)
+			labelUpdate, labels := ruleimport.LabelComparison(csvLabels, false, input.PCE, mockRule, rowIndex+1, false)
 			if labelUpdate {
 				update = true
 			}
@@ -232,7 +231,7 @@ func ImportBoundariesFromCSV(input Input) {
 		providers := []illumioapi.ConsumerOrProvider{}
 
 		// All workloads
-		if c, ok := input.Headers[ebexport.HeaderProviderAllWorkloads]; ok {
+		if c, ok := input.Headers[denyruleexport.HeaderProviderAllWorkloads]; ok {
 			csvAllWorkloads, err := strconv.ParseBool(row[c])
 			if err != nil {
 				utils.LogError(fmt.Sprintf("csv line %d - %s is not valid boolean for provider_all_workloads", rowIndex+1, row[c]))
@@ -255,7 +254,7 @@ func ImportBoundariesFromCSV(input Input) {
 		}
 
 		// IP Lists
-		if c, ok := input.Headers[ebexport.HeaderProviderIPLists]; ok {
+		if c, ok := input.Headers[denyruleexport.HeaderProviderIPLists]; ok {
 			provsCSVipls := strings.Split(strings.ReplaceAll(row[c], "; ", ";"), ";")
 			if row[c] == "" {
 				provsCSVipls = nil
@@ -272,12 +271,12 @@ func ImportBoundariesFromCSV(input Input) {
 		}
 
 		// Label Groups
-		if c, ok := input.Headers[ebexport.HeaderProviderLabelGroups]; ok {
+		if c, ok := input.Headers[denyruleexport.HeaderProviderLabelGroups]; ok {
 			provsCSVlgs := strings.Split(strings.ReplaceAll(row[c], "; ", ";"), ";")
 			if row[c] == "" {
 				provsCSVlgs = nil
 			}
-			lgChange, lgs := ruleimport.LabelGroupComparison(provsCSVlgs, mockRule, input.PCE.LabelGroups, rowIndex+1, true)
+			lgChange, lgs := ruleimport.LabelGroupComparison(provsCSVlgs, false, mockRule, input.PCE.LabelGroups, rowIndex+1, true)
 			if lgChange {
 				update = true
 			}
@@ -287,16 +286,16 @@ func ImportBoundariesFromCSV(input Input) {
 		}
 
 		// Labels
-		if row[input.Headers[ebexport.HeaderProviderLabels]] != "" {
+		if row[input.Headers[denyruleexport.HeaderProviderLabels]] != "" {
 			csvLabels := []illumioapi.Label{}
 			// Split at the semi-colons
-			userProvidedLabels := strings.Split(strings.Replace(row[input.Headers[ebexport.HeaderProviderLabels]], "; ", ";", -1), ";")
+			userProvidedLabels := strings.Split(strings.Replace(row[input.Headers[denyruleexport.HeaderProviderLabels]], "; ", ";", -1), ";")
 			for _, label := range userProvidedLabels {
 				key := strings.Split(label, ":")[0]
 				value := strings.TrimPrefix(label, key+":")
 				csvLabels = append(csvLabels, illumioapi.Label{Key: key, Value: value})
 			}
-			labelUpdate, labels := ruleimport.LabelComparison(csvLabels, input.PCE, mockRule, rowIndex+1, true)
+			labelUpdate, labels := ruleimport.LabelComparison(csvLabels, false, input.PCE, mockRule, rowIndex+1, true)
 			if labelUpdate {
 				update = true
 			}
@@ -308,7 +307,7 @@ func ImportBoundariesFromCSV(input Input) {
 		// ******************** Services ********************
 		var ingressSvc []illumioapi.IngressServices
 		var svcChange bool
-		if c, ok := input.Headers[ebexport.HeaderServices]; ok {
+		if c, ok := input.Headers[denyruleexport.HeaderServices]; ok {
 			csvServices := strings.Split(strings.ReplaceAll(row[c], "; ", ";"), ";")
 			if row[c] == "" {
 				csvServices = nil
@@ -324,7 +323,7 @@ func ImportBoundariesFromCSV(input Input) {
 
 		// ******************** Network Type ********************/
 		var networkType string
-		if c, ok := input.Headers[ebexport.HeaderNetworkType]; ok {
+		if c, ok := input.Headers[denyruleexport.HeaderNetworkType]; ok {
 			networkType = strings.ToLower(row[c])
 			if networkType != "brn" && networkType != "non_brn" && networkType != "all" && networkType != "" {
 				utils.LogError(fmt.Sprintf("csv line %d - %s is not valid network type. must be brn, non_brn, or all", rowIndex+1, row[c]))
@@ -339,7 +338,7 @@ func ImportBoundariesFromCSV(input Input) {
 
 		// ******************** Name ********************/
 		var name string
-		if c, ok := input.Headers[ebexport.HeaderName]; ok {
+		if c, ok := input.Headers[denyruleexport.HeaderName]; ok {
 			if rowHref != "" && input.PCE.EnforcementBoundaries[rowHref].Name != row[c] {
 				update = true
 				utils.LogInfo(fmt.Sprintf("csv line %d - name needs to be updated from %s to %s.", rowIndex+1, input.PCE.EnforcementBoundaries[rowHref].Name, row[c]), false)
@@ -349,7 +348,7 @@ func ImportBoundariesFromCSV(input Input) {
 
 		// ******************** Enabled ********************
 		var enabled bool
-		if c, ok := input.Headers[ebexport.HeaderEnabled]; ok {
+		if c, ok := input.Headers[denyruleexport.HeaderEnabled]; ok {
 			enabled, err = strconv.ParseBool(row[c])
 			if err != nil {
 				utils.LogError(fmt.Sprintf("csv line %d - %s is not valid boolean for rule_enabled", rowIndex+1, row[c]))

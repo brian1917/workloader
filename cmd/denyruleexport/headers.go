@@ -1,4 +1,4 @@
-package ebexport
+package denyruleexport
 
 const (
 	HeaderName                 = "name"

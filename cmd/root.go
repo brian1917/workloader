@@ -21,9 +21,9 @@ import (
 	"github.com/brian1917/workloader/cmd/dagsync"
 	"github.com/brian1917/workloader/cmd/deletehrefs"
 	"github.com/brian1917/workloader/cmd/deleteunusedlabels"
+	"github.com/brian1917/workloader/cmd/denyruleexport"
+	"github.com/brian1917/workloader/cmd/denyruleimport"
 	"github.com/brian1917/workloader/cmd/dupecheck"
-	"github.com/brian1917/workloader/cmd/ebexport"
-	"github.com/brian1917/workloader/cmd/ebimport"
 	"github.com/brian1917/workloader/cmd/extract"
 	"github.com/brian1917/workloader/cmd/flowimport"
 	"github.com/brian1917/workloader/cmd/gcplabel"
@@ -169,8 +169,8 @@ func init() {
 	RootCmd.AddCommand(rulesetimport.RuleSetImportCmd)
 	RootCmd.AddCommand(ruleexport.RuleExportCmd)
 	RootCmd.AddCommand(ruleimport.RuleImportCmd)
-	RootCmd.AddCommand(ebexport.EbExportCmd)
-	RootCmd.AddCommand(ebimport.EbImportCmd)
+	RootCmd.AddCommand(denyruleexport.DenyRuleExportCmd)
+	RootCmd.AddCommand(denyruleimport.DenyRuleImportCmd)
 	RootCmd.AddCommand(cwpexport.ContainerProfileExportCmd)
 	RootCmd.AddCommand(cwpimport.ContainerProfileImportCmd)
 	RootCmd.AddCommand(adgroupexport.ADGroupExportCmd)
