@@ -24,12 +24,12 @@ var updatePCE, noPrompt bool
 var labelsToBeCreated []illumioapi.Label
 
 func init() {
-	ContainerProfileImportCmd.Flags().StringVar(&removeValue, "remove-value", "workloader-remove", "value in csv used to tell workloader to replace existing value with a blank value. empty values in csv are ignored by default. to process empty values use --remove-value \"\" ")
+	ContainerProfileImportCmd.Flags().StringVar(&removeValue, "remove-value", "workloader-remove", "used for removing existing labels. by default blank cells in the csv are ignored. this unique string in the csv cell is used in place of the existing value to tell workloader to replace the existing value with a blank value.")
 }
 
 // WkldExportCmd runs the workload identifier
 var ContainerProfileImportCmd = &cobra.Command{
-	Use:   "cwp-import",
+	Use:   "cwp-import [csv file to import]",
 	Short: "Update container workload profiles in the PCE.",
 	Long: `
 Update container workload profiles in the PCE.
@@ -49,6 +49,11 @@ Only label assignments are supported. Label restrictions will show as blank in t
 		// Get the debug value from viper
 		updatePCE = viper.Get("update_pce").(bool)
 		noPrompt = viper.Get("no_prompt").(bool)
+
+		// Validate remove value
+		if removeValue == "" {
+			utils.LogError("remove-value cannot be blank")
+		}
 
 		// Get the PCE
 		pce, err := utils.GetTargetPCEV2(true)
