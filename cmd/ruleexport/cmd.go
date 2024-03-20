@@ -272,7 +272,7 @@ func (r *RuleExport) ExportToCsv() {
 	if !pceVersionIncludesUseSubnets {
 		tempHeaders := []string{}
 		for _, header := range headerSlice {
-			if header == HeaderConsumerUseWorkloadSubnets || header == HeaderProviderUseWorkloadSubnets {
+			if header == HeaderSrcUseWorkloadSubnets || header == HeaderDstUseWorkloadSubnets {
 				continue
 			}
 			tempHeaders = append(tempHeaders, header)
@@ -346,16 +346,16 @@ func (r *RuleExport) ExportToCsv() {
 			consumerLabelsExcusions := []string{}
 			for _, c := range ia.PtrToVal(rule.Consumers) {
 				if ia.PtrToVal(c.Actors) == "ams" {
-					csvEntryMap[HeaderConsumerAllWorkloads] = "true"
+					csvEntryMap[HeaderSrcAllWorkloads] = "true"
 					continue
 				}
 
 				// IP List
 				if c.IPList != nil {
-					if val, ok := csvEntryMap[HeaderConsumerIplists]; ok {
-						csvEntryMap[HeaderConsumerIplists] = fmt.Sprintf("%s;%s", val, input.PCE.IPLists[c.IPList.Href].Name)
+					if val, ok := csvEntryMap[HeaderSrcIplists]; ok {
+						csvEntryMap[HeaderSrcIplists] = fmt.Sprintf("%s;%s", val, input.PCE.IPLists[c.IPList.Href].Name)
 					} else {
-						csvEntryMap[HeaderConsumerIplists] = input.PCE.IPLists[c.IPList.Href].Name
+						csvEntryMap[HeaderSrcIplists] = input.PCE.IPLists[c.IPList.Href].Name
 					}
 				}
 				// Labels
@@ -370,25 +370,25 @@ func (r *RuleExport) ExportToCsv() {
 				// Label Groups
 				if c.LabelGroup != nil {
 					if c.Exclusion != nil && *c.Exclusion {
-						if val, ok := csvEntryMap[HeaderConsumerLabelGroup]; ok {
-							csvEntryMap[HeaderConsumerLabelGroupExclusions] = fmt.Sprintf("%s;%s", val, input.PCE.LabelGroups[c.LabelGroup.Href].Name)
+						if val, ok := csvEntryMap[HeaderSrcLabelGroup]; ok {
+							csvEntryMap[HeaderSrcLabelGroupExclusions] = fmt.Sprintf("%s;%s", val, input.PCE.LabelGroups[c.LabelGroup.Href].Name)
 						} else {
-							csvEntryMap[HeaderConsumerLabelGroupExclusions] = input.PCE.LabelGroups[c.LabelGroup.Href].Name
+							csvEntryMap[HeaderSrcLabelGroupExclusions] = input.PCE.LabelGroups[c.LabelGroup.Href].Name
 						}
 					} else {
-						if val, ok := csvEntryMap[HeaderConsumerLabelGroup]; ok {
-							csvEntryMap[HeaderConsumerLabelGroup] = fmt.Sprintf("%s;%s", val, input.PCE.LabelGroups[c.LabelGroup.Href].Name)
+						if val, ok := csvEntryMap[HeaderSrcLabelGroup]; ok {
+							csvEntryMap[HeaderSrcLabelGroup] = fmt.Sprintf("%s;%s", val, input.PCE.LabelGroups[c.LabelGroup.Href].Name)
 						} else {
-							csvEntryMap[HeaderConsumerLabelGroup] = input.PCE.LabelGroups[c.LabelGroup.Href].Name
+							csvEntryMap[HeaderSrcLabelGroup] = input.PCE.LabelGroups[c.LabelGroup.Href].Name
 						}
 					}
 				}
 				// Virtual Services
 				if c.VirtualService != nil {
-					if val, ok := csvEntryMap[HeaderConsumerVirtualServices]; ok {
-						csvEntryMap[HeaderConsumerVirtualServices] = fmt.Sprintf("%s;%s", val, input.PCE.VirtualServices[c.VirtualService.Href].Name)
+					if val, ok := csvEntryMap[HeaderSrcVirtualServices]; ok {
+						csvEntryMap[HeaderSrcVirtualServices] = fmt.Sprintf("%s;%s", val, input.PCE.VirtualServices[c.VirtualService.Href].Name)
 					} else {
-						csvEntryMap[HeaderConsumerVirtualServices] = input.PCE.VirtualServices[c.VirtualService.Href].Name
+						csvEntryMap[HeaderSrcVirtualServices] = input.PCE.VirtualServices[c.VirtualService.Href].Name
 					}
 				}
 				if c.Workload != nil {
@@ -403,10 +403,10 @@ func (r *RuleExport) ExportToCsv() {
 					} else {
 						pceHostname = "DELETED-WORKLOAD"
 					}
-					if val, ok := csvEntryMap[HeaderConsumerWorkloads]; ok {
-						csvEntryMap[HeaderConsumerWorkloads] = fmt.Sprintf("%s;%s", val, pceHostname)
+					if val, ok := csvEntryMap[HeaderSrcWorkloads]; ok {
+						csvEntryMap[HeaderSrcWorkloads] = fmt.Sprintf("%s;%s", val, pceHostname)
 					} else {
-						csvEntryMap[HeaderConsumerWorkloads] = pceHostname
+						csvEntryMap[HeaderSrcWorkloads] = pceHostname
 					}
 				}
 			}
@@ -416,7 +416,7 @@ func (r *RuleExport) ExportToCsv() {
 			for _, csp := range ia.PtrToVal(rule.ConsumingSecurityPrincipals) {
 				consumingSecPrincipals = append(consumingSecPrincipals, input.PCE.ConsumingSecurityPrincipals[csp.Href].Name)
 			}
-			csvEntryMap[HeaderConsumerUserGroups] = strings.Join(consumingSecPrincipals, ";")
+			csvEntryMap[HeaderSrcUserGroups] = strings.Join(consumingSecPrincipals, ";")
 
 			// Providers
 			providerLabels := []string{}
@@ -424,15 +424,15 @@ func (r *RuleExport) ExportToCsv() {
 			for _, p := range ia.PtrToVal(rule.Providers) {
 
 				if ia.PtrToVal(p.Actors) == "ams" {
-					csvEntryMap[HeaderProviderAllWorkloads] = "true"
+					csvEntryMap[HeaderDstAllWorkloads] = "true"
 					continue
 				}
 				// IP List
 				if p.IPList != nil {
-					if val, ok := csvEntryMap[HeaderProviderIplists]; ok {
-						csvEntryMap[HeaderProviderIplists] = fmt.Sprintf("%s;%s", val, input.PCE.IPLists[p.IPList.Href].Name)
+					if val, ok := csvEntryMap[HeaderDstIplists]; ok {
+						csvEntryMap[HeaderDstIplists] = fmt.Sprintf("%s;%s", val, input.PCE.IPLists[p.IPList.Href].Name)
 					} else {
-						csvEntryMap[HeaderProviderIplists] = input.PCE.IPLists[p.IPList.Href].Name
+						csvEntryMap[HeaderDstIplists] = input.PCE.IPLists[p.IPList.Href].Name
 					}
 				}
 				// Labels
@@ -447,25 +447,25 @@ func (r *RuleExport) ExportToCsv() {
 				// Label Groups
 				if p.LabelGroup != nil {
 					if p.Exclusion != nil && *p.Exclusion {
-						if val, ok := csvEntryMap[HeaderProviderLabelGroups]; ok {
-							csvEntryMap[HeaderProviderLabelGroupsExclusions] = fmt.Sprintf("%s;%s", val, input.PCE.LabelGroups[p.LabelGroup.Href].Name)
+						if val, ok := csvEntryMap[HeaderDstLabelGroups]; ok {
+							csvEntryMap[HeaderDstLabelGroupsExclusions] = fmt.Sprintf("%s;%s", val, input.PCE.LabelGroups[p.LabelGroup.Href].Name)
 						} else {
-							csvEntryMap[HeaderProviderLabelGroupsExclusions] = input.PCE.LabelGroups[p.LabelGroup.Href].Name
+							csvEntryMap[HeaderDstLabelGroupsExclusions] = input.PCE.LabelGroups[p.LabelGroup.Href].Name
 						}
 					} else {
-						if val, ok := csvEntryMap[HeaderProviderLabelGroups]; ok {
-							csvEntryMap[HeaderProviderLabelGroups] = fmt.Sprintf("%s;%s", val, input.PCE.LabelGroups[p.LabelGroup.Href].Name)
+						if val, ok := csvEntryMap[HeaderDstLabelGroups]; ok {
+							csvEntryMap[HeaderDstLabelGroups] = fmt.Sprintf("%s;%s", val, input.PCE.LabelGroups[p.LabelGroup.Href].Name)
 						} else {
-							csvEntryMap[HeaderProviderLabelGroups] = input.PCE.LabelGroups[p.LabelGroup.Href].Name
+							csvEntryMap[HeaderDstLabelGroups] = input.PCE.LabelGroups[p.LabelGroup.Href].Name
 						}
 					}
 				}
 				// Virtual Services
 				if p.VirtualService != nil {
-					if val, ok := csvEntryMap[HeaderProviderVirtualServices]; ok {
-						csvEntryMap[HeaderProviderVirtualServices] = fmt.Sprintf("%s;%s", val, input.PCE.VirtualServices[p.VirtualService.Href].Name)
+					if val, ok := csvEntryMap[HeaderDstVirtualServices]; ok {
+						csvEntryMap[HeaderDstVirtualServices] = fmt.Sprintf("%s;%s", val, input.PCE.VirtualServices[p.VirtualService.Href].Name)
 					} else {
-						csvEntryMap[HeaderProviderVirtualServices] = input.PCE.VirtualServices[p.VirtualService.Href].Name
+						csvEntryMap[HeaderDstVirtualServices] = input.PCE.VirtualServices[p.VirtualService.Href].Name
 					}
 				}
 				// Workloads
@@ -481,27 +481,27 @@ func (r *RuleExport) ExportToCsv() {
 					} else {
 						pceHostname = "DELETED-WORKLOAD"
 					}
-					if val, ok := csvEntryMap[HeaderProviderWorkloads]; ok {
-						csvEntryMap[HeaderProviderWorkloads] = fmt.Sprintf("%s;%s", val, pceHostname)
+					if val, ok := csvEntryMap[HeaderDstWorkloads]; ok {
+						csvEntryMap[HeaderDstWorkloads] = fmt.Sprintf("%s;%s", val, pceHostname)
 					} else {
-						csvEntryMap[HeaderProviderWorkloads] = pceHostname
+						csvEntryMap[HeaderDstWorkloads] = pceHostname
 					}
 				}
 				// Virtual Servers
 				if p.VirtualServer != nil {
-					if val, ok := csvEntryMap[HeaderProviderVirtualServers]; ok {
-						csvEntryMap[HeaderProviderVirtualServers] = fmt.Sprintf("%s;%s", val, input.PCE.VirtualServers[p.VirtualServer.Href].Name)
+					if val, ok := csvEntryMap[HeaderDstVirtualServers]; ok {
+						csvEntryMap[HeaderDstVirtualServers] = fmt.Sprintf("%s;%s", val, input.PCE.VirtualServers[p.VirtualServer.Href].Name)
 					} else {
-						csvEntryMap[HeaderProviderVirtualServers] = input.PCE.VirtualServers[p.VirtualServer.Href].Name
+						csvEntryMap[HeaderDstVirtualServers] = input.PCE.VirtualServers[p.VirtualServer.Href].Name
 					}
 				}
 			}
 
 			// Append the labels
-			csvEntryMap[HeaderConsumerLabels] = strings.Join(consumerLabels, ";")
-			csvEntryMap[HeaderProviderLabels] = strings.Join(providerLabels, ";")
-			csvEntryMap[HeaderConsumerLabelsExclusions] = strings.Join(consumerLabelsExcusions, ";")
-			csvEntryMap[HeaderProviderLabelsExclusions] = strings.Join(providerLabelsExclusions, ";")
+			csvEntryMap[HeaderSrcLabels] = strings.Join(consumerLabels, ";")
+			csvEntryMap[HeaderDstLabels] = strings.Join(providerLabels, ";")
+			csvEntryMap[HeaderSrcLabelsExclusions] = strings.Join(consumerLabelsExcusions, ";")
+			csvEntryMap[HeaderDstLabelsExclusions] = strings.Join(providerLabelsExclusions, ";")
 
 			// Services
 			services := []string{}
@@ -544,19 +544,19 @@ func (r *RuleExport) ExportToCsv() {
 			}
 
 			// Resolve As
-			csvEntryMap[HeaderConsumerResolveLabelsAs] = strings.Join(ia.PtrToVal(rule.ResolveLabelsAs.Consumers), ";")
-			csvEntryMap[HeaderProviderResolveLabelsAs] = strings.Join(ia.PtrToVal(rule.ResolveLabelsAs.Providers), ";")
+			csvEntryMap[HeaderSrcResolveLabelsAs] = strings.Join(ia.PtrToVal(rule.ResolveLabelsAs.Consumers), ";")
+			csvEntryMap[HeaderDstResolveLabelsAs] = strings.Join(ia.PtrToVal(rule.ResolveLabelsAs.Providers), ";")
 
 			// Use Workload Subnets
 			if pceVersionIncludesUseSubnets {
-				csvEntryMap[HeaderConsumerUseWorkloadSubnets] = "false"
-				csvEntryMap[HeaderProviderUseWorkloadSubnets] = "false"
+				csvEntryMap[HeaderSrcUseWorkloadSubnets] = "false"
+				csvEntryMap[HeaderDstUseWorkloadSubnets] = "false"
 				for _, u := range ia.PtrToVal(rule.UseWorkloadSubnets) {
 					if u == "consumers" {
-						csvEntryMap[HeaderConsumerUseWorkloadSubnets] = "true"
+						csvEntryMap[HeaderSrcUseWorkloadSubnets] = "true"
 					}
 					if u == "providers" {
-						csvEntryMap[HeaderProviderUseWorkloadSubnets] = "true"
+						csvEntryMap[HeaderDstUseWorkloadSubnets] = "true"
 					}
 				}
 			}
@@ -564,11 +564,11 @@ func (r *RuleExport) ExportToCsv() {
 			// Append to output if there are no filters or if we pass the filter checks
 
 			// Adjust some blanks
-			if csvEntryMap[HeaderConsumerAllWorkloads] == "" {
-				csvEntryMap[HeaderConsumerAllWorkloads] = "false"
+			if csvEntryMap[HeaderSrcAllWorkloads] == "" {
+				csvEntryMap[HeaderSrcAllWorkloads] = "false"
 			}
-			if csvEntryMap[HeaderProviderAllWorkloads] == "" {
-				csvEntryMap[HeaderProviderAllWorkloads] = "false"
+			if csvEntryMap[HeaderDstAllWorkloads] == "" {
+				csvEntryMap[HeaderDstAllWorkloads] = "false"
 			}
 
 			if input.TrafficCount {

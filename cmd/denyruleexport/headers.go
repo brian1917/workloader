@@ -1,22 +1,22 @@
 package denyruleexport
 
 const (
-	HeaderName                 = "name"
-	HeaderHref                 = "href"
-	HeaderEnabled              = "enabled"
-	HeaderProviderAllWorkloads = "provider_all_workloads"
-	HeaderProviderLabels       = "provider_labels"
-	HeaderProviderLabelGroups  = "provider_label_groups"
-	HeaderProviderIPLists      = "provider_iplists"
-	HeaderConsumerAllWorkloads = "consumer_all_workloads"
-	HeaderConsumerLabels       = "consumer_labels"
-	HeaderConsumerLabelGroups  = "consumer_label_groups"
-	HeaderConsumerIPLists      = "consumer_iplists"
-	HeaderServices             = "services"
-	HeaderNetworkType          = "network_type"
-	HeaderCreatedAt            = "created_at"
-	HeaderUpdatedAt            = "updated_at"
-	HeaderUpdateType           = "update_type"
+	HeaderName            = "name"
+	HeaderHref            = "href"
+	HeaderEnabled         = "enabled"
+	HeaderDstAllWorkloads = "dst_all_workloads"
+	HeaderDstLabels       = "dst_labels"
+	HeaderDstLabelGroups  = "dst_label_groups"
+	HeaderDstIPLists      = "dst_iplists"
+	HeaderSrcAllWorkloads = "src_all_workloads"
+	HeaderSrcLabels       = "src_labels"
+	HeaderSrcLabelGroups  = "src_label_groups"
+	HeaderSrcIPLists      = "src_iplists"
+	HeaderServices        = "services"
+	HeaderNetworkType     = "network_type"
+	HeaderCreatedAt       = "created_at"
+	HeaderUpdatedAt       = "updated_at"
+	HeaderUpdateType      = "update_type"
 )
 
 func AllHeaders(noHref bool) []string {
@@ -26,14 +26,14 @@ func AllHeaders(noHref bool) []string {
 	}
 	headers = append(headers,
 		HeaderEnabled,
-		HeaderConsumerIPLists,
-		HeaderConsumerAllWorkloads,
-		HeaderConsumerLabels,
-		HeaderConsumerLabelGroups,
-		HeaderProviderIPLists,
-		HeaderProviderAllWorkloads,
-		HeaderProviderLabels,
-		HeaderProviderLabelGroups,
+		HeaderSrcIPLists,
+		HeaderSrcAllWorkloads,
+		HeaderSrcLabels,
+		HeaderSrcLabelGroups,
+		HeaderDstIPLists,
+		HeaderDstAllWorkloads,
+		HeaderDstLabels,
+		HeaderDstLabelGroups,
 		HeaderServices,
 		HeaderNetworkType,
 		HeaderCreatedAt,

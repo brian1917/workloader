@@ -27,8 +27,8 @@ func (i *Input) processHeaders(headers []string) {
 		ruleexport.HeaderUnscopedConsumers,
 		ruleexport.HeaderRulesetName,
 		ruleexport.HeaderRuleEnabled,
-		ruleexport.HeaderProviderResolveLabelsAs,
-		ruleexport.HeaderConsumerResolveLabelsAs}
+		ruleexport.HeaderDstResolveLabelsAs,
+		ruleexport.HeaderSrcResolveLabelsAs}
 
 	for _, rh := range requiredHeaders {
 		if _, ok := i.Headers[rh]; !ok {

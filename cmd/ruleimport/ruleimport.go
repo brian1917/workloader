@@ -130,43 +130,43 @@ func ImportRulesFromCSV(input Input) {
 		}
 		// Add to the checker map
 		csvRuleSetChecker[l[input.Headers[ruleexport.HeaderRulesetName]]] = true
-		if index, ok := input.Headers[ruleexport.HeaderProviderWorkloads]; ok && l[index] != "" {
+		if index, ok := input.Headers[ruleexport.HeaderDstWorkloads]; ok && l[index] != "" {
 			neededObjects["workloads"] = true
 			needWklds = true
 		}
-		if index, ok := input.Headers[ruleexport.HeaderConsumerWorkloads]; ok && l[index] != "" {
+		if index, ok := input.Headers[ruleexport.HeaderSrcWorkloads]; ok && l[index] != "" {
 			neededObjects["workloads"] = true
 			needWklds = true
 		}
-		if index, ok := input.Headers[ruleexport.HeaderProviderVirtualServices]; ok && l[index] != "" {
+		if index, ok := input.Headers[ruleexport.HeaderDstVirtualServices]; ok && l[index] != "" {
 			neededObjects["virtual_services"] = true
 			needVirtualServices = true
 		}
-		if index, ok := input.Headers[ruleexport.HeaderConsumerVirtualServices]; ok && l[index] != "" {
+		if index, ok := input.Headers[ruleexport.HeaderSrcVirtualServices]; ok && l[index] != "" {
 			neededObjects["virtual_services"] = true
 			needVirtualServices = true
 		}
-		if index, ok := input.Headers[ruleexport.HeaderProviderVirtualServers]; ok && l[index] != "" {
+		if index, ok := input.Headers[ruleexport.HeaderDstVirtualServers]; ok && l[index] != "" {
 			neededObjects["virtual_servers"] = true
 			needVirtualServers = true
 		}
-		if index, ok := input.Headers[ruleexport.HeaderConsumerLabelGroup]; ok && l[index] != "" {
+		if index, ok := input.Headers[ruleexport.HeaderSrcLabelGroup]; ok && l[index] != "" {
 			neededObjects["label_groups"] = true
 			needLabelGroups = true
 		}
-		if index, ok := input.Headers[ruleexport.HeaderConsumerLabelGroupExclusions]; ok && l[index] != "" {
+		if index, ok := input.Headers[ruleexport.HeaderSrcLabelGroupExclusions]; ok && l[index] != "" {
 			neededObjects["label_groups"] = true
 			needLabelGroups = true
 		}
-		if index, ok := input.Headers[ruleexport.HeaderProviderLabelGroups]; ok && l[index] != "" {
+		if index, ok := input.Headers[ruleexport.HeaderDstLabelGroups]; ok && l[index] != "" {
 			neededObjects["label_groups"] = true
 			needLabelGroups = true
 		}
-		if index, ok := input.Headers[ruleexport.HeaderProviderLabelGroupsExclusions]; ok && l[index] != "" {
+		if index, ok := input.Headers[ruleexport.HeaderDstLabelGroupsExclusions]; ok && l[index] != "" {
 			neededObjects["label_groups"] = true
 			needLabelGroups = true
 		}
-		if index, ok := input.Headers[ruleexport.HeaderConsumerUserGroups]; ok && l[index] != "" {
+		if index, ok := input.Headers[ruleexport.HeaderSrcUserGroups]; ok && l[index] != "" {
 			neededObjects["consuming_security_principals"] = true
 			needUserGroups = true
 		}
@@ -304,7 +304,7 @@ CSVEntries:
 		consumers := []illumioapi.ConsumerOrProvider{}
 
 		// All workloads
-		if c, ok := input.Headers[ruleexport.HeaderConsumerAllWorkloads]; ok {
+		if c, ok := input.Headers[ruleexport.HeaderSrcAllWorkloads]; ok {
 			csvAllWorkloads, err := strconv.ParseBool(l[c])
 			if err != nil {
 				utils.LogError(fmt.Sprintf("csv line %d - %s is not valid boolean for consumer_all_workloads", i+1, l[c]))
@@ -327,7 +327,7 @@ CSVEntries:
 		}
 
 		// IP Lists
-		if c, ok := input.Headers[ruleexport.HeaderConsumerIplists]; ok {
+		if c, ok := input.Headers[ruleexport.HeaderSrcIplists]; ok {
 			consCSVipls := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
 			if l[c] == "" {
 				consCSVipls = nil
@@ -342,7 +342,7 @@ CSVEntries:
 		}
 
 		// Workloads
-		if c, ok := input.Headers[ruleexport.HeaderConsumerWorkloads]; ok {
+		if c, ok := input.Headers[ruleexport.HeaderSrcWorkloads]; ok {
 			consCSVwklds := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
 			if l[c] == "" {
 				consCSVwklds = nil
@@ -357,7 +357,7 @@ CSVEntries:
 		}
 
 		// Virtual Services
-		if c, ok := input.Headers[ruleexport.HeaderConsumerVirtualServices]; ok {
+		if c, ok := input.Headers[ruleexport.HeaderSrcVirtualServices]; ok {
 			consCSVVSs := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
 			if l[c] == "" {
 				consCSVVSs = nil
@@ -372,7 +372,7 @@ CSVEntries:
 		}
 
 		// Label Groups
-		if c, ok := input.Headers[ruleexport.HeaderConsumerLabelGroup]; ok {
+		if c, ok := input.Headers[ruleexport.HeaderSrcLabelGroup]; ok {
 			consCSVlgs := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
 			if l[c] == "" {
 				consCSVlgs = nil
@@ -387,7 +387,7 @@ CSVEntries:
 		}
 
 		// Label Groups - exclude
-		if c, ok := input.Headers[ruleexport.HeaderConsumerLabelGroupExclusions]; ok {
+		if c, ok := input.Headers[ruleexport.HeaderSrcLabelGroupExclusions]; ok {
 			consCSVlgs := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
 			if l[c] == "" {
 				consCSVlgs = nil
@@ -402,14 +402,14 @@ CSVEntries:
 		}
 
 		// Labels
-		if l[input.Headers[ruleexport.HeaderConsumerLabels]] != "" {
+		if l[input.Headers[ruleexport.HeaderSrcLabels]] != "" {
 			csvLabels := []illumioapi.Label{}
 			// Split at the semi-colons
 			var userProvidedLabels []string
 			if input.NoTrimming {
-				userProvidedLabels = strings.Split(l[input.Headers[ruleexport.HeaderConsumerLabels]], ";")
+				userProvidedLabels = strings.Split(l[input.Headers[ruleexport.HeaderSrcLabels]], ";")
 			} else {
-				userProvidedLabels = strings.Split(strings.Replace(l[input.Headers[ruleexport.HeaderConsumerLabels]], "; ", ";", -1), ";")
+				userProvidedLabels = strings.Split(strings.Replace(l[input.Headers[ruleexport.HeaderSrcLabels]], "; ", ";", -1), ";")
 			}
 			for _, label := range userProvidedLabels {
 				key := strings.Split(label, ":")[0]
@@ -426,14 +426,14 @@ CSVEntries:
 		}
 
 		// Labels - exclude
-		if l[input.Headers[ruleexport.HeaderConsumerLabelsExclusions]] != "" {
+		if l[input.Headers[ruleexport.HeaderSrcLabelsExclusions]] != "" {
 			csvLabels := []illumioapi.Label{}
 			// Split at the semi-colons
 			var userProvidedLabels []string
 			if input.NoTrimming {
-				userProvidedLabels = strings.Split(l[input.Headers[ruleexport.HeaderConsumerLabelsExclusions]], ";")
+				userProvidedLabels = strings.Split(l[input.Headers[ruleexport.HeaderSrcLabelsExclusions]], ";")
 			} else {
-				userProvidedLabels = strings.Split(strings.Replace(l[input.Headers[ruleexport.HeaderConsumerLabelsExclusions]], "; ", ";", -1), ";")
+				userProvidedLabels = strings.Split(strings.Replace(l[input.Headers[ruleexport.HeaderSrcLabelsExclusions]], "; ", ";", -1), ";")
 			}
 			for _, label := range userProvidedLabels {
 				key := strings.Split(label, ":")[0]
@@ -451,7 +451,7 @@ CSVEntries:
 
 		// User Groups - parse and run comparison
 		var consumingSecPrincipals []illumioapi.ConsumingSecurityPrincipals
-		if c, ok := input.Headers[ruleexport.HeaderConsumerUserGroups]; ok {
+		if c, ok := input.Headers[ruleexport.HeaderSrcUserGroups]; ok {
 			csvUserGroups := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
 			if l[c] == "" {
 				csvUserGroups = nil
@@ -468,7 +468,7 @@ CSVEntries:
 		providers := []illumioapi.ConsumerOrProvider{}
 
 		// All workloads
-		if c, ok := input.Headers[ruleexport.HeaderProviderAllWorkloads]; ok {
+		if c, ok := input.Headers[ruleexport.HeaderDstAllWorkloads]; ok {
 			csvAllWorkloads, err := strconv.ParseBool(l[c])
 			if err != nil {
 				utils.LogError(fmt.Sprintf("csv line %d - %s is not valid boolean for provider_all_workloads", i+1, l[c]))
@@ -491,14 +491,14 @@ CSVEntries:
 		}
 
 		// Labels
-		if l[input.Headers[ruleexport.HeaderProviderLabels]] != "" {
+		if l[input.Headers[ruleexport.HeaderDstLabels]] != "" {
 			csvLabels := []illumioapi.Label{}
 			// Split at the semi-colons
 			var userProvidedLabels []string
 			if input.NoTrimming {
-				userProvidedLabels = strings.Split(l[input.Headers[ruleexport.HeaderProviderLabels]], ";")
+				userProvidedLabels = strings.Split(l[input.Headers[ruleexport.HeaderDstLabels]], ";")
 			} else {
-				userProvidedLabels = strings.Split(strings.Replace(l[input.Headers[ruleexport.HeaderProviderLabels]], "; ", ";", -1), ";")
+				userProvidedLabels = strings.Split(strings.Replace(l[input.Headers[ruleexport.HeaderDstLabels]], "; ", ";", -1), ";")
 			}
 			for _, label := range userProvidedLabels {
 				key := strings.Split(label, ":")[0]
@@ -515,14 +515,14 @@ CSVEntries:
 		}
 
 		// Labels - exclude
-		if l[input.Headers[ruleexport.HeaderProviderLabelsExclusions]] != "" {
+		if l[input.Headers[ruleexport.HeaderDstLabelsExclusions]] != "" {
 			csvLabels := []illumioapi.Label{}
 			// Split at the semi-colons
 			var userProvidedLabels []string
 			if input.NoTrimming {
-				userProvidedLabels = strings.Split(l[input.Headers[ruleexport.HeaderProviderLabelsExclusions]], ";")
+				userProvidedLabels = strings.Split(l[input.Headers[ruleexport.HeaderDstLabelsExclusions]], ";")
 			} else {
-				userProvidedLabels = strings.Split(strings.Replace(l[input.Headers[ruleexport.HeaderProviderLabelsExclusions]], "; ", ";", -1), ";")
+				userProvidedLabels = strings.Split(strings.Replace(l[input.Headers[ruleexport.HeaderDstLabelsExclusions]], "; ", ";", -1), ";")
 			}
 			for _, label := range userProvidedLabels {
 				key := strings.Split(label, ":")[0]
@@ -539,7 +539,7 @@ CSVEntries:
 		}
 
 		// IP Lists
-		if c, ok := input.Headers[ruleexport.HeaderProviderIplists]; ok {
+		if c, ok := input.Headers[ruleexport.HeaderDstIplists]; ok {
 			provCSVipls := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
 			if l[c] == "" {
 				provCSVipls = nil
@@ -554,7 +554,7 @@ CSVEntries:
 		}
 
 		// Workloads
-		if c, ok := input.Headers[ruleexport.HeaderProviderWorkloads]; ok {
+		if c, ok := input.Headers[ruleexport.HeaderDstWorkloads]; ok {
 			provsCSVwklds := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
 			if l[c] == "" {
 				provsCSVwklds = nil
@@ -569,7 +569,7 @@ CSVEntries:
 		}
 
 		// Virtual Services
-		if c, ok := input.Headers[ruleexport.HeaderProviderVirtualServices]; ok {
+		if c, ok := input.Headers[ruleexport.HeaderDstVirtualServices]; ok {
 			provCSVVSs := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
 			if l[c] == "" {
 				provCSVVSs = nil
@@ -584,7 +584,7 @@ CSVEntries:
 		}
 
 		// Label Groups
-		if c, ok := input.Headers[ruleexport.HeaderProviderLabelGroups]; ok {
+		if c, ok := input.Headers[ruleexport.HeaderDstLabelGroups]; ok {
 			provCSVlgs := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
 			if l[c] == "" {
 				provCSVlgs = nil
@@ -599,7 +599,7 @@ CSVEntries:
 		}
 
 		// Label Groups - exclude
-		if c, ok := input.Headers[ruleexport.HeaderProviderLabelGroupsExclusions]; ok {
+		if c, ok := input.Headers[ruleexport.HeaderDstLabelGroupsExclusions]; ok {
 			provCSVlgs := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
 			if l[c] == "" {
 				provCSVlgs = nil
@@ -731,7 +731,7 @@ CSVEntries:
 
 		// ******************** VS / Workload only ********************/
 
-		headers := []string{ruleexport.HeaderConsumerResolveLabelsAs, ruleexport.HeaderProviderResolveLabelsAs}
+		headers := []string{ruleexport.HeaderSrcResolveLabelsAs, ruleexport.HeaderDstResolveLabelsAs}
 		pceRuleResolveAs := [][]string{}
 		if rule, ok := rHrefMap[rowRuleHref]; ok {
 			pceRuleResolveAs = append(pceRuleResolveAs, illumioapi.PtrToVal(rule.ResolveLabelsAs.Consumers), illumioapi.PtrToVal(rule.ResolveLabelsAs.Providers))
@@ -791,7 +791,7 @@ CSVEntries:
 
 		// Set up some slices
 		target := []string{"consumers", "providers"}
-		targetHeaders := []string{ruleexport.HeaderConsumerUseWorkloadSubnets, ruleexport.HeaderProviderUseWorkloadSubnets}
+		targetHeaders := []string{ruleexport.HeaderSrcUseWorkloadSubnets, ruleexport.HeaderDstUseWorkloadSubnets}
 
 		// Iterate through the slices
 		for a := range target {

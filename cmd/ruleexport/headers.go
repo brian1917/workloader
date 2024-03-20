@@ -8,29 +8,29 @@ const (
 	HeaderRuleDescription               = "rule_description"
 	HeaderRuleEnabled                   = "rule_enabled"
 	HeaderUnscopedConsumers             = "unscoped_consumers"
-	HeaderConsumerAllWorkloads          = "consumer_all_workloads"
-	HeaderConsumerLabels                = "consumer_labels"
-	HeaderConsumerLabelsExclusions      = "consumer_labels_exclusions"
-	HeaderConsumerLabelGroup            = "consumer_label_groups"
-	HeaderConsumerLabelGroupExclusions  = "consumer_label_groups_exclusions"
-	HeaderConsumerIplists               = "consumer_iplists"
-	HeaderConsumerUserGroups            = "consumer_user_groups"
-	HeaderConsumerWorkloads             = "consumer_workloads"
-	HeaderConsumerVirtualServices       = "consumer_virtual_services"
-	HeaderConsumerUseWorkloadSubnets    = "consumer_use_workload_subnets"
-	HeaderProviderAllWorkloads          = "provider_all_workloads"
-	HeaderProviderLabels                = "provider_labels"
-	HeaderProviderLabelsExclusions      = "provider_labels_exclusions"
-	HeaderProviderLabelGroups           = "provider_label_groups"
-	HeaderProviderLabelGroupsExclusions = "provider_label_groups_exclusions"
-	HeaderProviderIplists               = "provider_iplists"
-	HeaderProviderWorkloads             = "provider_workloads"
-	HeaderProviderVirtualServices       = "provider_virtual_services"
-	HeaderProviderVirtualServers        = "provider_virtual_servers"
-	HeaderProviderUseWorkloadSubnets    = "provider_use_workload_subnets"
+	HeaderSrcAllWorkloads               = "src_all_workloads"
+	HeaderSrcLabels                     = "src_labels"
+	HeaderSrcLabelsExclusions           = "src_labels_exclusions"
+	HeaderSrcLabelGroup                 = "src_label_groups"
+	HeaderSrcLabelGroupExclusions       = "src_label_groups_exclusions"
+	HeaderSrcIplists                    = "src_iplists"
+	HeaderSrcUserGroups                 = "src_user_groups"
+	HeaderSrcWorkloads                  = "src_workloads"
+	HeaderSrcVirtualServices            = "src_virtual_services"
+	HeaderSrcUseWorkloadSubnets         = "src_use_workload_subnets"
+	HeaderDstAllWorkloads               = "dst_all_workloads"
+	HeaderDstLabels                     = "dst_labels"
+	HeaderDstLabelsExclusions           = "dst_labels_exclusions"
+	HeaderDstLabelGroups                = "dst_label_groups"
+	HeaderDstLabelGroupsExclusions      = "dst_label_groups_exclusions"
+	HeaderDstIplists                    = "dst_iplists"
+	HeaderDstWorkloads                  = "dst_workloads"
+	HeaderDstVirtualServices            = "dst_virtual_services"
+	HeaderDstVirtualServers             = "dst_virtual_servers"
+	HeaderDstUseWorkloadSubnets         = "dst_use_workload_subnets"
 	HeaderServices                      = "services"
-	HeaderConsumerResolveLabelsAs       = "consumer_resolve_labels_as"
-	HeaderProviderResolveLabelsAs       = "provider_resolve_labels_as"
+	HeaderSrcResolveLabelsAs            = "src_resolve_labels_as"
+	HeaderDstResolveLabelsAs            = "dst_resolve_labels_as"
 	HeaderMachineAuthEnabled            = "machine_auth_enabled"
 	HeaderSecureConnectEnabled          = "secure_connect_enabled"
 	HeaderStateless                     = "stateless_enabled"
@@ -51,29 +51,29 @@ func getCSVHeaders(templateFormat bool) []string {
 		HeaderRuleDescription,
 		HeaderRuleEnabled,
 		HeaderUnscopedConsumers,
-		HeaderConsumerAllWorkloads,
-		HeaderConsumerLabels,
-		HeaderConsumerLabelsExclusions,
-		HeaderConsumerLabelGroup,
-		HeaderConsumerLabelGroupExclusions,
-		HeaderConsumerIplists,
-		HeaderConsumerUserGroups,
-		HeaderConsumerWorkloads,
-		HeaderConsumerVirtualServices,
-		HeaderConsumerUseWorkloadSubnets,
-		HeaderProviderAllWorkloads,
-		HeaderProviderLabels,
-		HeaderProviderLabelsExclusions,
-		HeaderProviderLabelGroups,
-		HeaderProviderLabelGroupsExclusions,
-		HeaderProviderIplists,
-		HeaderProviderWorkloads,
-		HeaderProviderVirtualServices,
-		HeaderProviderVirtualServers,
-		HeaderProviderUseWorkloadSubnets,
+		HeaderSrcAllWorkloads,
+		HeaderSrcLabels,
+		HeaderSrcLabelsExclusions,
+		HeaderSrcLabelGroup,
+		HeaderSrcLabelGroupExclusions,
+		HeaderSrcIplists,
+		HeaderSrcUserGroups,
+		HeaderSrcWorkloads,
+		HeaderSrcVirtualServices,
+		HeaderSrcUseWorkloadSubnets,
+		HeaderDstAllWorkloads,
+		HeaderDstLabels,
+		HeaderDstLabelsExclusions,
+		HeaderDstLabelGroups,
+		HeaderDstLabelGroupsExclusions,
+		HeaderDstIplists,
+		HeaderDstWorkloads,
+		HeaderDstVirtualServices,
+		HeaderDstVirtualServers,
+		HeaderDstUseWorkloadSubnets,
 		HeaderServices,
-		HeaderConsumerResolveLabelsAs,
-		HeaderProviderResolveLabelsAs,
+		HeaderSrcResolveLabelsAs,
+		HeaderDstResolveLabelsAs,
 		HeaderMachineAuthEnabled,
 		HeaderSecureConnectEnabled,
 		HeaderStateless,
@@ -89,7 +89,7 @@ func getCSVHeaders(templateFormat bool) []string {
 func createEntrySlice(csvEntryMap map[string]string, templateFormat bool, useSubnets bool) []string {
 	entry := []string{}
 	for _, h := range getCSVHeaders(templateFormat) {
-		if !useSubnets && (h == HeaderConsumerUseWorkloadSubnets || h == HeaderProviderUseWorkloadSubnets) {
+		if !useSubnets && (h == HeaderSrcUseWorkloadSubnets || h == HeaderDstUseWorkloadSubnets) {
 			continue
 		}
 		entry = append(entry, csvEntryMap[h])

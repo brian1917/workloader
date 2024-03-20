@@ -88,72 +88,72 @@ func ExportEBs(pce ia.PCE, outputFileName string, noHref bool) {
 			csvRow[HeaderEnabled] = strconv.FormatBool(*eb.Enabled)
 		}
 
-		// Consumers
-		consumerLabels := []string{}
+		// Sources
+		srcLabels := []string{}
 		if eb.Consumers != nil {
 			for _, c := range *eb.Consumers {
 				// All workloads
 				if ia.PtrToVal(c.Actors) == "ams" {
-					csvRow[HeaderConsumerAllWorkloads] = "true"
+					csvRow[HeaderSrcAllWorkloads] = "true"
 					continue
 				}
 				// IP Lists
 				if c.IPList != nil {
-					if val, ok := csvRow[HeaderConsumerIPLists]; ok {
-						csvRow[HeaderConsumerIPLists] = fmt.Sprintf("%s;%s", val, pce.IPLists[c.IPList.Href].Name)
+					if val, ok := csvRow[HeaderSrcIPLists]; ok {
+						csvRow[HeaderSrcIPLists] = fmt.Sprintf("%s;%s", val, pce.IPLists[c.IPList.Href].Name)
 					} else {
-						csvRow[HeaderConsumerIPLists] = pce.IPLists[c.IPList.Href].Name
+						csvRow[HeaderSrcIPLists] = pce.IPLists[c.IPList.Href].Name
 					}
 				}
 				// Labels
 				if c.Label != nil {
-					consumerLabels = append(consumerLabels, fmt.Sprintf("%s:%s", pce.Labels[c.Label.Href].Key, pce.Labels[c.Label.Href].Value))
+					srcLabels = append(srcLabels, fmt.Sprintf("%s:%s", pce.Labels[c.Label.Href].Key, pce.Labels[c.Label.Href].Value))
 				}
 				// Label Groups
 				if c.LabelGroup != nil {
-					if val, ok := csvRow[HeaderConsumerLabelGroups]; ok {
-						csvRow[HeaderConsumerLabelGroups] = fmt.Sprintf("%s;%s", val, pce.LabelGroups[c.LabelGroup.Href].Name)
+					if val, ok := csvRow[HeaderSrcLabelGroups]; ok {
+						csvRow[HeaderSrcLabelGroups] = fmt.Sprintf("%s;%s", val, pce.LabelGroups[c.LabelGroup.Href].Name)
 					} else {
-						csvRow[HeaderConsumerLabelGroups] = pce.LabelGroups[c.LabelGroup.Href].Name
+						csvRow[HeaderSrcLabelGroups] = pce.LabelGroups[c.LabelGroup.Href].Name
 					}
 				}
 			}
 		}
-		csvRow[HeaderConsumerLabels] = strings.Join(consumerLabels, ";")
+		csvRow[HeaderSrcLabels] = strings.Join(srcLabels, ";")
 
-		// Providers
-		providerLabels := []string{}
+		// Destinations
+		dstLabels := []string{}
 		if eb.Providers != nil {
 			for _, p := range *eb.Providers {
 				// All workloads
 				if ia.PtrToVal(p.Actors) == "ams" {
-					csvRow[HeaderProviderAllWorkloads] = "true"
+					csvRow[HeaderDstAllWorkloads] = "true"
 					continue
 				}
 				// IP Lists
 				if p.IPList != nil {
-					if val, ok := csvRow[HeaderProviderIPLists]; ok {
-						csvRow[HeaderProviderIPLists] = fmt.Sprintf("%s;%s", val, pce.IPLists[p.IPList.Href].Name)
+					if val, ok := csvRow[HeaderDstIPLists]; ok {
+						csvRow[HeaderDstIPLists] = fmt.Sprintf("%s;%s", val, pce.IPLists[p.IPList.Href].Name)
 					} else {
-						csvRow[HeaderProviderIPLists] = pce.IPLists[p.IPList.Href].Name
+						csvRow[HeaderDstIPLists] = pce.IPLists[p.IPList.Href].Name
 					}
 				}
 				// Labels
 				if p.Label != nil {
-					providerLabels = append(providerLabels, fmt.Sprintf("%s:%s", pce.Labels[p.Label.Href].Key, pce.Labels[p.Label.Href].Value))
+					dstLabels = append(dstLabels, fmt.Sprintf("%s:%s", pce.Labels[p.Label.Href].Key, pce.Labels[p.Label.Href].Value))
 				}
 				// Label Groups
 				if p.LabelGroup != nil {
-					if val, ok := csvRow[HeaderProviderLabelGroups]; ok {
-						csvRow[HeaderProviderLabelGroups] = fmt.Sprintf("%s;%s", val, pce.LabelGroups[p.LabelGroup.Href].Name)
+					if val, ok := csvRow[HeaderDstLabelGroups]; ok {
+						csvRow[HeaderDstLabelGroups] = fmt.Sprintf("%s;%s", val, pce.LabelGroups[p.LabelGroup.Href].Name)
 					} else {
-						csvRow[HeaderProviderLabelGroups] = pce.LabelGroups[p.LabelGroup.Href].Name
+						csvRow[HeaderDstLabelGroups] = pce.LabelGroups[p.LabelGroup.Href].Name
 					}
 				}
 			}
 		}
 
-		csvRow[HeaderProviderLabels] = strings.Join(providerLabels, ";")
+		csvRow[HeaderDstLabels] = strings.Join(dstLabels, ";")
 
 		// Services
 		services := []string{}
@@ -205,11 +205,11 @@ func ExportEBs(pce ia.PCE, outputFileName string, noHref bool) {
 		csvRow[HeaderServices] = strings.Join(services, ";")
 
 		// Adjust some blanks
-		if csvRow[HeaderConsumerAllWorkloads] == "" {
-			csvRow[HeaderConsumerAllWorkloads] = "false"
+		if csvRow[HeaderSrcAllWorkloads] == "" {
+			csvRow[HeaderSrcAllWorkloads] = "false"
 		}
-		if csvRow[HeaderProviderAllWorkloads] == "" {
-			csvRow[HeaderProviderAllWorkloads] = "false"
+		if csvRow[HeaderDstAllWorkloads] == "" {
+			csvRow[HeaderDstAllWorkloads] = "false"
 		}
 
 		// Add the CSV file

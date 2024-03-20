@@ -46,14 +46,14 @@ The order of the CSV columns do not matter. The input format accepts the followi
 - ` + denyruleexport.HeaderName + `
 - ` + denyruleexport.HeaderHref + ` (no href will create a boundary.)
 - ` + denyruleexport.HeaderEnabled + ` (true/false)
-- ` + denyruleexport.HeaderProviderAllWorkloads + `(true/false)
-- ` + denyruleexport.HeaderProviderLabels + ` (semi-colon separated list in format of key:value. e.g., app:erp;role:db)
-- ` + denyruleexport.HeaderProviderLabelGroups + ` (names of label groups multiple separated by ";")
-- ` + denyruleexport.HeaderProviderIPLists + ` (names of ip lists. multiple separated by ";")
-- ` + denyruleexport.HeaderConsumerAllWorkloads + ` (true/false)
-- ` + denyruleexport.HeaderConsumerLabels + ` (semi-colon separated list in format of key:value. e.g., app:erp;role:db)
-- ` + denyruleexport.HeaderConsumerLabelGroups + ` (names of label groups multiple separated by ";")
-- ` + denyruleexport.HeaderConsumerIPLists + ` (names of ip lists. multiple separated by ";")
+- ` + denyruleexport.HeaderDstAllWorkloads + `(true/false)
+- ` + denyruleexport.HeaderDstLabels + ` (semi-colon separated list in format of key:value. e.g., app:erp;role:db)
+- ` + denyruleexport.HeaderDstLabelGroups + ` (names of label groups multiple separated by ";")
+- ` + denyruleexport.HeaderDstIPLists + ` (names of ip lists. multiple separated by ";")
+- ` + denyruleexport.HeaderSrcAllWorkloads + ` (true/false)
+- ` + denyruleexport.HeaderSrcLabels + ` (semi-colon separated list in format of key:value. e.g., app:erp;role:db)
+- ` + denyruleexport.HeaderSrcLabelGroups + ` (names of label groups multiple separated by ";")
+- ` + denyruleexport.HeaderSrcIPLists + ` (names of ip lists. multiple separated by ";")
 - ` + denyruleexport.HeaderServices + ` (service name, port/proto, or port range/proto. multiple separated by ";")
 
 Recommended to run without --update-pce first to log of what will change. If --update-pce is used, import will create labels without prompt, but it will not create/update workloads without user confirmation, unless --no-prompt is used.`,
@@ -153,7 +153,7 @@ func ImportBoundariesFromCSV(input Input) {
 		consumers := []illumioapi.ConsumerOrProvider{}
 
 		// All workloads
-		if c, ok := input.Headers[denyruleexport.HeaderConsumerAllWorkloads]; ok {
+		if c, ok := input.Headers[denyruleexport.HeaderSrcAllWorkloads]; ok {
 			csvAllWorkloads, err := strconv.ParseBool(row[c])
 			if err != nil {
 				utils.LogError(fmt.Sprintf("csv line %d - %s is not valid boolean for consumer_all_workloads", rowIndex+1, row[c]))
@@ -177,7 +177,7 @@ func ImportBoundariesFromCSV(input Input) {
 		}
 
 		// IP Lists
-		if c, ok := input.Headers[denyruleexport.HeaderConsumerIPLists]; ok {
+		if c, ok := input.Headers[denyruleexport.HeaderSrcIPLists]; ok {
 			consCSVipls := strings.Split(strings.ReplaceAll(row[c], "; ", ";"), ";")
 			if row[c] == "" {
 				consCSVipls = nil
@@ -194,7 +194,7 @@ func ImportBoundariesFromCSV(input Input) {
 		}
 
 		// Label Groups
-		if c, ok := input.Headers[denyruleexport.HeaderConsumerLabelGroups]; ok {
+		if c, ok := input.Headers[denyruleexport.HeaderSrcLabelGroups]; ok {
 			consCSVlgs := strings.Split(strings.ReplaceAll(row[c], "; ", ";"), ";")
 			if row[c] == "" {
 				consCSVlgs = nil
@@ -209,10 +209,10 @@ func ImportBoundariesFromCSV(input Input) {
 		}
 
 		// Labels
-		if row[input.Headers[denyruleexport.HeaderConsumerLabels]] != "" {
+		if row[input.Headers[denyruleexport.HeaderSrcLabels]] != "" {
 			csvLabels := []illumioapi.Label{}
 			// Split at the semi-colons
-			userProvidedLabels := strings.Split(strings.Replace(row[input.Headers[denyruleexport.HeaderConsumerLabels]], "; ", ";", -1), ";")
+			userProvidedLabels := strings.Split(strings.Replace(row[input.Headers[denyruleexport.HeaderSrcLabels]], "; ", ";", -1), ";")
 			for _, label := range userProvidedLabels {
 				key := strings.Split(label, ":")[0]
 				value := strings.TrimPrefix(label, key+":")
@@ -231,7 +231,7 @@ func ImportBoundariesFromCSV(input Input) {
 		providers := []illumioapi.ConsumerOrProvider{}
 
 		// All workloads
-		if c, ok := input.Headers[denyruleexport.HeaderProviderAllWorkloads]; ok {
+		if c, ok := input.Headers[denyruleexport.HeaderDstAllWorkloads]; ok {
 			csvAllWorkloads, err := strconv.ParseBool(row[c])
 			if err != nil {
 				utils.LogError(fmt.Sprintf("csv line %d - %s is not valid boolean for provider_all_workloads", rowIndex+1, row[c]))
@@ -254,7 +254,7 @@ func ImportBoundariesFromCSV(input Input) {
 		}
 
 		// IP Lists
-		if c, ok := input.Headers[denyruleexport.HeaderProviderIPLists]; ok {
+		if c, ok := input.Headers[denyruleexport.HeaderDstIPLists]; ok {
 			provsCSVipls := strings.Split(strings.ReplaceAll(row[c], "; ", ";"), ";")
 			if row[c] == "" {
 				provsCSVipls = nil
@@ -271,7 +271,7 @@ func ImportBoundariesFromCSV(input Input) {
 		}
 
 		// Label Groups
-		if c, ok := input.Headers[denyruleexport.HeaderProviderLabelGroups]; ok {
+		if c, ok := input.Headers[denyruleexport.HeaderDstLabelGroups]; ok {
 			provsCSVlgs := strings.Split(strings.ReplaceAll(row[c], "; ", ";"), ";")
 			if row[c] == "" {
 				provsCSVlgs = nil
@@ -286,10 +286,10 @@ func ImportBoundariesFromCSV(input Input) {
 		}
 
 		// Labels
-		if row[input.Headers[denyruleexport.HeaderProviderLabels]] != "" {
+		if row[input.Headers[denyruleexport.HeaderDstLabels]] != "" {
 			csvLabels := []illumioapi.Label{}
 			// Split at the semi-colons
-			userProvidedLabels := strings.Split(strings.Replace(row[input.Headers[denyruleexport.HeaderProviderLabels]], "; ", ";", -1), ";")
+			userProvidedLabels := strings.Split(strings.Replace(row[input.Headers[denyruleexport.HeaderDstLabels]], "; ", ";", -1), ";")
 			for _, label := range userProvidedLabels {
 				key := strings.Split(label, ":")[0]
 				value := strings.TrimPrefix(label, key+":")
