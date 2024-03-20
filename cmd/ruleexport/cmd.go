@@ -343,6 +343,7 @@ func (r *RuleExport) ExportToCsv() {
 
 			// Consumers
 			consumerLabels := []string{}
+			consumerLabelsExcusions := []string{}
 			for _, c := range ia.PtrToVal(rule.Consumers) {
 				if ia.PtrToVal(c.Actors) == "ams" {
 					csvEntryMap[HeaderConsumerAllWorkloads] = "true"
@@ -359,15 +360,27 @@ func (r *RuleExport) ExportToCsv() {
 				}
 				// Labels
 				if c.Label != nil {
-					consumerLabels = append(consumerLabels, fmt.Sprintf("%s:%s", input.PCE.Labels[c.Label.Href].Key, input.PCE.Labels[c.Label.Href].Value))
+					if c.Exclusion != nil && *c.Exclusion {
+						consumerLabelsExcusions = append(consumerLabelsExcusions, fmt.Sprintf("%s:%s", input.PCE.Labels[c.Label.Href].Key, input.PCE.Labels[c.Label.Href].Value))
+					} else {
+						consumerLabels = append(consumerLabels, fmt.Sprintf("%s:%s", input.PCE.Labels[c.Label.Href].Key, input.PCE.Labels[c.Label.Href].Value))
+					}
 				}
 
 				// Label Groups
 				if c.LabelGroup != nil {
-					if val, ok := csvEntryMap[HeaderConsumerLabelGroup]; ok {
-						csvEntryMap[HeaderConsumerLabelGroup] = fmt.Sprintf("%s;%s", val, input.PCE.LabelGroups[c.LabelGroup.Href].Name)
+					if c.Exclusion != nil && *c.Exclusion {
+						if val, ok := csvEntryMap[HeaderConsumerLabelGroup]; ok {
+							csvEntryMap[HeaderConsumerLabelGroupExclusions] = fmt.Sprintf("%s;%s", val, input.PCE.LabelGroups[c.LabelGroup.Href].Name)
+						} else {
+							csvEntryMap[HeaderConsumerLabelGroupExclusions] = input.PCE.LabelGroups[c.LabelGroup.Href].Name
+						}
 					} else {
-						csvEntryMap[HeaderConsumerLabelGroup] = input.PCE.LabelGroups[c.LabelGroup.Href].Name
+						if val, ok := csvEntryMap[HeaderConsumerLabelGroup]; ok {
+							csvEntryMap[HeaderConsumerLabelGroup] = fmt.Sprintf("%s;%s", val, input.PCE.LabelGroups[c.LabelGroup.Href].Name)
+						} else {
+							csvEntryMap[HeaderConsumerLabelGroup] = input.PCE.LabelGroups[c.LabelGroup.Href].Name
+						}
 					}
 				}
 				// Virtual Services
@@ -407,6 +420,7 @@ func (r *RuleExport) ExportToCsv() {
 
 			// Providers
 			providerLabels := []string{}
+			providerLabelsExclusions := []string{}
 			for _, p := range ia.PtrToVal(rule.Providers) {
 
 				if ia.PtrToVal(p.Actors) == "ams" {
@@ -423,15 +437,27 @@ func (r *RuleExport) ExportToCsv() {
 				}
 				// Labels
 				if p.Label != nil {
-					providerLabels = append(providerLabels, fmt.Sprintf("%s:%s", input.PCE.Labels[p.Label.Href].Key, input.PCE.Labels[p.Label.Href].Value))
+					if p.Exclusion != nil && *p.Exclusion {
+						providerLabelsExclusions = append(providerLabelsExclusions, fmt.Sprintf("%s:%s", input.PCE.Labels[p.Label.Href].Key, input.PCE.Labels[p.Label.Href].Value))
+					} else {
+						providerLabels = append(providerLabels, fmt.Sprintf("%s:%s", input.PCE.Labels[p.Label.Href].Key, input.PCE.Labels[p.Label.Href].Value))
+					}
 				}
 
 				// Label Groups
 				if p.LabelGroup != nil {
-					if val, ok := csvEntryMap[HeaderProviderLabelGroups]; ok {
-						csvEntryMap[HeaderProviderLabelGroups] = fmt.Sprintf("%s;%s", val, input.PCE.LabelGroups[p.LabelGroup.Href].Name)
+					if p.Exclusion != nil && *p.Exclusion {
+						if val, ok := csvEntryMap[HeaderProviderLabelGroups]; ok {
+							csvEntryMap[HeaderProviderLabelGroupsExclusions] = fmt.Sprintf("%s;%s", val, input.PCE.LabelGroups[p.LabelGroup.Href].Name)
+						} else {
+							csvEntryMap[HeaderProviderLabelGroupsExclusions] = input.PCE.LabelGroups[p.LabelGroup.Href].Name
+						}
 					} else {
-						csvEntryMap[HeaderProviderLabelGroups] = input.PCE.LabelGroups[p.LabelGroup.Href].Name
+						if val, ok := csvEntryMap[HeaderProviderLabelGroups]; ok {
+							csvEntryMap[HeaderProviderLabelGroups] = fmt.Sprintf("%s;%s", val, input.PCE.LabelGroups[p.LabelGroup.Href].Name)
+						} else {
+							csvEntryMap[HeaderProviderLabelGroups] = input.PCE.LabelGroups[p.LabelGroup.Href].Name
+						}
 					}
 				}
 				// Virtual Services
@@ -474,6 +500,8 @@ func (r *RuleExport) ExportToCsv() {
 			// Append the labels
 			csvEntryMap[HeaderConsumerLabels] = strings.Join(consumerLabels, ";")
 			csvEntryMap[HeaderProviderLabels] = strings.Join(providerLabels, ";")
+			csvEntryMap[HeaderConsumerLabelsExclusions] = strings.Join(consumerLabelsExcusions, ";")
+			csvEntryMap[HeaderProviderLabelsExclusions] = strings.Join(providerLabelsExclusions, ";")
 
 			// Services
 			services := []string{}

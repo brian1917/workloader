@@ -154,7 +154,15 @@ func ImportRulesFromCSV(input Input) {
 			neededObjects["label_groups"] = true
 			needLabelGroups = true
 		}
+		if index, ok := input.Headers[ruleexport.HeaderConsumerLabelGroupExclusions]; ok && l[index] != "" {
+			neededObjects["label_groups"] = true
+			needLabelGroups = true
+		}
 		if index, ok := input.Headers[ruleexport.HeaderProviderLabelGroups]; ok && l[index] != "" {
+			neededObjects["label_groups"] = true
+			needLabelGroups = true
+		}
+		if index, ok := input.Headers[ruleexport.HeaderProviderLabelGroupsExclusions]; ok && l[index] != "" {
 			neededObjects["label_groups"] = true
 			needLabelGroups = true
 		}
@@ -369,12 +377,27 @@ CSVEntries:
 			if l[c] == "" {
 				consCSVlgs = nil
 			}
-			lgChange, lgs := LabelGroupComparison(consCSVlgs, rHrefMap[rowRuleHref], input.PCE.LabelGroups, i+1, false)
+			lgChange, lgs := LabelGroupComparison(consCSVlgs, false, rHrefMap[rowRuleHref], input.PCE.LabelGroups, i+1, false)
 			if lgChange {
 				update = true
 			}
 			for _, lg := range lgs {
 				consumers = append(consumers, illumioapi.ConsumerOrProvider{LabelGroup: &illumioapi.LabelGroup{Href: lg.Href}})
+			}
+		}
+
+		// Label Groups - exclude
+		if c, ok := input.Headers[ruleexport.HeaderConsumerLabelGroupExclusions]; ok {
+			consCSVlgs := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
+			if l[c] == "" {
+				consCSVlgs = nil
+			}
+			lgChange, lgs := LabelGroupComparison(consCSVlgs, true, rHrefMap[rowRuleHref], input.PCE.LabelGroups, i+1, false)
+			if lgChange {
+				update = true
+			}
+			for _, lg := range lgs {
+				consumers = append(consumers, illumioapi.ConsumerOrProvider{LabelGroup: &illumioapi.LabelGroup{Href: lg.Href}, Exclusion: illumioapi.Ptr(true)})
 			}
 		}
 
@@ -393,12 +416,36 @@ CSVEntries:
 				value := strings.TrimPrefix(label, key+":")
 				csvLabels = append(csvLabels, illumioapi.Label{Key: key, Value: value})
 			}
-			labelUpdate, labels := LabelComparison(csvLabels, input.PCE, rHrefMap[rowRuleHref], i+1, false)
+			labelUpdate, labels := LabelComparison(csvLabels, false, input.PCE, rHrefMap[rowRuleHref], i+1, false)
 			if labelUpdate {
 				update = true
 			}
 			for _, l := range labels {
 				consumers = append(consumers, illumioapi.ConsumerOrProvider{Label: &illumioapi.Label{Href: l.Href}})
+			}
+		}
+
+		// Labels - exclude
+		if l[input.Headers[ruleexport.HeaderConsumerLabelsExclusions]] != "" {
+			csvLabels := []illumioapi.Label{}
+			// Split at the semi-colons
+			var userProvidedLabels []string
+			if input.NoTrimming {
+				userProvidedLabels = strings.Split(l[input.Headers[ruleexport.HeaderConsumerLabelsExclusions]], ";")
+			} else {
+				userProvidedLabels = strings.Split(strings.Replace(l[input.Headers[ruleexport.HeaderConsumerLabelsExclusions]], "; ", ";", -1), ";")
+			}
+			for _, label := range userProvidedLabels {
+				key := strings.Split(label, ":")[0]
+				value := strings.TrimPrefix(label, key+":")
+				csvLabels = append(csvLabels, illumioapi.Label{Key: key, Value: value})
+			}
+			labelUpdate, labels := LabelComparison(csvLabels, true, input.PCE, rHrefMap[rowRuleHref], i+1, false)
+			if labelUpdate {
+				update = true
+			}
+			for _, l := range labels {
+				consumers = append(consumers, illumioapi.ConsumerOrProvider{Label: &illumioapi.Label{Href: l.Href}, Exclusion: illumioapi.Ptr(true)})
 			}
 		}
 
@@ -458,12 +505,36 @@ CSVEntries:
 				value := strings.TrimPrefix(label, key+":")
 				csvLabels = append(csvLabels, illumioapi.Label{Key: key, Value: value})
 			}
-			labelUpdate, labels := LabelComparison(csvLabels, input.PCE, rHrefMap[rowRuleHref], i+1, true)
+			labelUpdate, labels := LabelComparison(csvLabels, false, input.PCE, rHrefMap[rowRuleHref], i+1, true)
 			if labelUpdate {
 				update = true
 			}
 			for _, l := range labels {
 				providers = append(providers, illumioapi.ConsumerOrProvider{Label: &illumioapi.Label{Href: l.Href}})
+			}
+		}
+
+		// Labels - exclude
+		if l[input.Headers[ruleexport.HeaderProviderLabelsExclusions]] != "" {
+			csvLabels := []illumioapi.Label{}
+			// Split at the semi-colons
+			var userProvidedLabels []string
+			if input.NoTrimming {
+				userProvidedLabels = strings.Split(l[input.Headers[ruleexport.HeaderProviderLabelsExclusions]], ";")
+			} else {
+				userProvidedLabels = strings.Split(strings.Replace(l[input.Headers[ruleexport.HeaderProviderLabelsExclusions]], "; ", ";", -1), ";")
+			}
+			for _, label := range userProvidedLabels {
+				key := strings.Split(label, ":")[0]
+				value := strings.TrimPrefix(label, key+":")
+				csvLabels = append(csvLabels, illumioapi.Label{Key: key, Value: value})
+			}
+			labelUpdate, labels := LabelComparison(csvLabels, true, input.PCE, rHrefMap[rowRuleHref], i+1, true)
+			if labelUpdate {
+				update = true
+			}
+			for _, l := range labels {
+				providers = append(providers, illumioapi.ConsumerOrProvider{Label: &illumioapi.Label{Href: l.Href}, Exclusion: illumioapi.Ptr(true)})
 			}
 		}
 
@@ -518,12 +589,27 @@ CSVEntries:
 			if l[c] == "" {
 				provCSVlgs = nil
 			}
-			lgChange, lgs := LabelGroupComparison(provCSVlgs, rHrefMap[rowRuleHref], input.PCE.LabelGroups, i+1, true)
+			lgChange, lgs := LabelGroupComparison(provCSVlgs, false, rHrefMap[rowRuleHref], input.PCE.LabelGroups, i+1, true)
 			if lgChange {
 				update = true
 			}
 			for _, lg := range lgs {
 				providers = append(providers, illumioapi.ConsumerOrProvider{LabelGroup: &illumioapi.LabelGroup{Href: lg.Href}})
+			}
+		}
+
+		// Label Groups - exclude
+		if c, ok := input.Headers[ruleexport.HeaderProviderLabelGroupsExclusions]; ok {
+			provCSVlgs := strings.Split(strings.ReplaceAll(l[c], "; ", ";"), ";")
+			if l[c] == "" {
+				provCSVlgs = nil
+			}
+			lgChange, lgs := LabelGroupComparison(provCSVlgs, true, rHrefMap[rowRuleHref], input.PCE.LabelGroups, i+1, true)
+			if lgChange {
+				update = true
+			}
+			for _, lg := range lgs {
+				providers = append(providers, illumioapi.ConsumerOrProvider{LabelGroup: &illumioapi.LabelGroup{Href: lg.Href}, Exclusion: illumioapi.Ptr(true)})
 			}
 		}
 

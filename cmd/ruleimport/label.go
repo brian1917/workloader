@@ -7,7 +7,7 @@ import (
 	"github.com/brian1917/workloader/utils"
 )
 
-func LabelComparison(csvLabels []illumioapi.Label, pce illumioapi.PCE, rule illumioapi.Rule, csvLine int, provider bool) (bool, []illumioapi.Label) {
+func LabelComparison(csvLabels []illumioapi.Label, exclusion bool, pce illumioapi.PCE, rule illumioapi.Rule, csvLine int, provider bool) (bool, []illumioapi.Label) {
 
 	// Build a map of the existing labels
 	ruleLabelMap := make(map[string]illumioapi.Label)
@@ -15,13 +15,13 @@ func LabelComparison(csvLabels []illumioapi.Label, pce illumioapi.PCE, rule illu
 	if provider {
 		connectionSide = "provider"
 		for _, provider := range illumioapi.PtrToVal(rule.Providers) {
-			if provider.Label != nil {
+			if provider.Label != nil && exclusion == illumioapi.PtrToVal(provider.Exclusion) {
 				ruleLabelMap[pce.Labels[provider.Label.Href].Key+pce.Labels[provider.Label.Href].Value] = pce.Labels[provider.Label.Href]
 			}
 		}
 	} else {
 		for _, consumer := range illumioapi.PtrToVal(rule.Consumers) {
-			if consumer.Label != nil {
+			if consumer.Label != nil && exclusion == illumioapi.PtrToVal(consumer.Exclusion) {
 				ruleLabelMap[pce.Labels[consumer.Label.Href].Key+pce.Labels[consumer.Label.Href].Value] = pce.Labels[consumer.Label.Href]
 			}
 		}

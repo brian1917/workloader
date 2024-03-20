@@ -7,7 +7,7 @@ import (
 	"github.com/brian1917/workloader/utils"
 )
 
-func LabelGroupComparison(csvLGNames []string, rule illumioapi.Rule, pceLGMap map[string]illumioapi.LabelGroup, csvLine int, provider bool) (bool, []illumioapi.LabelGroup) {
+func LabelGroupComparison(csvLGNames []string, exclusion bool, rule illumioapi.Rule, pceLGMap map[string]illumioapi.LabelGroup, csvLine int, provider bool) (bool, []illumioapi.LabelGroup) {
 
 	// Build a map of the existing Label Groups
 	ruleLGsNameMap := make(map[string]illumioapi.LabelGroup)
@@ -15,13 +15,13 @@ func LabelGroupComparison(csvLGNames []string, rule illumioapi.Rule, pceLGMap ma
 	if provider {
 		connectionSide = "provider"
 		for _, provider := range illumioapi.PtrToVal(rule.Providers) {
-			if provider.LabelGroup != nil {
+			if provider.LabelGroup != nil && exclusion == illumioapi.PtrToVal(provider.Exclusion) {
 				ruleLGsNameMap[pceLGMap[provider.LabelGroup.Href].Name] = pceLGMap[provider.LabelGroup.Href]
 			}
 		}
 	} else {
 		for _, consumer := range illumioapi.PtrToVal(rule.Consumers) {
-			if consumer.LabelGroup != nil {
+			if consumer.LabelGroup != nil && exclusion == illumioapi.PtrToVal(consumer.Exclusion) {
 				ruleLGsNameMap[pceLGMap[consumer.LabelGroup.Href].Name] = pceLGMap[consumer.LabelGroup.Href]
 			}
 		}

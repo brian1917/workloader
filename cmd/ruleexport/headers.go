@@ -10,7 +10,9 @@ const (
 	HeaderUnscopedConsumers             = "unscoped_consumers"
 	HeaderConsumerAllWorkloads          = "consumer_all_workloads"
 	HeaderConsumerLabels                = "consumer_labels"
+	HeaderConsumerLabelsExclusions      = "consumer_labels_exclusions"
 	HeaderConsumerLabelGroup            = "consumer_label_groups"
+	HeaderConsumerLabelGroupExclusions  = "consumer_label_groups_exclusions"
 	HeaderConsumerIplists               = "consumer_iplists"
 	HeaderConsumerUserGroups            = "consumer_user_groups"
 	HeaderConsumerWorkloads             = "consumer_workloads"
@@ -18,7 +20,9 @@ const (
 	HeaderConsumerUseWorkloadSubnets    = "consumer_use_workload_subnets"
 	HeaderProviderAllWorkloads          = "provider_all_workloads"
 	HeaderProviderLabels                = "provider_labels"
+	HeaderProviderLabelsExclusions      = "provider_labels_exclusions"
 	HeaderProviderLabelGroups           = "provider_label_groups"
+	HeaderProviderLabelGroupsExclusions = "provider_label_groups_exclusions"
 	HeaderProviderIplists               = "provider_iplists"
 	HeaderProviderWorkloads             = "provider_workloads"
 	HeaderProviderVirtualServices       = "provider_virtual_services"
@@ -49,7 +53,9 @@ func getCSVHeaders(templateFormat bool) []string {
 		HeaderUnscopedConsumers,
 		HeaderConsumerAllWorkloads,
 		HeaderConsumerLabels,
+		HeaderConsumerLabelsExclusions,
 		HeaderConsumerLabelGroup,
+		HeaderConsumerLabelGroupExclusions,
 		HeaderConsumerIplists,
 		HeaderConsumerUserGroups,
 		HeaderConsumerWorkloads,
@@ -57,7 +63,9 @@ func getCSVHeaders(templateFormat bool) []string {
 		HeaderConsumerUseWorkloadSubnets,
 		HeaderProviderAllWorkloads,
 		HeaderProviderLabels,
+		HeaderProviderLabelsExclusions,
 		HeaderProviderLabelGroups,
+		HeaderProviderLabelGroupsExclusions,
 		HeaderProviderIplists,
 		HeaderProviderWorkloads,
 		HeaderProviderVirtualServices,
