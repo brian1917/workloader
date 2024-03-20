@@ -99,6 +99,11 @@ The monitored events are listed below:` + "\r\n\r\n" + strings.Join(venHealthEve
 
 func eventMonitor(targetEvents []string) {
 
+	// validate a time has been provided
+	if (!yesterday && !lastWeek && !lastMonth) && (start == "" || end == "") {
+		utils.LogError("a time period must be provided using either --yesterday, --last-week, or --last-month flags or the customer --start and --end flags.")
+	}
+
 	// Create the output slice
 	allEvents := []illumioapi.Event{}
 
