@@ -219,11 +219,12 @@ func addPCE() {
 	var userLogin illumioapi.UserLogin
 
 	// If using an API key, build the PCE and check authentication
-	org, err := strconv.Atoi(pceOrg)
-	if err != nil {
-		utils.LogError("org value not an int")
-	}
+	var org int
 	if useAPIKey {
+		org, err = strconv.Atoi(pceOrg)
+		if err != nil {
+			utils.LogError("org value not a string")
+		}
 		pce.FQDN = fqdn
 		pce.Port = port
 		pce.Proxy = proxyServer
