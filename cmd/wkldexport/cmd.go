@@ -14,7 +14,7 @@ var headers, labelFile, uniqueLabelKeys, globalOutputFileName, subnetInclude str
 
 func init() {
 	WkldExportCmd.Flags().StringVar(&headers, "headers", "", "comma-separated list of headers for export. default is all headers.")
-	WkldExportCmd.Flags().StringVar(&labelFile, "label-file", "", "csv file with labels to filter query. the file should have 4 headers: role, app, env, and loc. The four columns in each row is an \"AND\" operation. Each row is an \"OR\" operation.")
+	WkldExportCmd.Flags().StringVar(&labelFile, "label-file", "", "csv file with labels to filter query. see description below.")
 	WkldExportCmd.Flags().BoolVarP(&managedOnly, "managed-only", "m", false, "only export managed workloads.")
 	WkldExportCmd.Flags().BoolVarP(&unmanagedOnly, "unmanaged-only", "u", false, "only export unmanaged workloads.")
 	WkldExportCmd.Flags().BoolVarP(&onlineOnly, "online-only", "o", false, "only export online workloads.")
