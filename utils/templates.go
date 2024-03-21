@@ -26,7 +26,7 @@ func RootTemplate() string {
   Multiple PCE Prefix Commands:{{range .Commands}}{{if (or (eq .Name "all-pces") (eq .Name "target-pces"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
-  Other Commands:{{range .Commands}}{{if (or (eq .Name "delete") (eq .Name "netscaler-sync"))}}
+  Other Commands:{{range .Commands}}{{if (or (eq .Name "delete"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
   Version Command:{{range .Commands}}{{if (or (eq .Name "version") (eq .Name "check-version"))}}
