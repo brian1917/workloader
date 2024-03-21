@@ -71,6 +71,7 @@ import (
 	"github.com/brian1917/workloader/cmd/venhealth"
 	"github.com/brian1917/workloader/cmd/venimport"
 	"github.com/brian1917/workloader/cmd/vmsync"
+	"github.com/brian1917/workloader/cmd/wkldcleanup"
 	"github.com/brian1917/workloader/cmd/wkldexport"
 	"github.com/brian1917/workloader/cmd/wkldimport"
 	"github.com/brian1917/workloader/cmd/wkldiplmapping"
@@ -196,6 +197,7 @@ func init() {
 	RootCmd.AddCommand(vmsync.VCenterSyncCmd)
 
 	// Workload management
+	RootCmd.AddCommand(wkldcleanup.WkldCleanUpCmd)
 	RootCmd.AddCommand(compatibility.CompatibilityCmd)
 	RootCmd.AddCommand(mode.ModeCmd)
 	RootCmd.AddCommand(upgrade.UpgradeCmd)
