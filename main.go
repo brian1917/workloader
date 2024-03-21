@@ -115,6 +115,12 @@ func main() {
 			}
 			return
 		}
+
+		// Process Mode
+		if os.Args[1] == "mode" {
+			utils.LogWarning("this command has been removed. use wkld-import with the --allow-enforcement-changes flag", true)
+			return
+		}
 	}
 
 	// Run command for all other scenarios

@@ -76,9 +76,9 @@ func init() {
 // WkldImportCmd runs the upload command
 var WkldImportCmd = &cobra.Command{
 	Use:   "wkld-import [csv file to import]",
-	Short: "Create and assign labels to existing workloads and/or create unmanaged workloads (using --umwl) from a CSV file.",
+	Short: "Create and assign labels to existing workloads, change change enforcement and visibility state (using --allow-enforcement-changes), and create unmanaged workloads (using --umwl) from a CSV file.",
 	Long: `
-Create and assign labels to existing workloads and/or create unmanaged workloads (using --umwl) from a CSV file.
+Create and assign labels to existing workloads, change change enforcement and visibility state (using --allow-enforcement-changes), and create unmanaged workloads (using --umwl) from a CSV file.
 
 The input file requires headers and matches fields to header values.
 

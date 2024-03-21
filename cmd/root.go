@@ -40,7 +40,6 @@ import (
 	"github.com/brian1917/workloader/cmd/labelimport"
 	explorer "github.com/brian1917/workloader/cmd/legacy-explorer"
 	"github.com/brian1917/workloader/cmd/mislabel"
-	"github.com/brian1917/workloader/cmd/mode"
 	"github.com/brian1917/workloader/cmd/netscalersync"
 	"github.com/brian1917/workloader/cmd/nicexport"
 	"github.com/brian1917/workloader/cmd/nicmanage"
@@ -199,7 +198,6 @@ func init() {
 	// Workload management
 	RootCmd.AddCommand(wkldcleanup.WkldCleanUpCmd)
 	RootCmd.AddCommand(compatibility.CompatibilityCmd)
-	RootCmd.AddCommand(mode.ModeCmd)
 	RootCmd.AddCommand(upgrade.UpgradeCmd)
 	RootCmd.AddCommand(getpairingkey.GetPairingKey)
 	RootCmd.AddCommand(unpair.UnpairCmd)
