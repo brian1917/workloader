@@ -5,60 +5,50 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 // Set global variables for flags
-var hrefFile, role, app, env, loc, restore, outputFileName string
-var updatePCE, noPrompt, setLabelExcl, includeOnline, singleGetWkld, singleUnpair bool
+var hrefFile, hrefHeader, restore string
+var updatePCE, noPrompt, includeOnline, singleAPI, singleUnpair bool
 var hoursSinceLastHB int
 var pce illumioapi.PCE
 var err error
 
 // Init handles flags
 func init() {
-	UnpairCmd.Flags().StringVar(&restore, "restore", "saved", "Restore value. Must be saved, default, or disable.")
-	UnpairCmd.Flags().StringVarP(&hrefFile, "href", "f", "", "Location of file with HREFs to be used instead of starting with all workloads.")
-	UnpairCmd.Flags().BoolVar(&singleGetWkld, "single-get-wkld", false, "get workloads in a host file by a single API call vs. bulk API.")
-	UnpairCmd.Flags().StringVarP(&role, "role", "r", "", "Role Label. Blank means all roles.")
-	UnpairCmd.Flags().StringVarP(&app, "app", "a", "", "Application Label. Blank means all applications.")
-	UnpairCmd.Flags().StringVarP(&env, "env", "e", "", "Environment Label. Blank means all environments.")
-	UnpairCmd.Flags().StringVarP(&loc, "loc", "l", "", "Location Label. Blank means all locations.")
-	UnpairCmd.Flags().BoolVarP(&setLabelExcl, "exclude-labels", "x", false, "Use provided label filters as excludes.")
-	UnpairCmd.Flags().IntVar(&hoursSinceLastHB, "hours", 0, "Hours since last heartbeat. No value (i.e., 0) will ignore heartbeats.")
-	UnpairCmd.Flags().BoolVar(&includeOnline, "include-online", false, "Include workloads that are online. By default only offline workloads that meet criteria will be unpaired.")
-	UnpairCmd.Flags().BoolVar(&singleUnpair, "single-unpair", false, "One API call per unpair versus one API call per 1000 workloads. This will be significantly slower but provide more details in the PCE's syslog messages.")
-	UnpairCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
+	UnpairCmd.Flags().StringVar(&restore, "restore", "saved", "restore value. Must be saved, default, or disable.")
+	UnpairCmd.Flags().StringVar(&hrefHeader, "header", "ven_href", "column header for hrefs in the href-file.")
+	UnpairCmd.Flags().IntVar(&hoursSinceLastHB, "hours", 0, "limit unpairing to workloads that have not sent a heartbeat in set time. 0 will ignore heartbeats.")
+	UnpairCmd.Flags().BoolVar(&includeOnline, "include-online", false, "include workloads that are online. by default only offline workloads that meet criteria will be unpaired.")
+	UnpairCmd.Flags().BoolVar(&singleAPI, "single-api", false, "if we need to get vens and workloads from the pce query the vens on at a time vs. getting all vens. useful for very large environments that are only unpairing a small amount.")
+	UnpairCmd.Flags().BoolVar(&singleUnpair, "single-unpair", false, "one API call per unpair versus one API call per 1000 workloads. this will be significantly slower but provide more details in the pce's syslog messages.")
 
 	UnpairCmd.Flags().SortFlags = false
 }
 
 // UnpairCmd runs the unpair
 var UnpairCmd = &cobra.Command{
-	Use:   "unpair",
-	Short: "Unpair workloads through an input file or by a combination of labels and hours since last heartbeat.",
+	Use:   "unpair [csv file]",
+	Short: "Unpair workloads through an input file.",
 
 	Long: `  
-Unpair workloads through an input file or by combination of labels and hours since last heartbeat.
+Unpair workloads through an input file.
 
-Default output is a CSV file with what would be unpaired.
+It's recommended to generate the list of workloads needed by running wkld-export with the right filters. The csv output from wkld-exporft can be passed directly into this command.
+
+Example commands to unpair all VENs that have not sent a heartbeat in 24 hours:
+    workloader wkld-export --managed-only --output-file managed_workloads.csv && workloader unpair managed_workloads.csv --hours 24
+
 Use the --update-pce command to run the unpair with a user prompt confirmation.
+
 Use --update-pce and --no-prompt to run unpair with no prompts.`,
 
-	Example: `# Unpair all workloads that have not had a heart beat in 50 hours with no user prompt (e.g., command to run on cron):
-  workloader unpair --hours 50 --restore saved --update-pce --no-prompt
-
-  # Unpair workloads in ERP application in Production that have not had a heartbeat for 40 hours with no prompt (e.g., command to run on cron).
-  workloader unpair --hours 40 --app ERP --env PROD --restore saved --update-pce --no-prompt
-
-  # See what workloads would unpair if we set the threshold for 24 hours for all labels:
-  workloader unpair --hours 24 --restore saved
- `,
 	Run: func(cmd *cobra.Command, args []string) {
-		pce, err = utils.GetTargetPCE(true)
+		pce, err = utils.GetTargetPCEV2(true)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -67,16 +57,17 @@ Use --update-pce and --no-prompt to run unpair with no prompts.`,
 		updatePCE = viper.Get("update_pce").(bool)
 		noPrompt = viper.Get("no_prompt").(bool)
 
+		// Get the input file
+		if len(args) != 1 {
+			utils.LogError("command requires 1 argument for the csv file. see usage help.")
+		}
+		hrefFile = args[0]
+
 		unpair()
 	},
 }
 
 func unpair() {
-
-	// Check that we aren't unpairing the whole PCE
-	if app == "" && role == "" && env == "" && loc == "" && hoursSinceLastHB == 0 && hrefFile == "" {
-		utils.LogError("must provide labels, hours, or an input file.")
-	}
 
 	// Check the restore value
 	restore = strings.ToLower(restore)
@@ -84,190 +75,146 @@ func unpair() {
 		utils.LogError("restore value must be saved, default, or disable.")
 	}
 
-	// Check invalid flag combinations
-	if singleGetWkld && hrefFile == "" {
-		utils.LogError("single-get-wkld flag requires an href file")
+	// Process the href file
+	hrefFileData, err := utils.ParseCSV(hrefFile)
+	if err != nil {
+		utils.LogErrorf("parsing csv - %s", err)
 	}
-
-	// If we have an hrefFile, process it
-	var hrefFileData [][]string
-	if hrefFile != "" {
-		hrefFileData, err = utils.ParseCSV(hrefFile)
-		if err != nil {
-			utils.LogError(err.Error())
-		}
-	}
-
-	// Set workload variables
-	var wklds, targetWklds []illumioapi.Workload
-	csvWklds := make(map[string]bool)
-
-	// Process singleGetWkld - we know href file is provided because already checked above
-	if singleGetWkld {
-		// Iterate through file
-		for rowIndex, row := range hrefFileData {
-			// If singleGetWkld, make api call
-			if strings.Contains(row[0], "/orgs/") {
-				wkld, a, _ := pce.GetWkldByHref(row[0])
-				utils.LogAPIResp("GetWkldByHref", a)
-				// If the status code is in the 400s log it and skip
-				if a.StatusCode >= 400 && a.StatusCode <= 499 {
-					utils.LogWarning(fmt.Sprintf("href file line %d - %s is not a workload - %d status code. skipping.", rowIndex+1, row[0], a.StatusCode), true)
-					// If the status code is not in the 400s and there is an error, error out
-				} else if err != nil {
-					utils.LogError(err.Error())
-					// No error, then add to workloads slice
-				} else {
-					wklds = append(wklds, wkld)
-					utils.LogInfo(fmt.Sprintf("href file line %d of %d - %s - status code: %d", rowIndex+1, len(hrefFileData), row[0], a.StatusCode), true)
-				}
-			}
-		}
-	}
-
-	// Get all managed workloads if single-get-wkld is false
-	if !singleGetWkld {
-		// Fill csv map in case needed
-		for _, row := range hrefFileData {
-			// Add to csvWklds map
-			csvWklds[row[0]] = true
-		}
-
-		// Get all managed workloads
-		allManagedWklds, a, err := pce.GetWklds(map[string]string{"managed": "true"})
-		utils.LogAPIResp("GetAllWorkloads", a)
-		if err != nil {
-			utils.LogError(err.Error())
-		}
-		// If there is an href file, iterate through the hrefData and check if the workloads exists.
-		if hrefFile != "" {
-			for rowIndex, row := range hrefFileData {
-				// If it does not exist, warn (if it is a valid href)
-				if val, exists := pce.Workloads[row[0]]; !exists {
-					if strings.Contains(row[0], "/orgs/") {
-						utils.LogWarning(fmt.Sprintf("href file line %d - %s is not a workload. skipping.", rowIndex+1, row[0]), true)
-					}
-				} else {
-					// If it does exist, add it to the slice
-					wklds = append(wklds, val)
+	venHrefCol := 0
+	vens := []illumioapi.VEN{}
+	for rowIndex, row := range hrefFileData {
+		if rowIndex == 0 {
+			for colIndex, col := range row {
+				if col == hrefHeader {
+					venHrefCol = colIndex
+					continue
 				}
 			}
 		} else {
-			// No href file, use all the managed workloads
-			wklds = allManagedWklds
+			vens = append(vens, illumioapi.VEN{Href: row[venHrefCol]})
 		}
 	}
 
-	// Confirm it's not unmanaged and check the labels to find our matches.
-	for _, w := range wklds {
-		if w.GetMode() == "unmanaged" {
-			continue
+	// If hours since last heartbeat or offline only we need the VENs from the PCE to validate
+	// if hoursSinceLastHB > 0 || !includeOnline {
+	if !singleAPI {
+		apiResps, err := pce.Load(illumioapi.LoadInput{VENs: true, Workloads: true}, utils.UseMulti())
+		utils.LogMultiAPIRespV2(apiResps)
+		if err != nil {
+			utils.LogErrorf("loading the pce - %s", err)
 		}
-		if hoursSinceLastHB > 0 && w.HoursSinceLastHeartBeat() < float64(hoursSinceLastHB) {
-			continue
+	} else {
+		// Get the VENs individually
+		pce.VENs = make(map[string]illumioapi.VEN)
+		for _, v := range vens {
+			ven, api, err := pce.GetVenByHref(v.Href)
+			utils.LogAPIRespV2("GetVenByHref", api)
+			if err != nil {
+				utils.LogErrorf("getting ven - %s", err)
+			}
+			pce.VENsSlice = append(pce.VENsSlice, ven)
+			pce.VENs[ven.Href] = ven
+			pce.VENs[illumioapi.PtrToVal(ven.Hostname)] = ven
 		}
-		if w.Online && !includeOnline {
-			continue
-		}
-		roleCheck, appCheck, envCheck, locCheck := true, true, true, true
-		if app != "" && w.GetApp(pce.Labels).Value != app {
-			appCheck = false
-		}
-		if role != "" && w.GetRole(pce.Labels).Value != role {
-			roleCheck = false
-		}
-		if env != "" && w.GetEnv(pce.Labels).Value != env {
-			envCheck = false
-		}
-		if loc != "" && w.GetLoc(pce.Labels).Value != loc {
-			locCheck = false
-		}
-		if roleCheck && appCheck && locCheck && envCheck && !setLabelExcl {
-			targetWklds = append(targetWklds, w)
-		} else if (!roleCheck || !appCheck || !locCheck || !envCheck) && setLabelExcl {
-			targetWklds = append(targetWklds, w)
+		// Get the workloads individually
+		pce.Workloads = make(map[string]illumioapi.Workload)
+		for _, v := range pce.VENsSlice {
+			for _, w := range illumioapi.PtrToVal(v.Workloads) {
+				wkld, api, err := pce.GetWkldByHref(w.Href)
+				utils.LogAPIRespV2("GetWkldByHref", api)
+				if err != nil {
+					utils.LogErrorf("getting workload - %s", err)
+				}
+				pce.Workloads[wkld.Href] = wkld
+				pce.Workloads[illumioapi.PtrToVal(wkld.Hostname)] = wkld
+			}
 		}
 	}
 
-	if len(targetWklds) == 0 {
+	// Run validation
+	vensToUnpair := []illumioapi.VEN{}
+	for i, v := range vens {
+
+		if val, ok := pce.VENs[v.Href]; !ok {
+			utils.LogWarningf(true, "csv line %d - %s does not exist in the pce. skipping", i+1, v.Href)
+		} else {
+
+			// validate workload assignment
+			if (val.Workloads != nil && len(illumioapi.PtrToVal(val.Workloads)) != 1) || val.Workloads == nil {
+				utils.LogWarningf(true, "csv line %d - %s has invalid workload assignment. skipping", i+1, val.Href)
+			}
+
+			// validate heartbeat
+			if hoursSinceLastHB > 0 && val.HoursSinceLastHeartBeat() < float64(hoursSinceLastHB) {
+				utils.LogInfof(false, "csv line %d - %s hours since last heartbeat is %d. skipping.", i+1, val.Href, int(val.HoursSinceLastHeartBeat()))
+				continue
+			}
+
+			// validate online status
+			workloads := *val.Workloads
+			wkld := pce.Workloads[workloads[0].Href]
+			if !includeOnline && *wkld.Online {
+				continue
+			}
+
+			// Add to the slice
+			vensToUnpair = append(vensToUnpair, illumioapi.VEN{Href: val.Href})
+		}
+	}
+
+	if len(vensToUnpair) == 0 {
 		if !includeOnline {
-			utils.LogInfo("zero workloads identified. The --include-online option was not set so only offline workloads were evaluated.", true)
+			utils.LogInfo("zero vens identified. The --include-online option was not set so only offline workloads were evaluated.", true)
 		} else {
-			utils.LogInfo("zero workloads identified.", true)
+			utils.LogInfo("zero vens identified.", true)
 		}
 		return
 	}
 
-	// If there are more than 0 workloads, build the data slice for writing
-	data := [][]string{{"hostname", "href", "role", "app", "env", "loc", "policy_sync_status", "last_heartbeat", "hours_since_last_heartbeat"}}
-	for _, t := range targetWklds {
-		// Reset the time value
-		hoursSinceLastHB := ""
-		// Get the hours since last heartbeat
-		timeParsed, err := time.Parse(time.RFC3339, t.Agent.Status.LastHeartbeatOn)
-		if err != nil {
-			utils.LogWarning(fmt.Sprintf("%s - %s - agent.status.last_heartbeat_on: %s - error parsing time since last heartbeat - %s", t.Hostname, t.Href, t.Agent.Status.LastHeartbeatOn, err.Error()), true)
-			hoursSinceLastHB = "NA"
-		} else {
-			now := time.Now().UTC()
-			hoursSinceLastHB = fmt.Sprintf("%f", now.Sub(timeParsed).Hours())
-		}
-		// Append to our data array
-		data = append(data, []string{t.Hostname, t.Href, t.GetRole(pce.Labels).Value, t.GetApp(pce.Labels).Value, t.GetEnv(pce.Labels).Value, t.GetLoc(pce.Labels).Value, t.Agent.Status.SecurityPolicySyncState, t.Agent.Status.LastHeartbeatOn, hoursSinceLastHB})
-	}
-
-	// Write CSV data
-	if outputFileName == "" {
-		outputFileName = fmt.Sprintf("workloader-unpair-%s.csv", time.Now().Format("20060102_150405"))
-	}
-	utils.WriteOutput(data, data, outputFileName)
-
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
-		utils.LogInfo(fmt.Sprintf("workloader identified %d workloads requiring unpairing. See %s for details. To do the unpair, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.", len(targetWklds), outputFileName), true)
-
+		utils.LogInfo(fmt.Sprintf("workloader identified %d vens requiring unpairing. To do the unpair, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.", len(vensToUnpair)), true)
 		return
 	}
 
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if updatePCE && !noPrompt {
 		var prompt string
-		fmt.Printf("%s [PROMPT] - workloader identified %d workloads requiring unpairing in %s (%s). See %s for details. Do you want to run the unpair? (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), len(targetWklds), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string), outputFileName)
+		fmt.Printf("%s [PROMPT] - workloader identified %d vens requiring unpairing in %s (%s). Do you want to run the unpair? (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), len(vensToUnpair), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
-			utils.LogInfo(fmt.Sprintf("prompt denied to unpair %d workloads.", len(targetWklds)), true)
-
+			utils.LogInfo("prompt denied.", true)
 			return
 		}
 	}
 
-	// If single
+	// Run the single unpair
 	if singleUnpair {
 		// Create a slice of slices
-		singleTargetWklds := [][]illumioapi.Workload{}
-		for _, w := range targetWklds {
-			singleTargetWklds = append(singleTargetWklds, []illumioapi.Workload{w})
+		singleTargetVENs := [][]illumioapi.VEN{}
+		for _, v := range vensToUnpair {
+			singleTargetVENs = append(singleTargetVENs, []illumioapi.VEN{v})
 		}
 
 		// Iterate through those for unpairing
-		for i, w := range singleTargetWklds {
-			apiResps, err := pce.WorkloadsUnpair(w, restore)
-			utils.LogAPIResp("unpair workloads", apiResps[0])
+		for i, v := range singleTargetVENs {
+			apiResps, err := pce.VensUnpair(v, restore)
+			utils.LogAPIRespV2("unpair workloads", apiResps[0])
 			if err != nil {
 				utils.LogError(err.Error())
 			}
 			// Update progress
-			utils.LogInfo(fmt.Sprintf("unpaired %d of %d - %s - status code %d", i+1, len(singleTargetWklds), w[0].Href, apiResps[0].StatusCode), true)
+			utils.LogInfo(fmt.Sprintf("unpaired %d of %d - %s - status code %d", i+1, len(singleTargetVENs), v[0].Href, apiResps[0].StatusCode), true)
 		}
 	} else {
-		// We will only get here if we have need to run the unpair
-		apiResps, err := pce.WorkloadsUnpair(targetWklds, restore)
+		// Run the bulk unpair
+		apiResps, err := pce.VensUnpair(vensToUnpair, restore)
 		for _, a := range apiResps {
-			utils.LogAPIResp("unpair workloads", a)
+			utils.LogAPIRespV2("VensUnpair", a)
 		}
 		if err != nil {
 			utils.LogError(err.Error())
 		}
-	}
 
+	}
 }
