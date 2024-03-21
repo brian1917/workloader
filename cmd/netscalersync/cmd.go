@@ -53,6 +53,8 @@ Recommended to run without --update-pce first to log of what will change.`,
 		updatePCE = viper.Get("update_pce").(bool)
 		noPrompt = viper.Get("no_prompt").(bool)
 
+		utils.LogWarning("this command has been marked for deprecation. please open an issue on GitHub if you use it and want it preserved.", true)
+
 		nsSync(pce, netscaler)
 	},
 }
