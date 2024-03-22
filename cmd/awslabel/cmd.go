@@ -40,7 +40,7 @@ In addition to any label key, the following metadata values can be used:
 For example, the following command will map the aws tag "func" to the Illumio "role label" and map the AWS region to the Illumio "loc" label.
     workloader aws-label -m "func:role,region:loc"
 
-The command relies on the AWS CLI being installed and authenticated. See here for installing the AWS CLI: https://aws.amazon.com/cli/.
+The command relies on the AWS CLI being installed and authenticated. The CLI should be set for JSON format. See here for installing the AWS CLI: https://aws.amazon.com/cli/.
 
 To test the AWS CLI is authenticated, run aws ec2 describe-instances and ensure JSON output is displayed.
 

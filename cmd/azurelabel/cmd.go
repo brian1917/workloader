@@ -17,13 +17,14 @@ import (
 	"github.com/spf13/viper"
 )
 
-var labelMapping, outputFileName, azureOptions, debugFile string
+var labelMapping, outputFileName, azureOptions, setLabels, debugFile string
 var umwl bool
 
 func init() {
 	AzureLabelCmd.Flags().StringVarP(&labelMapping, "mapping", "m", "", "mappings of azure tags to illumio labels. the format is a comma-separated list of azure-tag:illumio-label. For example, \"application:app,type:role\" maps the Azure tag of application to the Illumio app label and the Azure type tag to the Illumio role label.")
 	AzureLabelCmd.Flags().BoolVarP(&umwl, "umwl", "u", false, "create and label unmanaged workloads for azure virtual machines that do not have an agent.")
-	AzureLabelCmd.Flags().StringVarP(&azureOptions, "options", "o", "", "AWS CLI can be extended using this option.  Anything added after -o inside quotes will be passed as is(e.g \"--region us-west-1\"")
+	AzureLabelCmd.Flags().StringVarP(&azureOptions, "options", "o", "", "Azure CLI can be extended using this option.  Anything added after -o inside quotes will be passed as is(e.g \"--region us-west-1\"")
+	AzureLabelCmd.Flags().StringVarP(&setLabels, "set-labels", "s", "", "hardcode specific labels for all workloads. The format is a comma-separated list of key:value. For example, \"env:prod,loc:azure\" will set all workloads to have the env label of prod and the location label of azure.")
 	AzureLabelCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 	AzureLabelCmd.Flags().StringVar(&debugFile, "debug-file", "", "file of json data to use instead of Azure CLI output.")
 	AzureLabelCmd.Flags().MarkHidden("debug-file")
@@ -76,10 +77,24 @@ func AzureLabels(labelMapping string, pce *illumioapi.PCE, updatePCE, noPrompt b
 		illumioAzMap[s[1]] = s[0]
 	}
 
+	// Iterate through the user provided hard-coded mappigs
+	hardCodedKeys := make(map[string]string)
+	x = strings.Replace(setLabels, ", ", ",", -1)
+	for _, kvPair := range strings.Split(x, ",") {
+		split := strings.Split(kvPair, ":")
+		if len(split) != 2 {
+			utils.LogErrorf("%s is an invalid hard-coded label", kvPair)
+		}
+		hardCodedKeys[split[0]] = split[1]
+	}
+
 	// Set up the csv headers
 	csvData := [][]string{{wkldexport.HeaderHostname}}
 	for illumioLabel := range illumioAzMap {
 		csvData[0] = append(csvData[0], illumioLabel)
+	}
+	for key := range hardCodedKeys {
+		csvData[0] = append(csvData[0], key)
 	}
 	if umwl {
 		csvData[0] = append(csvData[0], wkldexport.HeaderInterfaces, wkldexport.HeaderExternalDataSet, wkldexport.HeaderExternalDataReference)
@@ -191,7 +206,12 @@ func AzureLabels(labelMapping string, pce *illumioapi.PCE, updatePCE, noPrompt b
 			if header == wkldexport.HeaderHostname || header == wkldexport.HeaderInterfaces || header == wkldexport.HeaderExternalDataSet || header == wkldexport.HeaderExternalDataReference {
 				continue
 			}
-			csvRow = append(csvRow, vm.Tags[illumioAzMap[header]])
+			// Process Hardcoded keys
+			if val, ok := hardCodedKeys[header]; ok {
+				csvRow = append(csvRow, val)
+			} else {
+				csvRow = append(csvRow, vm.Tags[illumioAzMap[header]])
+			}
 		}
 		if umwl {
 			csvRow = append(csvRow, vm.InterfaceList, "workloader-azure-label", vm.Name)
