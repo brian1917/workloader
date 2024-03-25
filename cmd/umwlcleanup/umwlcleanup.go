@@ -35,7 +35,7 @@ The unmanaged workload IP address is compared to managed workload's NIC with the
 
 To label the managed workloads with the same labels on the matched unmanaged workload, the output file can be directly passed into the wkld-import command.
 
-Additionally, the output can be passed into the delete command with the --header flag set to umwl_href to delete the no longer needed unmanaged workloads.`,
+Additionally, the output can be passed into the delete command with the --header flag set to unmanaged_href to delete the no longer needed unmanaged workloads.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
