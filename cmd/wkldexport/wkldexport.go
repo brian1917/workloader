@@ -22,6 +22,7 @@ type WkldExport struct {
 	IncludeVuln         bool
 	RemoveDescNewLines  bool
 	Headers             []string
+	LabelPrefix         bool
 }
 
 // CsvData returns wkld export in a csv format of slice of slice of strings
@@ -40,6 +41,14 @@ func (e *WkldExport) CsvData() (csvData [][]string) {
 	}
 	// Sort the slice of label keys
 	sort.Strings(labelsKeySlice)
+
+	// Check if need to override the label prefix
+	for _, ld := range labelsKeySlice {
+		if _, ok := FieldMapping()[ld]; ok {
+			utils.LogWarningf(true, "%s label key matches a header or alias used in wkld-export or wkld-import. switching on the add-label-prefix flag to add \"label:\" in front of each label key in the csv headers. this format is compatible in wkld-import.", ld)
+			e.LabelPrefix = true
+		}
+	}
 
 	// Process label summary
 	if e.IncludeLabelSummary {
@@ -99,7 +108,13 @@ func (e *WkldExport) CsvData() (csvData [][]string) {
 			headerRow = append(headerRow, header)
 			// Insert the labels either after href or hostname
 			if (!noHref && header == "href") || (noHref && header == "name") {
-				headerRow = append(headerRow, labelsKeySlice...)
+				if e.LabelPrefix {
+					for _, key := range labelsKeySlice {
+						headerRow = append(headerRow, fmt.Sprintf("label:%s", key))
+					}
+				} else {
+					headerRow = append(headerRow, labelsKeySlice...)
+				}
 			}
 		}
 		csvData = append(csvData, headerRow)
@@ -185,7 +200,11 @@ func (e *WkldExport) CsvData() (csvData [][]string) {
 
 		// Get the labels
 		for _, labelKey := range labelsKeySlice {
-			csvRow[labelKey] = w.GetLabelByKey(labelKey, e.PCE.Labels).Value
+			if e.LabelPrefix {
+				csvRow[fmt.Sprintf("label:%s", labelKey)] = w.GetLabelByKey(labelKey, e.PCE.Labels).Value
+			} else {
+				csvRow[labelKey] = w.GetLabelByKey(labelKey, e.PCE.Labels).Value
+			}
 		}
 
 		// Fill csv row with other data
@@ -273,7 +292,7 @@ func (e *WkldExport) WriteToCsv(outputFile string) {
 
 	if len(outputData) > 1 {
 		if outputFile == "" {
-			outputFile = fmt.Sprintf("workloader-wkld-export-%s.csv", time.Now().Format("20060102_150405"))
+			outputFile = utils.FileName()
 		}
 		utils.WriteOutput(outputData, outputData, outputFile)
 		utils.LogInfo(fmt.Sprintf("%d workloads exported", len(outputData)-1), true)

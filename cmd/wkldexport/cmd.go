@@ -9,7 +9,7 @@ import (
 )
 
 // Declare global variables
-var managedOnly, unmanagedOnly, onlineOnly, noHref, includeVuln, removeDescNewLines, labelSummary bool
+var managedOnly, unmanagedOnly, onlineOnly, noHref, includeVuln, removeDescNewLines, labelSummary, addLabelPrefix bool
 var headers, labelFile, uniqueLabelKeys, globalOutputFileName, subnetInclude string
 
 func init() {
@@ -18,6 +18,7 @@ func init() {
 	WkldExportCmd.Flags().BoolVarP(&managedOnly, "managed-only", "m", false, "only export managed workloads.")
 	WkldExportCmd.Flags().BoolVarP(&unmanagedOnly, "unmanaged-only", "u", false, "only export unmanaged workloads.")
 	WkldExportCmd.Flags().BoolVarP(&onlineOnly, "online-only", "o", false, "only export online workloads.")
+	WkldExportCmd.Flags().BoolVarP(&addLabelPrefix, "add-label-prefix", "a", false, "add the \"label:\" prefix in the header for any label values.")
 	WkldExportCmd.Flags().StringVarP(&subnetInclude, "subnet", "s", "", "subnet filter to only export workloads with an interface in that subnet. multiple subnets should be comma-separated (e.g., \"10.0.0.64/26,10.0.0.128/26\")")
 	WkldExportCmd.Flags().BoolVarP(&includeVuln, "incude-vuln-data", "v", false, "include vulnerability data.")
 	WkldExportCmd.Flags().BoolVar(&noHref, "no-href", false, "do not export href column. use this when exporting data to import into different pce.")
@@ -55,7 +56,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 
 		// Get the PCE
 		var err error
-		wkldExport := WkldExport{PCE: &illumioapi.PCE{}, IncludeVuln: includeVuln, RemoveDescNewLines: removeDescNewLines, IncludeLabelSummary: labelSummary, LabelSummaryKeys: uniqueLabelKeys}
+		wkldExport := WkldExport{PCE: &illumioapi.PCE{}, IncludeVuln: includeVuln, RemoveDescNewLines: removeDescNewLines, IncludeLabelSummary: labelSummary, LabelSummaryKeys: uniqueLabelKeys, LabelPrefix: addLabelPrefix}
 		*wkldExport.PCE, err = utils.GetTargetPCEV2(false)
 		if err != nil {
 			utils.LogError(err.Error())

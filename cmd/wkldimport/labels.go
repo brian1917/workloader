@@ -2,8 +2,10 @@ package wkldimport
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/brian1917/illumioapi/v2"
+	"github.com/brian1917/workloader/cmd/wkldexport"
 	"github.com/brian1917/workloader/utils"
 )
 
@@ -42,13 +44,22 @@ func (w *importWkld) labels(input Input, newLabels []illumioapi.Label, labelKeys
 	if w.wkld.Labels != nil {
 		for _, l := range illumioapi.PtrToVal(w.wkld.Labels) {
 			if _, ok := input.Headers[input.PCE.Labels[l.Href].Key]; !ok {
-				nonProcessedLabels = append(nonProcessedLabels, l)
+				if _, ok := input.Headers["label:"+input.PCE.Labels[l.Href].Key]; !ok {
+					nonProcessedLabels = append(nonProcessedLabels, l)
+				}
 			}
 		}
 	}
 
 	// Process all headers to see if they are labels
 	for headerValue, index := range input.Headers {
+
+		// If it's a protected header value, skip
+		if _, ok := wkldexport.FieldMapping()[headerValue]; ok {
+			continue
+		}
+
+		headerValue = strings.TrimPrefix(headerValue, "label:")
 
 		// Skip if the header is not a label
 		if !labelKeysMap[headerValue] {

@@ -124,3 +124,35 @@ func ImportHeaders() []string {
 		HeaderExternalDataSet,
 		HeaderExternalDataReference}
 }
+
+func FieldMapping() map[string]string {
+
+	// Get all the headers
+	allHeaders := AllHeaders(true, true)
+
+	// Check for the existing of the headers
+	fieldMapping := make(map[string]string)
+
+	// Assign defaults
+	for _, h := range allHeaders {
+		fieldMapping[h] = h
+	}
+
+	// Alternate names for hostname
+	fieldMapping["host"] = "hostname"
+	fieldMapping["host_name"] = "hostname"
+	fieldMapping["host name"] = "hostname"
+
+	// Alternate names for interfaces
+	fieldMapping["interface"] = "interfaces"
+	fieldMapping["ifaces"] = "interfaces"
+	fieldMapping["iface"] = "interfaces"
+	fieldMapping["ip"] = "interfaces"
+	fieldMapping["ip_address"] = "interfaces"
+	fieldMapping["ips"] = "interfaces"
+
+	// Description
+	fieldMapping["desc"] = "description"
+
+	return fieldMapping
+}
