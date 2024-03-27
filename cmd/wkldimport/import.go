@@ -177,7 +177,6 @@ func ImportWkldsFromCSV(input Input) {
 
 		for i, header := range headerValues {
 			if index, ok := input.Headers[header]; ok {
-				//&& illumioapi.PtrToVal(*targetUpdates[i]) != ""
 				if w.csvLine[index] == input.RemoveValue && targetUpdates[i] != nil && illumioapi.PtrToVal(*targetUpdates[i]) != "" {
 					if w.wkld.Href != "" {
 						utils.LogInfo(fmt.Sprintf("csv line %d - %s - %s to be removed", w.csvLineNum, w.compareString, header), false)

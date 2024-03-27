@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/viper"
@@ -78,4 +79,8 @@ func WriteLineOutput(csvLine []string, csvFileName string) {
 	if err := writer.Write(csvLine); err != nil {
 		LogError(fmt.Sprintf("error writing csv line - %s", err))
 	}
+}
+
+func FileName() string {
+	return fmt.Sprintf("workloader-%s-%s.csv", os.Args[1], time.Now().Format("20060102_150405"))
 }
