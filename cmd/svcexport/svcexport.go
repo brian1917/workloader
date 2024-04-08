@@ -81,7 +81,7 @@ func ExportServices(pce illumioapi.PCE, templateFormat bool, outputFileName stri
 	if compressed {
 
 		// Start the data slice with headers
-		csvData = [][]string{{"name", "description", "service_ports", "window_services", "href"}}
+		csvData = [][]string{{"name", "description", "service_ports", "window_services", "href", HeaderExternalDataSet, HeaderExternalDataReference}}
 		if riskData {
 			csvData[0] = append(csvData[0], "ransomware_category", "ransomware_severity", "ransomware_os_platform")
 		}
@@ -92,7 +92,7 @@ func ExportServices(pce illumioapi.PCE, templateFormat bool, outputFileName stri
 			windowsServices, servicePorts := s.ParseService()
 
 			// Add to the CSV data
-			row := []string{s.Name, s.Description, strings.Join(servicePorts, ";"), strings.Join(windowsServices, ";"), s.Href}
+			row := []string{s.Name, s.Description, strings.Join(servicePorts, ";"), strings.Join(windowsServices, ";"), s.Href, illumioapi.PtrToVal(s.ExternalDataSet), illumioapi.PtrToVal(s.ExternalDataReference)}
 			if riskData && s.RiskDetails.Ransomware != nil {
 				row = append(row, s.RiskDetails.Ransomware.Category, s.RiskDetails.Ransomware.Severity, strings.Join(s.RiskDetails.Ransomware.OsPlatforms, ";"))
 			}

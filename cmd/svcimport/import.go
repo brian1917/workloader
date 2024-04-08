@@ -123,6 +123,24 @@ func ImportServices(input Input) {
 				}
 			}
 
+			// Chek the external data set
+			if extCol, ok := input.Headers[svcexport.HeaderExternalDataSet]; ok {
+				if illumioapi.PtrToVal(newSvc.ExternalDataSet) != data[extCol] {
+					utils.LogInfof(false, "csv line %d - %s - external data set to be updated from %s to %s", csvLine, newSvc.Href, illumioapi.PtrToVal(newSvc.ExternalDataSet), data[extCol])
+					newSvc.ExternalDataSet = &data[extCol]
+					update = true
+				}
+			}
+
+			// Check the exteranl data reference
+			if refCol, ok := input.Headers[svcexport.HeaderExternalDataReference]; ok {
+				if illumioapi.PtrToVal(newSvc.ExternalDataReference) != data[refCol] {
+					utils.LogInfof(false, "csv line %d - %s - external data reference to be updated from %s to %s", csvLine, newSvc.Href, illumioapi.PtrToVal(newSvc.ExternalDataReference), data[refCol])
+					newSvc.ExternalDataReference = &data[refCol]
+					update = true
+				}
+			}
+
 			// Check the description
 			if descCol, ok := input.Headers[svcexport.HeaderDescription]; ok {
 				if newSvc.Description != data[descCol] {
