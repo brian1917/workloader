@@ -265,7 +265,8 @@ func ipCheck(ip string) string {
 
 	//make sure ip string is a valid IP.
 	if net.ParseIP(ip) == nil {
-		utils.LogError(fmt.Sprintf("Invalid IP addres from PCE - %s", ip))
+		utils.LogWarning(fmt.Sprintf("Empty or Invalid IP addres from PCE - %s", ip), false)
+		return ""
 	}
 
 	//skip all link local addresses
