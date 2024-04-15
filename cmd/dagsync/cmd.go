@@ -261,11 +261,12 @@ func (pan *PAN) callHTTP(cmdType string, cmd string) DagResponse {
 }
 
 // ipv6Check - Function that checks IP string for valid IP.  Also checks to see if Ipv6 and if IPv6 should be included
-func ipCheck(ip string) string {
+func ipCheck(ip, href string) string {
 
 	//make sure ip string is a valid IP.
 	if net.ParseIP(ip) == nil {
-		utils.LogError(fmt.Sprintf("Invalid IP addres from PCE - %s", ip))
+		utils.LogWarningf(false, "Empty or Invalid IP address - %s on href - %s", ip, href)
+		return ""
 	}
 
 	//skip all link local addresses
@@ -336,7 +337,7 @@ func workloadIPMap(filterList []map[string]string) map[string]IPTags {
 		}
 		if match {
 			for _, ip := range w.Interfaces {
-				if ipCheck(ip.Address) != "" {
+				if ipCheck(ip.Address, w.Href) != "" {
 					pceIpMap[ip.Address] = IPTags{Labels: labels, Found: false, HrefLabel: w.Href}
 				}
 			}
