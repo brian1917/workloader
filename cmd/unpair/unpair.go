@@ -6,13 +6,14 @@ import (
 	"time"
 
 	"github.com/brian1917/illumioapi/v2"
+	"github.com/brian1917/workloader/cmd/wkldexport"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 // Set global variables for flags
-var hrefFile, hrefHeader, restore string
+var hrefFile, labelFile, neverUnpairFile, hrefHeader, restore string
 var updatePCE, noPrompt, includeOnline, singleAPI, singleUnpair bool
 var hoursSinceLastHB int
 var pce illumioapi.PCE
@@ -21,7 +22,10 @@ var err error
 // Init handles flags
 func init() {
 	UnpairCmd.Flags().StringVar(&restore, "restore", "saved", "restore value. Must be saved, default, or disable.")
-	UnpairCmd.Flags().StringVar(&hrefHeader, "header", "ven_href", "column header for hrefs in the href-file.")
+	UnpairCmd.Flags().StringVar(&hrefFile, "href-file", "", "csv file with target ven hrefs to unpair. the input file should have a header row. use the --header flag to specify the header with the ven href.")
+	UnpairCmd.Flags().StringVar(&hrefHeader, "header", "ven_href", "column header for ven hrefs in the href-file.")
+	UnpairCmd.Flags().StringVar(&labelFile, "label-file", "", "csv file with labels to filter query. see description below.")
+	UnpairCmd.Flags().StringVar(&neverUnpairFile, "never-unpair-file", "", "csv file with hrefs that should never be unpaired (e.g., hrefs of VDI golden images). headers are optional.")
 	UnpairCmd.Flags().IntVar(&hoursSinceLastHB, "hours", 0, "limit unpairing to workloads that have not sent a heartbeat in set time. 0 will ignore heartbeats.")
 	UnpairCmd.Flags().BoolVar(&includeOnline, "include-online", false, "include workloads that are online. by default only offline workloads that meet criteria will be unpaired.")
 	UnpairCmd.Flags().BoolVar(&singleAPI, "single-api", false, "if we need to get vens and workloads from the pce query the vens on at a time vs. getting all vens. useful for very large environments that are only unpairing a small amount.")
@@ -32,16 +36,26 @@ func init() {
 
 // UnpairCmd runs the unpair
 var UnpairCmd = &cobra.Command{
-	Use:   "unpair [csv file]",
-	Short: "Unpair workloads through an input file.",
+	Use:   "unpair",
+	Short: "Unpair VENs through an input file.",
 
 	Long: `  
-Unpair workloads through an input file.
+Unpair VENs through an input file.
 
-It's recommended to generate the list of workloads needed by running wkld-export with the right filters. The csv output from wkld-exporft can be passed directly into this command.
+To target only workloads with a specific label, use a label-file with the format below. Workloader will generate a CSV to show the workloads that would be unpaired.
+First row of the label-file should be label keys. The workload query uses an AND operator for entries on the same row and an OR operator for the separate rows. An example label file is below:
++------+-----+-----+-----+----+
+| role | app | env | loc | bu |
++------+-----+-----+-----+----+
+| web  | erp |     |     |    |
+|      |     |     | bos | it |
+|      | crm |     |     |    |
++------+-----+-----+-----+----+
+This example queries all workloads that are
+- web (role) AND erp (app) 
+- OR bos(loc) AND it (bu)
+- OR CRM (app)
 
-Example commands to unpair all VENs that have not sent a heartbeat in 24 hours:
-    workloader wkld-export --managed-only --output-file managed_workloads.csv && workloader unpair managed_workloads.csv --hours 24
 
 Use the --update-pce command to run the unpair with a user prompt confirmation.
 
@@ -57,12 +71,6 @@ Use --update-pce and --no-prompt to run unpair with no prompts.`,
 		updatePCE = viper.Get("update_pce").(bool)
 		noPrompt = viper.Get("no_prompt").(bool)
 
-		// Get the input file
-		if len(args) != 1 {
-			utils.LogError("command requires 1 argument for the csv file. see usage help.")
-		}
-		hrefFile = args[0]
-
 		unpair()
 	},
 }
@@ -75,11 +83,86 @@ func unpair() {
 		utils.LogError("restore value must be saved, default, or disable.")
 	}
 
+	// Check the input files
+	if hrefFile == "" && labelFile == "" {
+		utils.LogError("must provide either a label file or href file.")
+	}
+	if hrefFile != "" && labelFile != "" {
+		utils.LogError("cannot provide both a label file and href file.")
+	}
+	if hrefFile == "" && singleAPI {
+		utils.LogError("single-api only valid when using an href file.")
+	}
+
+	// Load the pce if we are using a label file or need to check hearbeat or online status
+	if (labelFile != "" || hoursSinceLastHB > 0 || !includeOnline) && !singleAPI {
+		wkldParams := make(map[string]string)
+		wkldParams["managed"] = "true"
+
+		if labelFile != "" {
+			api, err := pce.GetLabels(nil)
+			utils.LogAPIRespV2("GetLabels", api)
+			if err != nil {
+				utils.LogErrorf("getting labels - %s", err)
+			}
+
+			labelCsvData, err := utils.ParseCSV(labelFile)
+			if err != nil {
+				utils.LogErrorf("parsing labelFile - %s", err)
+			}
+
+			labelQuery, err := pce.WorkloadQueryLabelParameter(labelCsvData)
+			if err != nil {
+				utils.LogErrorf("getting label parameter query - %s", err)
+			}
+			if len(labelQuery) > 10000 {
+				utils.LogErrorf("the query is too large. the total character count is %d and the limit for this command is 10,000", len(labelQuery))
+			}
+			wkldParams["labels"] = labelQuery
+		}
+
+		pce.Load(illumioapi.LoadInput{Workloads: true, VENs: true, LabelDimensions: true, WorkloadsQueryParameters: wkldParams}, utils.UseMulti())
+	}
+
+	// Build the href file from the label data
+	if labelFile != "" {
+		// Get the workloads
+		headers := []string{"ven_href", "hostname"}
+		for _, ld := range pce.LabelDimensionsSlice {
+			headers = append(headers, ld.Key)
+		}
+		wkldExport := wkldexport.WkldExport{PCE: &pce, Headers: headers, IncludeLabelSummary: false, IncludeVuln: false, RemoveDescNewLines: false, LabelPrefix: false}
+		hrefFile = utils.FileName()
+		wkldExport.WriteToCsv(hrefFile)
+	}
+
+	// Parse the never unpair
+	neverUnpairHrefs := make(map[string]bool)
+	if neverUnpairFile != "" {
+		neverUnpairData, err := utils.ParseCSV(neverUnpairFile)
+		if err != nil {
+			utils.LogErrorf("parsing never-unpair-file - %s", err)
+		}
+		for rowNum, row := range neverUnpairData {
+			if strings.Contains(row[0], "/workloads/") {
+				utils.LogErrorf("csv row %d -  never-unpair-file - %s is a workload href. only VEN hrefs are allowed.", rowNum, row[0])
+			}
+			if rowNum == 0 && !strings.Contains(row[0], "/vens/") {
+				utils.LogInfof(true, "skipping the first row of the never-unpair-file because it's not an href.")
+			}
+			if rowNum > 0 && !strings.Contains(row[0], "/vens/") {
+				utils.LogErrorf("csv row %d - %s is not a valid href.", rowNum, row[0])
+			}
+			neverUnpairHrefs[row[0]] = true
+		}
+	}
+
 	// Process the href file
 	hrefFileData, err := utils.ParseCSV(hrefFile)
 	if err != nil {
 		utils.LogErrorf("parsing csv - %s", err)
 	}
+
 	venHrefCol := 0
 	vens := []illumioapi.VEN{}
 	for rowIndex, row := range hrefFileData {
@@ -91,19 +174,17 @@ func unpair() {
 				}
 			}
 		} else {
-			vens = append(vens, illumioapi.VEN{Href: row[venHrefCol]})
+			// Skip if on the list
+			if neverUnpairHrefs[row[venHrefCol]] {
+				utils.LogInfof(true, "skipping %s because it is in the always skip list", row[venHrefCol])
+			} else {
+				vens = append(vens, illumioapi.VEN{Href: row[venHrefCol]})
+			}
 		}
 	}
 
-	// If hours since last heartbeat or offline only we need the VENs from the PCE to validate
-	// if hoursSinceLastHB > 0 || !includeOnline {
-	if !singleAPI {
-		apiResps, err := pce.Load(illumioapi.LoadInput{VENs: true, Workloads: true}, utils.UseMulti())
-		utils.LogMultiAPIRespV2(apiResps)
-		if err != nil {
-			utils.LogErrorf("loading the pce - %s", err)
-		}
-	} else {
+	// Get the VEN and workload info if we need to here from single API
+	if (labelFile != "" || hoursSinceLastHB > 0 || !includeOnline) && singleAPI {
 		// Get the VENs individually
 		pce.VENs = make(map[string]illumioapi.VEN)
 		for _, v := range vens {
