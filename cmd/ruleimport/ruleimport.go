@@ -834,6 +834,9 @@ CSVEntries:
 			csp = nil
 		}
 		csvRule := illumioapi.Rule{Description: &description, UnscopedConsumers: &unscopedConsumers, Consumers: &consumers, ConsumingSecurityPrincipals: csp, Providers: &providers, IngressServices: &ingressSvc, Enabled: &enabled, MachineAuth: &machineAuth, SecConnect: &secConnect, Stateless: &stateless, ResolveLabelsAs: &illumioapi.ResolveLabelsAs{Consumers: &consResolveAs, Providers: &provResolveAs}, UseWorkloadSubnets: &useWkldSubnets, NetworkType: networkType}
+		if input.PCE.Version.Major < 22 {
+			csvRule.UseWorkloadSubnets = nil
+		}
 
 		// Add to our array
 		// Option 1 - No rule HREF provided, so it's a new rule
