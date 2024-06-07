@@ -15,10 +15,12 @@ import (
 )
 
 var labelMapping, outputFileName, awsOptions string
+var ignoreCase bool
 
 func init() {
 	AwsLabelCmd.Flags().StringVarP(&labelMapping, "mapping", "m", "", "mappings of AWS tags or other metadata to illumio labels. the format is a comma-separated list of aws:illumio. See below for examples.")
 	AwsLabelCmd.Flags().StringVarP(&awsOptions, "options", "o", "", "AWS CLI can be extended using this option.  Anything added after -o inside quotes will be passed as is(e.g \"--region us-west-1\"")
+	AwsLabelCmd.Flags().BoolVar(&ignoreCase, "ignore-case", false, "ignore case on the match string.")
 	AwsLabelCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 	AwsLabelCmd.MarkFlagRequired("mapping")
 	AwsLabelCmd.Flags().SortFlags = false
@@ -169,6 +171,7 @@ func AwsLabels(labelMapping string, pce *illumioapi.PCE, updatePCE, noPrompt boo
 			NoPrompt:        noPrompt,
 			MaxUpdate:       -1,
 			MaxCreate:       -1,
+			IgnoreCase:      ignoreCase,
 		})
 
 	} else {
