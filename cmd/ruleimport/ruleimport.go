@@ -412,6 +412,9 @@ CSVEntries:
 				userProvidedLabels = strings.Split(strings.Replace(l[input.Headers[ruleexport.HeaderSrcLabels]], "; ", ";", -1), ";")
 			}
 			for _, label := range userProvidedLabels {
+				if !strings.Contains(label, ":") {
+					continue
+				}
 				key := strings.Split(label, ":")[0]
 				value := strings.TrimPrefix(label, key+":")
 				csvLabels = append(csvLabels, illumioapi.Label{Key: key, Value: value})
@@ -436,6 +439,9 @@ CSVEntries:
 				userProvidedLabels = strings.Split(strings.Replace(l[input.Headers[ruleexport.HeaderSrcLabelsExclusions]], "; ", ";", -1), ";")
 			}
 			for _, label := range userProvidedLabels {
+				if !strings.Contains(label, ":") {
+					continue
+				}
 				key := strings.Split(label, ":")[0]
 				value := strings.TrimPrefix(label, key+":")
 				csvLabels = append(csvLabels, illumioapi.Label{Key: key, Value: value})
@@ -501,6 +507,9 @@ CSVEntries:
 				userProvidedLabels = strings.Split(strings.Replace(l[input.Headers[ruleexport.HeaderDstLabels]], "; ", ";", -1), ";")
 			}
 			for _, label := range userProvidedLabels {
+				if !strings.Contains(label, ":") {
+					continue
+				}
 				key := strings.Split(label, ":")[0]
 				value := strings.TrimPrefix(label, key+":")
 				csvLabels = append(csvLabels, illumioapi.Label{Key: key, Value: value})
@@ -525,6 +534,9 @@ CSVEntries:
 				userProvidedLabels = strings.Split(strings.Replace(l[input.Headers[ruleexport.HeaderDstLabelsExclusions]], "; ", ";", -1), ";")
 			}
 			for _, label := range userProvidedLabels {
+				if !strings.Contains(label, ":") {
+					continue
+				}
 				key := strings.Split(label, ":")[0]
 				value := strings.TrimPrefix(label, key+":")
 				csvLabels = append(csvLabels, illumioapi.Label{Key: key, Value: value})
