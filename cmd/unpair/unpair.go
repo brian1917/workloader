@@ -132,7 +132,7 @@ func unpair() {
 			headers = append(headers, ld.Key)
 		}
 		wkldExport := wkldexport.WkldExport{PCE: &pce, Headers: headers, IncludeLabelSummary: false, IncludeVuln: false, RemoveDescNewLines: false, LabelPrefix: false}
-		hrefFile = utils.FileName()
+		hrefFile = utils.FileName("")
 		wkldExport.WriteToCsv(hrefFile)
 	}
 
