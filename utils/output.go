@@ -81,6 +81,9 @@ func WriteLineOutput(csvLine []string, csvFileName string) {
 	}
 }
 
-func FileName() string {
+func FileName(suffix string) string {
+	if suffix != "" {
+		return fmt.Sprintf("workloader-%s-%s-%s.csv", os.Args[1], suffix, time.Now().Format("20060102_150405"))
+	}
 	return fmt.Sprintf("workloader-%s-%s.csv", os.Args[1], time.Now().Format("20060102_150405"))
 }
