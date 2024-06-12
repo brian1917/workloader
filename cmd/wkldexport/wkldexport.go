@@ -292,7 +292,7 @@ func (e *WkldExport) WriteToCsv(outputFile string) {
 
 	if len(outputData) > 1 {
 		if outputFile == "" {
-			outputFile = utils.FileName()
+			outputFile = utils.FileName("")
 		}
 		utils.WriteOutput(outputData, outputData, outputFile)
 		utils.LogInfo(fmt.Sprintf("%d workloads exported", len(outputData)-1), true)
