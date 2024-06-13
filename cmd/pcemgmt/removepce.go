@@ -68,7 +68,7 @@ func removePce() {
 		// Delete the API keys that are from Workloader
 		saveHref := ""
 		for _, a := range apiKeys {
-			if a.Name == "Workloader" {
+			if a.Name == "workloader" && a.Description == "created by workloader" {
 				if a.AuthUsername != viper.Get(pceName+".user").(string) {
 					_, err := pce.DeleteHref(a.Href)
 					if err != nil {
