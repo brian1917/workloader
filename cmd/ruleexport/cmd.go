@@ -55,7 +55,7 @@ var RuleExportCmd = &cobra.Command{
 	Use:   "rule-export",
 	Short: "Create a CSV export of all rules in the input.PCE.",
 	Long: `
-Create a CSV export of all rules in the input.PCE. The app, env, and location flags (one label per key) will filter the results.
+Create a CSV export of all rules in the input.PCE.
 
 The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
