@@ -37,10 +37,10 @@ func init() {
 // UnpairCmd runs the unpair
 var UnpairCmd = &cobra.Command{
 	Use:   "unpair",
-	Short: "Unpair VENs through an input file.",
+	Short: "Unpair VENs through an input file of labels or ven hrefs.",
 
 	Long: `  
-Unpair VENs through an input file.
+Unpair VENs through an input file of labels or ven hrefs.
 
 To target only workloads with a specific label, use a label-file with the format below. Workloader will generate a CSV to show the workloads that would be unpaired.
 First row of the label-file should be label keys. The workload query uses an AND operator for entries on the same row and an OR operator for the separate rows. An example label file is below:
@@ -56,15 +56,12 @@ This example queries all workloads that are
 - OR bos(loc) AND it (bu)
 - OR CRM (app)
 
-
-Use the --update-pce command to run the unpair with a user prompt confirmation.
-
-Use --update-pce and --no-prompt to run unpair with no prompts.`,
+Use the --update-pce command to run the unpair with a user prompt confirmation. Use --update-pce and --no-prompt to run unpair with no prompts.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 		pce, err = utils.GetTargetPCEV2(true)
 		if err != nil {
-			utils.LogError(err.Error())
+			utils.LogErrorf("getting target pce - %s", err)
 		}
 
 		// Get persistent flags from Viper
@@ -95,7 +92,7 @@ func unpair() {
 	}
 
 	// Load the pce if we are using a label file or need to check hearbeat or online status
-	if (labelFile != "" || hoursSinceLastHB > 0 || !includeOnline) && !singleAPI {
+	if !singleAPI {
 		wkldParams := make(map[string]string)
 		wkldParams["managed"] = "true"
 
@@ -120,74 +117,12 @@ func unpair() {
 			}
 			wkldParams["labels"] = labelQuery
 		}
-
+		// Get workloads, VENs, and label dimensions
 		pce.Load(illumioapi.LoadInput{Workloads: true, VENs: true, LabelDimensions: true, WorkloadsQueryParameters: wkldParams}, utils.UseMulti())
-	}
-
-	// Build the href file from the label data
-	if labelFile != "" {
-		// Get the workloads
-		headers := []string{"ven_href", "hostname"}
-		for _, ld := range pce.LabelDimensionsSlice {
-			headers = append(headers, ld.Key)
-		}
-		wkldExport := wkldexport.WkldExport{PCE: &pce, Headers: headers, IncludeLabelSummary: false, IncludeVuln: false, RemoveDescNewLines: false, LabelPrefix: false}
-		hrefFile = utils.FileName("")
-		wkldExport.WriteToCsv(hrefFile)
-	}
-
-	// Parse the never unpair
-	neverUnpairHrefs := make(map[string]bool)
-	if neverUnpairFile != "" {
-		neverUnpairData, err := utils.ParseCSV(neverUnpairFile)
-		if err != nil {
-			utils.LogErrorf("parsing never-unpair-file - %s", err)
-		}
-		for rowNum, row := range neverUnpairData {
-			if strings.Contains(row[0], "/workloads/") {
-				utils.LogErrorf("csv row %d -  never-unpair-file - %s is a workload href. only VEN hrefs are allowed.", rowNum, row[0])
-			}
-			if rowNum == 0 && !strings.Contains(row[0], "/vens/") {
-				utils.LogInfof(true, "skipping the first row of the never-unpair-file because it's not an href.")
-			}
-			if rowNum > 0 && !strings.Contains(row[0], "/vens/") {
-				utils.LogErrorf("csv row %d - %s is not a valid href.", rowNum, row[0])
-			}
-			neverUnpairHrefs[row[0]] = true
-		}
-	}
-
-	// Process the href file
-	hrefFileData, err := utils.ParseCSV(hrefFile)
-	if err != nil {
-		utils.LogErrorf("parsing csv - %s", err)
-	}
-
-	venHrefCol := 0
-	vens := []illumioapi.VEN{}
-	for rowIndex, row := range hrefFileData {
-		if rowIndex == 0 {
-			for colIndex, col := range row {
-				if col == hrefHeader {
-					venHrefCol = colIndex
-					continue
-				}
-			}
-		} else {
-			// Skip if on the list
-			if neverUnpairHrefs[row[venHrefCol]] {
-				utils.LogInfof(true, "skipping %s because it is in the always skip list", row[venHrefCol])
-			} else {
-				vens = append(vens, illumioapi.VEN{Href: row[venHrefCol]})
-			}
-		}
-	}
-
-	// Get the VEN and workload info if we need to here from single API
-	if (labelFile != "" || hoursSinceLastHB > 0 || !includeOnline) && singleAPI {
+	} else {
 		// Get the VENs individually
 		pce.VENs = make(map[string]illumioapi.VEN)
-		for _, v := range vens {
+		for _, v := range processVENsFile() {
 			ven, api, err := pce.GetVenByHref(v.Href)
 			utils.LogAPIRespV2("GetVenByHref", api)
 			if err != nil {
@@ -210,11 +145,29 @@ func unpair() {
 				pce.Workloads[illumioapi.PtrToVal(wkld.Hostname)] = wkld
 			}
 		}
+		// Load the label dimensions
+		api, err := pce.GetLabelDimensions(nil)
+		utils.LogAPIRespV2("GetLabelDimensions", api)
+		if err != nil {
+			utils.LogErrorf("getting label dimensions - %s", err)
+		}
+	}
+
+	// Build the href file from the label data export
+	if labelFile != "" {
+		// Get the workloads
+		headers := []string{"ven_href", "hostname"}
+		for _, ld := range pce.LabelDimensionsSlice {
+			headers = append(headers, ld.Key)
+		}
+		wkldExport := wkldexport.WkldExport{PCE: &pce, Headers: headers, IncludeLabelSummary: false, IncludeVuln: false, RemoveDescNewLines: false, LabelPrefix: false}
+		hrefFile = utils.FileName("")
+		wkldExport.WriteToCsv(hrefFile)
 	}
 
 	// Run validation
 	vensToUnpair := []illumioapi.VEN{}
-	for i, v := range vens {
+	for i, v := range processVENsFile() {
 
 		if val, ok := pce.VENs[v.Href]; !ok {
 			utils.LogWarningf(true, "csv line %d - %s does not exist in the pce. skipping", i+1, v.Href)
@@ -298,4 +251,54 @@ func unpair() {
 		}
 
 	}
+}
+
+func processVENsFile() []illumioapi.VEN {
+	// Parse the never unpair
+	neverUnpairHrefs := make(map[string]bool)
+	if neverUnpairFile != "" {
+		neverUnpairData, err := utils.ParseCSV(neverUnpairFile)
+		if err != nil {
+			utils.LogErrorf("parsing never-unpair-file - %s", err)
+		}
+		for rowNum, row := range neverUnpairData {
+			if strings.Contains(row[0], "/workloads/") {
+				utils.LogErrorf("csv row %d -  never-unpair-file - %s is a workload href. only VEN hrefs are allowed.", rowNum, row[0])
+			}
+			if rowNum == 0 && !strings.Contains(row[0], "/vens/") {
+				utils.LogInfof(true, "skipping the first row of the never-unpair-file because it's not an href.")
+			}
+			if rowNum > 0 && !strings.Contains(row[0], "/vens/") {
+				utils.LogErrorf("csv row %d - %s is not a valid href.", rowNum, row[0])
+			}
+			neverUnpairHrefs[row[0]] = true
+		}
+	}
+
+	hrefFileData, err := utils.ParseCSV(hrefFile)
+	if err != nil {
+		utils.LogErrorf("parsing csv - %s", err)
+	}
+
+	venHrefCol := 0
+	vens := []illumioapi.VEN{}
+	for rowIndex, row := range hrefFileData {
+		if rowIndex == 0 {
+			for colIndex, col := range row {
+				if col == hrefHeader {
+					venHrefCol = colIndex
+					continue
+				}
+			}
+		} else {
+			// Skip if on the list
+			if neverUnpairHrefs[row[venHrefCol]] {
+				utils.LogInfof(true, "skipping %s because it is in the always skip list", row[venHrefCol])
+			} else {
+				vens = append(vens, illumioapi.VEN{Href: row[venHrefCol]})
+			}
+		}
+	}
+
+	return vens
 }
