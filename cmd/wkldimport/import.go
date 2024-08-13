@@ -94,6 +94,22 @@ func ImportWkldsFromCSV(input Input) {
 	updatedWklds := []illumioapi.Workload{}
 	newUMWLs := []illumioapi.Workload{}
 
+	// Check if we are matching on href or hostname
+	if input.MatchString == "href" && input.Umwl {
+		utils.LogError("cannot match on hrefs and create unmanaged workloads")
+	}
+
+	// Case sensitivity
+
+	if input.IgnoreCase {
+		newWorkloads := make(map[string]illumioapi.Workload)
+		for k, w := range input.PCE.Workloads {
+			newWorkloads[strings.ToLower(k)] = w
+		}
+		input.PCE.Workloads = nil
+		input.PCE.Workloads = newWorkloads
+	}
+
 	// Iterate through CSV entries
 	for i, line := range data {
 
@@ -114,11 +130,6 @@ func ImportWkldsFromCSV(input Input) {
 			}
 		}
 
-		// Check if we are matching on href or hostname
-		if input.MatchString == "href" && input.Umwl {
-			utils.LogError("cannot match on hrefs and create unmanaged workloads")
-		}
-
 		// Check to make sure we have an entry in the match column
 		if line[input.Headers[input.MatchString]] == "" {
 			utils.LogWarning(fmt.Sprintf("csv line %d - the match column cannot be blank.", csvLine), true)
@@ -133,11 +144,6 @@ func ImportWkldsFromCSV(input Input) {
 
 		// Case sensitity
 		if input.IgnoreCase {
-			newWorkloads := make(map[string]illumioapi.Workload)
-			for k, w := range input.PCE.Workloads {
-				newWorkloads[strings.ToLower(k)] = w
-			}
-			input.PCE.Workloads = newWorkloads
 			compareString = strings.ToLower(compareString)
 		}
 
@@ -152,7 +158,9 @@ func ImportWkldsFromCSV(input Input) {
 		if val, ok := input.PCE.Workloads[compareString]; !ok {
 			if !input.Umwl {
 				// If unmanaged workload is not enabled, log
-				utils.LogInfo(fmt.Sprintf("csv line %d - %s is not a workload. include umwl flag to create it. nothing done.", csvLine, compareString), false)
+				if !input.DoNotLogEachCSVRow {
+					utils.LogInfo(fmt.Sprintf("csv line %d - %s is not a workload. include umwl flag to create it. nothing done.", csvLine, compareString), false)
+				}
 				continue
 			} else {
 				// If unmanaged workload is enabled, populate the workload with a blank workload
