@@ -109,7 +109,9 @@ func (w *importWkld) labels(input Input, newLabels []illumioapi.Label, labelKeys
 				if currentLabel.Value == "" {
 					currentlLabelLogValue = "<empty>"
 				}
-				utils.LogInfo(fmt.Sprintf("csv line %d - %s - %s label to be changed from %s to %s.", w.csvLineNum, w.compareString, headerValue, currentlLabelLogValue, w.csvLine[index]), false)
+				if !input.DoNotLogEachCSVRow {
+					utils.LogInfo(fmt.Sprintf("csv line %d - %s - %s label to be changed from %s to %s.", w.csvLineNum, w.compareString, headerValue, currentlLabelLogValue, w.csvLine[index]), false)
+				}
 			}
 		}
 	}
