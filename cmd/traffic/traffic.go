@@ -27,8 +27,8 @@ func init() {
 	TrafficCmd.Flags().StringVarP(&exclServiceCSV, "excl-svc-file", "j", "", "file location of csv with port/protocols to exclude. Port number in column 1 and IANA numeric protocol in Col 2. Headers optional.")
 	TrafficCmd.Flags().StringVarP(&inclProcessCSV, "incl-proc-file", "k", "", "file location of csv with single column of processes to include. No headers.")
 	TrafficCmd.Flags().StringVarP(&exclProcessCSV, "excl-proc-file", "n", "", "file location of csv with single column of processes to exclude. No headers.")
-	TrafficCmd.Flags().StringVarP(&start, "start", "s", time.Now().AddDate(0, 0, -88).In(time.UTC).Format("2006-01-02"), "start date in the format of yyyy-mm-dd.")
-	TrafficCmd.Flags().StringVarP(&end, "end", "e", time.Now().Add(time.Hour*24).Format("2006-01-02"), "end date in the format of yyyy-mm-dd.")
+	TrafficCmd.Flags().StringVarP(&start, "start", "s", time.Now().AddDate(0, 0, -88).In(time.UTC).Format("2006-01-02"), "start date in the format or yyyy-mm-dd or yyyy-mm-ddTHH:mm:ss. if no time is provided, 00:00:00 is used. all times in GMT.")
+	TrafficCmd.Flags().StringVarP(&end, "end", "e", time.Now().Add(time.Hour*24).Format("2006-01-02"), "end date in the format of yyyy-mm-dd or yyyy-mm-dd or yyyy-mm-ddTHH:mm:ss. if no time is provided, 23:59:59 is used. all times in GMT.")
 	TrafficCmd.Flags().BoolVar(&exclWorkloadsFromIPListQuery, "excl-wkld-from-iplist-query", true, "exclude workload traffic when ip list is provided either in consumer or provider part of the traffic query. default of true matches UI")
 	TrafficCmd.Flags().BoolVar(&exclAllowed, "excl-allowed", false, "excludes allowed traffic flows.")
 	TrafficCmd.Flags().BoolVar(&exclPotentiallyBlocked, "excl-potentially-blocked", false, "excludes potentially blocked traffic flows.")
@@ -104,16 +104,24 @@ func explorerExport() {
 	}
 
 	// Get the start date
-	tq.StartTime, err = time.Parse("2006-01-02 MST", fmt.Sprintf("%s %s", start, "UTC"))
+	timeFormat := "2006-01-02 MST"
+	if strings.Contains(start, ":") {
+		timeFormat = "2006-01-02T15:04:05 MST"
+	}
+	tq.StartTime, err = time.Parse(timeFormat, fmt.Sprintf("%s UTC", start))
 	if err != nil {
-		utils.LogError(err.Error())
+		utils.LogErrorf("error parsing start time: %s", err)
 	}
 	tq.StartTime = tq.StartTime.In(time.UTC)
 
 	// Get the end date
-	tq.EndTime, err = time.Parse("2006-01-02 15:04:05 MST", fmt.Sprintf("%s 23:59:59 %s", end, "UTC"))
+	if strings.Contains(end, ":") {
+		tq.EndTime, err = time.Parse("2006-01-02T15:04:05 MST", fmt.Sprintf("%s UTC", end))
+	} else {
+		tq.EndTime, err = time.Parse("2006-01-02 15:04:05 MST", fmt.Sprintf("%s 23:59:59 UTC", end))
+	}
 	if err != nil {
-		utils.LogError(err.Error())
+		utils.LogErrorf("error parsing end time: %s", err)
 	}
 	tq.EndTime = tq.EndTime.In(time.UTC)
 
