@@ -249,6 +249,7 @@ func unpair() {
 		if err != nil {
 			utils.LogError(err.Error())
 		}
+		utils.LogInfof(true, "unpaired %d vens", len(vensToUnpair))
 
 	}
 }
