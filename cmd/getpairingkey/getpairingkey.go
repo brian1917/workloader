@@ -14,13 +14,14 @@ import (
 // Declare local global variables
 var pce illumioapi.PCE
 var err error
-var create bool
+var create, noStdOut bool
 var profile, pkFile, venType string
 
 // Init handles flags
 func init() {
 	GetPairingKey.Flags().StringVarP(&profile, "profile", "p", "Default (Servers)", "pairing profile name.")
-	GetPairingKey.Flags().StringVarP(&pkFile, "file", "f", "", "file to store pairing key")
+	GetPairingKey.Flags().StringVarP(&pkFile, "file", "f", "", "file to store pairing key. use \"0\" for default name of <friendly_pce_name>-<profile_name>-pk.txt")
+	GetPairingKey.Flags().BoolVarP(&noStdOut, "no-std-out", "n", false, "do not print the pairing key to the screen.")
 	GetPairingKey.Flags().BoolVarP(&create, "create", "c", false, "create pairing profile if it does not exist.")
 	GetPairingKey.Flags().StringVarP(&venType, "ven-type", "v", "", "ven type (endpoint or server) used in conjunction with --create option")
 
@@ -90,10 +91,15 @@ func getPK() {
 	if err != nil {
 		utils.LogError(err.Error())
 	}
-	fmt.Println(pk.ActivationCode)
+	if !noStdOut {
+		fmt.Println(pk.ActivationCode)
+	}
 
 	// Write the pairing key to a file
 	if pkFile != "" {
+		if pkFile == "0" {
+			pkFile = fmt.Sprintf("%s-%s-pk.txt", pce.FriendlyName, profile)
+		}
 		file, err := os.Create(pkFile)
 		if err != nil {
 			utils.LogError(err.Error())
