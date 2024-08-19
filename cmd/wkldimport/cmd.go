@@ -20,12 +20,12 @@ type Input struct {
 	RolePrefix, AppPrefix, EnvPrefix, LocPrefix string
 	Headers                                     map[string]int
 	// MatchIndex                                                                               *int
-	MatchString                                                                                                                   string
-	Umwl, KeepAllPCEInterfaces, FQDNtoHostname, AllowEnforcementChanges, UpdateWorkloads, DoNotLogEachCSVRow, UpdatePCE, NoPrompt bool
-	ManagedOnly                                                                                                                   bool
-	UnmanagedOnly                                                                                                                 bool
-	IgnoreCase                                                                                                                    bool
-	MaxUpdate, MaxCreate                                                                                                          int
+	MatchString                                                                                                                string
+	Umwl, KeepAllPCEInterfaces, FqdnToShort, AllowEnforcementChanges, UpdateWorkloads, DoNotLogEachCSVRow, UpdatePCE, NoPrompt bool
+	ManagedOnly                                                                                                                bool
+	UnmanagedOnly                                                                                                              bool
+	IgnoreCase                                                                                                                 bool
+	MaxUpdate, MaxCreate                                                                                                       int
 }
 
 // Create a wrapper workload to add methods
@@ -55,8 +55,8 @@ func init() {
 	WkldImportCmd.Flags().BoolVar(&input.DoNotLogEachCSVRow, "do-not-log-each-csv-row", false, "do not log action for each csv row in workloader.log.")
 
 	// Hidden flag for use when called from SNOW command
-	WkldImportCmd.Flags().BoolVarP(&input.FQDNtoHostname, "fqdn-to-hostname", "f", false, "convert FQDN hostnames reported by Illumio VEN to short hostnames by removing everything after first period (e.g., test.domain.com becomes test).")
-	WkldImportCmd.Flags().MarkHidden("fqdn-to-hostname")
+	WkldImportCmd.Flags().BoolVarP(&input.FqdnToShort, "fqdn-to-short", "f", false, "convert FQDN reported by Illumio VEN to short hostnames by removing everything after first period (e.g., test.domain.com becomes test).")
+	// WkldImportCmd.Flags().MarkHidden("fqdn-to-hostname")
 	WkldImportCmd.Flags().BoolVarP(&input.KeepAllPCEInterfaces, "keep-all-pce-interfaces", "k", false, "will not delete an interface on an unmanaged workload if it's not in the import. It will only add interfaces to the workload.")
 	WkldImportCmd.Flags().MarkHidden("keep-all-pce-interfaces")
 

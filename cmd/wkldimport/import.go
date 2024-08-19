@@ -76,6 +76,28 @@ func ImportWkldsFromCSV(input Input) {
 		}
 	}
 
+	// Update workload hostnames with short name if needed
+	if input.FqdnToShort {
+		newWkldSlice := []illumioapi.Workload{}
+		input.PCE.Workloads = nil
+		input.PCE.Workloads = make(map[string]illumioapi.Workload)
+		for _, w := range input.PCE.WorkloadsSlice {
+			w.Hostname = illumioapi.Ptr(strings.Split(illumioapi.PtrToVal(w.Hostname), ".")[0])
+			newWkldSlice = append(newWkldSlice, w)
+			input.PCE.Workloads[w.Href] = w
+			if illumioapi.PtrToVal(w.Hostname) != "" {
+				input.PCE.Workloads[*w.Hostname] = w
+			}
+			if illumioapi.PtrToVal(w.Name) != "" {
+				input.PCE.Workloads[*w.Name] = w
+			}
+			if illumioapi.PtrToVal(w.ExternalDataReference) != "" && illumioapi.PtrToVal(w.ExternalDataSet) != "" {
+				input.PCE.Workloads[*w.ExternalDataSet+*w.ExternalDataReference] = w
+			}
+		}
+		input.PCE.WorkloadsSlice = newWkldSlice
+	}
+
 	// Create a map of label keys and depending on version either populate with API or with role, app, env, and loc.
 	labelKeysMap := make(map[string]bool)
 	if version.Major > 22 || (version.Major == 22 && version.Minor >= 5) {
