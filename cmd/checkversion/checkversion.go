@@ -3,7 +3,7 @@ package checkversion
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 
@@ -52,8 +52,10 @@ func getLatestVersion() {
 	if err != nil {
 		utils.LogError(err.Error())
 	}
+	defer resp.Body.Close()
+
 	// Marshal the response
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		utils.LogError(err.Error())
 	}

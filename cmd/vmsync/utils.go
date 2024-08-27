@@ -61,6 +61,7 @@ func httpCall(httpAction, apiURL string, body []byte, login bool) (illumioapi.AP
 	if err != nil {
 		return response, err
 	}
+	defer resp.Body.Close()
 
 	// Process response
 	data, err := ioutil.ReadAll(resp.Body)

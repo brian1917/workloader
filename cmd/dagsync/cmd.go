@@ -205,6 +205,7 @@ func httpSetUp(httpAction, apiURL string, body []byte, disableTLSChecking bool, 
 	if err != nil {
 		return response, err
 	}
+	defer resp.Body.Close()
 
 	// Process response
 	data, err := ioutil.ReadAll(resp.Body)
