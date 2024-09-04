@@ -20,22 +20,26 @@ import (
 
 // Input is the data structure for the ImportRulesFromCSV command
 type Input struct {
-	PCE                                                                         illumioapi.PCE
-	ImportFile                                                                  string
-	ProvisionComment                                                            string
-	Headers                                                                     map[string]int
-	Provision, UpdatePCE, NoPrompt, CreateLabels, NoTrimming, MatchOnExtDataRef bool
+	PCE                                                                                        illumioapi.PCE
+	ImportFile                                                                                 string
+	ProvisionComment                                                                           string
+	Headers                                                                                    map[string]int
+	DeleteFile                                                                                 string
+	Provision, UpdatePCE, NoPrompt, CreateLabels, NoTrimming, MatchOnExtDataRef, Authoritative bool
 }
 
 // Decluare a global input and debug variable
 var globalInput Input
 
 func init() {
-	RuleImportCmd.Flags().BoolVar(&globalInput.CreateLabels, "create-labels", false, "Create labels if they do not exist.")
-	RuleImportCmd.Flags().BoolVar(&globalInput.Provision, "provision", false, "Provision rule changes.")
-	RuleImportCmd.Flags().StringVar(&globalInput.ProvisionComment, "provision-comment", "", "Comment for when provisioning changes.")
-	RuleImportCmd.Flags().BoolVar(&globalInput.NoTrimming, "no-trimming", false, "Disable default CSV parsing with trimming of whitespaces for label names (leading and ending whitespaces)")
-	RuleImportCmd.Flags().BoolVar(&globalInput.MatchOnExtDataRef, "match-on-ext", false, "Match on external data set and reference instead of href for updating existing rules.")
+	RuleImportCmd.Flags().BoolVar(&globalInput.CreateLabels, "create-labels", false, "create labels if they do not exist.")
+	RuleImportCmd.Flags().BoolVar(&globalInput.Provision, "provision", false, "provision rule changes.")
+	RuleImportCmd.Flags().StringVar(&globalInput.ProvisionComment, "provision-comment", "", "comment for when provisioning changes.")
+	RuleImportCmd.Flags().BoolVar(&globalInput.NoTrimming, "no-trimming", false, "disable default CSV parsing with trimming of whitespaces for label names (leading and ending whitespaces)")
+	RuleImportCmd.Flags().BoolVar(&globalInput.MatchOnExtDataRef, "match-on-ext", false, "match on external data set and reference instead of href for updating existing rules.")
+	RuleImportCmd.Flags().BoolVar(&globalInput.Authoritative, "authoritative", false, "create a csv file of all rule hrefs not on the input file to be passed into the delete command.")
+	RuleImportCmd.Flags().StringVar(&globalInput.DeleteFile, "authoritative-delete-file", "", "name of the csv file to be passed into delete command.")
+
 }
 
 // RuleImportCmd runs the upload command
@@ -105,6 +109,9 @@ Recommended to run without --update-pce first to log of what will change. If --u
 
 // ImportRulesFromCSV imports a CSV to modify/create rules
 func ImportRulesFromCSV(input Input) {
+
+	// Start the csvRuleHrefMap
+	csvRuleHrefMap := make(map[string]bool)
 
 	// Set the global as the local for when it comes from other functions
 	globalInput = input
@@ -301,6 +308,7 @@ CSVEntries:
 					rowRuleMatchStr = l[c] + l[d]
 					if _, rCheck := ruleLookup[rowRuleMatchStr]; rCheck {
 						ruleExists = true
+						csvRuleHrefMap[ruleLookup[rowRuleMatchStr].Href] = true
 					}
 				}
 			}
@@ -915,6 +923,23 @@ CSVEntries:
 				updatedRules = append(updatedRules, toAdd{ruleSetHref: rs.Href, rule: csvRule, csvLine: i + 1})
 			}
 		}
+	}
+
+	// Produce the authoritiative
+	if input.Authoritative {
+		rulesDeleteCsv := [][]string{{"href", "desc", "ext_data_set", "ext_data_ref"}}
+		for _, rs := range input.PCE.RuleSetsSlice {
+			for _, r := range illumioapi.PtrToVal(rs.Rules) {
+				if _, exists := csvRuleHrefMap[r.Href]; !exists {
+					rulesDeleteCsv = append(rulesDeleteCsv, []string{r.Href, illumioapi.PtrToVal(r.Description), illumioapi.PtrToVal(r.ExternalDataSet), illumioapi.PtrToVal(r.ExternalDataReference)})
+				}
+			}
+		}
+		// Write the csv
+		if input.DeleteFile == "" {
+			input.DeleteFile = utils.FileName("authoritative_delete")
+		}
+		utils.WriteOutput(rulesDeleteCsv, [][]string{}, input.DeleteFile)
 	}
 
 	// End run if we have nothing to do
