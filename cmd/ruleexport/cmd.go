@@ -331,6 +331,8 @@ func (r *RuleExport) ExportToCsv() {
 			csvEntryMap[HeaderMachineAuthEnabled] = strconv.FormatBool(ia.PtrToVal(rule.MachineAuth))
 			csvEntryMap[HeaderSecureConnectEnabled] = strconv.FormatBool(ia.PtrToVal(rule.SecConnect))
 			csvEntryMap[HeaderNetworkType] = rule.NetworkType
+			csvEntryMap[HeaderExternalDataSet] = ia.PtrToVal(rule.ExternalDataSet)
+			csvEntryMap[HeaderExternalDataReference] = ia.PtrToVal(rule.ExternalDataReference)
 			if rule.UpdateType == "update" {
 				csvEntryMap[HeaderUpdateType] = "Modification Pending"
 			} else if rule.UpdateType == "delete" {

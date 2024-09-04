@@ -40,6 +40,8 @@ const (
 	HeaderRuleHref                      = "rule_href"
 	HeaderUpdateType                    = "update_type"
 	HeaderNetworkType                   = "network_type"
+	HeaderExternalDataSet               = "external_data_set"
+	HeaderExternalDataReference         = "external_data_reference"
 )
 
 func getCSVHeaders(templateFormat bool) []string {
@@ -77,7 +79,9 @@ func getCSVHeaders(templateFormat bool) []string {
 		HeaderMachineAuthEnabled,
 		HeaderSecureConnectEnabled,
 		HeaderStateless,
-		HeaderNetworkType}
+		HeaderNetworkType,
+		HeaderExternalDataSet,
+		HeaderExternalDataReference}
 
 	if !templateFormat {
 		headers = append(headers, HeaderRulesetHref, HeaderRuleHref, HeaderUpdateType)
