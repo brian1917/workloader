@@ -2,6 +2,7 @@ package wkldreplicate
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -65,6 +66,8 @@ func labelSlice(w ia.Workload, pce ia.PCE, labelKeys []string) (labelSlice []str
 }
 
 func wkldReplicate() {
+
+	osExitCode := 0
 
 	// Create a slice to hold our target PCEs
 	var pces []ia.PCE
@@ -323,7 +326,8 @@ func wkldReplicate() {
 		if len(wkldDeleteCsvdata) > 1 {
 			utils.LogInfo(fmt.Sprintf("running delete api for %s (%s)", p.FriendlyName, p.FQDN), true)
 			if maxDelete != -1 && len(deleteHrefMap[p.FQDN]) > maxDelete {
-				utils.LogErrorfCode(2, "delete count for %s of %d exceeds maximum of %d. terminating run with exit code 2.", p.FQDN, len(deleteHrefMap[p.FQDN]), maxDelete)
+				osExitCode = 2
+				utils.LogWarningf(true, "delete count for %s of %d exceeds maximum of %d. exit code set to 2.", p.FQDN, len(deleteHrefMap[p.FQDN]), maxDelete)
 			} else {
 				for _, deleteHref := range deleteHrefMap[p.FQDN] {
 					a, err := p.DeleteHref(deleteHref)
@@ -339,4 +343,8 @@ func wkldReplicate() {
 		utils.LogInfo("------------------------------", true)
 	}
 
+	// Do an explicit exit if we have an exit code of 2
+	if osExitCode == 2 {
+		os.Exit(osExitCode)
+	}
 }
