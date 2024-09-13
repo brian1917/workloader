@@ -10,3 +10,4 @@
 *.zip
 version_notes
 cmd/virtualserviceimport/*
+template*
