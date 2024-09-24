@@ -11,3 +11,5 @@
 version_notes
 cmd/virtualserviceimport/*
 template*
+*.tmpl
+*.txt

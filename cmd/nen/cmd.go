@@ -2,8 +2,11 @@ package nen
 
 import (
 	"fmt"
+	"hash/crc64"
 	"html/template"
+	"math/rand"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -16,7 +19,7 @@ var err error
 var pce illumioapi.PCE
 var templateFile string
 var networkDeviceName, outFile string
-var days, hours, timeout int
+var days, timeout int
 
 func init() {
 	NENCmd.Flags().IntVarP(&days, "days", "d", 7, "How many days old before you want to rebuild the switch ACL?")
@@ -59,17 +62,21 @@ Recommended to run without --update-pce first to log of what will change. If --u
 }
 
 // ProtocolNumToText - way to take the TCPIP protocol number to a the well know protocol name.
-func ProtocolNumToText(numericProtocl string) string {
+func ProtocolPortNumToText(numericProtocl, port string) (string, string) {
 
 	switch numericProtocl {
 	case "6":
-		return "tcp"
+		return "tcp", port
 	case "17":
-		return "udp"
+		return "udp", port
 	case "1":
-		return "icmp"
+		if port == "*" {
+			return "icmp", ""
+		} else {
+			return "icmp", port
+		}
 	default:
-		return "any"
+		return "any", ""
 	}
 }
 
@@ -102,58 +109,128 @@ func BuildAndWaitForACLData(nd *illumioapi.NetworkDevice) string {
 
 }
 
-// GetNetworkDeviceACLData - This function gets the data structure of the ACL and adds more data to it so using
-// golang templates can create any type of ACL syntax for any type of device.
-func GetNetworkDeviceACLData(dataHref string) (switchAclData SwitchACLData, err error) {
-
-	var wkldAcl BaseSwitchACLData
-	var api illumioapi.APIResponse
-
-	//Get the NetworkDevice aka switch data from PCE.
-	api, err = pce.GetHref(dataHref, &wkldAcl)
-	utils.LogAPIRespV2("GetNetworkDeviceACLData", api)
+// GetHref - This function gets the URL sent as the variable.
+func GetHref(href string, data interface{}, dataType string) {
+	// Get the NetworkDevice aka switch data from PCE.
+	api, err := pce.GetHref(href, &data)
+	utils.LogAPIRespV2(dataType, api)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
+}
+
+// GetNetworkEndpointData - Gets the switch port info so you can discover interface name and other endpoint configuration
+func GetNetworkEndpointData(href string) map[string]IntfConfig {
+
+	var switchConf BaseSwitchConfig
+	intConf := make(map[string]IntfConfig)
+	href = href + "/network_endpoints"
+	GetHref(href, &switchConf, "GetNetworkDeviceACLData")
+
+	for _, networkEndpoint := range switchConf {
+		if len(networkEndpoint.Workloads) != 0 {
+			for _, workload := range networkEndpoint.Workloads {
+				intConf[workload.Href] = networkEndpoint.Config
+			}
+		}
+	}
+
+	return intConf
+}
+
+// GetNetworkDeviceACLData - This function gets the data structure of the ACL and adds more data to it so using
+// golang templates can create any type of ACL syntax for any type of device.
+func GetNetworkDeviceACLData(dataHref string, switchConf map[string]IntfConfig) (switchAclData SwitchACLData) {
+
+	var wkldAcl BaseSwitchData
+
+	GetHref(dataHref, &wkldAcl, "GetNetworkDeviceACLData")
+
+	//initialize the maps and hash variables.
+	rand.NewSource(int64(888))
+	switchAclData.HashList = map[uint64][]string{}
+	protoPort := map[string]ProtoPort{}
+	//newhash := maphash.Hash{}
+	table := crc64.MakeTable(crc64.ISO)
 
 	//Cycle through all the workloads configured on the switch and get some additional metadata to help with
 	//writing different policy definitions for different devices (PAN, Forinet, Juniper, Switches....)
-	protoPort := make(map[string]ProtoPort)
 	for index, each := range wkldAcl {
 		var ips []string
+
+		//add the interface name on the switch to the ACL data
+		wkldAcl[index].IntfName = switchConf[each.Href].Name
+
+		//Cycle through each switch port's workload and get all the IPs.
 		for _, intf := range *pce.Workloads[each.Href].Interfaces {
 			ips = append(ips, intf.Address)
 		}
+
 		//get the ips of the UMWL on the switch port and populate the object
 		wkldAcl[index].Ips = ips
 		//count number of if you only use the sets not individual IPs in a single rule.
 		wkldAcl[index].SetsRuleCount = len(each.Rules.Inbound) + len(each.Rules.Outbound)
 		//Build a set of different services across the entire switch.
+
 		for ruleindex, inbound := range each.Rules.Inbound {
+			proto, port := ProtocolPortNumToText(inbound.ProtocolNum, inbound.Port)
 			//count all rules for inbound by finding all dst ips * number of interfaces on the device
 			wkldAcl[index].RuleCount = wkldAcl[index].RuleCount + (len(inbound.Ips) * len(*pce.Workloads[each.Href].Interfaces))
-			wkldAcl[index].Rules.Inbound[ruleindex].ProtocolTxt = ProtocolNumToText(inbound.ProtocolNum)
+			wkldAcl[index].Rules.Inbound[ruleindex].ProtocolTxt = proto
+			wkldAcl[index].Rules.Inbound[ruleindex].Port = port
+
+			//Sort array and reset the hash to keep Seed the same but zero out the hash itself
+			sort.Strings(inbound.Ips)
+			// newhash.Reset()
+			// newhash.Write([]byte(fmt.Sprint(inbound.Ips)))
+
+			// Calculate the CRC-64 hash
+			hash := crc64.Checksum([]byte(fmt.Sprint(inbound.Ips)), table)
+
+			//assign hash to inbound Ips and add the hash to the data struct with the inbound Ips
+			// wkldAcl[index].Rules.Inbound[ruleindex].InHash = newhash.Sum64()
+			// switchAclData.HashList[newhash.Sum64()] = inbound.Ips
+			wkldAcl[index].Rules.Inbound[ruleindex].InHash = hash
+			switchAclData.HashList[hash] = inbound.Ips
+
 			if inbound.Port == "*" && inbound.ProtocolNum == "*" {
 				continue
 			}
 			//populate a set of Services found in all the rules for that switch.  Add that to the data available to Golang template
-			protoPort[ProtocolNumToText(inbound.ProtocolNum)+inbound.Port] = ProtoPort{Port: inbound.Port, ProtocolNum: inbound.ProtocolNum, ProtocolTxt: ProtocolNumToText(inbound.ProtocolNum)}
+
+			protoPort[proto+port] = ProtoPort{Port: inbound.Port, ProtocolNum: inbound.ProtocolNum, ProtocolTxt: proto}
+
 		}
+
 		for ruleindex, outbound := range each.Rules.Outbound {
+			proto, port := ProtocolPortNumToText(outbound.ProtocolNum, outbound.Port)
 			//count all rules for outbound by finding all src ips * number of interfaces on the device
 			wkldAcl[index].RuleCount = wkldAcl[index].RuleCount + (len(outbound.Ips) * len(*pce.Workloads[each.Href].Interfaces))
-			wkldAcl[index].Rules.Outbound[ruleindex].ProtocolTxt = ProtocolNumToText(outbound.ProtocolNum)
+			wkldAcl[index].Rules.Outbound[ruleindex].ProtocolTxt = proto
+			wkldAcl[index].Rules.Outbound[ruleindex].Port = port
+
+			//Sort array and reset the hash to keep Seed the same but zero out the hash itself
+			sort.Strings(outbound.Ips)
+			// newhash.Reset()
+			// newhash.Write([]byte(fmt.Sprint(outbound.Ips)))
+			hash := crc64.Checksum([]byte(fmt.Sprint(outbound.Ips)), table)
+
+			// wkldAcl[index].Rules.Outbound[ruleindex].OutHash = newhash.Sum64()
+			// switchAclData.HashList[newhash.Sum64()] = outbound.Ips
+			wkldAcl[index].Rules.Outbound[ruleindex].OutHash = hash
+			switchAclData.HashList[hash] = outbound.Ips
+
 			if outbound.Port == "*" && outbound.ProtocolNum == "*" {
 				continue
 			}
 			//populate a set of Services found in all the rules for that switch.  Add that to the data available to Golang template
-			protoPort[ProtocolNumToText(outbound.ProtocolNum)+outbound.Port] = ProtoPort{Port: outbound.Port, ProtocolNum: outbound.ProtocolNum, ProtocolTxt: ProtocolNumToText(outbound.ProtocolNum)}
+			protoPort[proto+port] = ProtoPort{Port: port, ProtocolNum: outbound.ProtocolNum, ProtocolTxt: proto}
 
 		}
 	}
 	switchAclData.BaseSwitch = wkldAcl
 	switchAclData.ProtoPort = protoPort
-	return switchAclData, err
+	return switchAclData
 }
 
 // TranslateSwitchPolicy - Takes a PCE created policy and translates that to a specific format that the users specifies
@@ -183,7 +260,10 @@ func TranslateSwitchPolicy() {
 			} else {
 				dataHref = nd.EnforcementInstructionsDataHref
 			}
-			switchACL, err := GetNetworkDeviceACLData(dataHref)
+
+			switchConf := GetNetworkEndpointData(nd.Href)
+			switchACL := GetNetworkDeviceACLData(dataHref, switchConf)
+
 			if err != nil {
 				utils.LogError(err.Error())
 			}
