@@ -186,11 +186,8 @@ func GetNetworkDeviceACLData(dataHref string, switchConf map[string]IntfConfig) 
 			hash := crc64.Checksum([]byte(fmt.Sprint(inbound.Ips)), table)
 
 			//assign hash to inbound Ips and add the hash to the data struct with the inbound Ips
-			// if proto == "any" {
-			// 	wkldAcl[index].Rules.Inbound[ruleindex].InHash = 0
-			// } else {
 			wkldAcl[index].Rules.Inbound[ruleindex].InHash = hash
-			//}
+
 			switchAclData.HashList[hash] = inbound.Ips
 
 			if inbound.Port == "*" && inbound.ProtocolNum == "*" {
@@ -214,11 +211,7 @@ func GetNetworkDeviceACLData(dataHref string, switchConf map[string]IntfConfig) 
 			hash := crc64.Checksum([]byte(fmt.Sprint(outbound.Ips)), table)
 
 			//assign hash to inbound Ips and add the hash to the data struct with the inbound Ips
-			// if proto == "any" {
-			// 	wkldAcl[index].Rules.Outbound[ruleindex].OutHash = 0
-			// } else {
 			wkldAcl[index].Rules.Outbound[ruleindex].OutHash = hash
-			// }
 			switchAclData.HashList[hash] = outbound.Ips
 
 			if outbound.Port == "*" && outbound.ProtocolNum == "*" {
