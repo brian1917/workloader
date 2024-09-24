@@ -35,7 +35,50 @@ var NENCmd = &cobra.Command{
 	Long: `
 Create output file for different types of enforcement network equipment.  Requires a template files using Golang templating language
 	
-Recommended to run without --update-pce first to log of what will change. If --update-pce is used, svc-import will create the services with a  user prompt. To disable the prompt, use --no-prompt.`,
+Recommended to run without --update-pce first to log of what will change. If --update-pce is used, svc-import will create the services with a  user prompt. To disable the prompt, use --no-prompt.
+
+Data structure is as follows: 
+type BaseSwitchData []struct {
+	Name          string   //name of the workload on the interface
+	IntfName      string   //name of the interface
+	Href          string   //href of the workload
+	Ips           []string //array of all workload IP address
+	SetsRuleCount int      //number of rules that PCE sends natively using sets
+	RuleCount     int      //number of rules if not supporting sets.
+	Rules         struct {
+		Outbound []struct {
+			Action      string   //permit or deny
+			Port        string   //permit or deny
+			Port        string 	 //udp or tcp port number
+			ProtocolNum string   //udp or tcp protocol number
+			ProtocolTxt string	 //udp or tcp protocol as txt
+			Ips         []string //array of all the dst IPs
+			OutHash     uint64   //name of the unique hash of the array as a string
+		} 
+		Inbound []struct {
+			Action      string   //permit or deny
+			Port        string 	 //udp or tcp port number
+			ProtocolNum string   //udp or tcp protocol number
+			ProtocolTxt string	 //udp or tcp protocol as txt
+			Ips         []string //array of all the src IPs
+			InHash      uint64   //name of the unique hash of the array as a string
+		} 
+	} 
+}
+
+type ProtoPort struct {
+	Port         		 //udp or tcp port number
+	ProtocolNum string   //udp or tcp protocol number
+	ProtocolTxt string	 //udp or tcp protocol as txt
+}
+
+type SwitchACLData struct {
+	BaseSwitch BaseSwitchData			//array of ACLs for switch configured on NEN 
+	ProtoPort  map[string]ProtoPort		//array of all TCP/UDP ports with a combined name using PROTOCOL+PORT
+	HashList   map[uint64][]string		//hash of each rules array of IPs 
+}
+
+`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
