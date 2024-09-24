@@ -22,9 +22,8 @@ var networkDeviceName, outFile string
 var days, timeout int
 
 func init() {
-	NENCmd.Flags().IntVarP(&days, "days", "d", 7, "How many days old before you want to rebuild the switch ACL?")
+	NENCmd.Flags().IntVarP(&days, "days", "d", 7, "How old can the switch ACL be before rebuilding( use =0 to rebuild)?")
 	NENCmd.Flags().IntVarP(&timeout, "timeout", "t", 10, "How many minutes to wait for ACL to be built before timeout and exit?")
-	//NENCmd.Flags().IntVarP(&hours, "hours", "", 1, "How many hours old before you want to rebuild the switch ACL?")
 	NENCmd.Flags().StringVarP(&outFile, "output-file", "o", "", "Enter the output file for the template processing.")
 	NENCmd.Flags().StringVarP(&networkDeviceName, "name", "n", "", "Name of the NEN switch device you want to create an ACL file for")
 }
@@ -173,6 +172,7 @@ func GetNetworkDeviceACLData(dataHref string, switchConf map[string]IntfConfig) 
 		//Build a set of different services across the entire switch.
 
 		for ruleindex, inbound := range each.Rules.Inbound {
+
 			proto, port := ProtocolPortNumToText(inbound.ProtocolNum, inbound.Port)
 			//count all rules for inbound by finding all dst ips * number of interfaces on the device
 			wkldAcl[index].RuleCount = wkldAcl[index].RuleCount + (len(inbound.Ips) * len(*pce.Workloads[each.Href].Interfaces))
@@ -181,16 +181,16 @@ func GetNetworkDeviceACLData(dataHref string, switchConf map[string]IntfConfig) 
 
 			//Sort array and reset the hash to keep Seed the same but zero out the hash itself
 			sort.Strings(inbound.Ips)
-			// newhash.Reset()
-			// newhash.Write([]byte(fmt.Sprint(inbound.Ips)))
 
 			// Calculate the CRC-64 hash
 			hash := crc64.Checksum([]byte(fmt.Sprint(inbound.Ips)), table)
 
 			//assign hash to inbound Ips and add the hash to the data struct with the inbound Ips
-			// wkldAcl[index].Rules.Inbound[ruleindex].InHash = newhash.Sum64()
-			// switchAclData.HashList[newhash.Sum64()] = inbound.Ips
+			// if proto == "any" {
+			// 	wkldAcl[index].Rules.Inbound[ruleindex].InHash = 0
+			// } else {
 			wkldAcl[index].Rules.Inbound[ruleindex].InHash = hash
+			//}
 			switchAclData.HashList[hash] = inbound.Ips
 
 			if inbound.Port == "*" && inbound.ProtocolNum == "*" {
@@ -211,13 +211,14 @@ func GetNetworkDeviceACLData(dataHref string, switchConf map[string]IntfConfig) 
 
 			//Sort array and reset the hash to keep Seed the same but zero out the hash itself
 			sort.Strings(outbound.Ips)
-			// newhash.Reset()
-			// newhash.Write([]byte(fmt.Sprint(outbound.Ips)))
 			hash := crc64.Checksum([]byte(fmt.Sprint(outbound.Ips)), table)
 
-			// wkldAcl[index].Rules.Outbound[ruleindex].OutHash = newhash.Sum64()
-			// switchAclData.HashList[newhash.Sum64()] = outbound.Ips
+			//assign hash to inbound Ips and add the hash to the data struct with the inbound Ips
+			// if proto == "any" {
+			// 	wkldAcl[index].Rules.Outbound[ruleindex].OutHash = 0
+			// } else {
 			wkldAcl[index].Rules.Outbound[ruleindex].OutHash = hash
+			// }
 			switchAclData.HashList[hash] = outbound.Ips
 
 			if outbound.Port == "*" && outbound.ProtocolNum == "*" {
