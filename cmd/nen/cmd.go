@@ -31,12 +31,17 @@ func init() {
 
 // NenCmd builds a file with ACL information
 var NENCmd = &cobra.Command{
-	Use:   "nen",
+	Use:   "nen-acl",
 	Short: "Create NEN ACL file.  Requires template file.",
 	Long: `
 Create output file for different types of enforcement network equipment.  Requires a template files using Golang templating language
-	
-Recommended to run without --update-pce first to log of what will change. If --update-pce is used, svc-import will create the services with a  user prompt. To disable the prompt, use --no-prompt.
+
+Requires the name of the Switch using --name or -n <switch name>.  By default looks for an ACL file already created within the last 7 days.  
+Can select a smaller time frame or use -d or --days 0 to create a new ACL. Will build the ACL based on the template file included as an argument.  
+Additionally, you can send the output to stdout or to a file using --name or -n <filename>.
+
+Golang template has been extended to include {{ add <value A> <value B>}} so you can create incrementing values.  {{ mask ip inv}} provides the mask based on the prefix 
+included in the ip value.  The mask can be traditional notation of 255.255.255.0 = /24 or you can invert 0.255.255.255 by setting inv = true.  {{mask "10.0.0.0/8" true}}
 
 Data structure is as follows: 
 type BaseSwitchData []struct {
