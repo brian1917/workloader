@@ -297,7 +297,7 @@ func GetMask(ip string, inv bool) string {
 // TranslateSwitchPolicy - Takes a PCE created policy and translates that to a specific format that the users specifies
 func TranslateSwitchPolicy() {
 
-	//this adds the "ADD" function to the golang template functions.  Used for creating increasing names....
+	//this adds the "add" and "mask" function to the golang template functions.  Used for creating increasing names....
 	funcMap := template.FuncMap{
 		"add": func(a, b int) int {
 			return a + b
