@@ -5,6 +5,7 @@ import (
 	"hash/crc64"
 	"html/template"
 	"math/rand"
+	"net"
 	"os"
 	"sort"
 	"strings"
@@ -270,6 +271,21 @@ func GetNetworkDeviceACLData(dataHref string, switchConf map[string]IntfConfig) 
 	return switchAclData
 }
 
+func GetMask(ip string, inv bool) string {
+	ipv4, ipv4Net, err := net.ParseCIDR(ip)
+	if err != nil {
+		utils.LogError("Trying to parse the IPaddress for prefix.  Make sure you are using IPCidr vs IPRange")
+	}
+	mask := ipv4Net.Mask
+	if inv {
+		for i, b := range ipv4Net.Mask {
+			mask[i] = ^b
+		}
+	}
+	return ipv4.String() + " " + (net.IP(mask).String())
+
+}
+
 // TranslateSwitchPolicy - Takes a PCE created policy and translates that to a specific format that the users specifies
 func TranslateSwitchPolicy() {
 
@@ -277,6 +293,9 @@ func TranslateSwitchPolicy() {
 	funcMap := template.FuncMap{
 		"add": func(a, b int) int {
 			return a + b
+		},
+		"mask": func(ip string, inv bool) string {
+			return (GetMask(ip, inv))
 		},
 	}
 
