@@ -276,6 +276,9 @@ func GetNetworkDeviceACLData(dataHref string, switchConf map[string]IntfConfig) 
 	return switchAclData
 }
 
+// GetMask - Function gets a string that has a prefix included in the ip string ("172.16.0.0/16").  It creates the long for of that IP and prefix.
+// 172.16.0.0 255.255.0.0.   By passing true as the second variable the mask is inverted which looks like 172.16.0.0 0.0.255.255.  This is sometimes
+// needed for routers and switches.
 func GetMask(ip string, inv bool) string {
 	ipv4, ipv4Net, err := net.ParseCIDR(ip)
 	if err != nil {
