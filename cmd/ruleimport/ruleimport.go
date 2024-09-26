@@ -678,23 +678,23 @@ CSVEntries:
 		}
 
 		// ******************** External Data Reference ********************
-		var extDataRef string
+		var extDataRef *string
 		if c, ok := input.Headers[ruleexport.HeaderExternalDataReference]; ok {
 			if rowRuleMatchStr != "" && illumioapi.PtrToVal(ruleLookup[rowRuleMatchStr].ExternalDataReference) != l[c] {
 				update = true
 				utils.LogInfo(fmt.Sprintf("csv line %d - external_data_reference needs to be updated from %s to %s.", i+1, illumioapi.PtrToVal(ruleLookup[rowRuleMatchStr].ExternalDataReference), l[c]), false)
 			}
-			extDataRef = l[c]
+			extDataRef = &l[c]
 		}
 
 		// ******************** External Data Set ********************
-		var extDataSet string
+		var extDataSet *string
 		if c, ok := input.Headers[ruleexport.HeaderExternalDataSet]; ok {
 			if rowRuleMatchStr != "" && illumioapi.PtrToVal(ruleLookup[rowRuleMatchStr].ExternalDataSet) != l[c] {
 				update = true
 				utils.LogInfo(fmt.Sprintf("csv line %d - external_data_set needs to be updated from %s to %s.", i+1, illumioapi.PtrToVal(ruleLookup[rowRuleMatchStr].ExternalDataSet), l[c]), false)
 			}
-			extDataSet = l[c]
+			extDataSet = &l[c]
 		}
 
 		// ******************** Enabled ********************
@@ -904,8 +904,8 @@ CSVEntries:
 			ResolveLabelsAs:             &illumioapi.ResolveLabelsAs{Consumers: &consResolveAs, Providers: &provResolveAs},
 			UseWorkloadSubnets:          &useWkldSubnets,
 			NetworkType:                 networkType,
-			ExternalDataReference:       &extDataRef,
-			ExternalDataSet:             &extDataSet,
+			ExternalDataReference:       extDataRef,
+			ExternalDataSet:             extDataSet,
 		}
 		if input.PCE.Version.Major < 22 {
 			csvRule.UseWorkloadSubnets = nil
