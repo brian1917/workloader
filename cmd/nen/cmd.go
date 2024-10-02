@@ -34,7 +34,7 @@ var NENCmd = &cobra.Command{
 	Use:   "nen-acl",
 	Short: "Create NEN ACL file.  Requires template file.",
 	Long: `
-Create output file for different types of enforcement network equipment.  Requires a template files using Golang templating language
+Create output file for different types of enforcement network equipment using devices native syntax.  Requires a template files using Golang templating language
 
 Requires the name of the Switch using --name or -n <switch name>.  By default looks for an ACL file already created within the last 7 days.  
 Can select a smaller time frame or use -d or --days 0 to create a new ACL. Will build the ACL based on the template file included as an argument.  
@@ -304,6 +304,12 @@ func TranslateSwitchPolicy() {
 		},
 		"mask": func(ip string, inv bool) string {
 			return (GetMask(ip, inv))
+		},
+		"replace": func(ip, old, new string) string {
+			return strings.ReplaceAll(ip, old, new)
+		},
+		"dotremove": func(s string) string {
+			return strings.ReplaceAll(s, ".", "-")
 		},
 	}
 
