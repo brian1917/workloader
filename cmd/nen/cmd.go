@@ -308,7 +308,7 @@ func SetFuncMap() template.FuncMap {
 		"replace": func(s, old, new string) string {
 			return strings.ReplaceAll(s, old, new)
 		},
-		"cleardash": func(s string) bool {
+		"hasdash": func(s string) bool {
 			return strings.Contains(s, "-")
 		},
 	}
