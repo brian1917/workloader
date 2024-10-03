@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -294,8 +295,7 @@ func GetMask(ip string, inv bool) string {
 
 }
 
-// TranslateSwitchPolicy - Takes a PCE created policy and translates that to a specific format that the users specifies
-func TranslateSwitchPolicy() {
+func SetFuncMap() template.FuncMap {
 
 	//this adds the "add" and "mask" function to the golang template functions.  Used for creating increasing names....
 	funcMap := template.FuncMap{
@@ -305,13 +305,19 @@ func TranslateSwitchPolicy() {
 		"mask": func(ip string, inv bool) string {
 			return (GetMask(ip, inv))
 		},
-		"replace": func(ip, old, new string) string {
-			return strings.ReplaceAll(ip, old, new)
+		"replace": func(s, old, new string) string {
+			return strings.ReplaceAll(s, old, new)
 		},
-		"dotremove": func(s string) string {
-			return strings.ReplaceAll(s, ".", "-")
+		"cleardash": func(s string) bool {
+			return strings.Contains(s, "-")
 		},
 	}
+	return funcMap
+
+}
+
+// TranslateSwitchPolicy - Takes a PCE created policy and translates that to a specific format that the users specifies
+func TranslateSwitchPolicy() {
 
 	workingDevices := make(map[string]string)
 	var dataHref string
@@ -338,8 +344,9 @@ func TranslateSwitchPolicy() {
 				utils.LogError(err.Error())
 			}
 
-			//Send data to template to build the output
-			tmpl, err := template.New(templateFile).Funcs(funcMap).ParseFiles(templateFile)
+			//Found I needed just the base filename for part of the Template parsing command
+			//Parse template file and load template functions from SetFuncMap() to build the output
+			tmpl, err := template.New(filepath.Base(templateFile)).Funcs(SetFuncMap()).ParseFiles(templateFile)
 			if err != nil {
 				utils.LogError(err.Error())
 			}
