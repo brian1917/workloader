@@ -1,5 +1,7 @@
 module github.com/brian1917/workloader
 
+replace github.com/brian1917/illumioapi/v2 => github.com/jdschmitz15/illumioapi/v2 v2.0.44
+
 go 1.18
 
 require (

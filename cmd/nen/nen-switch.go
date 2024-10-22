@@ -230,16 +230,25 @@ func AttachInterfaces(newSwitch illumioapi.NetworkDevice) {
 			}{Href: tmpstr})
 		}
 
+		//Check to see if the switchinterface value is already attached to the switch and you want to update your switch
 		if _, ok := input.PCE.NetworkEnforcementNode[newSwitch.NetworkEnforcementNode.Href].NetworkDevice[newSwitch.Href].NetworkEndpoint[row[input.Headers["switchinterface"]]]; ok && switchupdate {
 			tmpEndpoint.Href = input.PCE.NetworkEnforcementNode[newSwitch.NetworkEnforcementNode.Href].NetworkDevice[newSwitch.Href].NetworkEndpoint[row[input.Headers["switchinterface"]]].Href
 			api, err := input.PCE.UpdateNetworkEndpoint(&tmpEndpoint)
 			if err != nil {
-				utils.LogWarning(err.Error()+api.RespBody, true)
+				utils.LogWarning(err.Error()+" "+tmpEndpoint.Config.Name+" "+api.RespBody, true)
 			}
-		} else {
+			//Check to see if you dont have a workload already attached to the interface add if not add the new interface.
+		} else if _, ok := input.PCE.NetworkEnforcementNode[newSwitch.NetworkEnforcementNode.Href].NetworkDevice[newSwitch.Href].NetworkEndpoint[tmpEndpoint.Workloads[0].Href]; !ok && tmpEndpoint.Href == "" && switchupdate {
 			api, err := newSwitch.AddNetworkEndpoint(&input.PCE, &tmpEndpoint)
 			if err != nil {
-				utils.LogWarning(err.Error()+api.RespBody, true)
+				utils.LogWarning(err.Error()+" "+tmpEndpoint.Config.Name+" "+api.RespBody, true)
+			}
+			//If there is a switch interface with the workload but the interfaces is new use the original switch interfaces and update.
+		} else {
+			tmpEndpoint.Href = input.PCE.NetworkEnforcementNode[newSwitch.NetworkEnforcementNode.Href].NetworkDevice[newSwitch.Href].NetworkEndpoint[tmpEndpoint.Workloads[0].Href].Href
+			api, err := input.PCE.UpdateNetworkEndpoint(&tmpEndpoint)
+			if err != nil {
+				utils.LogWarning(err.Error()+" "+tmpEndpoint.Config.Name+" "+api.RespBody, true)
 			}
 		}
 
