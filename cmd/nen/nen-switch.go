@@ -31,13 +31,18 @@ var NENSWITCHCmd = &cobra.Command{
 	Use:   "nen-switch",
 	Short: "Create NEN switch with workloads attached to interfaces.  Requires interface to workload file.",
 	Long: `
-Provides the user ability to add a NEN switch to the PCE for pulling JSON policy.  
-The switch requires UMWLs attached to the configured interfaces to be able to pull JSON policy.  The 'nen-acl' command is used
+Provides the user ability to add a NEN switch to the PCE for pulling JSON policy.
+
+The switch requires UMWLs attached to the configured interfaces to be able to build JSON policy.  The 'nen-acl' command is used
 to pull the JSON policy. The requirements for the switch is a name, an unique IP address, and type of IP address output (IP range or IP Cidr).
+The command can build the UMWLs for the switch if the 'umwl' flag is set.  The 'update-pce' flag must also be set to update the 
+PCE to create the switch or the UMWLs. The 'nen-name' flag is required if there is more than one NEN configured on the PCE.
+the switch.csv file is required to have the following columns: interface, href, hostname, ip address, labels.  The 'interface' column is required.
+The 'href' column is optional.  If the 'href' column is not provided the 'hostname' or 'name' column is used to find the workload.  If the 'hostname' column is not
 
-To configure the switch with the correct workloads on the correct interfaces a file with following formate is needed.
+T
 
-interface, href, hostname, ip address, labels, 
+interface, href, hostname(or name), ip address, labels, 
 
 `,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -138,6 +143,7 @@ func CreateSwitch() illumioapi.NetworkDevice {
 		if !switchupdate {
 			utils.LogError("Error:  There is already a switch with that name already attached to the NEN.  Please provide another new unique name.")
 		}
+		utils.LogWarning("Error:  There is already a switch with that name already attached to the NEN.  Please provide another new unique name.", true)
 		return input.PCE.NetworkEnforcementNode[nenname].NetworkDevice[devicename]
 	}
 
@@ -224,10 +230,13 @@ func AttachInterfaces(newSwitch illumioapi.NetworkDevice) {
 			tmpstr = row[input.Headers[wkldexport.HeaderHref]]
 		}
 
+		haswkld := true
 		if tmpstr != "" {
 			tmpEndpoint.Workloads = append(tmpEndpoint.Workloads, struct {
 				Href string `json:"href,omitempty"`
 			}{Href: tmpstr})
+		} else {
+			haswkld = false
 		}
 
 		//Check to see if the switchinterface value is already attached to the switch and you want to update your switch
@@ -237,16 +246,25 @@ func AttachInterfaces(newSwitch illumioapi.NetworkDevice) {
 			if err != nil {
 				utils.LogWarning(err.Error()+" "+tmpEndpoint.Config.Name+" "+api.RespBody, true)
 			}
-			//Check to see if you dont have a workload already attached to the interface add if not add the new interface.
-		} else if _, ok := input.PCE.NetworkEnforcementNode[newSwitch.NetworkEnforcementNode.Href].NetworkDevice[newSwitch.Href].NetworkEndpoint[tmpEndpoint.Workloads[0].Href]; !ok && tmpEndpoint.Href == "" && switchupdate {
-			api, err := newSwitch.AddNetworkEndpoint(&input.PCE, &tmpEndpoint)
-			if err != nil {
-				utils.LogWarning(err.Error()+" "+tmpEndpoint.Config.Name+" "+api.RespBody, true)
+			//Check to see if you dont have a workload from the csv.  If not skip updating or adding.
+		} else if haswkld {
+			//if there is a workload check to see if its already attached to the switch.  If not add it.
+			if _, ok := input.PCE.NetworkEnforcementNode[newSwitch.NetworkEnforcementNode.Href].NetworkDevice[newSwitch.Href].NetworkEndpoint[tmpEndpoint.Workloads[0].Href]; !ok && tmpEndpoint.Href == "" && switchupdate {
+				api, err := newSwitch.AddNetworkEndpoint(&input.PCE, &tmpEndpoint)
+				if err != nil {
+					utils.LogWarning(err.Error()+" "+tmpEndpoint.Config.Name+" "+api.RespBody, true)
+				}
+				//If there is a switch interface with the workload but the interfaces is new use the original switch interfaces and update.
+			} else {
+				tmpEndpoint.Href = input.PCE.NetworkEnforcementNode[newSwitch.NetworkEnforcementNode.Href].NetworkDevice[newSwitch.Href].NetworkEndpoint[tmpEndpoint.Workloads[0].Href].Href
+				api, err := input.PCE.UpdateNetworkEndpoint(&tmpEndpoint)
+				if err != nil {
+					utils.LogWarning(err.Error()+" "+tmpEndpoint.Config.Name+" "+api.RespBody, true)
+				}
 			}
-			//If there is a switch interface with the workload but the interfaces is new use the original switch interfaces and update.
+			//If there is no workload but there is an interface name just create the interface.
 		} else {
-			tmpEndpoint.Href = input.PCE.NetworkEnforcementNode[newSwitch.NetworkEnforcementNode.Href].NetworkDevice[newSwitch.Href].NetworkEndpoint[tmpEndpoint.Workloads[0].Href].Href
-			api, err := input.PCE.UpdateNetworkEndpoint(&tmpEndpoint)
+			api, err := newSwitch.AddNetworkEndpoint(&input.PCE, &tmpEndpoint)
 			if err != nil {
 				utils.LogWarning(err.Error()+" "+tmpEndpoint.Config.Name+" "+api.RespBody, true)
 			}
