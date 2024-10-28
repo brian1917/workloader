@@ -18,7 +18,7 @@ var nenname, devicename, addr string
 
 func init() {
 	NENSWITCHCmd.Flags().BoolVarP(&jsontype, "ipcidr", "i", false, "Default switch JSON configuration is IPRange. Use this option to enable IPRange.")
-	NENSWITCHCmd.Flags().BoolVarP(&switchupdate, "switch-update", "s", false, "If the switch exists but you want to update the interfaces select this option.")
+	//NENSWITCHCmd.Flags().BoolVarP(&switchupdate, "switch-update", "s", false, "If the switch exists but you want to update the interfaces select this option.")
 	NENSWITCHCmd.Flags().BoolVarP(&createUMWL, "umwl", "u", false, "Import the Switch workloads as UWMLs.  You will need to also add \"--update-pce\" to complete the import")
 	NENSWITCHCmd.Flags().StringVarP(&devicename, "name", "n", "", "Enter the output file for the template processing.")
 	NENSWITCHCmd.Flags().StringVarP(&addr, "addr", "a", "", "Name of the NEN switch device you want to create an ACL file for")
@@ -35,14 +35,15 @@ Provides the user ability to add a NEN switch to the PCE for pulling JSON policy
 
 The switch requires UMWLs attached to the configured interfaces to be able to build JSON policy.  The 'nen-acl' command is used
 to pull the JSON policy. The requirements for the switch is a name, an unique IP address, and type of IP address output (IP range or IP Cidr).
-The command can build the UMWLs for the switch if the 'umwl' flag is set.  The 'update-pce' flag must also be set to update the 
+The command can build the UMWLs for the switch if the 'umwl' flag is set.  
+
+**** make sure to use 'name' instead of 'hostname' in the header.  Otherwise the UMWL name isnt found in the policy.  The 'update-pce' flag must also be set to update the 
 PCE to create the switch or the UMWLs. The 'nen-name' flag is required if there is more than one NEN configured on the PCE.
-the switch.csv file is required to have the following columns: interface, href, hostname, ip address, labels.  The 'interface' column is required.
-The 'href' column is optional.  If the 'href' column is not provided the 'hostname' or 'name' column is used to find the workload.  If the 'hostname' column is not
+the switch.csv file is required to have the following columns: interface, href, name, ip address, labels.  The 'interface' column is required.
+The 'href' column is optional.  If the 'href' column is not provided the 'name' column is used to find the workload.  
 
-T
 
-interface, href, hostname(or name), ip address, labels, 
+switchinterface, href(optional), name, interface, label#1, label#2, label#3, etc...
 
 `,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -70,8 +71,10 @@ interface, href, hostname(or name), ip address, labels,
 			input.Umwl = true
 			input.MaxCreate = -1
 			input.MaxUpdate = -1
-			input.MatchString = wkldexport.HeaderHostname
+			input.MatchString = wkldexport.HeaderName
 			wkldimport.ImportWkldsFromCSV(input)
+		} else {
+			utils.LogInfo("Skipping UMWL creation", false)
 		}
 		// Load the PCE with workloads
 		apiResps, err := input.PCE.Load(illumioapi.LoadInput{Workloads: true, NetworkEnforcementNode: true}, utils.UseMulti())
@@ -191,6 +194,7 @@ func CreateSwitch() illumioapi.NetworkDevice {
 	tmp := input.PCE.NetworkEnforcementNode[nenname]
 	var tmpnd illumioapi.NetworkDevice
 	api, err := tmp.AddNetworkDevice(&input.PCE, tmpNetworkDeviceRequest, &tmpnd)
+	utils.LogAPIRespV2("AddNetworkDevice", api)
 	if err != nil {
 		utils.LogError(err.Error() + api.RespBody)
 	}
@@ -237,36 +241,41 @@ func AttachInterfaces(newSwitch illumioapi.NetworkDevice) {
 			}{Href: tmpstr})
 		} else {
 			haswkld = false
+			utils.LogInfo(fmt.Sprintf("Switch interface - %s does not have name associated with it", row[input.Headers["switchinterface"]]), false)
 		}
 
 		//Check to see if the switchinterface value is already attached to the switch and you want to update your switch
 		if _, ok := input.PCE.NetworkEnforcementNode[newSwitch.NetworkEnforcementNode.Href].NetworkDevice[newSwitch.Href].NetworkEndpoint[row[input.Headers["switchinterface"]]]; ok && switchupdate {
 			tmpEndpoint.Href = input.PCE.NetworkEnforcementNode[newSwitch.NetworkEnforcementNode.Href].NetworkDevice[newSwitch.Href].NetworkEndpoint[row[input.Headers["switchinterface"]]].Href
 			api, err := input.PCE.UpdateNetworkEndpoint(&tmpEndpoint)
+			utils.LogAPIRespV2("UpdateNetworkEndpoint", api)
 			if err != nil {
-				utils.LogWarning(err.Error()+" "+tmpEndpoint.Config.Name+" "+api.RespBody, true)
+				utils.LogWarning(err.Error(), true)
 			}
 			//Check to see if you dont have a workload from the csv.  If not skip updating or adding.
 		} else if haswkld {
 			//if there is a workload check to see if its already attached to the switch.  If not add it.
-			if _, ok := input.PCE.NetworkEnforcementNode[newSwitch.NetworkEnforcementNode.Href].NetworkDevice[newSwitch.Href].NetworkEndpoint[tmpEndpoint.Workloads[0].Href]; !ok && tmpEndpoint.Href == "" && switchupdate {
+			if _, ok := input.PCE.NetworkEnforcementNode[newSwitch.NetworkEnforcementNode.Href].NetworkDevice[newSwitch.Href].NetworkEndpoint[tmpEndpoint.Workloads[0].Href]; !ok && tmpEndpoint.Href == "" {
 				api, err := newSwitch.AddNetworkEndpoint(&input.PCE, &tmpEndpoint)
+				utils.LogAPIRespV2("AddNetworkEndpoin", api)
 				if err != nil {
-					utils.LogWarning(err.Error()+" "+tmpEndpoint.Config.Name+" "+api.RespBody, true)
+					utils.LogWarning(err.Error(), true)
 				}
 				//If there is a switch interface with the workload but the interfaces is new use the original switch interfaces and update.
 			} else {
 				tmpEndpoint.Href = input.PCE.NetworkEnforcementNode[newSwitch.NetworkEnforcementNode.Href].NetworkDevice[newSwitch.Href].NetworkEndpoint[tmpEndpoint.Workloads[0].Href].Href
 				api, err := input.PCE.UpdateNetworkEndpoint(&tmpEndpoint)
+				utils.LogAPIRespV2("UpdateNetworkEndpoint", api)
 				if err != nil {
-					utils.LogWarning(err.Error()+" "+tmpEndpoint.Config.Name+" "+api.RespBody, true)
+					utils.LogWarning(err.Error(), true)
 				}
 			}
 			//If there is no workload but there is an interface name just create the interface.
 		} else {
 			api, err := newSwitch.AddNetworkEndpoint(&input.PCE, &tmpEndpoint)
+			utils.LogAPIRespV2("AddNetworkEndpoin", api)
 			if err != nil {
-				utils.LogWarning(err.Error()+" "+tmpEndpoint.Config.Name+" "+api.RespBody, true)
+				utils.LogWarning(err.Error(), true)
 			}
 		}
 

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"hash/crc64"
 	"html/template"
-	"math/rand"
 	"net"
 	"os"
 	"path/filepath"
@@ -33,22 +32,22 @@ func init() {
 // NenCmd builds a file with ACL information
 var NENACLCmd = &cobra.Command{
 	Use:   "nen-acl",
-	Short: "Create NEN ACL file.  Requires template file.",
+	Short: "Create NEN ACL file.  Requires a golang template file.",
 	Long: `
 Create output file for different types of enforcement network equipment using devices native syntax.  Requires a template files using Golang templating language
 
-Requires the name of the Switch using --name or -n <switch name>.  By default looks for an ACL file already created within the last 7 days.  
-Can select a smaller time frame or use -d or --days 0 to create a new ACL. Will build the ACL based on the template file included as an argument.  
-Additionally, you can send the output to stdout or to a file using --name or -n <filename>.
+Requires the name of the Switch configured on the NEN using --name or -n <switch name>.  By default looks for an ACL file already created within the last 7 days.  
+Can select a smaller time frame or use -d or --days 0 to re-create a new ACL. Will build the ACL based on the template file included as an argument.  
+Additionally, you can send the output to stdout or to a file using --output-file or -o <filename>.
 
-Golang template has been extended to include {{ add <value A> <value B>}} so you can create incrementing values.  {{ mask ip inv}} provides the mask based on the prefix 
+Golang template has been extended to include some basic functions like:
+{{ add <value A> <value B>}} so you can create incrementing values.  
 included in the ip value.  The mask can be traditional notation of 255.255.255.0 = /24 or you can invert 0.255.255.255 by setting inv = true.  {{mask "10.0.0.0/8" true}}.  
-{{mask <ip with mask> boolean}}
-{{ipclean string}} 
-{{add variable int}}
-{{splitrange <}}
+{{mask <ip with mask> boolean}} To calulate the mask of the IP address.  setting boolean to true inverses the mask.
+{{ipclean string}} To remove the prefix from the IP address. 
+{{splitrange string boolean}} To split a range of IPs and return the first or second value. 
 
-Data structure is as follows: 
+The Nen Switch configuration and policy data structure is what the template uses to create the output.  
 
 
 type SwitchACLData struct {        //array of ACLs for switch configured on NEN 
@@ -64,10 +63,10 @@ type SwitchACLData struct {        //array of ACLs for switch configured on NEN
 			Action      string   //permit or deny
 			Port        string   //permit or deny
 			Port        string 	 //udp or tcp port number
-			ProtocolNum string   //udp or tcp protocol number
-			ProtocolTxt string	 //udp or tcp protocol as txt
+			ProtocolNum string   //udp or tcp protocol as a number
+			ProtocolTxt string	 //udp or tcp protocol as text
 			Ips         []string //array of all the dst IPs
-			OutHash     uint64   //name of the unique hash of the array as a string
+			OutHash     uint64   //name of the unique hash of the Ips array as a string
 		} 
 		Inbound []struct {
 			Action      string   //permit or deny
@@ -75,15 +74,9 @@ type SwitchACLData struct {        //array of ACLs for switch configured on NEN
 			ProtocolNum string   //udp or tcp protocol number
 			ProtocolTxt string	 //udp or tcp protocol as txt
 			Ips         []string //array of all the src IPs
-			InHash      uint64   //name of the unique hash of the array as a string
+			InHash      uint64   //name of the unique hash of the Ips array as a string
 		} 
 	} 			
-	ProtoPort  map[string]ProtoPort struct {    //array of all TCP/UDP ports with a combined name using PROTOCOL+PORT
-			Port         		 //udp or tcp port number
-			ProtocolNum string   //udp or tcp protocol number
-			ProtocolTxt string	 //udp or tcp protocol as txt
-		}		
-	HashList   map[uint64][]string		//hash of each rules array of IPs 
 }
 `,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -96,7 +89,7 @@ type SwitchACLData struct {        //array of ACLs for switch configured on NEN
 
 		// Set the CSV file
 		if len(args) != 1 {
-			fmt.Println("Command requires 1 argument for the csv file. See usage help.")
+			fmt.Println("Command requires 1 argument for the golang template file. See usage help.")
 			os.Exit(0)
 		}
 		templateFile = args[0]
@@ -104,6 +97,10 @@ type SwitchACLData struct {        //array of ACLs for switch configured on NEN
 		// Get the services
 		pce.Load(illumioapi.LoadInput{Workloads: true, NetworkEnforcementNode: true}, utils.UseMulti())
 
+		//Make sure you have a switch name to build the ACL for.
+		if networkDeviceName == "" {
+			utils.LogError("You must enter the name of the switch you want to create an ACL file for.")
+		}
 		//Use Golang templates to transform NEN JSON object to any output.
 		TranslateSwitchPolicy()
 
@@ -175,7 +172,6 @@ func GetNetworkEndpointData(href string) map[string]IntfConfig {
 	intConf := make(map[string]IntfConfig)
 	href = href + "/network_endpoints"
 	GetHref(href, &switchConf, "GetNetworkDeviceACLData")
-
 	for _, networkEndpoint := range switchConf {
 		if len(networkEndpoint.Workloads) != 0 {
 			for _, workload := range networkEndpoint.Workloads {
@@ -196,7 +192,6 @@ func GetNetworkDeviceACLData(dataHref string, switchConf map[string]IntfConfig) 
 	GetHref(dataHref, &wkldAcl, "GetNetworkDeviceACLData")
 
 	//initialize the maps and hash variables.
-	rand.NewSource(int64(888))
 	switchAclData.HashList = map[uint64][]string{}
 	protoPort := map[string]ProtoPort{}
 	//newhash := maphash.Hash{}
@@ -401,6 +396,6 @@ func TranslateSwitchPolicy() {
 		}
 	}
 	if !match {
-		utils.LogError("No match found for switch names \"" + networkDeviceName + "\"")
+		utils.LogError("No match found for switch names \"" + networkDeviceName + "\".  Check names of switches in the PCE")
 	}
 }
