@@ -82,10 +82,9 @@ func publicIPIsValid(ip string) bool {
 }
 
 func (w *importWkld) interfaces(input Input) {
-	// If the workload is no unmanaged
+
+	// Validate the workload can be updated
 	if !(w.wkld.GetMode() == "unmanaged" && ((w.wkld.Agent != nil && w.wkld.Agent.Type != nil && *w.wkld.Agent.Type != "NetworkEnforcementNode") || (w.wkld.VEN != nil && w.wkld.VEN.Name != nil && strings.Contains(*w.wkld.VEN.Name, "Illumio Network Enforcement Node")))) {
-		// Validate the workload can be updated
-		//if !(w.wkld.GetMode() == "unmanaged" && ((w.wkld.Agent.Type != nil && *w.wkld.Agent.Type != "NetworkEnforcementNode") || (w.wkld.VEN.Name != nil && strings.Contains(*w.wkld.VEN.Name, "Illumio Network Enforcement Node")))) {
 		return
 	}
 
