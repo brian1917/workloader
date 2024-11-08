@@ -1,11 +1,13 @@
 module github.com/brian1917/workloader
 
+replace github.com/brian1917/illumioapi/v2 => github.com/jdschmitz15/illumioapi/v2 v2.0.44
+
 go 1.18
 
 require (
 	github.com/aws/aws-sdk-go v1.44.243
 	github.com/brian1917/illumioapi v1.85.0
-	github.com/brian1917/illumioapi/v2 v2.0.0-beta.43
+	github.com/brian1917/illumioapi/v2 v2.0.0-beta.44
 	github.com/brian1917/ns v1.2.0
 	github.com/brian1917/workloader/utils v1.3.2
 	github.com/google/uuid v1.1.2

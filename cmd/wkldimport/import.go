@@ -30,7 +30,7 @@ func ImportWkldsFromCSV(input Input) {
 	}
 
 	// Process the headers and log in the input
-	input.processHeaders(data[0])
+	input.ProcessHeaders(data[0])
 	input.log()
 
 	// Get the PCE version

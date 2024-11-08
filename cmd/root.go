@@ -40,6 +40,7 @@ import (
 	"github.com/brian1917/workloader/cmd/labelimport"
 	explorer "github.com/brian1917/workloader/cmd/legacy-explorer"
 	"github.com/brian1917/workloader/cmd/mislabel"
+	"github.com/brian1917/workloader/cmd/nen"
 	"github.com/brian1917/workloader/cmd/netscalersync"
 	"github.com/brian1917/workloader/cmd/nicexport"
 	"github.com/brian1917/workloader/cmd/nicmanage"
@@ -194,6 +195,8 @@ func init() {
 	RootCmd.AddCommand(hostparse.HostnameCmd)
 	RootCmd.AddCommand(dagsync.DAGSyncCmd)
 	RootCmd.AddCommand(vmsync.VCenterSyncCmd)
+	RootCmd.AddCommand(nen.NENSWITCHCmd)
+	RootCmd.AddCommand(nen.NENACLCmd)
 
 	// Workload management
 	RootCmd.AddCommand(wkldcleanup.WkldCleanUpCmd)

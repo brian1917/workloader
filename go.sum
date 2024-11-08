@@ -42,8 +42,6 @@ github.com/aws/aws-sdk-go v1.44.243 h1:f5cNDSVfU/TsH0FXi+DwPjOY4XAv9ehubfw/7yTQQ
 github.com/aws/aws-sdk-go v1.44.243/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
 github.com/brian1917/illumioapi v1.85.0 h1:f24Qdl4CBGmLATY/w1E4Yw5EC6P+24EawUsk3oaUHes=
 github.com/brian1917/illumioapi v1.85.0/go.mod h1:jREIUsMQeaaL7Mde0nTG2ehSDJjRSU79WFgFXcm0XhQ=
-github.com/brian1917/illumioapi/v2 v2.0.0-beta.43 h1:8NHuuVl5Ct0sKKBtTfGktjLpb396ilUniit3Z2jD4As=
-github.com/brian1917/illumioapi/v2 v2.0.0-beta.43/go.mod h1:2uy7bernq5Ein6PiTS+9a4VvjYEMKi3vAGybByDZ2c8=
 github.com/brian1917/ns v1.2.0 h1:8z9dR8WhaqJPTi8Ygyf6VHrYGoP8dbNV8hoD30/k/8c=
 github.com/brian1917/ns v1.2.0/go.mod h1:2MohDxeuiUsV/vtkLkdnU6q0z5yByOK9c2vGPGbCkKo=
 github.com/brian1917/workloader/utils v1.3.2 h1:tRPvgVOKaz+ksdqZiXLbOmSQ96nIteJ+284g6rH8OY8=
@@ -137,6 +135,8 @@ github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:
 github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
+github.com/jdschmitz15/illumioapi/v2 v2.0.44 h1:OoAATQNHaWcn9VQMyQcAa+E2N2Axkv1JkRmm0Pn8PtE=
+github.com/jdschmitz15/illumioapi/v2 v2.0.44/go.mod h1:2uy7bernq5Ein6PiTS+9a4VvjYEMKi3vAGybByDZ2c8=
 github.com/jmespath/go-jmespath v0.4.0 h1:BEgLn5cpjn8UN1mAw4NjwDrS35OdebyEtFe+9YPoQUg=
 github.com/jmespath/go-jmespath v0.4.0/go.mod h1:T8mJZnbsbmF+m6zOOFylbeCJqk5+pHWvzYPziyZiYoo=
 github.com/jmespath/go-jmespath/internal/testify v1.5.1 h1:shLQSRRSCCPj3f2gpwzGwWFoC7ycTf1rcQZHOlsJ6N8=

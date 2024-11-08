@@ -10,7 +10,7 @@ import (
 	"github.com/brian1917/workloader/utils"
 )
 
-func (i *Input) processHeaders(headers []string) {
+func (i *Input) ProcessHeaders(headers []string) {
 
 	// Convert the first row into a map
 	csvHeaderMap := make(map[string]int)
