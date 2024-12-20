@@ -5,7 +5,6 @@ import (
 	"net"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/utils"
@@ -18,8 +17,8 @@ var anyIP bool
 
 func init() {
 	FindFQDNCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
-	FindFQDNCmd.Flags().BoolVar(&anyIP, "anyip", false, "By default only perform lookup on RFC1918 address.  Select this option if you want to perform lookup on any ip")
-	FindFQDNCmd.Flags().StringVar(&umwlFile, "umwl-file", "", "this option will create a new file in wkld-import format.")
+	FindFQDNCmd.Flags().BoolVar(&anyIP, "any-ip", false, "look up all ip addresses. default is just rfc1918.")
+	FindFQDNCmd.Flags().StringVar(&umwlFile, "umwl-file", "", "create a new file in wkld-import format.")
 }
 
 // TrafficCmd runs the workload identifier
@@ -27,10 +26,11 @@ var FindFQDNCmd = &cobra.Command{
 	Use:   "find-fqdn",
 	Short: "Perform reverse name lookup on list of IPs.",
 	Long: `
-Take the Connection with Unknown IPs traffic export data and tries performs reverse lookup the IP to fill in the FQDN.
+Perform reverse name lookup on list of IPs.
 
-Use --output-file to output to specific file otherwise output will be workloader-findfile-<date and time>.csv
-`,
+Use the export of the "Connection with Unknown IPs" traffic report as input.
+
+The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
@@ -56,62 +56,14 @@ Use --output-file to output to specific file otherwise output will be workloader
 	},
 }
 
-// RFC1918 - Check if IP is in the range
-func RFC1918(ipStr string) bool {
-	ip := net.ParseIP(ipStr)
-	if ip == nil {
-		return false
-	}
-
-	// Define the private IP ranges
-	privateIPBlocks := []*net.IPNet{
-		{
-			IP:   net.IPv4(10, 0, 0, 0),
-			Mask: net.CIDRMask(8, 32),
-		},
-		{
-			IP:   net.IPv4(172, 16, 0, 0),
-			Mask: net.CIDRMask(12, 32),
-		},
-		{
-			IP:   net.IPv4(192, 168, 0, 0),
-			Mask: net.CIDRMask(16, 32),
-		},
-	}
-
-	// Check if the IP is within any of the private IP ranges
-	for _, privateIPBlock := range privateIPBlocks {
-		if privateIPBlock.Contains(ip) {
-			return true
-		}
-	}
-
-	return false
-
-}
-
-// lookupIP - performs reverse lookup on the IP address provided using local machines DNS server
-func lookupIP(ip string) []string {
-
-	if (!anyIP && RFC1918(ip)) || anyIP {
-
-		// Perform a reverse lookup for the IP address
-		names, err := net.LookupAddr(ip)
-		if err != nil {
-			utils.LogWarning(fmt.Sprintf("Failed to perform reverse lookup for IP %s: %v", ip, err), false)
-			return []string{"Not Found"}
-		}
-
-		return names
-	}
-	return nil
-}
-
 // FindFQDN - Performs looking through CSV and taking all IPs in the IP Address field and performing reverse lookup on that IP.
 // Results will place the names found back into the FQDN field in the CSV and export the file either to specified named file or generic time/date file
 func FindFQDN(pce *illumioapi.PCE, updatePCE, noPrompt bool) {
 
-	// Parse the CSV
+	// Start the output CSV data
+	umwlCSV := [][]string{}
+
+	// Parse the input CSV
 	csvData, err := utils.ParseCSV(lookupFile)
 	if err != nil {
 		utils.LogError(err.Error())
@@ -120,14 +72,12 @@ func FindFQDN(pce *illumioapi.PCE, updatePCE, noPrompt bool) {
 	// Create the headers
 	headers := make(map[string]*int)
 
-	umwlCSV := [][]string{}
 	// Iterate through the CSV
-	for i, line := range csvData {
-		//csvLine := i + 1
+	for rowIndex, row := range csvData {
 
 		// If it's the first row, process the headers
-		if i == 0 {
-			for i, l := range line {
+		if rowIndex == 0 {
+			for i, l := range row {
 				x := i
 				headers[l] = &x
 			}
@@ -135,23 +85,33 @@ func FindFQDN(pce *illumioapi.PCE, updatePCE, noPrompt bool) {
 			continue
 		}
 
-		//Lookup IP make sure to check if there is a IP address header.  Also save IP to add to UMWL file.
-		valIP, ok := headers[HeaderIPAddr]
-		if !ok {
-			utils.LogWarning(fmt.Sprintf("The IP Address field is left blank so no lookup was performed line %d", i), false)
+		// Get the lookup IP address
+		var lookupIP string
+		if valIP, ok := headers[HeaderIPAddr]; ok {
+			lookupIP = row[*valIP]
+		} else {
+			utils.LogWarning(fmt.Sprintf("the ip address field is left blank so no lookup was performed line %d", rowIndex), false)
 			continue
 		}
 
-		fqdn := lookupIP(line[*valIP])
-		//change the FQDN entry in the CSV unless ip address was skipped (RFC1918)
-		if val, ok := headers[HeaderFQDN]; ok && (line[*val] == "" && fqdn != nil) {
-			line[*val] = strings.Join(fqdn, ",")
-			if fqdn[0] != "Not Found" {
-				tmpRow := []string{fqdn[0], line[*valIP]}
-				umwlCSV = append(umwlCSV, tmpRow)
+		// Do RFC 1918 check
+		if !utils.IsRFC1918(lookupIP) && !anyIP {
+			continue
+		}
+
+		fqdn, err := net.LookupAddr(lookupIP)
+		if err != nil {
+			utils.LogWarningf(false, "failed to perform reverse lookup for IP %s: %v", lookupIP, err)
+		}
+
+		// Change the fqdn entry in the CSV unless ip address was skipped (RFC1918)
+		if val, ok := headers[HeaderFQDN]; ok && (row[*val] == "" && len(fqdn) != 0) {
+			row[*val] = strings.Join(fqdn, ";")
+			if fqdn[0] != "" {
+				umwlCSV = append(umwlCSV, []string{fqdn[0], lookupIP})
 			}
-		} else if line[*val] != "" && fqdn != nil {
-			umwlCSV = append(umwlCSV, []string{line[*val], line[*valIP]})
+		} else if row[*val] != "" && fqdn != nil {
+			umwlCSV = append(umwlCSV, []string{row[*val], lookupIP})
 		}
 
 	}
@@ -159,9 +119,9 @@ func FindFQDN(pce *illumioapi.PCE, updatePCE, noPrompt bool) {
 	//Output the CSV now with any FQDNs found.
 	if len(csvData) > 1 {
 		if outputFileName == "" {
-			outputFileName = fmt.Sprintf("workloader-findfqdn-%s.csv", time.Now().Format("20060102_150405"))
+			outputFileName = utils.FileName("")
 		}
-		utils.WriteOutput(csvData, csvData, outputFileName)
+		utils.WriteOutput(csvData, nil, outputFileName)
 		utils.LogInfo(fmt.Sprintf("%d rows exported.", len(csvData)-1), true)
 
 		//If you use the umwl-option it will cause a new file in the wkld-import format to be created."

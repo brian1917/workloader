@@ -185,7 +185,6 @@ func init() {
 	RootCmd.AddCommand(flowimport.FlowImportCmd)
 	RootCmd.AddCommand(templateimport.TemplateImportCmd)
 	RootCmd.AddCommand(templatelist.TemplateListCmd)
-	RootCmd.AddCommand(findfqdn.FindFQDNCmd)
 	// RootCmd.AddCommand(templatecreate.TemplateCreateCmd)
 
 	// Automation
@@ -218,6 +217,7 @@ func init() {
 	RootCmd.AddCommand(deleteunusedlabels.LabelsDeleteUnusedCmd)
 
 	// Reporting
+	RootCmd.AddCommand(findfqdn.FindFQDNCmd)
 	RootCmd.AddCommand(ruleexport.RuleUsageCmd)
 	RootCmd.AddCommand(portusage.PortUsageCmd)
 	RootCmd.AddCommand(mislabel.MisLabelCmd)
