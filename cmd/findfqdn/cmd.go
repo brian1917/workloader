@@ -72,6 +72,7 @@ func FindFQDN(pce *illumioapi.PCE, updatePCE, noPrompt bool) {
 	// Create the headers
 	headers := make(map[string]*int)
 
+	ipMap := map[string]bool{}
 	// Iterate through the CSV
 	for rowIndex, row := range csvData {
 
@@ -101,18 +102,19 @@ func FindFQDN(pce *illumioapi.PCE, updatePCE, noPrompt bool) {
 
 		fqdn, err := net.LookupAddr(lookupIP)
 		if err != nil {
-			utils.LogWarningf(false, "failed to perform reverse lookup for IP %s: %v", lookupIP, err)
+			utils.LogWarningf(false, "error performing reverse lookup for IP %s: %v", lookupIP, err)
 		}
 
 		// Change the fqdn entry in the CSV unless ip address was skipped (RFC1918)
 		if val, ok := headers[HeaderFQDN]; ok && (row[*val] == "" && len(fqdn) != 0) {
 			row[*val] = strings.Join(fqdn, ";")
-			if fqdn[0] != "" {
+			if ok := ipMap[lookupIP]; ok && fqdn[0] != "" {
 				umwlCSV = append(umwlCSV, []string{fqdn[0], lookupIP})
 			}
 		} else if row[*val] != "" && fqdn != nil {
 			umwlCSV = append(umwlCSV, []string{row[*val], lookupIP})
 		}
+		ipMap[lookupIP] = true
 
 	}
 
