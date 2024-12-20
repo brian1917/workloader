@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -34,11 +33,13 @@ Use --output-file to output to specific file otherwise output will be workloader
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the PCE
-		pce, err := utils.GetTargetPCEV2(false)
-		if err != nil {
-			utils.LogError(fmt.Sprintf("error getting pce - %s", err.Error()))
-		}
+		// pce, err := utils.GetTargetPCEV2(false)
+		// if err != nil {
+		// 	utils.LogError(fmt.Sprintf("error getting pce - %s", err.Error()))
+		// }
 		// Set the CSV file
+		utils.LogInfo("Reading CSV and performing reverse lookup.", true)
+
 		if len(args) != 1 {
 			fmt.Println("Command requires 1 argument for file with IPs to perform Reverse lookup on. See usage help.")
 			os.Exit(0)
@@ -47,12 +48,12 @@ Use --output-file to output to specific file otherwise output will be workloader
 		lookupFile = args[0]
 
 		// Get the workloads
-		pce.Load(illumioapi.LoadInput{Workloads: true}, utils.UseMulti())
+		//pce.Load(illumioapi.LoadInput{Workloads: true}, utils.UseMulti())
 
 		updatePCE := viper.Get("update_pce").(bool)
 		noPrompt := viper.Get("no_prompt").(bool)
 
-		FindFQDN(&pce, updatePCE, noPrompt)
+		FindFQDN( /*&pce,*/ updatePCE, noPrompt)
 	},
 }
 
@@ -98,7 +99,7 @@ func lookupIP(ip string) []string {
 		// Perform a reverse lookup for the IP address
 		names, err := net.LookupAddr(ip)
 		if err != nil {
-			utils.LogWarning(fmt.Sprintf("Failed to perform reverse lookup for IP %s: %v", ip, err), false)
+			utils.LogWarning(fmt.Sprintf("Perform reverse lookup for IP %s: %v", ip, err), false)
 			return []string{"Not Found"}
 		}
 
@@ -109,7 +110,7 @@ func lookupIP(ip string) []string {
 
 // FindFQDN - Performs looking through CSV and taking all IPs in the IP Address field and performing reverse lookup on that IP.
 // Results will place the names found back into the FQDN field in the CSV and export the file either to specified named file or generic time/date file
-func FindFQDN(pce *illumioapi.PCE, updatePCE, noPrompt bool) {
+func FindFQDN( /*pce *illumioapi.PCE,*/ updatePCE, noPrompt bool) {
 
 	// Parse the CSV
 	csvData, err := utils.ParseCSV(lookupFile)
@@ -121,6 +122,8 @@ func FindFQDN(pce *illumioapi.PCE, updatePCE, noPrompt bool) {
 	headers := make(map[string]*int)
 
 	umwlCSV := [][]string{}
+	//make sure there we dont perform lookup on the same IP again.
+	ipMap := map[string]bool{}
 	// Iterate through the CSV
 	for i, line := range csvData {
 		//csvLine := i + 1
@@ -138,7 +141,12 @@ func FindFQDN(pce *illumioapi.PCE, updatePCE, noPrompt bool) {
 		//Lookup IP make sure to check if there is a IP address header.  Also save IP to add to UMWL file.
 		valIP, ok := headers[HeaderIPAddr]
 		if !ok {
-			utils.LogWarning(fmt.Sprintf("The IP Address field is left blank so no lookup was performed line %d", i), false)
+			utils.LogWarning(fmt.Sprintf("There is no IP Address column so no lookup was performed line %d", i), false)
+			break
+		}
+
+		if ok := ipMap[line[*valIP]]; ok {
+			utils.LogWarning(fmt.Sprintf("Duplicate IP in the list.  Skipping Reverse lookup for this ip %s", line[*valIP]), false)
 			continue
 		}
 
@@ -153,7 +161,7 @@ func FindFQDN(pce *illumioapi.PCE, updatePCE, noPrompt bool) {
 		} else if line[*val] != "" && fqdn != nil {
 			umwlCSV = append(umwlCSV, []string{line[*val], line[*valIP]})
 		}
-
+		ipMap[line[*valIP]] = true
 	}
 
 	//Output the CSV now with any FQDNs found.
