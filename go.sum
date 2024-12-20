@@ -42,12 +42,12 @@ github.com/aws/aws-sdk-go v1.44.243 h1:f5cNDSVfU/TsH0FXi+DwPjOY4XAv9ehubfw/7yTQQ
 github.com/aws/aws-sdk-go v1.44.243/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
 github.com/brian1917/illumioapi v1.85.0 h1:f24Qdl4CBGmLATY/w1E4Yw5EC6P+24EawUsk3oaUHes=
 github.com/brian1917/illumioapi v1.85.0/go.mod h1:jREIUsMQeaaL7Mde0nTG2ehSDJjRSU79WFgFXcm0XhQ=
-github.com/brian1917/illumioapi/v2 v2.0.0-beta.44 h1:dxoQqQaTG23ZsHnqeZdQYYGkZKiVOZPRxdVc2+NQrRQ=
-github.com/brian1917/illumioapi/v2 v2.0.0-beta.44/go.mod h1:2uy7bernq5Ein6PiTS+9a4VvjYEMKi3vAGybByDZ2c8=
+github.com/brian1917/illumioapi/v2 v2.0.0-beta.45 h1:NSPjvyg2urEA1g6f4vBTPUYkJoCpze1ueVIchibhZe4=
+github.com/brian1917/illumioapi/v2 v2.0.0-beta.45/go.mod h1:2uy7bernq5Ein6PiTS+9a4VvjYEMKi3vAGybByDZ2c8=
 github.com/brian1917/ns v1.2.0 h1:8z9dR8WhaqJPTi8Ygyf6VHrYGoP8dbNV8hoD30/k/8c=
 github.com/brian1917/ns v1.2.0/go.mod h1:2MohDxeuiUsV/vtkLkdnU6q0z5yByOK9c2vGPGbCkKo=
-github.com/brian1917/workloader/utils v1.3.2 h1:tRPvgVOKaz+ksdqZiXLbOmSQ96nIteJ+284g6rH8OY8=
-github.com/brian1917/workloader/utils v1.3.2/go.mod h1:T2RvBV2utNj2E/xh3R6J2EB5owXYn/FaTHMMlEVjQ88=
+github.com/brian1917/workloader/utils v1.4.2 h1:0SeBO7xqXbN+aM0ViSofX01UHtmbogFTZKhcJbCZJLE=
+github.com/brian1917/workloader/utils v1.4.2/go.mod h1:T2RvBV2utNj2E/xh3R6J2EB5owXYn/FaTHMMlEVjQ88=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
 github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=
