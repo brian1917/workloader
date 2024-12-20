@@ -25,6 +25,7 @@ import (
 	"github.com/brian1917/workloader/cmd/denyruleimport"
 	"github.com/brian1917/workloader/cmd/dupecheck"
 	"github.com/brian1917/workloader/cmd/extract"
+	"github.com/brian1917/workloader/cmd/findfqdn"
 	"github.com/brian1917/workloader/cmd/flowimport"
 	"github.com/brian1917/workloader/cmd/gcplabel"
 	"github.com/brian1917/workloader/cmd/getpairingkey"
@@ -184,6 +185,7 @@ func init() {
 	RootCmd.AddCommand(flowimport.FlowImportCmd)
 	RootCmd.AddCommand(templateimport.TemplateImportCmd)
 	RootCmd.AddCommand(templatelist.TemplateListCmd)
+	RootCmd.AddCommand(findfqdn.FindFQDNCmd)
 	// RootCmd.AddCommand(templatecreate.TemplateCreateCmd)
 
 	// Automation
