@@ -14,12 +14,12 @@ import (
 func LogAPIRespV2(callType string, apiResp illumioapi.APIResponse) {
 
 	// Get the original logging status in case it's flipped for a non-200 status code
-	// orginalDebug := viper.Get("debug").(bool)
+	orginalDebug := viper.Get("debug").(bool)
 
 	// If we have a bad API response, set the debug to true
-	// if apiResp.StatusCode > 299 {
-	// 	viper.Set("debug", true)
-	// }
+	if apiResp.StatusCode > 299 {
+		viper.Set("debug", true)
+	}
 
 	if apiResp.Request != nil {
 		LogInfof(false, "%s http request: %s %v", callType, apiResp.Request.Method, apiResp.Request.URL)
@@ -37,7 +37,7 @@ func LogAPIRespV2(callType string, apiResp illumioapi.APIResponse) {
 	}
 
 	// Put the logging back to the original status in case it was flipped for a non-200 status code
-	// viper.Set("debug", orginalDebug)
+	viper.Set("debug", orginalDebug)
 }
 
 func LogMultiAPIRespV2(APIResps map[string]illumioapi.APIResponse) {
