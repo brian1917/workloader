@@ -115,6 +115,10 @@ func main() {
 			}
 			return
 		}
+		// Change to deny rules
+		if os.Args[1] == "deny-rule-import" || os.Args[1] == "deny-rule-export" {
+			utils.LogWarning("deny rules as a separate object are deprecated in the newest PCEs (version 24+). use rule-import and rule-export to manage all allow and deny rules.", true)
+		}
 
 		// Process Mode
 		if os.Args[1] == "mode" {
