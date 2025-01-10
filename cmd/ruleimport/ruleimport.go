@@ -195,7 +195,7 @@ func ImportRulesFromCSV(input Input) {
 	}
 	ruleLookup := make(map[string]illumioapi.Rule)
 	for _, rs := range allRS {
-		for _, r := range illumioapi.PtrToVal(rs.Rules) {
+		for _, r := range rs.AllRules {
 			ruleLookup[r.Href] = r
 			if r.ExternalDataReference != nil && r.ExternalDataSet != nil {
 				ruleLookup[*r.ExternalDataSet+*r.ExternalDataReference] = r
@@ -322,6 +322,21 @@ CSVEntries:
 				} else {
 					ruleExists = true
 				}
+			}
+		}
+
+		// Get the rule type
+		ruleType := "allow" // default for if it doesn't exist
+		overrideDeny := false
+		if c, ok := input.Headers[ruleexport.HeaderRuleType]; ok {
+			if strings.ToLower(l[c]) != "allow" && strings.ToLower(l[c]) != "deny" && strings.ToLower(l[c]) != "override_deny" {
+				utils.LogWarningf(true, "csv line %d - %s is not a valid rule type. must be allow, deny, or override_deny", i+1, l[c])
+			}
+			if strings.ToLower(l[c]) == "override_deny" || strings.ToLower(l[c]) == "deny" {
+				ruleType = "deny"
+			}
+			if strings.ToLower(l[c]) == "override_deny" {
+				overrideDeny = true
 			}
 		}
 
@@ -679,7 +694,7 @@ CSVEntries:
 
 		// ******************** External Data Reference ********************
 		var extDataRef *string
-		if c, ok := input.Headers[ruleexport.HeaderExternalDataReference]; ok {
+		if c, ok := input.Headers[ruleexport.HeaderExternalDataReference]; ok && l[c] != "" {
 			if rowRuleMatchStr != "" && illumioapi.PtrToVal(ruleLookup[rowRuleMatchStr].ExternalDataReference) != l[c] {
 				update = true
 				utils.LogInfo(fmt.Sprintf("csv line %d - external_data_reference needs to be updated from %s to %s.", i+1, illumioapi.PtrToVal(ruleLookup[rowRuleMatchStr].ExternalDataReference), l[c]), false)
@@ -689,7 +704,7 @@ CSVEntries:
 
 		// ******************** External Data Set ********************
 		var extDataSet *string
-		if c, ok := input.Headers[ruleexport.HeaderExternalDataSet]; ok {
+		if c, ok := input.Headers[ruleexport.HeaderExternalDataSet]; ok && l[c] != "" {
 			if rowRuleMatchStr != "" && illumioapi.PtrToVal(ruleLookup[rowRuleMatchStr].ExternalDataSet) != l[c] {
 				update = true
 				utils.LogInfo(fmt.Sprintf("csv line %d - external_data_set needs to be updated from %s to %s.", i+1, illumioapi.PtrToVal(ruleLookup[rowRuleMatchStr].ExternalDataSet), l[c]), false)
@@ -711,47 +726,59 @@ CSVEntries:
 
 		}
 
+		// ******************** Override ********************
+		if ruleType == "deny" && ruleExists && *ruleLookup[rowRuleMatchStr].Override != overrideDeny {
+			update = true
+			utils.LogInfo(fmt.Sprintf("csv line %d - override needs to be updated from %t to %t.", i+1, !enabled, enabled), false)
+		}
+
 		// ******************** Machine Auth ********************/
 		var machineAuth bool
-		if c, ok := input.Headers[ruleexport.HeaderMachineAuthEnabled]; ok {
-			machineAuth, err = strconv.ParseBool(l[c])
-			if err != nil {
-				utils.LogError(fmt.Sprintf("csv line %d - %s is not valid boolean for machine_auth_enabled", i+1, l[c]))
-			}
-			if ruleExists {
-				if *ruleLookup[rowRuleMatchStr].MachineAuth != machineAuth {
-					update = true
-					utils.LogInfo(fmt.Sprintf("csv line %d - machine_auth_enabled needs to be updated from %t to %t.", i+1, !machineAuth, machineAuth), false)
+		if ruleType == "allow" {
+			if c, ok := input.Headers[ruleexport.HeaderMachineAuthEnabled]; ok {
+				machineAuth, err = strconv.ParseBool(l[c])
+				if err != nil {
+					utils.LogError(fmt.Sprintf("csv line %d - %s is not valid boolean for machine_auth_enabled", i+1, l[c]))
+				}
+				if ruleExists {
+					if *ruleLookup[rowRuleMatchStr].MachineAuth != machineAuth {
+						update = true
+						utils.LogInfo(fmt.Sprintf("csv line %d - machine_auth_enabled needs to be updated from %t to %t.", i+1, !machineAuth, machineAuth), false)
+					}
 				}
 			}
 		}
 
 		// ******************** Secure Connect ********************/
 		var secConnect bool
-		if c, ok := input.Headers[ruleexport.HeaderSecureConnectEnabled]; ok {
-			secConnect, err = strconv.ParseBool(l[c])
-			if err != nil {
-				utils.LogError(fmt.Sprintf("csv line %d - %s is not valid boolean for secure_connect_enabled", i+1, l[c]))
-			}
-			if ruleExists {
-				if *ruleLookup[rowRuleMatchStr].SecConnect != secConnect {
-					update = true
-					utils.LogInfo(fmt.Sprintf("csv line %d - secure_connect_enabled needs to be updated from %t to %t.", i+1, !secConnect, secConnect), false)
+		if ruleType == "allow" {
+			if c, ok := input.Headers[ruleexport.HeaderSecureConnectEnabled]; ok {
+				secConnect, err = strconv.ParseBool(l[c])
+				if err != nil {
+					utils.LogError(fmt.Sprintf("csv line %d - %s is not valid boolean for secure_connect_enabled", i+1, l[c]))
+				}
+				if ruleExists {
+					if *ruleLookup[rowRuleMatchStr].SecConnect != secConnect {
+						update = true
+						utils.LogInfo(fmt.Sprintf("csv line %d - secure_connect_enabled needs to be updated from %t to %t.", i+1, !secConnect, secConnect), false)
+					}
 				}
 			}
 		}
 
 		// ******************** Stateless ********************/
 		var stateless bool
-		if c, ok := input.Headers[ruleexport.HeaderStateless]; ok {
-			stateless, err = strconv.ParseBool(l[c])
-			if err != nil {
-				utils.LogError(fmt.Sprintf("csv line %d - %s is not valid boolean for %s", i+1, l[c], ruleexport.HeaderStateless))
-			}
-			if ruleExists {
-				if *ruleLookup[rowRuleMatchStr].Stateless != stateless {
-					update = true
-					utils.LogInfo(fmt.Sprintf("csv line %d - %s needs to be updated from %t to %t.", i+1, ruleexport.HeaderStateless, !stateless, stateless), false)
+		if ruleType == "allow" {
+			if c, ok := input.Headers[ruleexport.HeaderStateless]; ok {
+				stateless, err = strconv.ParseBool(l[c])
+				if err != nil {
+					utils.LogError(fmt.Sprintf("csv line %d - %s is not valid boolean for %s", i+1, l[c], ruleexport.HeaderStateless))
+				}
+				if ruleExists {
+					if *ruleLookup[rowRuleMatchStr].Stateless != stateless {
+						update = true
+						utils.LogInfo(fmt.Sprintf("csv line %d - %s needs to be updated from %t to %t.", i+1, ruleexport.HeaderStateless, !stateless, stateless), false)
+					}
 				}
 			}
 		}
@@ -764,7 +791,7 @@ CSVEntries:
 				utils.LogError(fmt.Sprintf("csv line %d - %s is not valid boolean for unscoped_consumers", i+1, l[c]))
 			}
 			if ruleExists {
-				if *ruleLookup[rowRuleMatchStr].UnscopedConsumers != unscopedConsumers {
+				if ruleLookup[rowRuleMatchStr].UnscopedConsumers != nil && *ruleLookup[rowRuleMatchStr].UnscopedConsumers != unscopedConsumers {
 					update = true
 					utils.LogInfo(fmt.Sprintf("csv line %d - unscoped_consumers needs to be updated from %t to %t.", i+1, !unscopedConsumers, unscopedConsumers), false)
 				}
@@ -787,59 +814,62 @@ CSVEntries:
 		}
 
 		// ******************** VS / Workload only ********************/
-
-		headers := []string{ruleexport.HeaderSrcResolveLabelsAs, ruleexport.HeaderDstResolveLabelsAs}
-		pceRuleResolveAs := [][]string{}
-		if rule, ok := ruleLookup[rowRuleMatchStr]; ok {
-			pceRuleResolveAs = append(pceRuleResolveAs, illumioapi.PtrToVal(rule.ResolveLabelsAs.Consumers), illumioapi.PtrToVal(rule.ResolveLabelsAs.Providers))
-		}
 		var consResolveAs, provResolveAs []string
-		targets := []*[]string{&consResolveAs, &provResolveAs}
-		for z, h := range headers {
-			pceValues := make(map[string]bool)
-			csvValues := make(map[string]bool)
-			csvResolveAs := strings.ToLower(strings.Replace(l[input.Headers[h]], " ", "", -1))
-			csvResolveAsSlc := strings.Split(csvResolveAs, ";")
-			// Make sure the provided values are valid
-			for _, r := range csvResolveAsSlc {
-				if r != "workloads" && r != "virtual_services" {
-					utils.LogWarning(fmt.Sprintf("csv line %d - %s is an invalid %s. value must be workloads, virtual_services, or workloads;virtual_services", i+1, r, h), true)
-					continue CSVEntries
-				}
-				csvValues[r] = true
+		if ruleType == "allow" {
+			headers := []string{ruleexport.HeaderSrcResolveLabelsAs, ruleexport.HeaderDstResolveLabelsAs}
+			pceRuleResolveAs := [][]string{}
+			if rule, ok := ruleLookup[rowRuleMatchStr]; ok {
+				pceRuleResolveAs = append(pceRuleResolveAs, illumioapi.PtrToVal(rule.ResolveLabelsAs.Consumers), illumioapi.PtrToVal(rule.ResolveLabelsAs.Providers))
 			}
-			// Populate PCE values map
-			if ruleExists {
-				for _, r := range pceRuleResolveAs[z] {
-					pceValues[r] = true
-				}
-				// Log if we need to make changes
-				resolveAsChange := false
-				if ruleExists {
-					// Check if all PCE are in CSV
-					for p := range pceValues {
-						if _, ok := csvValues[p]; !ok {
-							update = true
-							resolveAsChange = true
-							utils.LogInfo(fmt.Sprintf("csv line %d - %s needs to be updated from %s to %s", i+1, h, strings.Join(pceRuleResolveAs[z], ";"), csvResolveAs), false)
-							continue
-						}
-					}
 
-					// Check if all CSV are in the PCE
-					if !resolveAsChange {
-						for c := range csvValues {
-							if _, ok := pceValues[c]; !ok {
+			targets := []*[]string{&consResolveAs, &provResolveAs}
+			for z, h := range headers {
+				pceValues := make(map[string]bool)
+				csvValues := make(map[string]bool)
+				csvResolveAs := strings.ToLower(strings.Replace(l[input.Headers[h]], " ", "", -1))
+				csvResolveAsSlc := strings.Split(csvResolveAs, ";")
+				// Make sure the provided values are valid
+				for _, r := range csvResolveAsSlc {
+					if r != "workloads" && r != "virtual_services" {
+						utils.LogWarning(fmt.Sprintf("csv line %d - %s is an invalid %s. value must be workloads, virtual_services, or workloads;virtual_services", i+1, r, h), true)
+						continue CSVEntries
+					}
+					csvValues[r] = true
+				}
+				// Populate PCE values map
+				if ruleExists {
+					for _, r := range pceRuleResolveAs[z] {
+						pceValues[r] = true
+					}
+					// Log if we need to make changes
+					resolveAsChange := false
+					if ruleExists {
+						// Check if all PCE are in CSV
+						for p := range pceValues {
+							if _, ok := csvValues[p]; !ok {
 								update = true
+								resolveAsChange = true
 								utils.LogInfo(fmt.Sprintf("csv line %d - %s needs to be updated from %s to %s", i+1, h, strings.Join(pceRuleResolveAs[z], ";"), csvResolveAs), false)
 								continue
 							}
 						}
+
+						// Check if all CSV are in the PCE
+						if !resolveAsChange {
+							for c := range csvValues {
+								if _, ok := pceValues[c]; !ok {
+									update = true
+									utils.LogInfo(fmt.Sprintf("csv line %d - %s needs to be updated from %s to %s", i+1, h, strings.Join(pceRuleResolveAs[z], ";"), csvResolveAs), false)
+									continue
+								}
+							}
+						}
 					}
 				}
+
+				// Populate target
+				*targets[z] = csvResolveAsSlc
 			}
-			// Populate target
-			*targets[z] = csvResolveAsSlc
 		}
 
 		// ******************** Use Subnet only ********************/
@@ -891,6 +921,7 @@ CSVEntries:
 			csp = nil
 		}
 		csvRule := illumioapi.Rule{
+			RuleType:                    ruleType,
 			Description:                 &description,
 			UnscopedConsumers:           &unscopedConsumers,
 			Consumers:                   &consumers,
@@ -909,6 +940,9 @@ CSVEntries:
 		}
 		if input.PCE.Version.Major < 22 {
 			csvRule.UseWorkloadSubnets = nil
+		}
+		if ruleType == "deny" {
+			csvRule.Override = &overrideDeny
 		}
 
 		// Add to our array
@@ -929,7 +963,7 @@ CSVEntries:
 	if input.Authoritative {
 		rulesDeleteCsv := [][]string{{"href", "desc", "ext_data_set", "ext_data_ref"}}
 		for _, rs := range input.PCE.RuleSetsSlice {
-			for _, r := range illumioapi.PtrToVal(rs.Rules) {
+			for _, r := range rs.AllRules {
 				if _, exists := csvRuleHrefMap[r.Href]; !exists {
 					rulesDeleteCsv = append(rulesDeleteCsv, []string{r.Href, illumioapi.PtrToVal(r.Description), illumioapi.PtrToVal(r.ExternalDataSet), illumioapi.PtrToVal(r.ExternalDataReference)})
 				}
@@ -977,7 +1011,7 @@ CSVEntries:
 			if err != nil {
 				utils.LogError(err.Error())
 			}
-			provisionHrefs[strings.Split(rule.Href, "/sec_rules")[0]] = true
+			provisionHrefs[strings.Split(strings.Split(rule.Href, "/sec_rules")[0], "/deny_rules")[0]] = true
 			utils.LogInfo(fmt.Sprintf("csv line %d - created rule %s - %d", newRule.csvLine, rule.Href, a.StatusCode), true)
 		}
 	}
@@ -990,7 +1024,7 @@ CSVEntries:
 			if err != nil {
 				utils.LogError(err.Error())
 			}
-			provisionHrefs[strings.Split(updatedRule.rule.Href, "/sec_rules")[0]] = true
+			provisionHrefs[strings.Split(strings.Split(updatedRule.rule.Href, "/sec_rules")[0], "/deny_rules")[0]] = true
 			utils.LogInfo(fmt.Sprintf("csv line %d - updated rule %s - %d", updatedRule.csvLine, updatedRule.rule.Href, a.StatusCode), true)
 		}
 	}
