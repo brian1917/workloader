@@ -56,6 +56,7 @@ If a rule_href is provided, the existing rule will be updated. If it's not provi
 The order of the CSV columns do not matter. The input format accepts the following header values:
 - ruleset_name (required. name of the target ruleset.)
 - rule_enabled (required. true/false)
+- rule_type (allow, deny, or override_deny) - assumed to be allow if column not present
 - rule_description
 - unscoped_consumers (required. true/false. true is extra-scope and false is intra-scope.)
 - consumer_all_workloads (true/false)
