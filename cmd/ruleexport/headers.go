@@ -5,6 +5,7 @@ const (
 	HeaderRulesetName                   = "ruleset_name"
 	HeaderRuleSetScope                  = "ruleset_scope"
 	HeaderRulesetEnabled                = "ruleset_enabled"
+	HeaderRuleType                      = "rule_type"
 	HeaderRuleDescription               = "rule_description"
 	HeaderRuleEnabled                   = "rule_enabled"
 	HeaderUnscopedConsumers             = "unscoped_consumers"
@@ -50,6 +51,7 @@ func getCSVHeaders(templateFormat bool) []string {
 		HeaderRulesetDescription,
 		HeaderRuleSetScope,
 		HeaderRulesetEnabled,
+		HeaderRuleType,
 		HeaderRuleDescription,
 		HeaderRuleEnabled,
 		HeaderUnscopedConsumers,
