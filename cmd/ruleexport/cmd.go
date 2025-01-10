@@ -134,7 +134,7 @@ func (r *RuleExport) ExportToCsv() {
 	// Get total number of rules
 	totalNumRules := 0
 	for _, rs := range allRuleSets {
-		for range ia.PtrToVal(rs.Rules) {
+		for range rs.AllRules {
 			totalNumRules++
 		}
 	}
@@ -157,7 +157,7 @@ func (r *RuleExport) ExportToCsv() {
 				}
 			}
 		}
-		for _, rule := range ia.PtrToVal(rs.Rules) {
+		for _, rule := range rs.AllRules {
 			for _, c := range ia.PtrToVal(rule.Consumers) {
 				if c.Workload != nil {
 					neededObjects["workloads"] = true
@@ -314,10 +314,11 @@ func (r *RuleExport) ExportToCsv() {
 		}
 
 		// Process each rule
-		for _, rule := range ia.PtrToVal(rs.Rules) {
+		for _, rule := range rs.AllRules {
 			totalRules++
 			csvEntryMap := make(map[string]string)
 			// Populate the map with basic info
+			csvEntryMap[HeaderRuleType] = rule.RuleType
 			csvEntryMap[HeaderRuleSetScope] = strings.Join(scopes, ";")
 			csvEntryMap[HeaderRulesetHref] = rs.Href
 			csvEntryMap[HeaderRulesetEnabled] = strconv.FormatBool(ia.PtrToVal(rs.Enabled))
@@ -546,8 +547,10 @@ func (r *RuleExport) ExportToCsv() {
 			}
 
 			// Resolve As
-			csvEntryMap[HeaderSrcResolveLabelsAs] = strings.Join(ia.PtrToVal(rule.ResolveLabelsAs.Consumers), ";")
-			csvEntryMap[HeaderDstResolveLabelsAs] = strings.Join(ia.PtrToVal(rule.ResolveLabelsAs.Providers), ";")
+			if rule.RuleType == "allow" {
+				csvEntryMap[HeaderSrcResolveLabelsAs] = strings.Join(ia.PtrToVal(rule.ResolveLabelsAs.Consumers), ";")
+				csvEntryMap[HeaderDstResolveLabelsAs] = strings.Join(ia.PtrToVal(rule.ResolveLabelsAs.Providers), ";")
+			}
 
 			// Use Workload Subnets
 			if pceVersionIncludesUseSubnets {
