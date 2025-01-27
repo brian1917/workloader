@@ -45,6 +45,13 @@ jobs:
       - name: Build Linux ARM executable
         run: GOOS=linux GOARCH=arm go build -ldflags "-X github.com/brian1917/workloader/utils.Version=$(cat version) -X github.com/brian1917/workloader/utils.Commit=$(git rev-list -1 HEAD)" -o ./linux_arm-v${{ steps.get_version.outputs.version }}/workloader
 
+      - name: Generate SHA256 checksums
+        run: |
+          echo "windows: $(sha256sum ./windows-v${{ steps.get_version.outputs.version }}/workloader.exe)" > checksums.txt
+          echo "mac: $(sha256sum ./mac-v${{ steps.get_version.outputs.version }}/workloader)" >> checksums.txt
+          echo "linux amd64: $(sha256sum ./linux_amd64-v${{ steps.get_version.outputs.version }}/workloader)" >> checksums.txt
+          echo "linux arm: $(sha256sum ./linux_arm-v${{ steps.get_version.outputs.version }}/workloader)" >> checksums.txt
+
       - name: Create release zip packages
         run: |
           zip -r windows-v${{ steps.get_version.outputs.version }}.zip windows-v${{ steps.get_version.outputs.version }}/
@@ -106,3 +113,14 @@ jobs:
           asset_path: ./linux_arm-v${{ steps.get_version.outputs.version }}.zip
           asset_name: linux_arm-v${{ steps.get_version.outputs.version }}.zip
           asset_content_type: application/zip
+      
+      - name: Upload checksum file
+        id: upload-checksums
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./checksums.txt
+          asset_name: checksums.txt
+          asset_content_type: text/plain
