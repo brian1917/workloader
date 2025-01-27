@@ -69,6 +69,7 @@ jobs:
           release_name: Release ${{ steps.get_version.outputs.version }}
           draft: false
           prerelease: false
+          body_path: ./checksums.txt 
 
       - name: Upload Windows package
         id: upload-windows-package
