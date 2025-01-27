@@ -26,8 +26,8 @@ jobs:
       - name: Get workloader version
         id: get_version
         run: |
-          echo "##[set-output name=version;]$(cat version)"
-          echo "##[set-output name=commit;]$(git rev-list -1 HEAD)"
+          echo "version=$(cat version)" >> $GITHUB_OUTPUT
+          echo "commit=$(git rev-list -1 HEAD)" >> $GITHUB_OUTPUT
 
       - name: Make directories and copy CSV files
         run: |
