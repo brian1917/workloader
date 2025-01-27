@@ -86,6 +86,20 @@ func GetPCEbyName(name string, GetLabelMaps bool) (illumioapi.PCE, error) {
 	return illumioapi.PCE{}, fmt.Errorf("could not retrieve %s PCE information", name)
 }
 
+// GetPCEbyName gets a PCE by it's provided name
+func GetPCENoAPI(name string) (illumioapi.PCE, error) {
+	var pce illumioapi.PCE
+	if viper.IsSet(name + ".fqdn") {
+		pce = illumioapi.PCE{FriendlyName: name, FQDN: viper.Get(name + ".fqdn").(string), Port: viper.Get(name + ".port").(int), Org: viper.Get(name + ".org").(int), User: viper.Get(name + ".user").(string), Key: viper.Get(name + ".key").(string), DisableTLSChecking: viper.Get(name + ".disableTLSChecking").(bool)}
+		if viper.Get(name+".proxy") != nil {
+			pce.Proxy = viper.Get(name + ".proxy").(string)
+		}
+		return pce, nil
+	}
+
+	return illumioapi.PCE{}, fmt.Errorf("could not retrieve %s PCE information", name)
+}
+
 func UseMulti() bool {
 	if viper.Get("get_api_behavior") == nil || viper.Get("get_api_behavior").(string) == "multi" {
 		LogInfo("using multi get api behavior", false)

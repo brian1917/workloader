@@ -37,7 +37,7 @@ workloader set-proxy default-pce http://proxy.com:8080
 		if len(args) != 2 {
 			utils.LogError("command requires 2 arguments for the pce name and the proxy string as fqdn:port. See usage help.")
 		}
-		pce, err := utils.GetPCEbyName(args[0], false)
+		pce, err := utils.GetPCENoAPI(args[0])
 		if err != nil {
 			utils.LogError(err.Error())
 		}
