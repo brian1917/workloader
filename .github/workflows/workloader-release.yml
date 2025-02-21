@@ -24,7 +24,7 @@ jobs:
         run: |
           go mod download
           sudo apt update
-          sudo aupt install -y mingw-w64
+          sudo apt install -y mingw-w64
 
       - name: Generate version.rc File
         run: |
