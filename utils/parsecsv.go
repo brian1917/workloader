@@ -17,6 +17,9 @@ func ParseCSV(filename string) ([][]string, error) {
 	}
 	defer file.Close()
 	reader := csv.NewReader(ClearBOM(bufio.NewReader(file)))
+	if os.Getenv("WORKLOADER_CSV_DELIMITER") != "" {
+		reader.Comma = rune(os.Getenv("WORKLOADER_CSV_DELIMITER")[0])
+	}
 
 	// Create our slice to return
 	var data [][]string

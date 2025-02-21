@@ -50,6 +50,9 @@ func GetServicePortsCSV(filename string) ([][2]int, error) {
 	defer csvFile.Close()
 
 	reader := csv.NewReader(ClearBOM(bufio.NewReader(csvFile)))
+	if os.Getenv("WORKLOADER_CSV_DELIMITER") != "" {
+		reader.Comma = rune(os.Getenv("WORKLOADER_CSV_DELIMITER")[0])
+	}
 
 	svcList := [][2]int{}
 

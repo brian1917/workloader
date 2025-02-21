@@ -29,6 +29,9 @@ func readKeyFile(filename string) map[string]string {
 	}
 	defer file.Close()
 	reader := csv.NewReader(utils.ClearBOM(bufio.NewReader(file)))
+	if os.Getenv("WORKLOADER_CSV_DELIMITER") != "" {
+		reader.Comma = rune(os.Getenv("WORKLOADER_CSV_DELIMITER")[0])
+	}
 
 	// Start the counters
 	i := 0

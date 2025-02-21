@@ -108,6 +108,9 @@ func ReadCSV(file string) [][]string {
 	}
 
 	reader := csv.NewReader(csvfile)
+	if os.Getenv("WORKLOADER_CSV_DELIMITER") != "" {
+		reader.Comma = rune(os.Getenv("WORKLOADER_CSV_DELIMITER")[0])
+	}
 	reader.FieldsPerRecord = -1
 
 	rawCSVdata, err := reader.ReadAll()

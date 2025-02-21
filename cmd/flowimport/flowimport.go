@@ -88,6 +88,9 @@ func uploadFlows() {
 	}
 	defer file.Close()
 	reader := csv.NewReader(utils.ClearBOM(bufio.NewReader(file)))
+	if os.Getenv("WORKLOADER_CSV_DELIMITER") != "" {
+		reader.Comma = rune(os.Getenv("WORKLOADER_CSV_DELIMITER")[0])
+	}
 
 	// Iterate through CSV entries
 	i := 0
@@ -170,6 +173,9 @@ func uploadFlows() {
 
 	// Write CSV data
 	writer := csv.NewWriter(outFile)
+	if os.Getenv("WORKLOADER_CSV_DELIMITER") != "" {
+		writer.Comma = rune(os.Getenv("WORKLOADER_CSV_DELIMITER")[0])
+	}
 	writer.WriteAll(newCSVData)
 	if err := writer.Error(); err != nil {
 		utils.LogError(err.Error())

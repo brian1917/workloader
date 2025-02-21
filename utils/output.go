@@ -41,6 +41,9 @@ func WriteOutput(csvData, stdOutData [][]string, csvFileName string) {
 
 		// Write CSV data
 		writer := csv.NewWriter(outFile)
+		if os.Getenv("WORKLOADER_CSV_DELIMITER") != "" {
+			writer.Comma = rune(os.Getenv("WORKLOADER_CSV_DELIMITER")[0])
+		}
 		writer.WriteAll(csvData)
 		if err := writer.Error(); err != nil {
 			LogError(fmt.Sprintf("writing csv - %s\n", err))
@@ -74,6 +77,9 @@ func WriteLineOutput(csvLine []string, csvFileName string) {
 
 	// Write CSV data
 	writer := csv.NewWriter(outFile)
+	if os.Getenv("WORKLOADER_CSV_DELIMITER") != "" {
+		writer.Comma = rune(os.Getenv("WORKLOADER_CSV_DELIMITER")[0])
+	}
 	defer writer.Flush()
 
 	if err := writer.Write(csvLine); err != nil {

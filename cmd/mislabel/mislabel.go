@@ -64,6 +64,9 @@ func getExclHostsOrApps(filename string) map[string]bool {
 	// Open CSV File
 	csvFile, _ := os.Open(filename)
 	reader := csv.NewReader(bufio.NewReader(csvFile))
+	if os.Getenv("WORKLOADER_CSV_DELIMITER") != "" {
+		reader.Comma = rune(os.Getenv("WORKLOADER_CSV_DELIMITER")[0])
+	}
 
 	exclHosts := make(map[string]bool)
 
@@ -85,6 +88,9 @@ func getExclPorts(filename string) [][2]int {
 	// Open CSV File
 	csvFile, _ := os.Open(filename)
 	reader := csv.NewReader(bufio.NewReader(csvFile))
+	if os.Getenv("WORKLOADER_CSV_DELIMITER") != "" {
+		reader.Comma = rune(os.Getenv("WORKLOADER_CSV_DELIMITER")[0])
+	}
 
 	exclPorts := [][2]int{}
 
