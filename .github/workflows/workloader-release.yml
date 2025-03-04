@@ -75,7 +75,7 @@ jobs:
           mkdir windows-v${{ steps.get_version.outputs.version }} mac-v${{ steps.get_version.outputs.version }} linux-v${{ steps.get_version.outputs.version }}
 
       - name: Build Windows executable
-        run: GOOS=windows go build -ldflags "-H windowsgui -X github.com/brian1917/workloader/utils.Version=$(cat version) -X github.com/brian1917/workloader/utils.Commit=$(git rev-list -1 HEAD)" -o ./windows-v${{ steps.get_version.outputs.version }}/workloader.exe
+        run: GOOS=windows go build -ldflags "-X github.com/brian1917/workloader/utils.Version=$(cat version) -X github.com/brian1917/workloader/utils.Commit=$(git rev-list -1 HEAD)" -o ./windows-v${{ steps.get_version.outputs.version }}/workloader.exe
 
       - name: Build Mac executable
         run: GOOS=darwin go build -ldflags "-X github.com/brian1917/workloader/utils.Version=$(cat version) -X github.com/brian1917/workloader/utils.Commit=$(git rev-list -1 HEAD)" -o ./mac-v${{ steps.get_version.outputs.version }}/workloader
