@@ -74,18 +74,13 @@ func ContainerClusterUpdate(pce illumioapi.PCE, containerClusterName string, upd
 	// Backup the CWP data
 	if !skipBackup {
 		// Run the cwp-export
+		backupPce := pce
 		utils.LogInfo("---------------- cwp export for backup ----------------", true)
-		cwpexport.ExportContainerProfiles(pce)
+		cwpexport.ExportContainerProfiles(backupPce)
 	}
 
 	// CWPs
 	utils.LogInfo("---------------- container workload profiles ----------------", true)
-
-	// Reset the PCE container workloads profiles
-	pce.ContainerClusters = nil
-	pce.ContainerClustersSlice = nil
-	pce.ContainerWorkloadProfiles = nil
-	pce.ContainerWorkloadProfilesSlice = nil
 
 	// Get the container cluster
 	var containerCluster illumioapi.ContainerCluster
@@ -100,7 +95,6 @@ func ContainerClusterUpdate(pce illumioapi.PCE, containerClusterName string, upd
 			break
 		}
 	}
-	nodes := illumioapi.PtrToVal(containerCluster.Nodes)
 
 	// Get the CWPs
 	api, err = pce.GetContainerWkldProfiles(nil, containerCluster.ID())
@@ -140,19 +134,21 @@ func ContainerClusterUpdate(pce illumioapi.PCE, containerClusterName string, upd
 
 	// Process the CWP data
 	utils.WriteOutput(cwpCsvData, nil, cwpFileName)
-	cwpimport.ImportContainerProfiles(pce, cwpFileName, "DELETE", updatePCE, noPrompt)
+	cwpUpdatePce := pce
+	cwpimport.ImportContainerProfiles(cwpUpdatePce, cwpFileName, "DELETE", updatePCE, noPrompt)
 
 	// Create the csv to update the node enforcement values
 	if targetMode != "unmanaged" {
 		utils.LogInfo("---------------- container workloads (c-vens) ----------------", true)
 		wkldCsvData := [][]string{{"hostname", "enforcement"}}
-		for _, node := range nodes {
+		for _, node := range illumioapi.PtrToVal(containerCluster.Nodes) {
 			wkldCsvData = append(wkldCsvData, []string{node.Name, targetMode})
 		}
 		wkldFileName := utils.FileName("wklds")
 		utils.WriteOutput(wkldCsvData, nil, wkldFileName)
+		wkldUpdatePce := pce
 		wkldimport.ImportWkldsFromCSV(wkldimport.Input{
-			PCE:                     pce,
+			PCE:                     wkldUpdatePce,
 			ImportFile:              wkldFileName,
 			UpdatePCE:               updatePCE,
 			NoPrompt:                noPrompt,
