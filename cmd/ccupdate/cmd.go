@@ -71,11 +71,15 @@ When enforcement-state sent to "unmanaged":
 
 func ContainerClusterUpdate(pce illumioapi.PCE, containerClusterName string, updatePCE, noPrompt bool) {
 
+	// Backup the CWP data
 	if !skipBackup {
 		// Run the cwp-export
 		utils.LogInfo("---------------- cwp export for backup ----------------", true)
 		cwpexport.ExportContainerProfiles(pce)
 	}
+
+	// CWPs
+	utils.LogInfo("---------------- container workload profiles ----------------", true)
 
 	// Reset the PCE container workloads profiles
 	pce.ContainerClusters = nil
@@ -90,12 +94,13 @@ func ContainerClusterUpdate(pce illumioapi.PCE, containerClusterName string, upd
 	if err != nil {
 		utils.LogErrorf("getting container clusters - %s", err)
 	}
-	for _, cc := range pce.ContainerClusters {
+	for _, cc := range pce.ContainerClustersSlice {
 		if cc.Name == containerClusterName {
 			containerCluster = cc
 			break
 		}
 	}
+	nodes := illumioapi.PtrToVal(containerCluster.Nodes)
 
 	// Get the CWPs
 	api, err = pce.GetContainerWkldProfiles(nil, containerCluster.ID())
@@ -134,18 +139,17 @@ func ContainerClusterUpdate(pce illumioapi.PCE, containerClusterName string, upd
 	cwpFileName := utils.FileName("cwps")
 
 	// Process the CWP data
-	utils.LogInfo("---------------- container workload profiles ----------------", true)
 	utils.WriteOutput(cwpCsvData, nil, cwpFileName)
 	cwpimport.ImportContainerProfiles(pce, cwpFileName, "DELETE", updatePCE, noPrompt)
 
 	// Create the csv to update the node enforcement values
 	if targetMode != "unmanaged" {
+		utils.LogInfo("---------------- container workloads (c-vens) ----------------", true)
 		wkldCsvData := [][]string{{"hostname", "enforcement"}}
-		for _, node := range illumioapi.PtrToVal(containerCluster.Nodes) {
+		for _, node := range nodes {
 			wkldCsvData = append(wkldCsvData, []string{node.Name, targetMode})
 		}
 		wkldFileName := utils.FileName("wklds")
-		utils.LogInfo("---------------- container workloads (c-vens) ----------------", true)
 		utils.WriteOutput(wkldCsvData, nil, wkldFileName)
 		wkldimport.ImportWkldsFromCSV(wkldimport.Input{
 			PCE:                     pce,
