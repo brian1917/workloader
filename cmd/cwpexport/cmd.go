@@ -24,7 +24,7 @@ var ContainerProfileExportCmd = &cobra.Command{
 	Long: `
 Create a CSV export of all container workload profiles in the PCE.
 
-Only label assignments are supported. Label restrictions will not be imported.
+Only label assignments are supported. Label restrictions will not be exported.
 
 The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -35,11 +35,11 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 			utils.LogError(err.Error())
 		}
 
-		exportContainerProfiles(pce)
+		ExportContainerProfiles(pce)
 	},
 }
 
-func exportContainerProfiles(pce illumioapi.PCE) {
+func ExportContainerProfiles(pce illumioapi.PCE) {
 	// Get all container clusters
 	a, err := pce.GetContainerClusters(nil)
 	utils.LogAPIRespV2("GetContainerClusters", a)

@@ -19,12 +19,12 @@ type updateCWP struct {
 	csvLine int
 }
 
-var importFile, removeValue string
+var importFile, removeValueInput string
 var updatePCE, noPrompt bool
 var labelsToBeCreated []illumioapi.Label
 
 func init() {
-	ContainerProfileImportCmd.Flags().StringVar(&removeValue, "remove-value", "workloader-remove", "used for removing existing labels. by default blank cells in the csv are ignored. this unique string in the csv cell is used in place of the existing value to tell workloader to replace the existing value with a blank value.")
+	ContainerProfileImportCmd.Flags().StringVar(&removeValueInput, "remove-value", "workloader-remove", "used for removing existing labels. by default blank cells in the csv are ignored. this unique string in the csv cell is used in place of the existing value to tell workloader to replace the existing value with a blank value.")
 }
 
 // WkldExportCmd runs the workload identifier
@@ -51,7 +51,7 @@ Only label assignments are supported. Label restrictions will show as blank in t
 		noPrompt = viper.Get("no_prompt").(bool)
 
 		// Validate remove value
-		if removeValue == "" {
+		if removeValueInput == "" {
 			utils.LogError("remove-value cannot be blank")
 		}
 
@@ -61,7 +61,7 @@ Only label assignments are supported. Label restrictions will show as blank in t
 			utils.LogError(err.Error())
 		}
 
-		importContainerProfiles(pce, importFile, removeValue, updatePCE, noPrompt)
+		ImportContainerProfiles(pce, importFile, removeValueInput, updatePCE, noPrompt)
 	},
 }
 
@@ -79,7 +79,7 @@ func checkLabel(pce illumioapi.PCE, label illumioapi.Label) illumioapi.Label {
 	return newLabel
 }
 
-func importContainerProfiles(pce illumioapi.PCE, importFile, removeValue string, updatePCE, noPrompt bool) {
+func ImportContainerProfiles(pce illumioapi.PCE, importFile, removeValue string, updatePCE, noPrompt bool) {
 
 	// Parse the input file
 	csvData, err := utils.ParseCSV(importFile)
@@ -103,9 +103,7 @@ func importContainerProfiles(pce illumioapi.PCE, importFile, removeValue string,
 			utils.LogError(err.Error())
 		}
 		for _, p := range pce.ContainerWorkloadProfilesSlice {
-			if p.Name != nil && *p.Name == "Default Profile" {
-				continue
-			}
+			// if p.Name != nil && *p.Name == "Default Profile" {
 			p.ClusterName = cc.Name
 			cwpMap[p.Href] = p
 		}
