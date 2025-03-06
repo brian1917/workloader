@@ -69,27 +69,28 @@ When enforcement-state sent to "unmanaged":
 	},
 }
 
-func ContainerClusterUpdate(pce illumioapi.PCE, containerClusterName string, updatePCE, noPrompt bool) {
+func ContainerClusterUpdate(originalPce illumioapi.PCE, containerClusterName string, updatePCE, noPrompt bool) {
 
 	// Backup the CWP data
 	if !skipBackup {
 		// Run the cwp-export
-		backupPce := pce
+		backupPce := copyPce(originalPce)
 		utils.LogInfo("---------------- cwp export for backup ----------------", true)
 		cwpexport.ExportContainerProfiles(backupPce)
 	}
 
 	// CWPs
 	utils.LogInfo("---------------- container workload profiles ----------------", true)
+	cwpPce := copyPce(originalPce)
 
 	// Get the container cluster
 	var containerCluster illumioapi.ContainerCluster
-	api, err := pce.GetContainerClusters(map[string]string{"name": containerClusterName})
+	api, err := cwpPce.GetContainerClusters(map[string]string{"name": containerClusterName})
 	utils.LogAPIRespV2("GetContainerClusters", api)
 	if err != nil {
 		utils.LogErrorf("getting container clusters - %s", err)
 	}
-	for _, cc := range pce.ContainerClustersSlice {
+	for _, cc := range cwpPce.ContainerClustersSlice {
 		if cc.Name == containerClusterName {
 			containerCluster = cc
 			break
@@ -97,7 +98,7 @@ func ContainerClusterUpdate(pce illumioapi.PCE, containerClusterName string, upd
 	}
 
 	// Get the CWPs
-	api, err = pce.GetContainerWkldProfiles(nil, containerCluster.ID())
+	api, err = cwpPce.GetContainerWkldProfiles(nil, containerCluster.ID())
 	utils.LogAPIRespV2("GetContainerWkldProfiles", api)
 	if err != nil {
 		utils.LogErrorf("getting container workload profiles - %s", err)
@@ -113,16 +114,23 @@ func ContainerClusterUpdate(pce illumioapi.PCE, containerClusterName string, upd
 	cwpCsvData := [][]string{{"container_cluster", "name", "description", "namespace", "enforcement", "visibility", "managed", "href"}}
 	labelKeys := []string{"role", "app", "env", "loc"}
 	cwpCsvData[0] = append(cwpCsvData[0], labelKeys...)
+	restoreCwpCsvData := [][]string{cwpCsvData[0]}
 	if targetMode == "unmanaged" {
-		for _, cwp := range pce.ContainerWorkloadProfilesSlice {
+		for _, cwp := range cwpPce.ContainerWorkloadProfilesSlice {
 			row := []string{containerClusterName, illumioapi.PtrToVal(cwp.Name), illumioapi.PtrToVal(cwp.Description), cwp.Namespace, "idle", visLevels[*cwp.VisibilityLevel], "false", cwp.Href}
+			restoreRow := []string{containerClusterName, illumioapi.PtrToVal(cwp.Name), illumioapi.PtrToVal(cwp.Description), cwp.Namespace, illumioapi.PtrToVal(cwp.EnforcementMode), visLevels[*cwp.VisibilityLevel], strconv.FormatBool(*cwp.Managed), cwp.Href}
 			for range labelKeys {
 				row = append(row, "DELETE")
 			}
+			for _, key := range labelKeys {
+				restoreRow = append(restoreRow, cwp.GetLabelByKey(key))
+			}
+
 			cwpCsvData = append(cwpCsvData, row)
+			restoreCwpCsvData = append(restoreCwpCsvData, restoreRow)
 		}
 	} else {
-		for _, cwp := range pce.ContainerWorkloadProfilesSlice {
+		for _, cwp := range cwpPce.ContainerWorkloadProfilesSlice {
 			row := []string{containerClusterName, illumioapi.PtrToVal(cwp.Name), illumioapi.PtrToVal(cwp.Description), cwp.Namespace, targetMode, visLevels[*cwp.VisibilityLevel], strconv.FormatBool(*cwp.Managed), cwp.Href}
 			for range labelKeys {
 				row = append(row, "")
@@ -134,7 +142,10 @@ func ContainerClusterUpdate(pce illumioapi.PCE, containerClusterName string, upd
 
 	// Process the CWP data
 	utils.WriteOutput(cwpCsvData, nil, cwpFileName)
-	cwpUpdatePce := pce
+	if targetMode == "unmanaged" {
+		utils.WriteOutput(restoreCwpCsvData, nil, utils.FileName("restore_cwp_to_managed"))
+	}
+	cwpUpdatePce := copyPce(originalPce)
 	cwpimport.ImportContainerProfiles(cwpUpdatePce, cwpFileName, "DELETE", updatePCE, noPrompt)
 
 	// Create the csv to update the node enforcement values
@@ -146,7 +157,7 @@ func ContainerClusterUpdate(pce illumioapi.PCE, containerClusterName string, upd
 		}
 		wkldFileName := utils.FileName("wklds")
 		utils.WriteOutput(wkldCsvData, nil, wkldFileName)
-		wkldUpdatePce := pce
+		wkldUpdatePce := copyPce(originalPce)
 		wkldimport.ImportWkldsFromCSV(wkldimport.Input{
 			PCE:                     wkldUpdatePce,
 			ImportFile:              wkldFileName,
@@ -155,18 +166,20 @@ func ContainerClusterUpdate(pce illumioapi.PCE, containerClusterName string, upd
 			AllowEnforcementChanges: true,
 			UpdateWorkloads:         true,
 			MaxUpdate:               -1,
+			IgnoreCase:              true,
 		})
 	}
 
 	// Get the pairing profile
 	if pairingProfileName != "skip" && targetMode != "unmanaged" {
+		pairingProfilePce := copyPce(originalPce)
 		utils.LogInfo("---------------- pairing profile ----------------", true)
 
 		var pairingProfile illumioapi.PairingProfile
 		if pairingProfileName == "" {
 			pairingProfileName = containerClusterName
 		}
-		pairingProfiles, api, err := pce.GetPairingProfiles(map[string]string{"name": pairingProfileName})
+		pairingProfiles, api, err := pairingProfilePce.GetPairingProfiles(map[string]string{"name": pairingProfileName})
 		utils.LogAPIRespV2("GetPairingProfiles", api)
 		if err != nil {
 			utils.LogErrorf("getting pairing profiles - %s", err)
@@ -197,7 +210,7 @@ func ContainerClusterUpdate(pce illumioapi.PCE, containerClusterName string, upd
 			// If updatePCE is set, but not noPrompt, we will prompt the user.
 			if updatePCE && !noPrompt {
 				var prompt string
-				fmt.Printf("[PROMPT] - workloader will update the %s pairing profile in %s (%s). Do you want to run the import (yes/no)? ", pairingProfileName, pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
+				fmt.Printf("[PROMPT] - workloader will update the %s pairing profile in %s (%s). Do you want to run the import (yes/no)? ", pairingProfileName, pairingProfilePce.FriendlyName, viper.Get(pairingProfilePce.FriendlyName+".fqdn").(string))
 
 				fmt.Scanln(&prompt)
 				if strings.ToLower(prompt) != "yes" {
@@ -207,7 +220,7 @@ func ContainerClusterUpdate(pce illumioapi.PCE, containerClusterName string, upd
 			}
 
 			if updatePCE {
-				api, err = pce.UpdatePairingProfile(pairingProfile)
+				api, err = pairingProfilePce.UpdatePairingProfile(pairingProfile)
 				utils.LogAPIRespV2("UpdatePairingProfile", api)
 				if err != nil {
 					utils.LogErrorf("updating pairing profile - %s", err)
@@ -218,4 +231,19 @@ func ContainerClusterUpdate(pce illumioapi.PCE, containerClusterName string, upd
 		}
 	}
 
+}
+
+// copyPCE returns a PCE object
+func copyPce(pce illumioapi.PCE) illumioapi.PCE {
+	return illumioapi.PCE{
+		FriendlyName:       pce.FriendlyName,
+		FQDN:               pce.FQDN,
+		Port:               pce.Port,
+		Org:                pce.Org,
+		User:               pce.User,
+		Key:                pce.Key,
+		Proxy:              pce.Proxy,
+		DisableTLSChecking: pce.DisableTLSChecking,
+		Version:            pce.Version,
+	}
 }
