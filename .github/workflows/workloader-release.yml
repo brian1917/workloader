@@ -81,10 +81,10 @@ jobs:
         run: GOOS=darwin go build -ldflags "-X github.com/brian1917/workloader/utils.Version=$(cat version) -X github.com/brian1917/workloader/utils.Commit=$(git rev-list -1 HEAD)" -o ./mac-v${{ steps.get_version.outputs.version }}/workloader
 
       - name: Build Linux amd64 executable
-        run: GOOS=linux GOARCH=amd64 go build -ldflags "-X github.com/brian1917/workloader/utils.Version=$(cat version) -X github.com/brian1917/workloader/utils.Commit=$(git rev-list -1 HEAD)" -o ./linux_amd64-v${{ steps.get_version.outputs.version }}/workloader
+        run: GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-X github.com/brian1917/workloader/utils.Version=$(cat version) -X github.com/brian1917/workloader/utils.Commit=$(git rev-list -1 HEAD)" -o ./linux_amd64-v${{ steps.get_version.outputs.version }}/workloader
 
       - name: Build Linux ARM executable
-        run: GOOS=linux GOARCH=arm go build -ldflags "-X github.com/brian1917/workloader/utils.Version=$(cat version) -X github.com/brian1917/workloader/utils.Commit=$(git rev-list -1 HEAD)" -o ./linux_arm-v${{ steps.get_version.outputs.version }}/workloader
+        run: GOOS=linux GOARCH=arm CGO_ENABLED=0 go build -ldflags "-X github.com/brian1917/workloader/utils.Version=$(cat version) -X github.com/brian1917/workloader/utils.Commit=$(git rev-list -1 HEAD)" -o ./linux_arm-v${{ steps.get_version.outputs.version }}/workloader
 
       - name: Generate SHA256 checksums
         run: |
