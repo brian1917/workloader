@@ -125,11 +125,15 @@ func ExportRuleSets(pce illumioapi.PCE, outputFileName string, templateFormat bo
 				scopeStrSlice := []string{}
 				// Iterate through each scope entity
 				for _, scopeEntity := range scope {
+					suffix := ""
+					if illumioapi.PtrToVal(scopeEntity.Exclusion) {
+						suffix = "-exclusion"
+					}
 					if scopeEntity.Label != nil {
-						scopeStrSlice = append(scopeStrSlice, fmt.Sprintf("%s:%s", pce.Labels[scopeEntity.Label.Href].Key, pce.Labels[scopeEntity.Label.Href].Value))
+						scopeStrSlice = append(scopeStrSlice, fmt.Sprintf("%s:%s%s", pce.Labels[scopeEntity.Label.Href].Key, pce.Labels[scopeEntity.Label.Href].Value, suffix))
 					}
 					if scopeEntity.LabelGroup != nil {
-						scopeStrSlice = append(scopeStrSlice, fmt.Sprintf("lg:%s:%s", labelGroupMap[scopeEntity.LabelGroup.Href].Key, labelGroupMap[scopeEntity.LabelGroup.Href].Name))
+						scopeStrSlice = append(scopeStrSlice, fmt.Sprintf("lg:%s:%s%s", labelGroupMap[scopeEntity.LabelGroup.Href].Key, labelGroupMap[scopeEntity.LabelGroup.Href].Name, suffix))
 					}
 				}
 				allScopesSlice = append(allScopesSlice, strings.Join(scopeStrSlice, ";"))

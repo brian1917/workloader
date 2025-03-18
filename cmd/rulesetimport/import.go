@@ -38,7 +38,7 @@ The following headers are acceptable (order does not matter):
 - name
 - enabled
 - description
-- scope
+- scope (use the -exclude suffix to use "All Except" in scope. For example, env:quarantine-exclude will be All Env Except Quarantine)
 - href
 
 All other headers will be ignored.
@@ -47,6 +47,7 @@ Scopes should be semi-colon separated values of label_type:label_value. Label-gr
 - app:erp;env:prod
 - app:erp;env:prod|app:erp;env:dev
 - lg:env:non-prod
+- env:prod-exlcude
 
 If an href is provided the name, enabled, and description fields can be updated. Scopes cannot be updated.
 
@@ -172,7 +173,6 @@ csvEntries:
 		rs.Enabled = &t
 
 		// Process scopes
-
 		csvScopesStr := l[hm["scope"]]
 		// Get rid of spaces
 		if !input.NoTrimming {
@@ -203,6 +203,12 @@ csvEntries:
 			for _, scope := range csvScopes {
 				rsScope := []illumioapi.Scopes{}
 				for _, entity := range scope {
+					exclude := false
+					if strings.HasSuffix(entity, "-exclude") {
+						// Remove the -exclude
+						entity = strings.TrimSuffix(entity, "-exclude")
+						exclude = true
+					}
 					if strings.HasPrefix(entity, "lg:") {
 						// Remove the lg
 						entity = strings.TrimPrefix(entity, "lg:")
@@ -212,7 +218,7 @@ csvEntries:
 						if lg, exists := input.PCE.LabelGroups[entity]; !exists {
 							utils.LogError(fmt.Sprintf("csv line %d - %s doesn't exist as a label group", i+1, entity))
 						} else {
-							rsScope = append(rsScope, illumioapi.Scopes{LabelGroup: &illumioapi.LabelGroup{Href: lg.Href}})
+							rsScope = append(rsScope, illumioapi.Scopes{Exclusion: &exclude, LabelGroup: &illumioapi.LabelGroup{Href: lg.Href}})
 						}
 						continue
 					}
@@ -223,7 +229,7 @@ csvEntries:
 					if label, exists := input.PCE.Labels[key+value]; !exists {
 						utils.LogError(fmt.Sprintf("csv line %d - %s doesn't exist as a label of type %s.", i+1, value, key))
 					} else {
-						rsScope = append(rsScope, illumioapi.Scopes{Label: &illumioapi.Label{Href: label.Href}})
+						rsScope = append(rsScope, illumioapi.Scopes{Exclusion: &exclude, Label: &illumioapi.Label{Href: label.Href}})
 					}
 				}
 				*rs.Scopes = append(*rs.Scopes, rsScope)
