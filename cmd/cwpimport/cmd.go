@@ -237,25 +237,44 @@ func ImportContainerProfiles(pce illumioapi.PCE, importFile, removeValue string,
 				}
 
 				// Labels
-				keys := []string{"role", "app", "env", "loc"}
-				values := []string{row[headers[cwpexport.Role]], row[headers[cwpexport.App]], row[headers[cwpexport.Env]], row[headers[cwpexport.Loc]]}
-				for i, key := range keys {
+				// Get the label keys
+				labelKeys := []string{"role", "app", "env", "loc"}
+				api, err := pce.GetLabelDimensions(nil)
+				utils.LogAPIRespV2("GetLabelDimensions", api)
+				if err != nil {
+					utils.LogWarningf(true, "getting labels - %s - will use 4 default keys", err)
+				} else {
+					labelKeys = nil
+					for _, ld := range pce.LabelDimensionsSlice {
+						labelKeys = append(labelKeys, ld.Key)
+					}
+				}
+				labelValues := []string{}
+				removeAllLabelsCount := 0
+				for _, lk := range labelKeys {
+					labelValues = append(labelValues, row[headers[lk]])
+					if row[headers[lk]] == removeValue {
+						removeAllLabelsCount++
+					}
+				}
+
+				for i, key := range labelKeys {
 					// If the value is blank, skip it
-					if values[i] == "" {
+					if labelValues[i] == "" {
 						continue
-					} else if values[0] == removeValue && values[1] == removeValue && values[2] == removeValue && values[3] == removeValue {
+					} else if removeAllLabelsCount == len(labelKeys) {
 						update = true
 						cwp.Labels = &[]illumioapi.Label{}
 						logMsgs = append(logMsgs, "all labels to be removed")
 						break
-					} else if values[i] == removeValue {
+					} else if labelValues[i] == removeValue {
 						logMsgs = append(logMsgs, fmt.Sprintf("%s label %s to be removed", key, cwp.GetLabelByKey(key)))
 						cwp.RemoveLabel(key)
 						update = true
 						// Process everything else
 					} else {
 						// Get the label
-						csvLabel := checkLabel(pce, illumioapi.Label{Key: key, Value: values[i]})
+						csvLabel := checkLabel(pce, illumioapi.Label{Key: key, Value: labelValues[i]})
 						// If there is no HREF, log that the label needs to be created
 						if csvLabel.Href == "" {
 							logMsgs = append(logMsgs, fmt.Sprintf("%s label %s to be created", csvLabel.Key, csvLabel.Value))

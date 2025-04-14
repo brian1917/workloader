@@ -66,7 +66,22 @@ func ExportContainerProfiles(pce illumioapi.PCE) {
 	}
 
 	// Start the export with headers
-	data := [][]string{{ContainerCluster, Name, Description, Namespace, Enforcement, Visibility, Managed, Role, App, Env, Loc, Href}}
+	// Get the label keys
+	labelKeys := []string{"role", "app", "env", "loc"}
+	api, err := pce.GetLabelDimensions(nil)
+	utils.LogAPIRespV2("GetLabelDimensions", api)
+	if err != nil {
+		utils.LogWarningf(true, "getting labels - %s - will use 4 default keys", err)
+	} else {
+		labelKeys = nil
+		for _, ld := range pce.LabelDimensionsSlice {
+			labelKeys = append(labelKeys, ld.Key)
+		}
+	}
+
+	data := [][]string{{ContainerCluster, Name, Description, Namespace, Enforcement, Visibility, Managed}}
+	data[0] = append(data[0], labelKeys...)
+	data[0] = append(data[0], Href)
 
 	for _, cp := range containerWkldProfiles {
 		if err != nil {
@@ -95,7 +110,12 @@ func ExportContainerProfiles(pce illumioapi.PCE) {
 		}
 
 		// Write output
-		data = append(data, []string{cp.ClusterName, name, desc, cp.Namespace, illumioapi.PtrToVal(cp.EnforcementMode), visLevel, strconv.FormatBool(*cp.Managed), cp.GetLabelByKey("role"), cp.GetLabelByKey("app"), cp.GetLabelByKey("env"), cp.GetLabelByKey("loc"), cp.Href})
+		row := []string{cp.ClusterName, name, desc, cp.Namespace, illumioapi.PtrToVal(cp.EnforcementMode), visLevel, strconv.FormatBool(*cp.Managed)}
+		for _, lk := range labelKeys {
+			row = append(row, cp.GetLabelByKey(lk))
+		}
+		row = append(row, cp.Href)
+		data = append(data, row)
 	}
 
 	// Write the csv
