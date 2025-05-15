@@ -72,6 +72,7 @@ import (
 	"github.com/brian1917/workloader/cmd/venexport"
 	"github.com/brian1917/workloader/cmd/venhealth"
 	"github.com/brian1917/workloader/cmd/venimport"
+	"github.com/brian1917/workloader/cmd/virtualserviceexport"
 	"github.com/brian1917/workloader/cmd/vmsync"
 	"github.com/brian1917/workloader/cmd/wkldcleanup"
 	"github.com/brian1917/workloader/cmd/wkldexport"
@@ -183,6 +184,7 @@ func init() {
 	RootCmd.AddCommand(secprincipalexport.SecPrincipalExportCmd)
 	RootCmd.AddCommand(secprincipalimport.SecPrincipalImportCmd)
 	RootCmd.AddCommand(pairingprofileexport.PairingProfileExportCmd)
+	RootCmd.AddCommand(virtualserviceexport.VsExportCmd)
 	RootCmd.AddCommand(flowimport.FlowImportCmd)
 	RootCmd.AddCommand(templateimport.TemplateImportCmd)
 	RootCmd.AddCommand(templatelist.TemplateListCmd)
