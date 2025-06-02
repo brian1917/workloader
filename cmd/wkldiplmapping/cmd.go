@@ -180,7 +180,7 @@ func wkldToIPLMapping(input input) {
 				}
 				check, err := ipCheck(netInt.Address, ipList)
 				if err != nil {
-					utils.LogError(err.Error())
+					utils.LogErrorf("invalid ip - hostname: %s - href: %s", wkld.Hostname, wkld.Href)
 				}
 				if check {
 					matchedIPLists[ipList.Name] = true
