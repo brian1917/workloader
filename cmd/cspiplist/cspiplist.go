@@ -1,11 +1,11 @@
 package cspiplist
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -14,52 +14,88 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brian1917/illumioapi"
+	ia "github.com/brian1917/illumioapi/v2"
+	"github.com/brian1917/workloader/utils"
 )
 
 // confirmationURL is the URL of the Azure IP ranges confirmation page
-const confirmationURL = "https://www.microsoft.com/en-us/download/details.aspx?id=56519"
+const AZUREURL = "https://www.microsoft.com/en-us/download/details.aspx?id=56519"
 const AWSURL = "https://ip-ranges.amazonaws.com/ip-ranges.json"
 
+var originalIPRanges []string
+
 // ipv6check checks if the ip is ipv6
-func ipv6check(ip string) bool {
-	parsedIP := net.ParseIP(ip)
-	return parsedIP != nil && parsedIP.To4() == nil
+func ipv6check(cidr string) bool {
+	_, ipnet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return false
+	}
+	if includev6 {
+		return false
+	}
+	return ipnet.IP.To4() == nil
+}
+
+// getLastIP calculates the last IP address in a given CIDR range
+func getLastIP(ipNet *net.IPNet) net.IP {
+	ip := ipNet.IP
+	mask := ipNet.Mask
+
+	// Make a copy of IP to avoid modifying original
+	lastIP := make(net.IP, len(ip))
+	copy(lastIP, ip)
+
+	for i := range lastIP {
+		lastIP[i] |= ^mask[i]
+	}
+	return lastIP
 }
 
 // removeSubsetIPs removes any IP ranges that are a subset of another IP range
 func removeSubsetIPs(uniqueIPs map[string]bool) []string {
+
 	ipNets := []*net.IPNet{}
+	tmpIP := []string{}
 	for ip := range uniqueIPs {
 		_, ipNet, err := net.ParseCIDR(ip)
+		if testIPs {
+			tmpIP = append(tmpIP, ip)
+		}
 		//only save ipv4 addresses
-		if err != nil && ipv6check(ip) {
-			log.Printf("Invalid CIDR: %s", ip)
+		if err != nil {
+			utils.LogWarningf(false, "Invalid CIDR: %s", ip)
 			continue
 		}
 		ipNets = append(ipNets, ipNet)
+	}
+	if testIPs {
+		buildCSV(tmpIP, "original")
 	}
 
 	// Filter out subset IP ranges
 	filteredIPs := []string{}
 	for i, ipNet1 := range ipNets {
 		isSubset := false
-		for j, ipNet2 := range ipNets {
-			// Check if ipNet1 is a subset of ipNet2 and dont add it to the filtered list
-			if i != j && ipNet2.Contains(ipNet1.IP) && ipNet2.String() != ipNet1.String() {
-				isSubset = true
-				//fmt.Println(ipNet1.String(), "is subset of", ipNet2.String())
-				break
 
+		for j, ipNet2 := range ipNets {
+			if i == j {
+				continue
+			}
+
+			// Check if ipNet2 fully contains ipNet1 (start AND end IPs)
+			if ipNet2.Contains(ipNet1.IP) && ipNet2.Contains(getLastIP(ipNet1)) {
+				isSubset = true
+				break
 			}
 		}
 
-		// If ipNet1 is not a subset of any other IP range, add it to the filtered list
 		if !isSubset {
 			filteredIPs = append(filteredIPs, ipNet1.String())
 		}
 	}
-
+	if testIPs {
+		buildCSV(filteredIPs, "removed-subset")
+	}
 	return filteredIPs
 }
 
@@ -70,12 +106,12 @@ func mergeConsecutiveRanges(ips []string) []string {
 	filteredIPs := ips
 	for {
 		tmpIPs := []string{}
-		fmt.Println("starting loop", len(tmpIPs))
+		fmt.Println("starting consolidation loop", len(tmpIPs))
 		ipNets := []*net.IPNet{}
 		for _, ip := range filteredIPs {
 			_, ipNet, err := net.ParseCIDR(ip)
 			if err != nil {
-				log.Printf("Invalid CIDR: %s", ip)
+				utils.LogWarningf(false, "Invalid CIDR: %s", ip)
 				continue
 			}
 			ipNets = append(ipNets, ipNet)
@@ -86,6 +122,7 @@ func mergeConsecutiveRanges(ips []string) []string {
 			return bytes.Compare(ipNets[i].IP, ipNets[j].IP) < 0
 		})
 
+		//logic to merge consecutive IP ranges
 		for i := 0; i < len(ipNets); i++ {
 			current := ipNets[i]
 			for j := i + 1; j < len(ipNets); j++ {
@@ -94,7 +131,6 @@ func mergeConsecutiveRanges(ips []string) []string {
 					current = merge(current, next)
 					i = j // Move index forward to skip merged blocks
 				} else {
-					//fmt.Println(current.String(), next.String())
 					break
 				}
 			}
@@ -144,10 +180,18 @@ func awsParse(data []byte) map[string]bool {
 	// Unmarshal the JSON data into the Go structure
 	var awsIPRanges AWSIPRanges
 	if err := json.Unmarshal(data, &awsIPRanges); err != nil {
-		log.Fatal(err)
+		utils.LogErrorf("%s", err)
 	}
+
 	uniqueIPs := make(map[string]bool)
 	for _, awsIPRange := range awsIPRanges.Prefixes {
+		if ipv6check(awsIPRange.IPPrefix) {
+			continue
+		}
+		//saving a list of original IPs ranges for test purposes
+		if !uniqueIPs[awsIPRange.IPPrefix] {
+			originalIPRanges = append(originalIPRanges, awsIPRange.IPPrefix)
+		}
 		uniqueIPs[awsIPRange.IPPrefix] = true
 	}
 	return uniqueIPs
@@ -159,53 +203,77 @@ func azureParse(data []byte) map[string]bool {
 	// Unmarshal the JSON data into the Go structure
 	var serviceTags ServiceTags
 	if err := json.Unmarshal(data, &serviceTags); err != nil {
-		log.Fatal(err)
+		utils.LogErrorf("%s", err)
 	}
 	uniqueIPs := make(map[string]bool)
 	for _, serviceTag := range serviceTags.Values {
 		for _, addressPrefix := range serviceTag.Properties.AddressPrefixes {
+			if ipv6check(addressPrefix) {
+				continue
+			}
+			if !uniqueIPs[addressPrefix] && testIPs {
+				originalIPRanges = append(originalIPRanges, addressPrefix)
+			}
 			uniqueIPs[addressPrefix] = true
 		}
 	}
 	return uniqueIPs
 }
 
-// downloadURL is the URL of the Azure IP ranges JSON file
+func fileRead() map[string]bool {
+
+	uniqueIPs := make(map[string]bool)
+	file, err := os.Open(fileName)
+	if err != nil {
+		fmt.Println("Error opening file:", err)
+		return nil
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue // skip empty lines and comments
+		}
+
+		_, ipNet, err := net.ParseCIDR(line)
+		if err != nil {
+			utils.LogErrorf("invalid CIDR in line: %s: %s", line, err)
+		}
+		if ipv6check(line) {
+			continue
+		}
+		// Check if the IP is already in the map
+		if _, exists := uniqueIPs[ipNet.String()]; !exists {
+			// Add the IP to the map
+			uniqueIPs[ipNet.String()] = true
+		}
+
+	}
+
+	return uniqueIPs
+
+}
+
+// fetchAzureDownloadURL fetches the download URL Azure IP ranges JSON file from the webpage
 func fetchAzureDownloadURL(url string) (string, error) {
 
 	client := &http.Client{}
-	// transport := &http.Transport{
-	// 	DisableKeepAlives: true, // Optional: Disable connection reuse
-	// 	TLSNextProto:      make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
-	// }
 
-	// client := &http.Client{
-	// 	Transport: transport,
-	// }
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36")
-	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-	req.Header.Set("Accept-Language", "en-US,en;q=0.5")
-	req.Header.Set("Referer", "https://www.microsoft.com/")
-
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch confirmation page: %w", err)
 	}
-	fmt.Printf("Protocol Version: %s\n", resp.Proto)
-	fmt.Printf("Final URL: %s\n", resp.Request.URL.String())
 
-	for key, values := range resp.Header {
-		fmt.Printf("%s: %s\n", key, values)
-	}
 	defer resp.Body.Close()
 
 	html, err := io.ReadAll(resp.Body)
-	fmt.Printf("Response Body: %s\n", string(html))
 	if err != nil {
 		return "", fmt.Errorf("failed to read confirmation HTML: %w", err)
 	}
@@ -228,87 +296,182 @@ func fetchAzureDownloadURL(url string) (string, error) {
 func downloadJSON(url string) []byte {
 	resp, err := http.Get(url)
 	if err != nil {
-		log.Fatalf("failed to download JSON: %v", err)
+		utils.LogErrorf("failed to download JSON: %v", err)
 		os.Exit(1)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		log.Fatalf("unexpected HTTP status: %s", resp.Status)
+		utils.LogErrorf("unexpected HTTP status: %s", resp.Status)
 	}
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalf("failed to read JSON data: %v", err)
+		utils.LogErrorf("failed to read JSON data: %v", err)
 	}
 	return data
 }
-func awsProcessing(ipListUrl string) []string {
-	var cspURL string
-	if ipListUrl == "" {
-		fmt.Println("Using default AWS URL")
-		cspURL = AWSURL
-	} else {
-		cspURL = ipListUrl
-	}
 
-	data := downloadJSON(cspURL)
+// capIPProcessing processes the IP ranges for any of the CSP build today....AWS and Azure today
+func cspIPProcessing(csp, ipListUrl string) []string {
 
-	awsUniqueIPs := awsParse(data)
-	awsFilteredIPs := removeSubsetIPs(awsUniqueIPs)
-	awsMergedIPs := mergeConsecutiveRanges(awsFilteredIPs)
+	var workingIPList []string
+	var uniqueIPs map[string]bool
+	switch strings.ToLower(csp) {
+	case "aws":
+		data := downloadJSON(ipListUrl)
+		uniqueIPs = awsParse(data)
 
-	return awsMergedIPs
-}
-
-func azureProcessing(ipListUrl string) []string {
-	var cspUrl string
-	if ipListUrl == "" {
-		fmt.Println("Using default Azure URL")
-		url, err := fetchAzureDownloadURL(confirmationURL)
-		if err != nil {
-			fmt.Printf("Error finding download URL: %v\n", err)
-			os.Exit(1)
+	case "azure":
+		url := ""
+		if ipListUrl == AZUREURL {
+			tmpurl, err := fetchAzureDownloadURL(AZUREURL)
+			if err != nil {
+				utils.LogErrorf("Error finding download URL: %v\n", err)
+			}
+			url = tmpurl
 		}
-		cspUrl = url
-	} else {
-		cspUrl = ipListUrl
+		data := downloadJSON(url)
+		uniqueIPs = azureParse(data)
+
+	case "file":
+		uniqueIPs = fileRead()
+
+	default:
+		fmt.Println("Invalid CSP. Please enter either 'aws' or 'azure'.")
+		return nil
 	}
+	workingIPList = removeSubsetIPs(uniqueIPs)
+	workingIPList = mergeConsecutiveRanges(workingIPList)
 
-	data := downloadJSON(cspUrl)
-
-	azureUniqueIPs := azureParse(data)
-	azureFilteredIPs := removeSubsetIPs(azureUniqueIPs)
-	azureMergedIPs := mergeConsecutiveRanges(azureFilteredIPs)
-
-	return azureMergedIPs
-
+	if testIPs {
+		testIPRanges(workingIPList)
+	}
+	return workingIPList
 }
 
 func buildCSV(ips []string, csp string) {
 	// Create a CSV file
-	fileName := fmt.Sprintf("%s-iplist-%s.csv", csp, getCurrentTimeStamp())
+	fileName := fmt.Sprintf("workloader-%s-iplist-%s.csv", csp, getCurrentTimeStamp())
 	file, err := os.Create(fileName)
 	if err != nil {
-		log.Fatal(err)
+		utils.LogErrorf("%s", err)
 	}
 	defer file.Close()
 
 	// Write the header
 	header := []string{"ip entry", "description"}
 	if _, err := file.WriteString(fmt.Sprintf("%s\n", strings.Join(header, ","))); err != nil {
-		log.Fatal(err)
+		utils.LogErrorf("%s", err)
 	}
 
 	// Write the IP ranges to the CSV file
 	for _, ip := range ips {
+		if ip == "" {
+			continue
+		}
 		if _, err := file.WriteString(fmt.Sprintf("%s,\n", ip)); err != nil {
-			log.Fatal(err)
+			utils.LogErrorf("%s", err)
 		}
 	}
 }
 
-// azureurl is the URL of the Azure IP ranges JSON file
+// TestIPRanges checks if the original IPs are part of the consolidated IP ranges
+// It takes the consolidated IP ranges as an argument
+func testIPRanges(consolidatedIPRanges []string) {
+	// Loop through the original IPs and check if they are part of the consolidated IP ranges
+	for _, originalIPRange := range originalIPRanges {
+		found := false
+		_, ipInner, err := net.ParseCIDR(originalIPRange)
+		if err != nil {
+			utils.LogInfof(false, "Invalid CIDR: %s", originalIPRange)
+			continue
+		}
+
+		for _, consolidatedIPRange := range consolidatedIPRanges {
+			_, ipOuter, err := net.ParseCIDR(consolidatedIPRange)
+			if err != nil {
+				utils.LogInfof(false, "Invalid CIDR: %s", consolidatedIPRange)
+				continue
+			}
+
+			// Check if the entire original range is within the consolidated range
+			if ipOuter.Contains(ipInner.IP) {
+				// Calculate the last IP of the original range
+				lastIP := make(net.IP, len(ipInner.IP))
+				copy(lastIP, ipInner.IP)
+				for i := len(lastIP) - 1; i >= 0; i-- {
+					lastIP[i] |= ^ipInner.Mask[i]
+				}
+
+				// Check if the last IP is also within the consolidated range
+				if ipOuter.Contains(lastIP) {
+					found = true
+					break
+				}
+			}
+		}
+
+		if !found {
+			utils.LogInfof(false, "Original IP range %s is not fully within any consolidated range\n", originalIPRange)
+		}
+	}
+}
+
+func compareIPList(pce ia.PCE, iplName string, consolidatedIPs []string) bool {
+
+	ipMap := make(map[string]bool)
+	for _, ip := range consolidatedIPs {
+		ipMap[ip] = true
+	}
+
+	queryParameters := map[string]string{
+		"name": iplName,
+	}
+
+	// Get IPList
+	a, err := pce.GetIPLists(queryParameters, "active")
+	utils.LogAPIRespV2("GetAllActiveIPLists", a)
+	if err != nil {
+		utils.LogError(err.Error())
+	}
+
+	if _, ok := pce.IPLists[iplName]; !ok {
+		utils.LogErrorf("IPList %s does not exist on the PCE. Please create it first or enter the name correctly.  Names are case sensiive.", iplName)
+	}
+	if len(*pce.IPLists[iplName].IPRanges) != len(consolidatedIPs) {
+		return false
+	}
+
+	sameIPL := false
+	// Check if all IPs in the PCE IPList are in the consolidated IPs
+	pceIPMap := make(map[string]bool)
+	for _, ip := range *pce.IPLists[iplName].IPRanges {
+		_, _, err := net.ParseCIDR(ip.FromIP)
+		if err != nil || ip.ToIP != "" || strings.Contains(ip.FromIP, "!") {
+			utils.LogErrorf("IPList is invalid. IPLists must be only CIDRs: %v", ip)
+		}
+		pceIPMap[ip.FromIP] = true
+		if !ipMap[ip.FromIP] {
+			// Found an IP in the PCE IPList that's not in the consolidated list
+			return false
+		}
+	}
+
+	// Check if all consolidated IPs are in the PCE IPList
+	for _, ip := range consolidatedIPs {
+		if !pceIPMap[ip] {
+			// Found an IP in the consolidated list that's not in the PCE IPList
+			return false
+		}
+	}
+
+	// If both checks passed, the lists are exactly the same
+	sameIPL = true
+	return sameIPL
+}
+
+//iplexport.ExportIPL(pce, iplName, "tmpipllist.txt")
 
 // getCurrentTimeStamp returns the current timestamp in a specific format
 func getCurrentTimeStamp() string {
@@ -320,20 +483,37 @@ func getCurrentTimeStamp() string {
 // cspList is the main function that fetches and processes the IP ranges
 // It takes the updatePCE, noPrompt, csp, ipListUrl, and pce as arguments
 // It fetches the IP ranges from the given URL, parses the JSON data, and writes the unique IP ranges to a file
-func cspiplist(updatePCE, noPrompt bool, csp, ipListUrl string, pce *illumioapi.PCE) {
+func cspiplist(updatePCE, noPrompt bool, csp, ipListUrl, iplName string, pce *ia.PCE) {
 
-	if csp != "aws" && csp != "azure" {
+	var consolidatedIPs []string
+	switch strings.ToLower(csp) {
+	case "aws":
+
+		if ipListUrl == "" {
+			ipListUrl = AWSURL
+		}
+		consolidatedIPs = cspIPProcessing(csp, ipListUrl)
+	case "azure":
+		if ipListUrl == "" {
+			ipListUrl = AZUREURL
+		}
+		consolidatedIPs = cspIPProcessing(csp, ipListUrl)
+
+	case "file":
+		if fileName == "" {
+			fmt.Println("Please provide a file name.")
+			return
+		}
+		consolidatedIPs = cspIPProcessing(csp, "")
+	default:
 		fmt.Println("Invalid CSP. Please enter either 'aws' or 'azure'.")
 		return
 	}
+	buildCSV(consolidatedIPs, csp)
 
-	var consolidateIPs []string
-	if csp == "aws" {
-		consolidateIPs = awsProcessing(ipListUrl)
-		buildCSV(consolidateIPs, "aws")
-	} else if csp == "azure" {
-
-		consolidateIPs = azureProcessing(ipListUrl)
-		buildCSV(consolidateIPs, "azure")
+	if compareIPList(*pce, iplName, consolidatedIPs) {
+		utils.LogInfof(false, "IPList %s is the same as the consolidated IP ranges. No changes made.", iplName)
+		return
 	}
+
 }
