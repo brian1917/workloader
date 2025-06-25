@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/brian1917/workloader/utils"
@@ -307,11 +308,12 @@ var versionCmd = &cobra.Command{
 	},
 }
 
-var continueOnErrorDefault, defaultPCE, getAPIBehavior string
+var continueOnErrorDefault, skipVersionCheck, defaultPCE, getAPIBehavior string
 
 func init() {
 	SettingsCmd.Flags().StringVar(&defaultPCE, "default-pce", "", "name of pce to be the deafult")
 	SettingsCmd.Flags().StringVar(&continueOnErrorDefault, "continue-on-error-default", "", "continue or stop. continue is equivalent to always using the global continue-on-error flag")
+	SettingsCmd.Flags().StringVar(&skipVersionCheck, "skip-version-check", "", "skip version check")
 	SettingsCmd.Flags().StringVar(&getAPIBehavior, "api-behavior", "", "single or multi. single waits for each get api to the pce to complete before calling the next.")
 }
 
@@ -333,6 +335,23 @@ var SettingsCmd = &cobra.Command{
 				utils.LogError(err.Error())
 			}
 			utils.LogInfo(fmt.Sprintf("continue_on_error_default set to %s", strings.ToLower(continueOnErrorDefault)), true)
+		}
+
+		// Skip version check
+		if skipVersionCheck != "" {
+			if strings.ToLower(skipVersionCheck) != "true" && strings.ToLower(skipVersionCheck) != "false" {
+				utils.LogError("skip-version-check must be true or false")
+				os.Exit(1) // Force exit here regardless of what settings are
+			}
+			skipVersionCheckBool, err := strconv.ParseBool(skipVersionCheck)
+			if err != nil {
+				utils.LogError("skip-version-check must be true or false")
+			}
+			viper.Set("skip_version_check", skipVersionCheckBool)
+			if err := viper.WriteConfig(); err != nil {
+				utils.LogError(err.Error())
+			}
+			utils.LogInfof(true, "skip_version_check set to %t", skipVersionCheckBool)
 		}
 
 		// Default PCE
