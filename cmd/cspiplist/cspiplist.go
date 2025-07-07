@@ -15,6 +15,7 @@ import (
 	"time"
 
 	ia "github.com/brian1917/illumioapi/v2"
+	"github.com/brian1917/workloader/cmd/iplreplace"
 	"github.com/brian1917/workloader/utils"
 )
 
@@ -350,9 +351,9 @@ func cspIPProcessing(csp, ipListUrl string) []string {
 	return workingIPList
 }
 
-func buildCSV(ips []string, csp string) {
+func buildCSV(ips []string, csp string) string {
 	// Create a CSV file
-	fileName := fmt.Sprintf("workloader-%s-iplist-%s.csv", csp, getCurrentTimeStamp())
+	fileName = fmt.Sprintf("workloader-%s-iplist-%s.csv", csp, getCurrentTimeStamp())
 	file, err := os.Create(fileName)
 	if err != nil {
 		utils.LogErrorf("%s", err)
@@ -374,6 +375,7 @@ func buildCSV(ips []string, csp string) {
 			utils.LogErrorf("%s", err)
 		}
 	}
+	return fileName
 }
 
 // TestIPRanges checks if the original IPs are part of the consolidated IP ranges
@@ -414,22 +416,17 @@ func testIPRanges(consolidatedIPRanges []string) {
 
 		if !found {
 			utils.LogInfof(false, "Original IP range %s is not fully within any consolidated range\n", originalIPRange)
+			return
 		}
 	}
+	utils.LogInfof(true, "Newly created consolidated iplist includes all IPs from original list of IP ranges\n")
 }
 
 func compareIPList(pce ia.PCE, iplName string, consolidatedIPs []string) bool {
-
-	ipMap := make(map[string]bool)
-	for _, ip := range consolidatedIPs {
-		ipMap[ip] = true
-	}
-
+	// Get IPList
 	queryParameters := map[string]string{
 		"name": iplName,
 	}
-
-	// Get IPList
 	a, err := pce.GetIPLists(queryParameters, "active")
 	utils.LogAPIRespV2("GetAllActiveIPLists", a)
 	if err != nil {
@@ -439,8 +436,14 @@ func compareIPList(pce ia.PCE, iplName string, consolidatedIPs []string) bool {
 	if _, ok := pce.IPLists[iplName]; !ok {
 		utils.LogErrorf("IPList %s does not exist on the PCE. Please create it first or enter the name correctly.  Names are case sensiive.", iplName)
 	}
+
 	if len(*pce.IPLists[iplName].IPRanges) != len(consolidatedIPs) {
 		return false
+	}
+
+	ipMap := make(map[string]bool)
+	for _, ip := range consolidatedIPs {
+		ipMap[ip] = true
 	}
 
 	sameIPL := false
@@ -483,7 +486,7 @@ func getCurrentTimeStamp() string {
 // cspList is the main function that fetches and processes the IP ranges
 // It takes the updatePCE, noPrompt, csp, ipListUrl, and pce as arguments
 // It fetches the IP ranges from the given URL, parses the JSON data, and writes the unique IP ranges to a file
-func cspiplist(updatePCE, noPrompt bool, csp, ipListUrl, iplName string, pce *ia.PCE) {
+func cspiplist(pce *ia.PCE, updatePCE, noPrompt bool, csp, ipListUrl, iplName string) {
 
 	var consolidatedIPs []string
 	switch strings.ToLower(csp) {
@@ -509,11 +512,23 @@ func cspiplist(updatePCE, noPrompt bool, csp, ipListUrl, iplName string, pce *ia
 		fmt.Println("Invalid CSP. Please enter either 'aws' or 'azure'.")
 		return
 	}
-	buildCSV(consolidatedIPs, csp)
-
 	if compareIPList(*pce, iplName, consolidatedIPs) {
 		utils.LogInfof(false, "IPList %s is the same as the consolidated IP ranges. No changes made.", iplName)
 		return
 	}
+
+	iplCsvFile = buildCSV(consolidatedIPs, csp)
+
+	iplreplace.IplReplace(iplreplace.Input{
+		PCE:         *pce,
+		IplCsvFile:  iplCsvFile,
+		FqdnCsvFile: "",
+		IplName:     iplName,
+		UpdatePCE:   updatePCE,
+		NoPrompt:    noPrompt,
+		Create:      create,
+		Provision:   true,
+		NoBackup:    false,
+		NoHeaders:   false})
 
 }

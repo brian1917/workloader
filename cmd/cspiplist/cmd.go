@@ -13,19 +13,23 @@ import (
 var pce ia.PCE
 var err error
 
-var csp, ipListUrl, fileName, iplName string
-var testIPs, includev6 bool
+var csp, ipListUrl, fileName, iplName, iplCsvFile, cspFilter string
+var testIPs, includev6, create, provision bool
 
 //var ignoreCase, updatePCE bool
 
 // init initializes the command line flags for the command
 func init() {
-	CspIplistCmd.Flags().StringVarP(&csp, "csp", "c", "", "Enter which csp (aws, azure, file) you want to get the ip list for.")
+	CspIplistCmd.Flags().StringVarP(&csp, "csp", "", "", "Enter which csp (aws, azure, file) you want to get the ip list for.")
 	CspIplistCmd.Flags().StringVarP(&ipListUrl, "url", "u", "", "If you want to override the default url for the csp ip list.")
 	CspIplistCmd.Flags().BoolVarP(&testIPs, "test-ips", "t", false, "After consolidating/merging all the IP ranges validate that original subnets are part of some IP range.")
 	CspIplistCmd.Flags().BoolVarP(&includev6, "ipv6", "", false, "Include ipv6 addresses. By default all ipv6 will be ignored.")
 	CspIplistCmd.Flags().StringVarP(&fileName, "filename", "f", "", "Include filename if you enter \"file\" for as csp option.")
-	//CspIplistCmd.Flags().StringVarP(&iplName, "iplname", "i", "", "Name of Iplist on the PCE.")
+	CspIplistCmd.Flags().StringVarP(&cspFilter, "csp-filter", "", "", "Region Filter filename used filter IP ranges to only those locations.")
+	CspIplistCmd.Flags().BoolVarP(&create, "create", "c", false, "create ip list if it does not exist")
+	//IplReplaceCmd.Flags().BoolVarP(&noHeaders, "no-headers", "x", false, "process the first row since there are no headers.")
+	//IplReplaceCmd.Flags().BoolVar(&noBackup, "no-backup", false, "will not create a backup file of the original ip list before making changes.")
+	CspIplistCmd.Flags().BoolVarP(&provision, "provision", "p", false, "provision ip list after replacing contents.")
 
 	CspIplistCmd.MarkFlagRequired("csp")
 	CspIplistCmd.Flags().SortFlags = false
@@ -70,6 +74,6 @@ file in the current directory. The file will be named <csp>-iplist-<timestamp>.c
 			utils.LogError("Please provide a name for the IP list.")
 		}
 
-		cspiplist(updatePCE, noPrompt, csp, ipListUrl, iplName, &pce)
+		cspiplist(&pce, updatePCE, noPrompt, csp, ipListUrl, iplName)
 	},
 }
