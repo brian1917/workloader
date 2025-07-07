@@ -68,7 +68,7 @@ func ImportWkldsFromCSV(input Input) {
 		input.PCE.Workloads = nil
 		input.PCE.Workloads = make(map[string]illumioapi.Workload)
 		for _, w := range input.PCE.WorkloadsSlice {
-			if (w.GetMode() == "unmanaged" && input.UnmanagedOnly) || (w.GetMode() != "managed" && input.ManagedOnly) {
+			if (w.GetMode() == "unmanaged" && input.UnmanagedOnly) || (w.GetMode() != "unmanaged" && input.ManagedOnly) {
 				input.PCE.Workloads[w.Href] = w
 				input.PCE.Workloads[illumioapi.PtrToVal(w.Hostname)] = w
 				input.PCE.Workloads[illumioapi.PtrToVal(w.Name)] = w

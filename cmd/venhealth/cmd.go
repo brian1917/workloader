@@ -19,6 +19,11 @@ var yesterday, lastWeek, lastMonth, includeEventList bool
 var maxResults int
 var yesterdayStart, yesterdayEnd, lastWeekStart, lastWeekEnd, lastMonthStart, lastMonthEnd string
 
+type uniqueEntry struct {
+	Hostname string
+	Events   map[string]int
+}
+
 var venHealthEvents []string = []string{
 	"agent.clone_detected",
 	"agent.deactivate",
@@ -134,92 +139,88 @@ func eventMonitor(targetEvents []string) {
 		qp["timestamp[gte]"] = start
 		qp["timestamp[lte]"] = end
 	}
+
+	// Log the start and end times
 	utils.LogInfo(fmt.Sprintf("start: %s", qp["timestamp[gte]"]), true)
 	utils.LogInfo(fmt.Sprintf("end: %s", qp["timestamp[lte]"]), true)
 
-	// Create the VEN map
-	agentMap := make(map[illumioapi.Agent][]string)
-	agentCount := make(map[string]int)
+	// Create the summary map and unique VENs map
 	summaryMap := make(map[string]string)
+	uniqueVENs := make(map[string]uniqueEntry)
 
-	// Iterate the CSV file
+	// Iterate the target events
 	for i, event := range targetEvents {
 
 		// Make the API request
 		qp["event_type"] = event
 		events, a, err := pce.GetEvents(qp)
-		utils.LogAPIRespV2("GetAllEvents", a)
+		utils.LogAPIRespV2("GetEvents", a)
 		if err != nil {
-			utils.LogError(err.Error())
+			utils.LogErrorf("error getting events for %s - %s", event, err.Error())
 		}
 
 		// Append to the allEvents
 		allEvents = append(allEvents, events...)
 
-		// Add to the venMap
-		uniqueAgents := make(map[string]bool)
+		// Iterate through the events
 		for _, e := range events {
-			if e.EventCreatedBy.Agent.Href != "" {
-				uniqueAgents[e.EventCreatedBy.Agent.Href] = true
-				agentMap[e.EventCreatedBy.Agent] = append(agentMap[e.EventCreatedBy.Agent], e.EventType)
-				agentCount[e.EventCreatedBy.Agent.Href+e.EventType] = agentCount[e.EventCreatedBy.Agent.Href+e.EventType] + 1
-			}
-			for _, n := range illumioapi.PtrToVal(e.Notifications) {
-				if n.Info != nil && n.Info.Agent != nil {
-					uniqueAgents[n.Info.Agent.Href] = true
-					agentMap[*n.Info.Agent] = append(agentMap[*n.Info.Agent], e.EventType)
-					agentCount[n.Info.Agent.Href+e.EventType] = agentCount[n.Info.Agent.Href+e.EventType] + 1
-				}
-			}
 
-			for _, r := range illumioapi.PtrToVal(e.ResourceChanges) {
-				if r.Resource.Workload.Href != "" {
-					// Get the workloads if we don't have them
-					if len(pce.WorkloadsSlice) == 0 {
-						api, err := pce.GetWklds(map[string]string{"managed": "true"})
-						utils.LogAPIRespV2("GetWklds", api)
-						if err != nil {
-							utils.LogErrorf("getting workloads - %s", err)
-						}
-					}
-					if pce.Workloads[r.Resource.Workload.Href].Agent != nil {
-						uniqueAgents[pce.Workloads[r.Resource.Workload.Href].Agent.Href] = true
-						pce.Workloads[r.Resource.Workload.Href].Agent.Hostname = *pce.Workloads[r.Resource.Workload.Href].Hostname
-						agentMap[*pce.Workloads[r.Resource.Workload.Href].Agent] = append(agentMap[*pce.Workloads[r.Resource.Workload.Href].Agent], e.EventType)
-						agentCount[pce.Workloads[r.Resource.Workload.Href].Agent.Href+e.EventType] = agentCount[pce.Workloads[r.Resource.Workload.Href].Agent.Href+e.EventType] + 1
-					} else {
-						utils.LogWarningf(true, "workload %s does not currently have associated agent. it might be unpaired", r.Resource.Workload.Href)
+			// Get the hostname
+			hostname := ""
+			// Look at the VEN hostname first
+			if e.EventCreatedBy.VEN.Hostname != nil && *e.EventCreatedBy.VEN.Hostname != "" {
+				hostname = *e.EventCreatedBy.VEN.Hostname
+				// If VEN doesn't have it, look at agent
+			} else if e.EventCreatedBy.Agent != nil && e.EventCreatedBy.Agent.Hostname != "" {
+				hostname = e.EventCreatedBy.Agent.Hostname
+			} else { // If agent doesn't have it, look at resource changes
+				for _, r := range illumioapi.PtrToVal(e.ResourceChanges) {
+					if r.Resource.Workload.Hostname != nil && *r.Resource.Workload.Hostname != "" {
+						hostname = *r.Resource.Workload.Hostname
+						break
 					}
 				}
 			}
 
+			// Process the event and add to the uniqueVENs map
+			if e.EventCreatedBy.VEN != nil {
+				if val, exists := uniqueVENs[e.EventCreatedBy.VEN.Href]; exists {
+					val.Events[e.EventType] = val.Events[e.EventType] + 1
+				} else {
+					uniqueVENs[e.EventCreatedBy.VEN.Href] = uniqueEntry{
+						Hostname: hostname,
+						Events:   map[string]int{e.EventType: 1},
+					}
+				}
+			}
+
+			// Add to the summary map
+			summaryMap[event] = fmt.Sprintf("%d events over %d agents", len(events), len(uniqueVENs))
 		}
-		summaryMap[event] = fmt.Sprintf("%d events over %d agents", len(events), len(uniqueAgents))
 
+		// Log the events
 		utils.LogInfo(fmt.Sprintf("%d of %d - %s - %d events", i+1, len(targetEvents), event, len(events)), true)
 	}
 
 	// Output the CSV
-	if len(agentMap) > 0 {
+	if len(uniqueVENs) > 0 {
 		csvOut := [][]string{{"start:", qp["timestamp[gte]"], ""}, {"end:", qp["timestamp[lte]"], ""}, {"", "", ""}, {"summary", "", ""}}
 		for event, summary := range summaryMap {
 			csvOut = append(csvOut, []string{fmt.Sprintf("%s:", event), summary, ""})
 		}
 		csvOut = append(csvOut, []string{"", "", ""})
-		csvOut = append(csvOut, []string{"agent details", "", ""})
-		csvOut = append(csvOut, []string{"agent_href", "agent_hostname", "events"})
-		for agent, events := range agentMap {
-			unniqueEvents := make(map[string]bool)
-			for _, e := range events {
-				unniqueEvents[e] = true
-			}
-			uniqueEventsSlice := []string{}
-			for u := range unniqueEvents {
-				uniqueEventsSlice = append(uniqueEventsSlice, fmt.Sprintf("%s (%d)", u, agentCount[agent.Href+u]))
-			}
+		csvOut = append(csvOut, []string{"ven details", "", ""})
+		csvOut = append(csvOut, []string{"ven_href", "hostname", "events"})
 
-			csvOut = append(csvOut, []string{agent.Href, agent.Hostname, strings.Join(uniqueEventsSlice, "; ")})
+		for href, uniqueVen := range uniqueVENs {
+			events := []string{}
+			for eventType, count := range uniqueVen.Events {
+				events = append(events, fmt.Sprintf("%s (%d)", eventType, count))
+			}
+			csvOut = append(csvOut, []string{href, uniqueVen.Hostname, strings.Join(events, "; ")})
+
 		}
+
 		if outputFileName == "" {
 			outputFileName = "workloader-ven-health-summary-report-" + time.Now().Format("20060102_150405") + ".csv"
 		}
