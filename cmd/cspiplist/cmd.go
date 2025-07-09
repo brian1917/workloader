@@ -25,12 +25,9 @@ func init() {
 	CspIplistCmd.Flags().BoolVarP(&testIPs, "test-ips", "t", false, "After consolidating/merging all the IP ranges validate that original subnets are part of some IP range.")
 	CspIplistCmd.Flags().BoolVarP(&includev6, "ipv6", "", false, "Include ipv6 addresses. By default all ipv6 will be ignored.")
 	CspIplistCmd.Flags().StringVarP(&fileName, "filename", "f", "", "Include filename if you enter \"file\" for as csp option.")
-	CspIplistCmd.Flags().StringVarP(&cspFilter, "csp-filter", "", "", "Region Filter filename used filter IP ranges to only those locations.")
+	CspIplistCmd.Flags().StringVarP(&cspFilter, "csp-filter", "", "", "Filter filename used filter IP ranges by service and/or region.")
 	CspIplistCmd.Flags().BoolVarP(&create, "create", "c", false, "create ip list if it does not exist")
-	//IplReplaceCmd.Flags().BoolVarP(&noHeaders, "no-headers", "x", false, "process the first row since there are no headers.")
-	//IplReplaceCmd.Flags().BoolVar(&noBackup, "no-backup", false, "will not create a backup file of the original ip list before making changes.")
 	CspIplistCmd.Flags().BoolVarP(&provision, "provision", "p", false, "provision ip list after replacing contents.")
-
 	CspIplistCmd.MarkFlagRequired("csp")
 	CspIplistCmd.Flags().SortFlags = false
 }
@@ -41,16 +38,17 @@ var CspIplistCmd = &cobra.Command{
 	Short: "Add/Update an IPList that consist of CSP ip ranges gathered from CSP website.",
 	Long: `
 
-This command will get the IP list for a given CSP via default well-known urls.
+This command will get the IP list for a given CSP via default well-known urls and try to create/update an IP List with the IP Ranges of the CSP.  There is an option to filter.
+the IP ranges by service and/or region. The command will also consolidate the IP ranges by removing duplicates and merging consecutive ranges.  By defalt the command will 
+not include ipv6 addresses. If you want to include ipv6 addresses use the --ipv6 flag.
+
+ 		'workloader csp-iplist --csp gcp <ip listname>'  or 'workloader csp-iplist --csp gcp --ipv6 <ip listname>' or 'workloader csp-iplist --csp gcp --csp-filter <filter filename> <ip listname>'
 The following CSPs are supported:
 - AWS
 - Azure
+- GCP
 
-You can use the --url flag to override the default url for the csp ip list.
-
-The ip list will be optimized for the given csp by removing duplicates and consolidated consecutive ranges. The ip list will be saves as a csv
-file in the current directory. The file will be named <csp>-iplist-<timestamp>.csv. The timestamp is in the format YYYYMMDD-HHMMSS.
-
+You can use the --url flag to override the default url for the csp ip range location.  You can also use the --filename flag to specify a file that contains the IP ranges to check for duplicates and consolidate.
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 
