@@ -49,6 +49,8 @@ The following CSPs are supported:
 - GCP
 
 You can use the --url flag to override the default url for the csp ip range location.  You can also use the --filename flag to specify a file that contains the IP ranges to check for duplicates and consolidate.
+
+* Azure leaves services that span many regions with a blank region.  This command will set those regions to "GLOBAL" so use "GLOBAL" in your filter file.
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 
