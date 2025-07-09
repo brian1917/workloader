@@ -268,6 +268,9 @@ func azureParse(data []byte) map[string]IPRangeProperties {
 			if ipv6check(addressPrefix) {
 				continue
 			}
+			if serviceTag.Properties.Region == "" {
+				serviceTag.Properties.Region = "GLOBAL"
+			}
 			if _, exists := uniqueIPs[addressPrefix]; !exists && testIPs {
 				originalIPRanges = append(originalIPRanges, addressPrefix)
 			}
