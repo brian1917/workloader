@@ -38,9 +38,9 @@ var CspIplistCmd = &cobra.Command{
 	Short: "Add/Update an IPList that consist of CSP ip ranges gathered from CSP website.",
 	Long: `
 
-This command will get the IP list for a given CSP via default well-known urls and try to create/update an IP List with the IP Ranges of the CSP.  There is an option to filter.
+This command will download the IP list for a given CSP via default, well-known urls.  Workloader will try to create/update the specified IP List with the IP Ranges of the CSP.  There is an option to filter.
 the IP ranges by service and/or region. The command will also consolidate the IP ranges by removing duplicates and merging consecutive ranges.  By defalt the command will 
-not include ipv6 addresses. If you want to include ipv6 addresses use the --ipv6 flag.
+not include ipv6 addresses. If you want to include ipv6 addresses use the --ipv6 flag.   
 
  		'workloader csp-iplist --csp gcp <ip listname>'  or 'workloader csp-iplist --csp gcp --ipv6 <ip listname>' or 'workloader csp-iplist --csp gcp --csp-filter <filter filename> <ip listname>'
 The following CSPs are supported:
@@ -48,7 +48,8 @@ The following CSPs are supported:
 - Azure
 - GCP
 
-You can use the --url flag to override the default url for the csp ip range location.  You can also use the --filename flag to specify a file that contains the IP ranges to check for duplicates and consolidate.
+You can use the --url flag to override the default url for the csp ip range web location.  You can also use the --filename flag to specify a file that contains the IP ranges instead of accessing CSP IP range data.  It will 
+also check for duplicates and consolidate.  By default no changes will be made to the PCE.  Please use --update-pce if you want to make changes.  If the IP List is not configured on the PCE, use the --create flag to create it.
 
 * Azure leaves services that span many regions with a blank region.  This command will set those regions to "GLOBAL" so use "GLOBAL" in your filter file.
 `,

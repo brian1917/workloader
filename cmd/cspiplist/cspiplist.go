@@ -565,9 +565,37 @@ func testIPRanges(consolidatedIPRanges []string) {
 			return
 		}
 	}
-	utils.LogInfof(true, "Newly created consolidated iplist includes all IPs from original list of IP ranges\n")
+	utils.LogInfof(true, "Newly created, consolidated iplist includes all IPs from original list of IP ranges")
 }
 
+func checkIp(fromIp string) string {
+	// Check if the IP is valid
+	fromIp = strings.TrimSpace(fromIp)
+	if fromIp == "" {
+		utils.LogErrorf("IP cannot be empty")
+		return ""
+	}
+	if strings.Contains(fromIp, "!") {
+		utils.LogErrorf("IP cannot contain '!' character: %s", fromIp)
+		return ""
+	}
+	if !strings.Contains(fromIp, "/") {
+		if strings.Contains(fromIp, ":") {
+			fromIp += "/128" // Default to /128 for IPv6 if no CIDR notation is provided
+		} else {
+			fromIp += "/32" // Default to /32 if no CIDR notation is provided
+		}
+	}
+	// Validate the CIDR notation
+	if _, _, err := net.ParseCIDR(fromIp); err != nil {
+		utils.LogErrorf("Invalid CIDR: %s", fromIp)
+		return ""
+	}
+
+	return fromIp
+}
+
+// checkip checks if the IP is valid and returns it
 func compareIPList(pce ia.PCE, iplName string, consolidatedIPs []string) bool {
 	// Get IPList
 	queryParameters := map[string]string{
@@ -592,14 +620,11 @@ func compareIPList(pce ia.PCE, iplName string, consolidatedIPs []string) bool {
 		ipMap[ip] = true
 	}
 
-	sameIPL := false
+	//sameIPL := false
 	// Check if all IPs in the PCE IPList are in the consolidated IPs
 	pceIPMap := make(map[string]bool)
 	for _, ip := range *pce.IPLists[iplName].IPRanges {
-		_, _, err := net.ParseCIDR(ip.FromIP)
-		if err != nil || ip.ToIP != "" || strings.Contains(ip.FromIP, "!") {
-			utils.LogErrorf("IPList is invalid. IPLists must be only CIDRs: %v", ip)
-		}
+		ip.FromIP = checkIp(ip.FromIP)
 		pceIPMap[ip.FromIP] = true
 		if !ipMap[ip.FromIP] {
 			// Found an IP in the PCE IPList that's not in the consolidated list
@@ -616,11 +641,8 @@ func compareIPList(pce ia.PCE, iplName string, consolidatedIPs []string) bool {
 	}
 
 	// If both checks passed, the lists are exactly the same
-	sameIPL = true
-	return sameIPL
+	return true
 }
-
-//iplexport.ExportIPL(pce, iplName, "tmpipllist.txt")
 
 // getCurrentTimeStamp returns the current timestamp in a specific format
 func getCurrentTimeStamp() string {
@@ -664,7 +686,7 @@ func cspiplist(pce *ia.PCE, updatePCE, noPrompt bool, csp, ipListUrl, iplName st
 		return
 	}
 	if compareIPList(*pce, iplName, consolidatedIPs) {
-		utils.LogInfof(false, "IPList %s is the same as the consolidated IP ranges. No changes made.", iplName)
+		utils.LogInfof(true, "IPList %s is the same as the consolidated IP ranges. No changes made.", iplName)
 		return
 	}
 
@@ -678,7 +700,7 @@ func cspiplist(pce *ia.PCE, updatePCE, noPrompt bool, csp, ipListUrl, iplName st
 		UpdatePCE:   updatePCE,
 		NoPrompt:    noPrompt,
 		Create:      create,
-		Provision:   true,
+		Provision:   provision,
 		NoBackup:    false,
 		NoHeaders:   false})
 
