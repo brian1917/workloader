@@ -20,7 +20,7 @@ var testIPs, includev6, create, provision bool
 
 // init initializes the command line flags for the command
 func init() {
-	CspIplistCmd.Flags().StringVarP(&csp, "csp", "", "", "Enter which csp (aws, azure, file) you want to get the ip list for.")
+	CspIplistCmd.Flags().StringVarP(&csp, "csp", "", "", "Enter which csp (aws, azure, gcp,file) you want to get the ip list for.")
 	CspIplistCmd.Flags().StringVarP(&ipListUrl, "url", "u", "", "If you want to override the default url for the csp ip list.")
 	CspIplistCmd.Flags().BoolVarP(&testIPs, "test-ips", "t", false, "After consolidating/merging all the IP ranges validate that original subnets are part of some IP range.")
 	CspIplistCmd.Flags().BoolVarP(&includev6, "ipv6", "", false, "Include ipv6 addresses. By default all ipv6 will be ignored.")

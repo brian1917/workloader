@@ -35,6 +35,20 @@ type AzureServiceTags struct {
 	} `json:"values"`
 }
 
+type Azure365IPRanges []struct {
+	ID                     int      `json:"id"`
+	ServiceArea            string   `json:"serviceArea"`
+	ServiceAreaDisplayName string   `json:"serviceAreaDisplayName"`
+	Urls                   []string `json:"urls,omitempty"`
+	Ips                    []string `json:"ips,omitempty"`
+	TCPPorts               string   `json:"tcpPorts,omitempty"`
+	UDPPorts               string   `json:"udpPorts,omitempty"`
+	ExpressRoute           bool     `json:"expressRoute"`
+	Category               string   `json:"category"`
+	Required               bool     `json:"required"`
+	Notes                  string   `json:"notes,omitempty"`
+}
+
 type GCPIPRanges struct {
 	SyncToken  string `json:"syncToken"`
 	CreateDate string `json:"creationTime"`

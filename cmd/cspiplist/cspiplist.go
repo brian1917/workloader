@@ -24,6 +24,7 @@ import (
 const AZUREURL = "https://www.microsoft.com/en-us/download/details.aspx?id=56519"
 const AWSURL = "https://ip-ranges.amazonaws.com/ip-ranges.json"
 const GCPURL = "https://www.gstatic.com/ipranges/cloud.json"
+const OFFICE365URL = "https://endpoints.office.com/endpoints/worldwide?clientrequestid=b10c5ed1-bad1-445f-b466-b5b1e171272a"
 
 var originalIPRanges []string
 
@@ -177,15 +178,28 @@ func merge(ipNet1, ipNet2 *net.IPNet) *net.IPNet {
 	return &net.IPNet{IP: newIP, Mask: newMask}
 }
 
+func addProps(region, service string) IPRangeProperties {
+	if region == "" {
+		region = "GLOBAL"
+	}
+	if service == "" {
+		service = "GLOBAL"
+	}
+	return IPRangeProperties{
+		Region:  region,
+		Service: service,
+	}
+}
+
 // gcpParse parses the GCP IP ranges JSON file
-func gcpParse(data []byte) map[string]IPRangeProperties {
+func gcpParse(data []byte) map[string][]IPRangeProperties {
 	// Unmarshal the JSON data into the Go structure
 	var gcpIPRanges GCPIPRanges
 	if err := json.Unmarshal(data, &gcpIPRanges); err != nil {
 		utils.LogErrorf("%s", err)
 	}
 
-	uniqueIPs := make(map[string]IPRangeProperties)
+	uniqueIPs := make(map[string][]IPRangeProperties)
 	for _, gcpIPRange := range gcpIPRanges.Prefixes {
 		prefix := ""
 
@@ -199,16 +213,14 @@ func gcpParse(data []byte) map[string]IPRangeProperties {
 		if _, exists := uniqueIPs[prefix]; !exists && testIPs {
 			originalIPRanges = append(originalIPRanges, prefix)
 		}
-		uniqueIPs[prefix] = IPRangeProperties{
-			Region:  gcpIPRange.Scope,
-			Service: gcpIPRange.Service,
-		}
+		uniqueIPs[prefix] = append(uniqueIPs[prefix], addProps(gcpIPRange.Scope, gcpIPRange.Service))
+
 	}
 	return uniqueIPs
 }
 
 // awsParse parses the AWS IP ranges JSON file
-func awsParse(data []byte) map[string]IPRangeProperties {
+func awsParse(data []byte) map[string][]IPRangeProperties {
 
 	// Unmarshal the JSON data into the Go structure
 	var awsIPRanges AWSIPRanges
@@ -216,7 +228,7 @@ func awsParse(data []byte) map[string]IPRangeProperties {
 		utils.LogErrorf("%s", err)
 	}
 
-	uniqueIPs := make(map[string]IPRangeProperties)
+	uniqueIPs := make(map[string][]IPRangeProperties)
 	for _, awsIPRange := range awsIPRanges.Prefixes {
 		prefix := ""
 		if awsIPRange.IPv4Prefix != "" {
@@ -227,10 +239,7 @@ func awsParse(data []byte) map[string]IPRangeProperties {
 		if _, exists := uniqueIPs[prefix]; !exists && testIPs {
 			originalIPRanges = append(originalIPRanges, prefix)
 		}
-		uniqueIPs[prefix] = IPRangeProperties{
-			Region:  awsIPRange.Region,
-			Service: awsIPRange.Service,
-		}
+		uniqueIPs[prefix] = append(uniqueIPs[prefix], addProps(awsIPRange.Region, awsIPRange.Service))
 
 		if includev6 {
 			for _, awsIPRange := range awsIPRanges.IPv6Prefixes {
@@ -243,10 +252,7 @@ func awsParse(data []byte) map[string]IPRangeProperties {
 				if _, exists := uniqueIPs[prefix]; !exists && testIPs {
 					originalIPRanges = append(originalIPRanges, prefix)
 				}
-				uniqueIPs[prefix] = IPRangeProperties{
-					Region:  awsIPRange.Region,
-					Service: awsIPRange.Service,
-				}
+				uniqueIPs[prefix] = append(uniqueIPs[prefix], addProps(awsIPRange.Region, awsIPRange.Service))
 
 			}
 		}
@@ -254,18 +260,40 @@ func awsParse(data []byte) map[string]IPRangeProperties {
 	return uniqueIPs
 }
 
+func office365Parse(data []byte) map[string][]IPRangeProperties {
+	// Unmarshal the JSON data into the Go structure
+	var azure365IPRanges Azure365IPRanges
+	if err := json.Unmarshal(data, &azure365IPRanges); err != nil {
+		utils.LogErrorf("%s", err)
+	}
+
+	uniqueIPs := make(map[string][]IPRangeProperties)
+	for _, officeIPRange := range azure365IPRanges {
+		for _, ip := range officeIPRange.Ips {
+			if !includev6 && ipv6check(ip) {
+				continue
+			}
+			if _, exists := uniqueIPs[ip]; !exists && testIPs {
+				originalIPRanges = append(originalIPRanges, ip)
+			}
+			uniqueIPs[ip] = append(uniqueIPs[ip], addProps("GLOBAL", officeIPRange.ServiceArea))
+		}
+	}
+	return uniqueIPs
+}
+
 // azurParse unmarshalles the Azure IP ranges JSON file into a list of IP unique IP ranges
-func azureParse(data []byte) map[string]IPRangeProperties {
+func azureParse(data []byte) map[string][]IPRangeProperties {
 
 	// Unmarshal the JSON data into the Go structure
 	var azserviceTags AzureServiceTags
 	if err := json.Unmarshal(data, &azserviceTags); err != nil {
 		utils.LogErrorf("%s", err)
 	}
-	uniqueIPs := make(map[string]IPRangeProperties)
+	uniqueIPs := make(map[string][]IPRangeProperties)
 	for _, serviceTag := range azserviceTags.Values {
 		for _, addressPrefix := range serviceTag.Properties.AddressPrefixes {
-			if ipv6check(addressPrefix) {
+			if !includev6 && ipv6check(addressPrefix) {
 				continue
 			}
 			if serviceTag.Properties.Region == "" {
@@ -274,18 +302,15 @@ func azureParse(data []byte) map[string]IPRangeProperties {
 			if _, exists := uniqueIPs[addressPrefix]; !exists && testIPs {
 				originalIPRanges = append(originalIPRanges, addressPrefix)
 			}
-			uniqueIPs[addressPrefix] = IPRangeProperties{
-				Region:  serviceTag.Properties.Region,
-				Service: serviceTag.Name,
-			}
+			uniqueIPs[addressPrefix] = append(uniqueIPs[addressPrefix], addProps(serviceTag.Properties.Region, serviceTag.Name))
 		}
 	}
 	return uniqueIPs
 }
 
-func fileIPRangeRead() map[string]IPRangeProperties {
+func fileIPRangeRead() map[string][]IPRangeProperties {
 
-	uniqueIPs := make(map[string]IPRangeProperties)
+	uniqueIPs := make(map[string][]IPRangeProperties)
 	file, err := os.Open(fileName)
 	if err != nil {
 		fmt.Println("Error opening file:", err)
@@ -310,7 +335,7 @@ func fileIPRangeRead() map[string]IPRangeProperties {
 		// Check if the IP is already in the map
 		if _, exists := uniqueIPs[ipNet.String()]; !exists {
 			// Add the IP to the map
-			uniqueIPs[ipNet.String()] = IPRangeProperties{}
+			uniqueIPs[ipNet.String()] = []IPRangeProperties{}
 		}
 
 	}
@@ -379,7 +404,7 @@ func downloadJSON(url string) []byte {
 func cspIPProcessing(csp, ipListUrl string) []string {
 
 	var workingIPList []string
-	var uniqueIPs map[string]IPRangeProperties
+	var uniqueIPs map[string][]IPRangeProperties
 	switch strings.ToLower(csp) {
 	case "aws":
 		data := downloadJSON(ipListUrl)
@@ -400,6 +425,10 @@ func cspIPProcessing(csp, ipListUrl string) []string {
 	case "gcp":
 		data := downloadJSON(ipListUrl)
 		uniqueIPs = gcpParse(data)
+
+	case "office365":
+		data := downloadJSON(ipListUrl)
+		uniqueIPs = office365Parse(data)
 
 	case "file":
 		uniqueIPs = fileIPRangeRead()
@@ -431,7 +460,7 @@ func cspIPProcessing(csp, ipListUrl string) []string {
 
 // filterIPsByCSPFilter filters the input IP map by region and/or service as specified in the cspFilter CSV file.
 // Returns a new map with only the matching IPs.
-func filterIPsByCSPFilter(ipMap map[string]IPRangeProperties, cspFilterPath string) (map[string]bool, error) {
+func filterIPsByCSPFilter(ipMap map[string][]IPRangeProperties, cspFilterPath string) (map[string]bool, error) {
 	file, err := os.Open(cspFilterPath)
 	if err != nil {
 		return nil, err
@@ -478,19 +507,21 @@ func filterIPsByCSPFilter(ipMap map[string]IPRangeProperties, cspFilterPath stri
 	}
 
 	filtered := make(map[string]bool)
-	for ip, props := range ipMap {
-		region := strings.ToLower(props.Region)
-		service := strings.ToLower(props.Service)
-		// Try all combinations: both, just region, just service
-		keys := []string{
-			region + "|" + service,
-			region + "|",
-			"|" + service,
-		}
-		for _, key := range keys {
-			if _, ok := allowed[key]; ok {
-				filtered[ip] = true
-				break
+	for ip, propsList := range ipMap {
+		for _, props := range propsList {
+			region := strings.ToLower(props.Region)
+			service := strings.ToLower(props.Service)
+			// Try all combinations: both, just region, just service
+			keys := []string{
+				region + "|" + service,
+				region + "|",
+				"|" + service,
+			}
+			for _, key := range keys {
+				if _, ok := allowed[key]; ok {
+					filtered[ip] = true
+					break
+				}
 			}
 		}
 	}
@@ -672,6 +703,12 @@ func cspiplist(pce *ia.PCE, updatePCE, noPrompt bool, csp, ipListUrl, iplName st
 	case "gcp":
 		if ipListUrl == "" {
 			ipListUrl = GCPURL
+		}
+		consolidatedIPs = cspIPProcessing(csp, ipListUrl)
+
+	case "office365":
+		if ipListUrl == "" {
+			ipListUrl = OFFICE365URL
 		}
 		consolidatedIPs = cspIPProcessing(csp, ipListUrl)
 
