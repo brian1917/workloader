@@ -18,6 +18,7 @@ import (
 	"github.com/brian1917/workloader/cmd/checkversion"
 	"github.com/brian1917/workloader/cmd/compatibility"
 	"github.com/brian1917/workloader/cmd/containmentswitch"
+	"github.com/brian1917/workloader/cmd/cspiplist"
 	"github.com/brian1917/workloader/cmd/cwpexport"
 	"github.com/brian1917/workloader/cmd/cwpimport"
 	"github.com/brian1917/workloader/cmd/dagsync"
@@ -203,6 +204,7 @@ func init() {
 	RootCmd.AddCommand(nen.NENSWITCHCmd)
 	RootCmd.AddCommand(nen.NENACLCmd)
 	RootCmd.AddCommand(ccupdate.ContainerClusterUpdateCmd)
+	RootCmd.AddCommand(cspiplist.CspIplistCmd)
 
 	// Workload management
 	RootCmd.AddCommand(wkldcleanup.WkldCleanUpCmd)

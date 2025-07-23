@@ -16,6 +16,13 @@ import (
 	"github.com/spf13/viper"
 )
 
+type Input struct {
+	PCE                                                         ia.PCE
+	IplCsvFile, FqdnCsvFile, IplName                            string
+	Provision, NoBackup, NoHeaders, UpdatePCE, NoPrompt, Create bool
+	IpCol, IpDescCol, FqdnCol                                   int
+}
+
 // Declare local global variables
 var pce ia.PCE
 var err error
@@ -32,7 +39,7 @@ func init() {
 	IplReplaceCmd.Flags().IntVar(&ipDescCol, "ip-desc-col", -1, "column with ip entry descriptions. first column is 1. negative number means column is not presesent.")
 	IplReplaceCmd.Flags().IntVar(&fqdnCol, "fqdn-col", 1, "column with fqdn entries. first column is 1.")
 	IplReplaceCmd.Flags().BoolVarP(&noHeaders, "no-headers", "x", false, "process the first row since there are no headers.")
-	IplReplaceCmd.Flags().BoolVar(&noBackup, "no-backup", false, "will not create a backup file of the original ip list before making changes.")
+	IplReplaceCmd.Flags().BoolVar(&noBackup, "no-backup", true, "will not create a backup file of the original ip list before making changes.")
 	IplReplaceCmd.Flags().BoolVarP(&provision, "provision", "p", false, "provision ip list after replacing contents.")
 
 	IplReplaceCmd.Flags().SortFlags = false
@@ -73,11 +80,24 @@ Recommended to run without --update-pce first to log of what will change. If --u
 		updatePCE = viper.Get("update_pce").(bool)
 		noPrompt = viper.Get("no_prompt").(bool)
 
-		iplReplace()
+		IplReplace(Input{
+			PCE:         pce,
+			IplName:     iplName,
+			IplCsvFile:  iplCsvFile,
+			FqdnCsvFile: fqdnCsvFile,
+			Provision:   provision,
+			NoBackup:    noBackup,
+			NoHeaders:   noHeaders,
+			IpCol:       ipCol,
+			IpDescCol:   ipDescCol,
+			FqdnCol:     fqdnCol,
+			UpdatePCE:   updatePCE,
+			NoPrompt:    noPrompt,
+		})
 	},
 }
 
-func iplReplace() {
+func IplReplace(input Input) {
 
 	// Offset the columns by 1
 	ipCol--
@@ -86,21 +106,21 @@ func iplReplace() {
 
 	// Parse the CSV
 	var iplCsvData, fqdnCsvData [][]string
-	if iplCsvFile != "" {
-		iplCsvData, err = utils.ParseCSV(iplCsvFile)
+	if input.IplCsvFile != "" {
+		iplCsvData, err = utils.ParseCSV(input.IplCsvFile)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
 	}
-	if fqdnCsvFile != "" {
-		fqdnCsvData, err = utils.ParseCSV(fqdnCsvFile)
+	if input.FqdnCsvFile != "" {
+		fqdnCsvData, err = utils.ParseCSV(input.FqdnCsvFile)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
 	}
 
 	// Get the IPL
-	pceIPL, api, err := pce.GetIPListByName(iplName, "draft")
+	pceIPL, api, err := input.PCE.GetIPListByName(input.IplName, "draft")
 	utils.LogAPIRespV2("GetIPList", api)
 	if err != nil {
 		utils.LogError(err.Error())
@@ -168,7 +188,7 @@ func iplReplace() {
 	}
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
-	if !updatePCE {
+	if !input.UpdatePCE {
 		if iplToBeCreated {
 			utils.LogInfo(fmt.Sprintf("workloader will create %s ip list with %d ip entries and %d. to do the create, run again using --update-pce flag", iplName, ipCount, fqdnCount), true)
 		} else {
@@ -179,10 +199,10 @@ func iplReplace() {
 	}
 
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
-	if updatePCE && !noPrompt {
+	if input.UpdatePCE && !input.NoPrompt {
 		var prompt string
 		if iplToBeCreated {
-			fmt.Printf("[PROMPT] - workloader will create %s ip list with %d ip entries and %d in %s(%s). do you want to run the import (yes/no)? ", iplName, ipCount, fqdnCount, pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
+			fmt.Printf("[PROMPT] - workloader will create %s ip list with %d ip entries and %d in %s(%s). do you want to run the import (yes/no)? ", input.IplName, ipCount, fqdnCount, pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
 		} else {
 			fmt.Printf("[PROMPT] - workloader identified %d ip entries and %d fqdn entries to replace the existing %d ip entries and %d fqdn entries in %s ip list in %s(%s). do you want to run the import (yes/no)? ", ipCount, fqdnCount, len(*pceIPL.IPRanges), len(*pceIPL.FQDNs), pceIPL.Name, pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
 		}
@@ -205,14 +225,14 @@ func iplReplace() {
 	pceIPL.FQDNs = &fqdns
 
 	if iplToBeCreated {
-		pceIPL, api, err = pce.CreateIPList(pceIPL)
+		pceIPL, api, err = input.PCE.CreateIPList(pceIPL)
 		utils.LogAPIRespV2("CreateIPList", api)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
 		utils.LogInfo(fmt.Sprintf("%s create - status code %d", pceIPL.Name, api.StatusCode), true)
 	} else {
-		api, err = pce.UpdateIPList(pceIPL)
+		api, err = input.PCE.UpdateIPList(pceIPL)
 		utils.LogAPIRespV2("UpdateIPList", api)
 		if err != nil {
 			utils.LogError(err.Error())
@@ -221,8 +241,8 @@ func iplReplace() {
 	}
 
 	// Provision
-	if provision {
-		a, err := pce.ProvisionHref([]string{pceIPL.Href}, "workloader ipl-replace")
+	if input.Provision {
+		a, err := input.PCE.ProvisionHref([]string{pceIPL.Href}, "workloader ipl-replace")
 		utils.LogAPIRespV2("ProvisionHrefs", a)
 		if err != nil {
 			utils.LogError(err.Error())
