@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-// LogAPIResp will log the HTTP Requset, Request Header, Response Status Code, and Response Body
+// LogAPIResp will log the HTTP Request, Request Header, Response Status Code, and Response Body
 // The callType should be the name of call: GetAllLabels, GetAllWorkloads, etc. This is just for logging purposes and any string will be accepted.
 // The log type will be DEBUG.
 // This call will not do anything if the debug flag isn't set. A debug conditional is not required in app code.
