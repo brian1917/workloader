@@ -33,22 +33,15 @@ func ImportWkldsFromCSV(input Input) {
 	input.ProcessHeaders(data[0])
 	input.log()
 
-	// Get the PCE version
-	version, api, err := input.PCE.GetVersion()
-	utils.LogAPIRespV2("GetVersion", api)
-	if err != nil {
-		utils.LogError(err.Error())
-	}
-
 	// Check if need workloads, labels, and label dimensions
 	var needWklds, needLabels, needLabelDimensions bool
 	if input.PCE.Workloads == nil || len(input.PCE.WorkloadsSlice) == 0 {
 		needWklds = true
 	}
-	if input.PCE.Labels == nil || len(input.PCE.Labels) == 0 {
+	if len(input.PCE.Labels) == 0 {
 		needLabels = true
 	}
-	if (version.Major > 22 || (version.Major == 22 && version.Minor >= 5)) && len(input.PCE.LabelDimensionsSlice) == 0 {
+	if len(input.PCE.LabelDimensionsSlice) == 0 {
 		needLabelDimensions = true
 	}
 
@@ -100,15 +93,9 @@ func ImportWkldsFromCSV(input Input) {
 
 	// Create a map of label keys and depending on version either populate with API or with role, app, env, and loc.
 	labelKeysMap := make(map[string]bool)
-	if version.Major > 22 || (version.Major == 22 && version.Minor >= 5) {
-		for _, l := range input.PCE.LabelDimensionsSlice {
-			labelKeysMap[l.Key] = true
-		}
-	} else {
-		labelKeysMap["role"] = true
-		labelKeysMap["app"] = true
-		labelKeysMap["env"] = true
-		labelKeysMap["loc"] = true
+
+	for _, l := range input.PCE.LabelDimensionsSlice {
+		labelKeysMap[l.Key] = true
 	}
 	utils.LogInfo(fmt.Sprintf("label keys map: %v", labelKeysMap), false)
 

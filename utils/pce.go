@@ -72,20 +72,6 @@ func GetPCEbyName(name string, GetLabelMaps bool) (illumioapi.PCE, error) {
 				LogError(err.Error())
 			}
 		}
-		skipVersionCheck := false
-		if viper.Get("skip_version_check") != nil {
-			skipVersionCheck = viper.Get("skip_version_check").(bool)
-		}
-		if !skipVersionCheck {
-			_, api, err := pce.GetVersion()
-			if err != nil {
-				return illumioapi.PCE{}, fmt.Errorf("error getting pce version - %s - %s - %d", err, api.RespBody, api.StatusCode)
-			}
-			viper.Set(name+".pce_version", fmt.Sprintf("%d.%d.%d-%d", pce.Version.Major, pce.Version.Minor, pce.Version.Patch, pce.Version.Build))
-			if err := viper.WriteConfig(); err != nil {
-				LogError(err.Error())
-			}
-		}
 		return pce, nil
 	}
 

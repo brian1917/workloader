@@ -177,16 +177,10 @@ func (r *RuleExport) TrafficCounter(rs *ia.RuleSet, rule *ia.Rule, counterStr st
 	trafficReq.Destinations.Exclude = make([]ia.IncludeOrExclude, 0)
 	trafficReq.ExplorerServices.Exclude = make([]ia.IncludeOrExclude, 0)
 	trafficReq.PolicyDecisions = &[]string{}
-	_, api, err := r.PCE.GetVersion()
-	utils.LogAPIRespV2("GetVersion", api)
-	if err != nil {
-		utils.LogError(err.Error())
-	}
-	r.PCE.GetVersion()
-	if r.PCE.Version.Major > 19 {
-		x := false
-		trafficReq.ExcludeWorkloadsFromIPListQuery = &x
-	}
+
+	// Used to be a version check - removed here.
+	x := false
+	trafficReq.ExcludeWorkloadsFromIPListQuery = &x
 
 	// Get the start date
 	t, err := time.Parse("2006-01-02 MST", r.ExplorerStart+" UTC")

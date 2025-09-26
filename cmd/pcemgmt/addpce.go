@@ -232,15 +232,9 @@ func addPCE() {
 		pce.User = apiUser
 		pce.Key = apiKey
 		pce.DisableTLSChecking = disableTLS
-		skipVersionCheck := false
-		if viper.Get("skip_version_check") != nil {
-			skipVersionCheck = viper.Get("skip_version_check").(bool)
-		}
-		if !skipVersionCheck {
-			_, api, _ := pce.GetVersion()
-			if api.StatusCode != 200 {
-				utils.LogError(fmt.Sprintf("checking credentials by getting PCE version returned a status code of %d.", api.StatusCode))
-			}
+		api, _ := pce.GetLabels(map[string]string{"max_results": "1"})
+		if api.StatusCode != 200 {
+			utils.LogError(fmt.Sprintf("checking credentials by getting 1 label from the pce returned a status code of %d.", api.StatusCode))
 		}
 	}
 
@@ -297,22 +291,6 @@ func addPCE() {
 
 	if err := viper.WriteConfig(); err != nil {
 		utils.LogError(err.Error())
-	}
-
-	skipVersionCheck := false
-	if viper.Get("skip_version_check") != nil {
-		skipVersionCheck = viper.Get("skip_version_check").(bool)
-	}
-	if !skipVersionCheck {
-		_, api, err := pce.GetVersion()
-		utils.LogAPIRespV2("GetVersion", api)
-		if err != nil {
-			utils.LogErrorf("getting pce version - %s - %s - %d", err, api.RespBody, api.StatusCode)
-		}
-		viper.Set(pceName+".pce_version", fmt.Sprintf("%d.%d.%d-%d", pce.Version.Major, pce.Version.Minor, pce.Version.Patch, pce.Version.Build))
-		if err := viper.WriteConfig(); err != nil {
-			utils.LogError(err.Error())
-		}
 	}
 
 	// Log

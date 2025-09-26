@@ -83,16 +83,8 @@ func (r *RuleExport) ExportToCsv() {
 	// Initialize Slice
 	input.RulesetHrefs = &[]string{}
 
-	// Get version
-	version, api, err := input.PCE.GetVersion()
-	utils.LogAPIRespV2("GetVersion", api)
-	if err != nil {
-		utils.LogError(err.Error())
-	}
-	pceVersionIncludesUseSubnets := false
-	if version.Major > 22 || (version.Major == 22 && version.Minor >= 2) {
-		pceVersionIncludesUseSubnets = true
-	}
+	// Removing Version check for subnets since customers are off version 22
+	pceVersionIncludesUseSubnets := true
 
 	// GetAllRulesets first to see what objects we need.
 	utils.LogInfo("getting all rulesets...", true)
