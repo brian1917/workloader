@@ -1,11 +1,12 @@
 module github.com/brian1917/workloader
 
-go 1.18
+go 1.24.2
 
 require (
 	github.com/aws/aws-sdk-go v1.44.243
 	github.com/brian1917/illumioapi v1.85.0
 	github.com/brian1917/illumioapi/v2 v2.0.8
+	github.com/brian1917/illumiocloudapi v1.0.1
 	github.com/brian1917/ns v1.2.0
 	github.com/brian1917/workloader/utils v1.7.0
 	github.com/google/uuid v1.1.2

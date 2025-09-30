@@ -16,6 +16,7 @@ import (
 	"github.com/brian1917/workloader/cmd/azurenetwork"
 	"github.com/brian1917/workloader/cmd/ccupdate"
 	"github.com/brian1917/workloader/cmd/checkversion"
+	"github.com/brian1917/workloader/cmd/cloudinventory"
 	"github.com/brian1917/workloader/cmd/compatibility"
 	"github.com/brian1917/workloader/cmd/containmentswitch"
 	"github.com/brian1917/workloader/cmd/cspiplist"
@@ -191,6 +192,9 @@ func init() {
 	RootCmd.AddCommand(templateimport.TemplateImportCmd)
 	RootCmd.AddCommand(templatelist.TemplateListCmd)
 	// RootCmd.AddCommand(templatecreate.TemplateCreateCmd)
+
+	// Cloud commands
+	RootCmd.AddCommand(cloudinventory.CloudInventoryCmd)
 
 	// Automation
 	RootCmd.AddCommand(azurelabel.AzureLabelCmd)
