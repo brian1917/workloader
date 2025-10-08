@@ -77,6 +77,7 @@ import (
 	"github.com/brian1917/workloader/cmd/venimport"
 	"github.com/brian1917/workloader/cmd/virtualserviceexport"
 	"github.com/brian1917/workloader/cmd/vmsync"
+	"github.com/brian1917/workloader/cmd/vnetpeeringreport"
 	"github.com/brian1917/workloader/cmd/wkldcleanup"
 	"github.com/brian1917/workloader/cmd/wkldexport"
 	"github.com/brian1917/workloader/cmd/wkldimport"
@@ -195,6 +196,7 @@ func init() {
 
 	// Cloud commands
 	RootCmd.AddCommand(cloudinventory.CloudInventoryCmd)
+	RootCmd.AddCommand(vnetpeeringreport.VnetPeeringReportCmd)
 
 	// Automation
 	RootCmd.AddCommand(azurelabel.AzureLabelCmd)

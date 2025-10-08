@@ -11,7 +11,7 @@ func RootTemplate() string {
   Import/Export Commands:{{range .Commands}}{{if (or (eq .Name "wkld-export") (eq .Name "wkld-import") (eq .Name "ven-export") (eq .Name "ven-import") (eq .Name "ipl-export") (eq .Name "ipl-import") (eq .Name "ipl-replace") (eq .Name "label-export") (eq .Name "label-import") (eq .Name "label-dimension-export") (eq .Name "label-dimension-import") (eq .Name "svc-export") (eq .Name "svc-import") (eq .Name "rule-export") (eq .Name "rule-import") (eq .Name "ruleset-export") (eq .Name "ruleset-import") (eq .Name "deny-rule-export") (eq .Name "deny-rule-import") (eq .Name "labelgroup-export") (eq .Name "labelgroup-import") (eq .Name "cwp-export") (eq .Name "cwp-import") (eq .Name "adgroup-export") (eq .Name "adgroup-import") (eq .Name "virtualservice-export") (eq .Name "sec-principal-export") (eq .Name "sec-principal-import") (eq .Name "permissions-export") (eq .Name "permissions-import") (eq .Name "flow-import"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 	  
-  Cloud Commands:{{range .Commands}}{{if (or (eq .Name "cloud-inventory"))}}
+  Cloud Commands:{{range .Commands}}{{if (or (eq .Name "cloud-inventory") (eq .Name "azure-vnet-peering-report"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
   
   Automation Commands:{{range .Commands}}{{if (or (eq .Name "azure-label") (eq .Name "aws-label") (eq .Name "gcp-label") (eq .Name "azure-network") (eq .Name "vmsync") (eq .Name "subnet") (eq .Name "hostparse") (eq .Name "dag-sync") (eq .Name "container-cluster-update"))}}
