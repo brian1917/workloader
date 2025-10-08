@@ -18,10 +18,10 @@ func init() {
 	CloudInventoryCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 	CloudInventoryCmd.Flags().StringVar(&cloudCookie, "cookie", "", "optionally set a cookie for authenticating to the api.")
 	CloudInventoryCmd.Flags().StringVar(&cloudCredentials, "credentials", "", "optionally set cloud creds in client_id:keyformat.")
-	CloudInventoryCmd.Flags().BoolVarP(&includeLicenses, "include-licenses", "l", false, "include license information in the output.")
+	CloudInventoryCmd.Flags().BoolVarP(&includeLicenses, "licenses", "l", false, "include license information in the output.")
 	CloudInventoryCmd.Flags().StringVarP(&cloudTenantId, "tenant-id", "t", "", "optionally set the tenant id to use.")
-	CloudInventoryCmd.MarkFlagsMutuallyExclusive("cloud-cookie", "cloud-credentials")
-	CloudInventoryCmd.MarkFlagRequired("cloud-tenant-id")
+	CloudInventoryCmd.MarkFlagsMutuallyExclusive("cookie", "credentials")
+	CloudInventoryCmd.MarkFlagRequired("tenant-id")
 	CloudInventoryCmd.Flags().SortFlags = false
 }
 
@@ -57,7 +57,7 @@ func CloudInventory() {
 		tenant.Cookie = cloudCookie
 	}
 
-	apiResponses, err := tenant.GetResources(nil)
+	apiResponses, err := tenant.GetResources(illumiocloudapi.ResourcesPostRequest{})
 	utils.LogMultiAPIRespV2(apiResponses)
 	if err != nil {
 		utils.LogErrorf("getting resources from cloud - %s", err)
@@ -121,7 +121,7 @@ func CloudInventory() {
 
 	// Create the summary license files
 	if includeLicenses {
-		csvData = [][]string{{"cloud", "object_type", "segmentation_licenses", "insights_licenses"}}
+		csvData = [][]string{{"cloud", "object_type", "segmentation_ratio", "segmentation_licenses", "insights_ratio", "insights_licenses"}}
 		for objectType := range allUniqueLicensedResourceTypes {
 			// Skip zero counts
 			if segmentationLicenseSummaryMap[objectType]+insightsLicenseSummaryMap[objectType] == 0 {
@@ -130,7 +130,9 @@ func CloudInventory() {
 			row := []string{
 				resourceToCloudMaps[objectType],
 				objectType,
+				strconv.FormatFloat(segmentationLicenseResourceMap[objectType], 'f', -1, 64),
 				strconv.FormatFloat(segmentationLicenseSummaryMap[objectType], 'f', 1, 64),
+				strconv.FormatFloat(insightsLicenseResourceMap[objectType], 'f', -1, 64),
 				strconv.FormatFloat(insightsLicenseSummaryMap[objectType], 'f', 1, 64),
 			}
 			csvData = append(csvData, row)
