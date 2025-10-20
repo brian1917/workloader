@@ -20,7 +20,7 @@ func init() {
 // VnetPeeringReportCmd runs the label-export command
 var VnetPeeringReportCmd = &cobra.Command{
 	Use:   "azure-vnet-peering-report",
-	Short: "Create a CSV export of the cloud inventory.",
+	Short: "Create a CSV report of Azure VNet peerings.",
 	Long: `
 Create a CSV export of the cloud inventory.
 
