@@ -46,6 +46,10 @@ github.com/brian1917/illumioapi/v2 v2.0.8 h1:ZMZo+CmGjFPR8arHYNnSbEaHvbvKFq3GjET
 github.com/brian1917/illumioapi/v2 v2.0.8/go.mod h1:2uy7bernq5Ein6PiTS+9a4VvjYEMKi3vAGybByDZ2c8=
 github.com/brian1917/illumiocloudapi v1.0.3 h1:xMhq9jKpQd+b3u+y4sFdVnH2+iJCKXgzAUVDfRX3B6k=
 github.com/brian1917/illumiocloudapi v1.0.3/go.mod h1:AxwAtYegEvb2h4DzH9gx0HQrNIeXEFppjRUcvBoyskM=
+github.com/brian1917/illumiocloudapi v1.0.4 h1:h7Xs/LcmFOv/KbZYMw1q4ud5fnM7IVucJvm0Pz41JcY=
+github.com/brian1917/illumiocloudapi v1.0.4/go.mod h1:AxwAtYegEvb2h4DzH9gx0HQrNIeXEFppjRUcvBoyskM=
+github.com/brian1917/illumiocloudapi v1.0.5 h1:1+JGrIftRAEAK3lHT/2qRcUWbHNcwWR/hBJSb3PB32I=
+github.com/brian1917/illumiocloudapi v1.0.5/go.mod h1:AxwAtYegEvb2h4DzH9gx0HQrNIeXEFppjRUcvBoyskM=
 github.com/brian1917/ns v1.2.0 h1:8z9dR8WhaqJPTi8Ygyf6VHrYGoP8dbNV8hoD30/k/8c=
 github.com/brian1917/ns v1.2.0/go.mod h1:2MohDxeuiUsV/vtkLkdnU6q0z5yByOK9c2vGPGbCkKo=
 github.com/brian1917/workloader/utils v1.7.0 h1:Le1kft+uQQlAGpY2U2Ll2+2scYdXX6lusGIVNppwIbM=

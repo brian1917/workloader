@@ -195,6 +195,7 @@ func init() {
 	// RootCmd.AddCommand(templatecreate.TemplateCreateCmd)
 
 	// Cloud commands
+	RootCmd.AddCommand(pcemgmt.AddTenantCmd)
 	RootCmd.AddCommand(cloudinventory.CloudInventoryCmd)
 	RootCmd.AddCommand(vnetpeeringreport.VnetPeeringReportCmd)
 

@@ -1,23 +1,19 @@
 package vnetpeeringreport
 
 import (
-	"strings"
-
 	"github.com/brian1917/illumiocloudapi"
+	"github.com/brian1917/workloader/cmd/pcemgmt"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
 )
 
 // Declare local global variables
-var outputFileName, cloudCookie, cloudCredentials, cloudTenantId string
+var tenantName, outputFileName, cloudCookie string
 
 func init() {
+	VnetPeeringReportCmd.Flags().StringVar(&tenantName, "tenant", "", "tenant name in the pce.yaml file.")
 	VnetPeeringReportCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 	VnetPeeringReportCmd.Flags().StringVar(&cloudCookie, "cookie", "", "optionally set a cookie for authenticating to the api.")
-	VnetPeeringReportCmd.Flags().StringVar(&cloudCredentials, "credentials", "", "optionally set cloud creds in client_id:keyformat.")
-	VnetPeeringReportCmd.Flags().StringVarP(&cloudTenantId, "tenant-id", "t", "", "optionally set the tenant id to use.")
-	VnetPeeringReportCmd.MarkFlagsMutuallyExclusive("cookie", "credentials")
-	VnetPeeringReportCmd.MarkFlagRequired("tenant-id")
 	VnetPeeringReportCmd.Flags().SortFlags = false
 }
 
@@ -37,20 +33,17 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 
 func VnetPeeringReport() {
 
-	// Get all // Create the cloud tenant
-	tenant := illumiocloudapi.Tenant{
-		TenantID: cloudTenantId,
-	}
-	if cloudCredentials != "" {
-		creds := strings.Split(cloudCredentials, ":")
-		if len(creds) != 2 {
-			utils.LogError("invalid cloud-credentials format. expected client_id:key")
-		}
-		tenant.ClientID = creds[0]
-		tenant.Key = creds[1]
+	// Get the cloud tenant and validate authentication information provided
+	tenant, err := pcemgmt.GetTenantByName(tenantName)
+	if err != nil {
+		utils.LogErrorf("getting tenant by name - %s", err)
+
 	}
 	if cloudCookie != "" {
 		tenant.Cookie = cloudCookie
+	}
+	if tenant.Cookie == "" && (tenant.ClientID == "" || tenant.Secret == "") {
+		utils.LogErrorf("cannot authenticate to tenant - no client id and secret and no cookie)")
 	}
 
 	apiResponses, err := tenant.GetResources(illumiocloudapi.ResourcesPostRequest{ObjectType: []string{"Microsoft.Network/virtualNetworks"}})
