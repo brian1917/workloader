@@ -75,7 +75,7 @@ func addTenant() {
 	}
 
 	// Write the login configuration
-	viper.Set(tenantName+".id", tenantId)
+	viper.Set(tenantName+".tenant_id", tenantId)
 	viper.Set(tenantName+".client_id", clientId)
 	viper.Set(tenantName+".client_secret", clientSecret)
 	if err := viper.WriteConfig(); err != nil {
