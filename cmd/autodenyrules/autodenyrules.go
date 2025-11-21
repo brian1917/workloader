@@ -64,7 +64,7 @@ type Service struct {
 
 type denyRuleInfo struct {
 	env     illumioapi.Label
-	service Service
+	service illumioapi.Service
 	apps    []Label
 }
 
@@ -164,17 +164,32 @@ func getEnvs() ([]illumioapi.Label, error) {
 	return out, nil
 }
 
-func getRansomServices() ([]Service, error) {
-	urlStr := fmt.Sprintf("https://%s:%d/api/v2/orgs/%d/sec_policy/draft/services?is_ransomware=true", pce.FQDN, pce.Port, pce.Org)
-	data, err := apiRequestWithRetry("GET", urlStr, nil)
+func getRansomServices() ([]illumioapi.Service, error) {
+	// Fetch draft services filtered by ransomware
+	_, err := pce.GetServices(map[string]string{"is_ransomware": "true"}, "draft")
 	if err != nil {
-		return nil, fmt.Errorf("getRansomServices: %w", err)
+		return nil, fmt.Errorf("getRansomServices GetServices: %w", err)
 	}
-	var services []Service
-	if err := json.Unmarshal(data, &services); err != nil {
-		return nil, fmt.Errorf("getRansomServices unmarshal: %w", err)
+
+	// pce.ServicesSlice now contains the filtered services
+	// Dedupe by href and skip deleted
+	seen := make(map[string]struct{}, len(pce.ServicesSlice))
+	out := make([]illumioapi.Service, 0, len(pce.ServicesSlice))
+	for _, s := range pce.ServicesSlice {
+		if s.Href == "" {
+			continue
+		}
+		if _, ok := seen[s.Href]; ok {
+			continue
+		}
+		seen[s.Href] = struct{}{}
+		out = append(out, s)
 	}
-	return services, nil
+
+	if len(out) == 0 {
+		return nil, fmt.Errorf("getRansomServices: no ransomware services found")
+	}
+	return out, nil
 }
 
 func getWorkloadsForEnv(env illumioapi.Label) ([]Label, error) {
@@ -213,7 +228,7 @@ func getWorkloadsForEnv(env illumioapi.Label) ([]Label, error) {
 
 func submitTrafficQuery(
 	envHref, appHref string,
-	service Service,
+	service illumioapi.Service,
 	excludeBroadcast, excludeMulticast bool,
 ) (bool, error) {
 	now := time.Now().UTC()
@@ -222,10 +237,12 @@ func submitTrafficQuery(
 	end := now.Format(time.RFC3339)
 
 	var ports []map[string]interface{}
-	for _, sp := range service.ServicePorts {
+	for _, sp := range illumioapi.PtrToVal(service.ServicePorts) {
 		p := map[string]interface{}{
-			"port":  sp.Port,
-			"proto": sp.Proto,
+			"proto": sp.Protocol,
+		}
+		if port := illumioapi.PtrToVal(sp.Port); port != 0 {
+			p["port"] = port
 		}
 		if sp.ToPort != 0 {
 			p["to_port"] = sp.ToPort
@@ -416,7 +433,7 @@ func buildDestExclusions(broadcast, multicast bool) []interface{} {
 	return excl
 }
 
-func logQueryProgress(env illumioapi.Label, app Label, svc Service, done, total int64) {
+func logQueryProgress(env illumioapi.Label, app Label, svc illumioapi.Service, done, total int64) {
 	percent := float64(done) / float64(total) * 100
 	log.Printf("[Query] Env:%s  App:%s  Service:%s  →  Progress: %.1f%% (%d/%d)",
 		env.Value, app.Value, svc.Name, percent, done, total)
