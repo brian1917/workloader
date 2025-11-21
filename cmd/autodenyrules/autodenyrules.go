@@ -9,6 +9,8 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -61,7 +63,7 @@ type Service struct {
 }
 
 type denyRuleInfo struct {
-	env     Label
+	env     illumioapi.Label
 	service Service
 	apps    []Label
 }
@@ -127,17 +129,39 @@ func apiRequestWithRetry(method, urlStr string, payload interface{}) ([]byte, er
 	return nil, fmt.Errorf("apiRequest failed after %d retries: %v", retries, lastErr)
 }
 
-func getEnvs() ([]Label, error) {
-	urlStr := fmt.Sprintf("https://%s:%d/api/v2/orgs/%d/labels?key=env", pce.FQDN, pce.Port, pce.Org)
-	data, err := apiRequestWithRetry("GET", urlStr, nil)
+func getEnvs() ([]illumioapi.Label, error) {
+	// Load labels with key=env via illumioapi (handles async, populates pce.LabelsSlice)
+	_, err := pce.GetLabels(map[string]string{"key": "env"})
 	if err != nil {
-		return nil, fmt.Errorf("getEnvs: %w", err)
+		return nil, fmt.Errorf("getEnvs GetLabels: %w", err)
 	}
-	var labels []Label
-	if err := json.Unmarshal(data, &labels); err != nil {
-		return nil, fmt.Errorf("getEnvs unmarshal: %w", err)
+
+	seen := make(map[string]struct{}, len(pce.LabelsSlice))
+	out := make([]illumioapi.Label, 0, len(pce.LabelsSlice))
+
+	for _, l := range pce.LabelsSlice {
+		if l.Key != "env" || illumioapi.PtrToVal(l.Deleted) {
+			continue
+		}
+		if l.Href == "" || l.Value == "" {
+			continue
+		}
+		if _, ok := seen[l.Href]; ok {
+			continue
+		}
+		seen[l.Href] = struct{}{}
+		out = append(out, l)
 	}
-	return labels, nil
+
+	// Sort by value
+	sort.Slice(out, func(i, j int) bool {
+		return strings.ToLower(out[i].Value) < strings.ToLower(out[j].Value)
+	})
+
+	if len(out) == 0 {
+		return nil, fmt.Errorf("getEnvs: no env labels found")
+	}
+	return out, nil
 }
 
 func getRansomServices() ([]Service, error) {
@@ -153,7 +177,7 @@ func getRansomServices() ([]Service, error) {
 	return services, nil
 }
 
-func getWorkloadsForEnv(env Label) ([]Label, error) {
+func getWorkloadsForEnv(env illumioapi.Label) ([]Label, error) {
 	urlStr := fmt.Sprintf(
 		"https://%s:%d/api/v2/orgs/%d/workloads?managed=true&online=true&labels=[[\"%s\"]]&enforcement_modes=[\"idle\",\"selective\",\"visibility_only\"]",
 		pce.FQDN, pce.Port, pce.Org, env.Href,
@@ -323,7 +347,7 @@ func createDenyRule(
 	rulesetHref string,
 	serviceHref string,
 	apps []Label,
-	env Label,
+	env illumioapi.Label,
 	ipListHref string,
 ) error {
 	providers := []map[string]map[string]string{
@@ -392,7 +416,7 @@ func buildDestExclusions(broadcast, multicast bool) []interface{} {
 	return excl
 }
 
-func logQueryProgress(env, app Label, svc Service, done, total int64) {
+func logQueryProgress(env illumioapi.Label, app Label, svc Service, done, total int64) {
 	percent := float64(done) / float64(total) * 100
 	log.Printf("[Query] Env:%s  App:%s  Service:%s  →  Progress: %.1f%% (%d/%d)",
 		env.Value, app.Value, svc.Name, percent, done, total)
@@ -427,7 +451,7 @@ func RunAutoDenyRules(verboseFlag bool, excludeBroadcast, excludeMulticast bool)
 	log.Printf("Created Auto Deny Rules rule set %s", rulesetHref)
 
 	type envInfo struct {
-		env  Label
+		env  illumioapi.Label
 		apps []Label
 	}
 	var envInfos []envInfo
@@ -493,8 +517,7 @@ func RunAutoDenyRules(verboseFlag bool, excludeBroadcast, excludeMulticast bool)
 
 					// update and print query progress (always shown)
 					atomic.AddInt64(&doneQueries, 1)
-					logQueryProgress(ei.env, a, service,
-						atomic.LoadInt64(&doneQueries), totalQueries)
+					logQueryProgress(ei.env, a, service, atomic.LoadInt64(&doneQueries), totalQueries)
 				}(app)
 			}
 
