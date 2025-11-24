@@ -1,13 +1,8 @@
 package autodenyrules
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
-	"math/rand"
-	"net/http"
 	"sort"
 	"strings"
 	"sync"
@@ -19,6 +14,13 @@ import (
 
 	"github.com/spf13/cobra"
 )
+
+// denyRuleInfo holds information needed to create a deny rule
+type denyRuleInfo struct {
+	env     illumioapi.Label   // The environment label
+	service illumioapi.Service // The service to deny
+	apps    []illumioapi.Label // The applications with no traffic
+}
 
 var AutoDenyRulesCmd = &cobra.Command{
 	Use:   "auto-deny-rules",
@@ -40,96 +42,30 @@ func init() {
 	AutoDenyRulesCmd.Flags().BoolVar(&excludeMulticastFlag, "exclude-multicast", false, "exclude multicast traffic")
 }
 
-var verbose bool
-var pce illumioapi.PCE
-
-type Label struct {
-	Href  string `json:"href"`
-	Key   string `json:"key"`
-	Value string `json:"value"`
-}
-
-type ServicePort struct {
-	Port   int `json:"port"`
-	Proto  int `json:"proto"`
-	ToPort int `json:"to_port,omitempty"`
-}
-
-type Service struct {
-	Href         string        `json:"href"`
-	Name         string        `json:"name"`
-	ServicePorts []ServicePort `json:"service_ports"`
-}
-
-type denyRuleInfo struct {
-	env     illumioapi.Label
-	service illumioapi.Service
-	apps    []illumioapi.Label
-}
-
 var (
+	verbose        bool
+	pce            illumioapi.PCE
 	totalDenyRules int64
 	doneDenyRules  int64
 )
 
-var httpClient = &http.Client{
-	Timeout: 30 * time.Second,
-}
-
+// Helper functions
 func vlog(format string, v ...interface{}) {
 	if verbose {
 		log.Printf(format, v...)
 	}
 }
 
-func printProgress(done, total int64) {
+func logQueryProgress(env illumioapi.Label, app illumioapi.Label, svc illumioapi.Service, done, total int64) {
 	percent := float64(done) / float64(total) * 100
-	log.Printf("Progress: %.1f%% (%d/%d)", percent, done, total)
+	log.Printf("[Query] Env:%s  App:%s  Service:%s  →  Progress: %.1f%% (%d/%d)",
+		env.Value, app.Value, svc.Name, percent, done, total)
 }
 
-func apiRequestWithRetry(method, urlStr string, payload interface{}) ([]byte, error) {
-	var body []byte
-	if payload != nil {
-		var err error
-		body, err = json.Marshal(payload)
-		if err != nil {
-			return nil, err
-		}
-		vlog("Payload: %s", string(body))
-	}
+func ptrString(s string) *string { return &s }
 
-	var lastErr error
-	retries := 3
-	for i := 0; i < retries; i++ {
-		req, err := http.NewRequest(method, urlStr, bytes.NewBuffer(body))
-		if err != nil {
-			return nil, err
-		}
-		req.SetBasicAuth(pce.User, pce.Key)
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Accept", "application/json")
-
-		resp, err := httpClient.Do(req)
-		if err != nil {
-			lastErr = err
-		} else {
-			defer resp.Body.Close()
-			data, _ := ioutil.ReadAll(resp.Body)
-			vlog("Response Status: %s", resp.Status)
-			vlog("RAW RESPONSE BODY: %s", string(data))
-
-			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-				return data, nil
-			}
-			lastErr = fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(data))
-		}
-		time.Sleep(time.Duration(1<<i)*time.Second + time.Duration(rand.Intn(500))*time.Millisecond)
-	}
-	return nil, fmt.Errorf("apiRequest failed after %d retries: %v", retries, lastErr)
-}
-
+// Fetch environments
 func getEnvs() ([]illumioapi.Label, error) {
-	// Load labels with key=env via illumioapi (handles async, populates pce.LabelsSlice)
 	_, err := pce.GetLabels(map[string]string{"key": "env"})
 	if err != nil {
 		return nil, fmt.Errorf("getEnvs GetLabels: %w", err)
@@ -137,12 +73,8 @@ func getEnvs() ([]illumioapi.Label, error) {
 
 	seen := make(map[string]struct{}, len(pce.LabelsSlice))
 	out := make([]illumioapi.Label, 0, len(pce.LabelsSlice))
-
 	for _, l := range pce.LabelsSlice {
-		if l.Key != "env" || illumioapi.PtrToVal(l.Deleted) {
-			continue
-		}
-		if l.Href == "" || l.Value == "" {
+		if l.Key != "env" || illumioapi.PtrToVal(l.Deleted) || l.Href == "" || l.Value == "" {
 			continue
 		}
 		if _, ok := seen[l.Href]; ok {
@@ -152,7 +84,6 @@ func getEnvs() ([]illumioapi.Label, error) {
 		out = append(out, l)
 	}
 
-	// Sort by value
 	sort.Slice(out, func(i, j int) bool {
 		return strings.ToLower(out[i].Value) < strings.ToLower(out[j].Value)
 	})
@@ -163,15 +94,13 @@ func getEnvs() ([]illumioapi.Label, error) {
 	return out, nil
 }
 
+// Fetch ransomware services
 func getRansomServices() ([]illumioapi.Service, error) {
-	// Fetch draft services filtered by ransomware
 	_, err := pce.GetServices(map[string]string{"is_ransomware": "true"}, "draft")
 	if err != nil {
 		return nil, fmt.Errorf("getRansomServices GetServices: %w", err)
 	}
 
-	// pce.ServicesSlice now contains the filtered services
-	// Dedupe by href and skip deleted
 	seen := make(map[string]struct{}, len(pce.ServicesSlice))
 	out := make([]illumioapi.Service, 0, len(pce.ServicesSlice))
 	for _, s := range pce.ServicesSlice {
@@ -191,15 +120,14 @@ func getRansomServices() ([]illumioapi.Service, error) {
 	return out, nil
 }
 
+// Fetch workloads and extract unique apps
 func getWorkloadsForEnv(pce illumioapi.PCE, env illumioapi.Label) ([]illumioapi.Label, error) {
-	// Input validation
 	if env.Href == "" {
 		return nil, fmt.Errorf("environment label href cannot be empty")
 	}
 
 	vlog("Fetching workloads for env %s (href: %s)", env.Value, env.Href)
 
-	// Create query parameters using the library's approach
 	queryParameters := map[string]string{
 		"managed":           "true",
 		"online":            "true",
@@ -207,21 +135,13 @@ func getWorkloadsForEnv(pce illumioapi.PCE, env illumioapi.Label) ([]illumioapi.
 		"enforcement_modes": "[\"idle\",\"selective\",\"visibility_only\"]",
 	}
 
-	// Use the library's GetWklds method
-	api, err := pce.GetWklds(queryParameters)
+	_, err := pce.GetWklds(queryParameters)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch workloads for env %s: %w", env.Value, err)
 	}
 
-	// Access workloads from pce.WorkloadsSlice
-	workloads := pce.WorkloadsSlice
-
-	vlog("API call details: %+v", api)
-
-	// Extract unique app labels
 	uniqueApps := make(map[string]illumioapi.Label)
-	for _, workload := range workloads {
-		// Dereference the pointer to get the slice
+	for _, workload := range pce.WorkloadsSlice {
 		if workload.Labels != nil {
 			for _, label := range *workload.Labels {
 				if label.Key == "app" && label.Href != "" {
@@ -231,7 +151,6 @@ func getWorkloadsForEnv(pce illumioapi.PCE, env illumioapi.Label) ([]illumioapi.
 		}
 	}
 
-	// Convert map to slice
 	apps := make([]illumioapi.Label, 0, len(uniqueApps))
 	for _, label := range uniqueApps {
 		apps = append(apps, label)
@@ -241,6 +160,7 @@ func getWorkloadsForEnv(pce illumioapi.PCE, env illumioapi.Label) ([]illumioapi.
 	return apps, nil
 }
 
+// Submit traffic query
 func submitTrafficQuery(
 	pce illumioapi.PCE,
 	envHref, appHref string,
@@ -287,55 +207,49 @@ func submitTrafficQuery(
 			"sources_destinations_query_op":        "and",
 			"start_date":                           start,
 			"end_date":                             end,
-			"policy_decisions":                     []string{}, // REQUIRED
-			"boundary_decisions":                   []string{}, // REQUIRED
-			"exclude_workloads_from_ip_list_query": true,       // REQUIRED
+			"policy_decisions":                     []string{},
+			"boundary_decisions":                   []string{},
+			"exclude_workloads_from_ip_list_query": true,
 			"max_results":                          1,
 		}
 	}
 
-	// 24h query
+	// Check for flows in the last 24 hours first
 	hasFlows, err := runSingleAsyncQuery(pce, buildPayload(start24h))
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to query 24h traffic: %w", err)
 	}
 	if hasFlows {
-		return false, nil
+		return false, nil // Found flows, so this is not an unused service
 	}
 
-	// 89d query
+	// If no flows in 24h, check the last 89 days
 	hasFlows, err = runSingleAsyncQuery(pce, buildPayload(start89d))
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to query 89d traffic: %w", err)
 	}
 	if hasFlows {
-		return false, nil
+		return false, nil // Found flows, so this is not an unused service
 	}
 
+	// No flows found in either time period
 	return true, nil
 }
 
 func runSingleAsyncQuery(pce illumioapi.PCE, payload map[string]interface{}) (bool, error) {
-	url := fmt.Sprintf(
-		"https://%s:%d/api/v2/orgs/%d/traffic_flows/async_queries",
-		pce.FQDN, pce.Port, pce.Org,
-	)
-
-	respBytes, err := apiRequestWithRetry("POST", url, payload)
-	if err != nil {
-		return false, err
-	}
-
 	var resp struct {
 		Href string `json:"href"`
 	}
-	if err := json.Unmarshal(respBytes, &resp); err != nil {
-		return false, err
+	_, err := pce.Post("traffic_flows/async_queries", payload, &resp)
+	if err != nil {
+		return false, fmt.Errorf("failed to create async query: %w", err)
 	}
+
 	if resp.Href == "" {
 		return false, fmt.Errorf("no href returned for async query")
 	}
 
+	// Poll the async query status using the package's GetHref method
 	timeout := time.After(5 * time.Minute)
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
@@ -345,161 +259,31 @@ func runSingleAsyncQuery(pce illumioapi.PCE, payload map[string]interface{}) (bo
 		case <-timeout:
 			return false, fmt.Errorf("traffic query timed out")
 		case <-ticker.C:
-			pollURL := fmt.Sprintf("https://%s:%d/api/v2%s",
-				pce.FQDN, pce.Port, resp.Href)
-			pollBytes, err := apiRequestWithRetry("GET", pollURL, nil)
-			if err != nil {
-				return false, err
-			}
-
 			var pollResp struct {
 				Status     string  `json:"status"`
 				FlowsCount float64 `json:"flows_count"`
 			}
-			if err := json.Unmarshal(pollBytes, &pollResp); err != nil {
-				return false, err
+
+			// Use GetHref to poll the async query status
+			_, err := pce.GetHref(resp.Href, &pollResp)
+			if err != nil {
+				return false, fmt.Errorf("failed to poll async query: %w", err)
 			}
 
 			if pollResp.Status == "completed" {
 				return pollResp.FlowsCount > 0, nil
 			}
+
+			// Optional: Handle failed status
+			if pollResp.Status == "failed" {
+				return false, fmt.Errorf("async query failed")
+			}
 		}
 	}
-}
-
-// Helper function to build structured destination exclusions
-func buildDestExclusionsStructured(excludeBroadcast, excludeMulticast bool) [][]illumioapi.ConsumerOrProvider {
-	var exclusions [][]illumioapi.ConsumerOrProvider
-
-	if excludeBroadcast {
-		exclusions = append(exclusions, []illumioapi.ConsumerOrProvider{
-			{IPList: &illumioapi.IPList{
-				IPRanges: &[]illumioapi.IPRange{
-					{FromIP: "255.255.255.255", ToIP: "255.255.255.255"},
-				},
-			}},
-		})
-	}
-
-	if excludeMulticast {
-		exclusions = append(exclusions, []illumioapi.ConsumerOrProvider{
-			{IPList: &illumioapi.IPList{
-				IPRanges: &[]illumioapi.IPRange{
-					{FromIP: "224.0.0.0", ToIP: "239.255.255.255"},
-				},
-			}},
-		})
-	}
-
-	return exclusions
-}
-func createRuleset(name string) (string, error) {
-	enabled := true
-
-	rs := illumioapi.RuleSet{
-		Name:        name,
-		Description: ptrString("Created by Auto Deny Rules script."),
-		Enabled:     &enabled,
-		// Use empty array instead of array with empty object
-		Scopes: &[][]illumioapi.Scopes{
-			{}, // This creates an empty array, not an array with empty object
-		},
-	}
-
-	createdRS, _, err := pce.CreateRuleset(rs)
-	if err != nil {
-		return "", fmt.Errorf("failed to create ruleset: %w", err)
-	}
-
-	return createdRS.Href, nil
-}
-
-func ptrString(s string) *string {
-	return &s
-}
-
-func createDenyRule(
-	pce illumioapi.PCE,
-	rulesetHref string,
-	serviceHref string,
-	apps []illumioapi.Label,
-	env illumioapi.Label,
-	ipListHref string,
-) error {
-
-	boolPtr := func(b bool) *bool { return &b }
-	stringPtr := func(s string) *string { return &s }
-
-	// Providers (env + apps)
-	providers := []illumioapi.ConsumerOrProvider{
-		{Label: &illumioapi.Label{Href: env.Href}},
-	}
-	for _, app := range apps {
-		providers = append(providers, illumioapi.ConsumerOrProvider{
-			Label: &illumioapi.Label{Href: app.Href},
-		})
-	}
-
-	// Consumers (IP list)
-	consumers := []illumioapi.ConsumerOrProvider{
-		{IPList: &illumioapi.IPList{Href: ipListHref}},
-	}
-
-	// Ingress services
-	ingressServices := []illumioapi.IngressServices{
-		{Href: serviceHref},
-	}
-
-	// Build deny rule
-	rule := illumioapi.Rule{
-		RuleType:        "deny", // REQUIRED
-		Providers:       &providers,
-		Consumers:       &consumers,
-		IngressServices: &ingressServices,
-		Enabled:         boolPtr(true),
-		Description:     stringPtr(""),
-		// Do NOT set NetworkType on deny rules
-	}
-
-	_, api, err := pce.CreateRule(rulesetHref, rule)
-	if err != nil {
-		return fmt.Errorf("failed to create deny rule: %w", err)
-	}
-
-	vlog("Created deny rule successfully. API response: %s", api.RespBody)
-	return nil
-}
-
-func getIPListHref(pce illumioapi.PCE, targetName string) (string, error) {
-	// Use query parameters to filter by name
-	queryParams := map[string]string{
-		"name": targetName,
-	}
-
-	// Get IP lists with name filter - use "draft" for policy draft
-	_, err := pce.GetIPLists(queryParams, "draft")
-	if err != nil {
-		return "", fmt.Errorf("failed to get IP lists: %w", err)
-	}
-
-	// Check if any IP lists were found
-	if len(pce.IPListsSlice) == 0 {
-		return "", fmt.Errorf("no IP list found with name %q", targetName)
-	}
-
-	// Find exact name match (in case API returns partial matches)
-	for _, ipList := range pce.IPListsSlice {
-		if ipList.Name == targetName {
-			return ipList.Href, nil
-		}
-	}
-
-	// If no exact match, return the first one
-	return pce.IPListsSlice[0].Href, nil
 }
 
 func buildDestExclusions(broadcast, multicast bool) []interface{} {
-	excl := make([]interface{}, 0)
+	excl := []interface{}{}
 	if broadcast {
 		excl = append(excl, map[string]string{"transmission": "broadcast"})
 	}
@@ -509,16 +293,71 @@ func buildDestExclusions(broadcast, multicast bool) []interface{} {
 	return excl
 }
 
-func logQueryProgress(env illumioapi.Label, app illumioapi.Label, svc illumioapi.Service, done, total int64) {
-	percent := float64(done) / float64(total) * 100
-	log.Printf("[Query] Env:%s  App:%s  Service:%s  →  Progress: %.1f%% (%d/%d)",
-		env.Value, app.Value, svc.Name, percent, done, total)
+func createRuleset(name string) (string, error) {
+	enabled := true
+	rs := illumioapi.RuleSet{
+		Name:        name,
+		Description: ptrString("Created by Auto Deny Rules script."),
+		Enabled:     &enabled,
+		Scopes:      &[][]illumioapi.Scopes{{}}, // global scope
+	}
+
+	createdRS, _, err := pce.CreateRuleset(rs)
+	if err != nil {
+		return "", fmt.Errorf("failed to create ruleset: %w", err)
+	}
+	return createdRS.Href, nil
 }
 
+func createDenyRule(pce illumioapi.PCE, rulesetHref, serviceHref string, apps []illumioapi.Label, env illumioapi.Label, ipListHref string) error {
+	boolPtr := func(b bool) *bool { return &b }
+	stringPtr := func(s string) *string { return &s }
+
+	providers := []illumioapi.ConsumerOrProvider{{Label: &illumioapi.Label{Href: env.Href}}}
+	for _, app := range apps {
+		providers = append(providers, illumioapi.ConsumerOrProvider{Label: &illumioapi.Label{Href: app.Href}})
+	}
+	consumers := []illumioapi.ConsumerOrProvider{{IPList: &illumioapi.IPList{Href: ipListHref}}}
+	ingressServices := []illumioapi.IngressServices{{Href: serviceHref}}
+
+	rule := illumioapi.Rule{
+		RuleType:        "deny",
+		Providers:       &providers,
+		Consumers:       &consumers,
+		IngressServices: &ingressServices,
+		Enabled:         boolPtr(true),
+		Description:     stringPtr(""),
+	}
+
+	_, api, err := pce.CreateRule(rulesetHref, rule)
+	if err != nil {
+		return fmt.Errorf("failed to create deny rule: %w", err)
+	}
+	vlog("Created deny rule successfully. API response: %s", api.RespBody)
+	return nil
+}
+
+func getIPListHref(pce illumioapi.PCE, targetName string) (string, error) {
+	queryParams := map[string]string{"name": targetName}
+	_, err := pce.GetIPLists(queryParams, "draft")
+	if err != nil {
+		return "", fmt.Errorf("failed to get IP lists: %w", err)
+	}
+	if len(pce.IPListsSlice) == 0 {
+		return "", fmt.Errorf("no IP list found with name %q", targetName)
+	}
+	for _, ipList := range pce.IPListsSlice {
+		if ipList.Name == targetName {
+			return ipList.Href, nil
+		}
+	}
+	return pce.IPListsSlice[0].Href, nil
+}
+
+// Main runner
 func RunAutoDenyRules(verboseFlag bool, excludeBroadcast, excludeMulticast bool) error {
 	verbose = verboseFlag
 
-	// Initialize PCE from workloader config
 	var err error
 	pce, err = utils.GetTargetPCEV2(true)
 	if err != nil {
@@ -595,45 +434,31 @@ func RunAutoDenyRules(verboseFlag bool, excludeBroadcast, excludeMulticast bool)
 					defer wg.Done()
 					defer func() { <-sem }()
 
-					ok, err := submitTrafficQuery(
-						pce, // <-- your PCE object
-						ei.env.Href,
-						a.Href,
-						service,
-						excludeBroadcast,
-						excludeMulticast,
-					)
+					ok, err := submitTrafficQuery(pce, ei.env.Href, a.Href, service, excludeBroadcast, excludeMulticast)
 					if err != nil {
-						log.Printf("[Query] Env:%s  App:%s  Service:%s  →  error: %v",
-							ei.env.Value, a.Value, service.Name, err)
-					} else if ok { // no traffic found
+						log.Printf("[Query] Env:%s  App:%s  Service:%s  →  error: %v", ei.env.Value, a.Value, service.Name, err)
+					} else if ok {
 						appsMu.Lock()
 						appsNoTraffic = append(appsNoTraffic, a)
 						appsMu.Unlock()
 					}
 
-					// update and print query progress (always shown)
 					atomic.AddInt64(&doneQueries, 1)
 					logQueryProgress(ei.env, a, service, atomic.LoadInt64(&doneQueries), totalQueries)
 				}(app)
 			}
 
-			// wait for all apps of this service to finish before moving on
 			wg.Wait()
 
 			if len(appsNoTraffic) > 0 {
 				denyRulesMu.Lock()
-				denyRules = append(denyRules, denyRuleInfo{
-					env:     ei.env,
-					service: service,
-					apps:    appsNoTraffic,
-				})
+				denyRules = append(denyRules, denyRuleInfo{env: ei.env, service: service, apps: appsNoTraffic})
 				denyRulesMu.Unlock()
 			}
 		}
 	}
 
-	// Create deny rules in the single rule-set - with progress tracking
+	// Create deny rules
 	totalDenyRules = int64(len(denyRules))
 	if totalDenyRules == 0 {
 		log.Println("No deny rules needed - skipping rule creation.")
@@ -641,25 +466,18 @@ func RunAutoDenyRules(verboseFlag bool, excludeBroadcast, excludeMulticast bool)
 		log.Printf("Creating %d deny rule(s)...", totalDenyRules)
 		for _, dr := range denyRules {
 			if err := createDenyRule(pce, rulesetHref, dr.service.Href, dr.apps, dr.env, ipListHref); err != nil {
-				log.Printf("Failed to create deny rule for env %s service %s: %v",
-					dr.env.Value, dr.service.Name, err)
+				log.Printf("Failed to create deny rule for env %s service %s: %v", dr.env.Value, dr.service.Name, err)
 			} else {
-				// Combined log line
 				atomic.AddInt64(&doneDenyRules, 1)
 				percent := float64(atomic.LoadInt64(&doneDenyRules)) / float64(totalDenyRules) * 100
 				log.Printf("Created deny rule for env %s service %s (apps: %d) – Progress: %.1f%% (%d/%d)",
-					dr.env.Value, dr.service.Name, len(dr.apps),
-					percent, atomic.LoadInt64(&doneDenyRules), totalDenyRules)
-				// End combined line
+					dr.env.Value, dr.service.Name, len(dr.apps), percent, atomic.LoadInt64(&doneDenyRules), totalDenyRules)
 			}
 		}
 	}
 
-	// Optional clean-up: delete the rule-set if it stayed empty
 	if len(denyRules) == 0 {
 		log.Printf("No deny rules needed - you may delete the empty rule set %s", rulesetHref)
-
-		// Use the illumioapi package's DeleteHref method
 		api, err := pce.DeleteHref(rulesetHref)
 		if err != nil {
 			log.Printf("Failed to delete empty rule set: %v", err)
