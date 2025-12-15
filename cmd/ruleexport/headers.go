@@ -43,6 +43,7 @@ const (
 	HeaderNetworkType                   = "network_type"
 	HeaderExternalDataSet               = "external_data_set"
 	HeaderExternalDataReference         = "external_data_reference"
+	HeaderPolicyVersionNumber           = "policy_version_number"
 )
 
 func getCSVHeaders(templateFormat bool) []string {
@@ -92,9 +93,13 @@ func getCSVHeaders(templateFormat bool) []string {
 	return headers
 }
 
-func createEntrySlice(csvEntryMap map[string]string, templateFormat bool, useSubnets bool) []string {
+func createEntrySlice(csvEntryMap map[string]string, templateFormat bool, useSubnets bool, includePolicyVersionNumber bool) []string {
 	entry := []string{}
-	for _, h := range getCSVHeaders(templateFormat) {
+	r := getCSVHeaders(templateFormat)
+	if includePolicyVersionNumber {
+		r = append(r, HeaderPolicyVersionNumber)
+	}
+	for _, h := range r {
 		if !useSubnets && (h == HeaderSrcUseWorkloadSubnets || h == HeaderDstUseWorkloadSubnets) {
 			continue
 		}
