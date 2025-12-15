@@ -22,12 +22,12 @@ var err error
 
 // RuleExport is the input format for the rule-export command
 type RuleExport struct {
-	PCE                                                                       *ia.PCE
-	Debug, Edge, ExpandServices, TrafficCount, SkipWkldDetailCheck            bool
-	OutputFileName, ExplorerStart, ExplorerEnd, ExclServiceCSV, PolicyVersion string
-	ExplorerMax, TrafficRuleLimit                                             int
-	NoHref                                                                    bool
-	RulesetHrefs                                                              *[]string
+	PCE                                                                                        *ia.PCE
+	IncludePolicyVersionNumber, Debug, Edge, ExpandServices, TrafficCount, SkipWkldDetailCheck bool
+	OutputFileName, ExplorerStart, ExplorerEnd, ExclServiceCSV, PolicyVersion                  string
+	ExplorerMax, TrafficRuleLimit                                                              int
+	NoHref                                                                                     bool
+	RulesetHrefs                                                                               *[]string
 }
 
 var input RuleExport
@@ -39,6 +39,7 @@ func init() {
 	RuleExportCmd.Flags().StringVar(&userProvidedRulesetHrefs, "ruleset-hrefs", "", "a file with list of ruleset hrefs to filter. use workloader ruleset-export to get a list of rulesets and build the list of hrefs. header optional.")
 	RuleExportCmd.Flags().StringVar(&input.PolicyVersion, "policy-version", "draft", "Policy version. Must be active or draft.")
 	RuleExportCmd.Flags().BoolVar(&input.ExpandServices, "expand-svcs", false, "expand service objects to show ports/protocols (not compatible in rule-import format).")
+	RuleExportCmd.Flags().BoolVar(&input.IncludePolicyVersionNumber, "include-policy-version-number", false, "include the policy version number in the output.")
 	RuleExportCmd.Flags().BoolVar(&input.TrafficCount, "traffic-count", false, "include the traffic summaries for flows that meet the rule criteria. an explorer query is executed per rule, which will take some time.")
 	RuleExportCmd.Flags().IntVar(&input.ExplorerMax, "traffic-max-results", 10000, "maximum results on an explorer query. only applicable if used with traffic-count flag.")
 	RuleExportCmd.Flags().IntVar(&input.TrafficRuleLimit, "traffic-rule-limit", 500, "maximum number of rules to be processed for traffic. default is 500 for performance.")
@@ -259,6 +260,9 @@ func (r *RuleExport) ExportToCsv() {
 	} else {
 		headerSlice = getCSVHeaders(input.NoHref)
 	}
+	if input.IncludePolicyVersionNumber {
+		headerSlice = append(headerSlice, "policy_version_number")
+	}
 
 	// Remove workloadsubnets from headers based on PCE version
 	if !pceVersionIncludesUseSubnets {
@@ -277,6 +281,17 @@ func (r *RuleExport) ExportToCsv() {
 		input.OutputFileName = fmt.Sprintf("workloader-rule-export-%s.csv", time.Now().Format("20060102_150405"))
 	}
 	utils.WriteLineOutput(headerSlice, input.OutputFileName)
+
+	var policyVersionNumberString string
+	if input.IncludePolicyVersionNumber {
+		// Get policy version number
+		policyVersion, api, err := input.PCE.GetMostRecentSecPolicy()
+		utils.LogAPIRespV2("GetMostRecentSecPolicy", api)
+		if err != nil {
+			utils.LogErrorf("error getting most recent policy version number - %s", err.Error())
+		}
+		policyVersionNumberString = strconv.Itoa(policyVersion.Version)
+	}
 
 	// Iterate each ruleset
 	totalRules := 0
@@ -334,6 +349,9 @@ func (r *RuleExport) ExportToCsv() {
 				csvEntryMap[HeaderUpdateType] = "Addition Pending"
 			} else {
 				csvEntryMap[HeaderUpdateType] = rule.UpdateType
+			}
+			if input.IncludePolicyVersionNumber {
+				csvEntryMap[HeaderPolicyVersionNumber] = policyVersionNumberString
 			}
 
 			// Consumers
@@ -573,9 +591,9 @@ func (r *RuleExport) ExportToCsv() {
 				if skipped {
 					skippedRules++
 				}
-				utils.WriteLineOutput(append(createEntrySlice(csvEntryMap, input.NoHref, pceVersionIncludesUseSubnets), data...), input.OutputFileName)
+				utils.WriteLineOutput(append(createEntrySlice(csvEntryMap, input.NoHref, pceVersionIncludesUseSubnets, input.IncludePolicyVersionNumber), data...), input.OutputFileName)
 			} else {
-				utils.WriteLineOutput(createEntrySlice(csvEntryMap, input.NoHref, pceVersionIncludesUseSubnets), input.OutputFileName)
+				utils.WriteLineOutput(createEntrySlice(csvEntryMap, input.NoHref, pceVersionIncludesUseSubnets, input.IncludePolicyVersionNumber), input.OutputFileName)
 			}
 
 		}
