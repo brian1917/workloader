@@ -5,7 +5,7 @@ go 1.24.2
 require (
 	github.com/aws/aws-sdk-go v1.44.243
 	github.com/brian1917/illumioapi v1.85.0
-	github.com/brian1917/illumioapi/v2 v2.0.9
+	github.com/brian1917/illumioapi/v2 v2.0.11
 	github.com/brian1917/illumiocloudapi v1.0.5
 	github.com/brian1917/ns v1.2.0
 	github.com/brian1917/workloader/utils v1.7.0

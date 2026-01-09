@@ -9,7 +9,7 @@ import (
 )
 
 // Declare global variables
-var managedOnly, unmanagedOnly, onlineOnly, noHref, includeVuln, removeDescNewLines, labelSummary, addLabelPrefix bool
+var managedOnly, unmanagedOnly, onlineOnly, cvenOnly, noHref, includeVuln, removeDescNewLines, labelSummary, addLabelPrefix bool
 var headers, labelFile, uniqueLabelKeys, globalOutputFileName, subnetInclude string
 
 func init() {
@@ -18,6 +18,7 @@ func init() {
 	WkldExportCmd.Flags().BoolVarP(&managedOnly, "managed-only", "m", false, "only export managed workloads.")
 	WkldExportCmd.Flags().BoolVarP(&unmanagedOnly, "unmanaged-only", "u", false, "only export unmanaged workloads.")
 	WkldExportCmd.Flags().BoolVarP(&onlineOnly, "online-only", "o", false, "only export online workloads.")
+	WkldExportCmd.Flags().BoolVarP(&cvenOnly, "cven-only", "c", false, "only export cven workloads.")
 	WkldExportCmd.Flags().BoolVarP(&addLabelPrefix, "add-label-prefix", "a", false, "add the \"label:\" prefix in the header for any label values.")
 	WkldExportCmd.Flags().StringVarP(&subnetInclude, "subnet", "s", "", "subnet filter to only export workloads with an interface in that subnet. multiple subnets should be comma-separated (e.g., \"10.0.0.64/26,10.0.0.128/26\")")
 	WkldExportCmd.Flags().BoolVarP(&includeVuln, "incude-vuln-data", "v", false, "include vulnerability data.")
@@ -100,7 +101,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 		if unmanagedOnly {
 			load.WorkloadsQueryParameters["managed"] = "false"
 		}
-		if managedOnly {
+		if managedOnly || cvenOnly {
 			load.WorkloadsQueryParameters["managed"] = "true"
 		}
 		if includeVuln {
