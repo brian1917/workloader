@@ -11,58 +11,179 @@ import (
 
 	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/utils"
-
 	"github.com/spf13/cobra"
+)
+
+const (
+	maxAppsPerRule         = 198
+	maxConcurrentQueries   = 2
+	trafficQueryTimeout    = 5 * time.Minute
+	trafficQueryPollPeriod = 5 * time.Second
+	targetIPListName       = "Any (0.0.0.0/0 and ::/0)"
+)
+
+type trafficDirection string
+
+const (
+	inbound  trafficDirection = "inbound"
+	outbound trafficDirection = "outbound"
 )
 
 // denyRuleInfo holds information needed to create a deny rule
 type denyRuleInfo struct {
-	env     illumioapi.Label   // The environment label
-	service illumioapi.Service // The service to deny
-	apps    []illumioapi.Label // The applications with no traffic
+	env       illumioapi.Label   // The environment label
+	service   illumioapi.Service // The service to deny
+	apps      []illumioapi.Label // The applications with no traffic
+	direction trafficDirection
+}
+
+type labelFilter struct {
+	include map[string]map[string]bool
+	exclude map[string]map[string]bool
 }
 
 var AutoDenyRulesCmd = &cobra.Command{
 	Use:   "auto-deny-rules",
-	Short: "Run auto-deny-rules based on traffic queries",
-	Long:  `Creates deny rules automatically for workloads with no risky services traffic.`,
+	Short: "Creates deny rules automatically for workloads, based on traffic query results on ransomware services.",
+	Long:  `Creates deny rules automatically for workloads, based on traffic query results on ransomware services.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return RunAutoDenyRules(verboseFlag, excludeBroadcastFlag, excludeMulticastFlag)
+		return RunAutoDenyRules(
+			verboseEnabled,
+			excludeBroadcastFlag,
+			excludeMulticastFlag,
+			dryRun,
+			includeLabels,
+			excludeLabels,
+			directionFlag,
+		)
 	},
 }
 
 // optional flags
-var verboseFlag bool
-var excludeBroadcastFlag bool
-var excludeMulticastFlag bool
-
-func init() {
-	AutoDenyRulesCmd.Flags().BoolVar(&verboseFlag, "verbose", false, "enable verbose logging")
-	AutoDenyRulesCmd.Flags().BoolVar(&excludeBroadcastFlag, "exclude-broadcast", false, "exclude broadcast traffic")
-	AutoDenyRulesCmd.Flags().BoolVar(&excludeMulticastFlag, "exclude-multicast", false, "exclude multicast traffic")
-}
-
 var (
-	verbose        bool
-	pce            illumioapi.PCE
-	totalDenyRules int64
-	doneDenyRules  int64
+	verboseEnabled       bool
+	excludeBroadcastFlag bool
+	excludeMulticastFlag bool
+	dryRun               bool
+	directionFlag        string
+	includeLabels        []string
+	excludeLabels        []string
+	pce                  illumioapi.PCE
 )
 
-// Helper functions
+func init() {
+	AutoDenyRulesCmd.Flags().BoolVar(&verboseEnabled, "verbose", false, "enable verbose logging")
+	AutoDenyRulesCmd.Flags().BoolVar(&excludeBroadcastFlag, "exclude-broadcast", false, "exclude broadcast traffic")
+	AutoDenyRulesCmd.Flags().BoolVar(&excludeMulticastFlag, "exclude-multicast", false, "exclude multicast traffic")
+	AutoDenyRulesCmd.Flags().StringSliceVar(&includeLabels, "include-label", nil, "only include env/app labels matching key:value (repeatable, e.g. --include-label env:Dev)")
+	AutoDenyRulesCmd.Flags().StringSliceVar(&excludeLabels, "exclude-label", nil, "exclude env/app labels matching key:value (repeatable, e.g. --exclude-label env:Prod)")
+	AutoDenyRulesCmd.Flags().BoolVar(&dryRun, "dry-run", false, "show what would be created without creating rule sets or rules")
+	AutoDenyRulesCmd.Flags().StringVar(&directionFlag, "direction", "", "traffic direction to process: 'inbound' or 'outbound'; omit flag to process both")
+}
+
+// ---------- Logging / helpers ----------
+
 func vlog(format string, v ...interface{}) {
-	if verbose {
+	if verboseEnabled {
 		log.Printf(format, v...)
 	}
 }
 
-func logQueryProgress(env illumioapi.Label, app illumioapi.Label, svc illumioapi.Service, done, total int64) {
+func logQueryProgress(
+	env illumioapi.Label,
+	app illumioapi.Label,
+	svc illumioapi.Service,
+	direction trafficDirection,
+	done, total int64,
+) {
 	percent := float64(done) / float64(total) * 100
-	log.Printf("[Query] Env:%s  App:%s  Service:%s  →  Progress: %.1f%% (%d/%d)",
-		env.Value, app.Value, svc.Name, percent, done, total)
+	log.Printf("[QUERY:%s] Env:%s  App:%s  Service:%s  →  %.1f%% (%d/%d)",
+		strings.ToUpper(string(direction)), env.Value, app.Value, svc.Name, percent, done, total)
 }
 
 func ptrString(s string) *string { return &s }
+func ptrBool(b bool) *bool       { return &b }
+
+func parseDirectionFlag(direction string) ([]trafficDirection, error) {
+	switch strings.ToLower(strings.TrimSpace(direction)) {
+	case "":
+		// default: both
+		return []trafficDirection{inbound, outbound}, nil
+	case "inbound":
+		return []trafficDirection{inbound}, nil
+	case "outbound":
+		return []trafficDirection{outbound}, nil
+	default:
+		return nil, fmt.Errorf("invalid --direction %q (allowed: inbound, outbound; omit flag to process both)", direction)
+	}
+}
+
+// chunkApps splits apps into chunks of size n.
+func chunkApps(apps []illumioapi.Label, n int) [][]illumioapi.Label {
+	if len(apps) == 0 || n <= 0 {
+		return nil
+	}
+	chunks := make([][]illumioapi.Label, 0, (len(apps)+n-1)/n)
+	for i := 0; i < len(apps); i += n {
+		end := i + n
+		if end > len(apps) {
+			end = len(apps)
+		}
+		chunks = append(chunks, apps[i:end])
+	}
+	return chunks
+}
+
+// ---------- Label filtering ----------
+
+func buildLabelFilter(includes, excludes []string) (*labelFilter, error) {
+	lf := &labelFilter{
+		include: map[string]map[string]bool{},
+		exclude: map[string]map[string]bool{},
+	}
+
+	parse := func(in []string, target map[string]map[string]bool) error {
+		for _, s := range in {
+			parts := strings.SplitN(s, ":", 2)
+			if len(parts) != 2 {
+				return fmt.Errorf("invalid label filter %q, expected key:value", s)
+			}
+			key := strings.TrimSpace(parts[0])
+			val := strings.TrimSpace(parts[1])
+			if key == "" || val == "" {
+				return fmt.Errorf("invalid label filter %q, empty key or value", s)
+			}
+			if target[key] == nil {
+				target[key] = map[string]bool{}
+			}
+			target[key][val] = true
+		}
+		return nil
+	}
+
+	if err := parse(includes, lf.include); err != nil {
+		return nil, err
+	}
+	if err := parse(excludes, lf.exclude); err != nil {
+		return nil, err
+	}
+	return lf, nil
+}
+
+func labelAllowed(key, value string, lf *labelFilter) bool {
+	if lf == nil {
+		return true
+	}
+	if vals, ok := lf.exclude[key]; ok && vals[value] {
+		return false
+	}
+	if vals, ok := lf.include[key]; ok {
+		return vals[value]
+	}
+	return true
+}
+
+// ---------- PCE fetchers ----------
 
 // Fetch environments
 func getEnvs() ([]illumioapi.Label, error) {
@@ -73,6 +194,7 @@ func getEnvs() ([]illumioapi.Label, error) {
 
 	seen := make(map[string]struct{}, len(pce.LabelsSlice))
 	out := make([]illumioapi.Label, 0, len(pce.LabelsSlice))
+
 	for _, l := range pce.LabelsSlice {
 		if l.Key != "env" || illumioapi.PtrToVal(l.Deleted) || l.Href == "" || l.Value == "" {
 			continue
@@ -121,7 +243,7 @@ func getRansomServices() ([]illumioapi.Service, error) {
 }
 
 // Fetch workloads and extract unique apps
-func getWorkloadsForEnv(pce illumioapi.PCE, env illumioapi.Label) ([]illumioapi.Label, error) {
+func getWorkloadsForEnv(pce illumioapi.PCE, env illumioapi.Label, lf *labelFilter) ([]illumioapi.Label, error) {
 	if env.Href == "" {
 		return nil, fmt.Errorf("environment label href cannot be empty")
 	}
@@ -141,13 +263,18 @@ func getWorkloadsForEnv(pce illumioapi.PCE, env illumioapi.Label) ([]illumioapi.
 	}
 
 	uniqueApps := make(map[string]illumioapi.Label)
-	for _, workload := range pce.WorkloadsSlice {
-		if workload.Labels != nil {
-			for _, label := range *workload.Labels {
-				if label.Key == "app" && label.Href != "" {
-					uniqueApps[label.Href] = label
-				}
+	for _, wkld := range pce.WorkloadsSlice {
+		if wkld.Labels == nil {
+			continue
+		}
+		for _, label := range *wkld.Labels {
+			if label.Key != "app" || label.Href == "" {
+				continue
 			}
+			if !labelAllowed("app", label.Value, lf) {
+				continue
+			}
+			uniqueApps[label.Href] = label
 		}
 	}
 
@@ -160,20 +287,22 @@ func getWorkloadsForEnv(pce illumioapi.PCE, env illumioapi.Label) ([]illumioapi.
 	return apps, nil
 }
 
-// Submit traffic query
+// ---------- Traffic query ----------
+
 func submitTrafficQuery(
 	pce illumioapi.PCE,
 	envHref, appHref string,
 	service illumioapi.Service,
 	excludeBroadcast, excludeMulticast bool,
+	direction trafficDirection,
 ) (bool, error) {
 	now := time.Now().UTC()
+	end := now.Format(time.RFC3339)
 	start24h := now.Add(-24 * time.Hour).Format(time.RFC3339)
 	start89d := now.Add(-89 * 24 * time.Hour).Format(time.RFC3339)
-	end := now.Format(time.RFC3339)
 
 	buildPayload := func(start string) map[string]interface{} {
-		ports := []map[string]interface{}{}
+		ports := make([]map[string]interface{}, 0)
 		for _, sp := range illumioapi.PtrToVal(service.ServicePorts) {
 			m := map[string]interface{}{"proto": sp.Protocol}
 			if port := illumioapi.PtrToVal(sp.Port); port != 0 {
@@ -185,21 +314,40 @@ func submitTrafficQuery(
 			ports = append(ports, m)
 		}
 
-		return map[string]interface{}{
-			"query_name": fmt.Sprintf("Query Env: %s App: %s", envHref, appHref),
-			"sources": map[string]interface{}{
-				"include": []interface{}{[]interface{}{}},
+		var sources, destinations map[string]interface{}
+		exclusions := buildDestExclusions(excludeBroadcast, excludeMulticast)
+
+		labelsSelector := [][]map[string]map[string]string{
+			{
+				{"label": {"href": envHref}},
+				{"label": {"href": appHref}},
+			},
+		}
+
+		if direction == inbound {
+			sources = map[string]interface{}{
+				"include": []interface{}{[]interface{}{}}, // Any
 				"exclude": []interface{}{},
-			},
-			"destinations": map[string]interface{}{
-				"include": [][]map[string]map[string]string{
-					{
-						{"label": {"href": envHref}},
-						{"label": {"href": appHref}},
-					},
-				},
-				"exclude": buildDestExclusions(excludeBroadcast, excludeMulticast),
-			},
+			}
+			destinations = map[string]interface{}{
+				"include": labelsSelector,
+				"exclude": exclusions,
+			}
+		} else {
+			sources = map[string]interface{}{
+				"include": labelsSelector,
+				"exclude": []interface{}{},
+			}
+			destinations = map[string]interface{}{
+				"include": []interface{}{[]interface{}{}}, // Any
+				"exclude": exclusions,
+			}
+		}
+
+		return map[string]interface{}{
+			"query_name":   fmt.Sprintf("Query Env: %s App: %s", envHref, appHref),
+			"sources":      sources,
+			"destinations": destinations,
 			"services": map[string]interface{}{
 				"include": ports,
 				"exclude": []interface{}{},
@@ -220,7 +368,7 @@ func submitTrafficQuery(
 		return false, fmt.Errorf("failed to query 24h traffic: %w", err)
 	}
 	if hasFlows {
-		return false, nil // Found flows, so this is not an unused service
+		return false, nil // Found flows, so not unused
 	}
 
 	// If no flows in 24h, check the last 89 days
@@ -229,10 +377,10 @@ func submitTrafficQuery(
 		return false, fmt.Errorf("failed to query 89d traffic: %w", err)
 	}
 	if hasFlows {
-		return false, nil // Found flows, so this is not an unused service
+		return false, nil
 	}
 
-	// No flows found in either time period
+	// No flows found in either time period => unused service for this env/app/direction.
 	return true, nil
 }
 
@@ -240,18 +388,17 @@ func runSingleAsyncQuery(pce illumioapi.PCE, payload map[string]interface{}) (bo
 	var resp struct {
 		Href string `json:"href"`
 	}
+
 	_, err := pce.Post("traffic_flows/async_queries", payload, &resp)
 	if err != nil {
 		return false, fmt.Errorf("failed to create async query: %w", err)
 	}
-
 	if resp.Href == "" {
 		return false, fmt.Errorf("no href returned for async query")
 	}
 
-	// Poll the async query status using the package's GetHref method
-	timeout := time.After(5 * time.Minute)
-	ticker := time.NewTicker(5 * time.Second)
+	timeout := time.After(trafficQueryTimeout)
+	ticker := time.NewTicker(trafficQueryPollPeriod)
 	defer ticker.Stop()
 
 	for {
@@ -264,18 +411,15 @@ func runSingleAsyncQuery(pce illumioapi.PCE, payload map[string]interface{}) (bo
 				FlowsCount float64 `json:"flows_count"`
 			}
 
-			// Use GetHref to poll the async query status
 			_, err := pce.GetHref(resp.Href, &pollResp)
 			if err != nil {
 				return false, fmt.Errorf("failed to poll async query: %w", err)
 			}
 
-			if pollResp.Status == "completed" {
+			switch pollResp.Status {
+			case "completed":
 				return pollResp.FlowsCount > 0, nil
-			}
-
-			// Optional: Handle failed status
-			if pollResp.Status == "failed" {
+			case "failed":
 				return false, fmt.Errorf("async query failed")
 			}
 		}
@@ -283,7 +427,7 @@ func runSingleAsyncQuery(pce illumioapi.PCE, payload map[string]interface{}) (bo
 }
 
 func buildDestExclusions(broadcast, multicast bool) []interface{} {
-	excl := []interface{}{}
+	excl := make([]interface{}, 0, 2)
 	if broadcast {
 		excl = append(excl, map[string]string{"transmission": "broadcast"})
 	}
@@ -292,6 +436,8 @@ func buildDestExclusions(broadcast, multicast bool) []interface{} {
 	}
 	return excl
 }
+
+// ---------- Rule creation ----------
 
 func createRuleset(name string) (string, error) {
 	enabled := true
@@ -309,15 +455,38 @@ func createRuleset(name string) (string, error) {
 	return createdRS.Href, nil
 }
 
-func createDenyRule(pce illumioapi.PCE, rulesetHref, serviceHref string, apps []illumioapi.Label, env illumioapi.Label, ipListHref string) error {
-	boolPtr := func(b bool) *bool { return &b }
-	stringPtr := func(s string) *string { return &s }
-
-	providers := []illumioapi.ConsumerOrProvider{{Label: &illumioapi.Label{Href: env.Href}}}
+func labelsToCOP(apps []illumioapi.Label) []illumioapi.ConsumerOrProvider {
+	out := make([]illumioapi.ConsumerOrProvider, 0, len(apps))
 	for _, app := range apps {
-		providers = append(providers, illumioapi.ConsumerOrProvider{Label: &illumioapi.Label{Href: app.Href}})
+		out = append(out, illumioapi.ConsumerOrProvider{
+			Label: &illumioapi.Label{Href: app.Href},
+		})
 	}
-	consumers := []illumioapi.ConsumerOrProvider{{IPList: &illumioapi.IPList{Href: ipListHref}}}
+	return out
+}
+
+func createDenyRule(
+	pce illumioapi.PCE,
+	rulesetHref string,
+	serviceHref string,
+	apps []illumioapi.Label,
+	env illumioapi.Label,
+	ipListHref string,
+	direction trafficDirection,
+) error {
+
+	var providers, consumers []illumioapi.ConsumerOrProvider
+
+	if direction == inbound {
+		providers = append(providers, illumioapi.ConsumerOrProvider{Label: &illumioapi.Label{Href: env.Href}})
+		providers = append(providers, labelsToCOP(apps)...)
+		consumers = []illumioapi.ConsumerOrProvider{{IPList: &illumioapi.IPList{Href: ipListHref}}}
+	} else {
+		providers = []illumioapi.ConsumerOrProvider{{IPList: &illumioapi.IPList{Href: ipListHref}}}
+		consumers = append(consumers, illumioapi.ConsumerOrProvider{Label: &illumioapi.Label{Href: env.Href}})
+		consumers = append(consumers, labelsToCOP(apps)...)
+	}
+
 	ingressServices := []illumioapi.IngressServices{{Href: serviceHref}}
 
 	rule := illumioapi.Rule{
@@ -325,8 +494,8 @@ func createDenyRule(pce illumioapi.PCE, rulesetHref, serviceHref string, apps []
 		Providers:       &providers,
 		Consumers:       &consumers,
 		IngressServices: &ingressServices,
-		Enabled:         boolPtr(true),
-		Description:     stringPtr(""),
+		Enabled:         ptrBool(true),
+		Description:     ptrString(""),
 	}
 
 	_, api, err := pce.CreateRule(rulesetHref, rule)
@@ -338,8 +507,7 @@ func createDenyRule(pce illumioapi.PCE, rulesetHref, serviceHref string, apps []
 }
 
 func getIPListHref(pce illumioapi.PCE, targetName string) (string, error) {
-	queryParams := map[string]string{"name": targetName}
-	_, err := pce.GetIPLists(queryParams, "draft")
+	_, err := pce.GetIPLists(map[string]string{"name": targetName}, "draft")
 	if err != nil {
 		return "", fmt.Errorf("failed to get IP lists: %w", err)
 	}
@@ -354,41 +522,77 @@ func getIPListHref(pce illumioapi.PCE, targetName string) (string, error) {
 	return pce.IPListsSlice[0].Href, nil
 }
 
-// Main runner
-func RunAutoDenyRules(verboseFlag bool, excludeBroadcast, excludeMulticast bool) error {
-	verbose = verboseFlag
+// ---------- Main runner ----------
+
+func RunAutoDenyRules(
+	verbose bool,
+	excludeBroadcast bool,
+	excludeMulticast bool,
+	dryRun bool,
+	includeLabels []string,
+	excludeLabels []string,
+	direction string,
+) error {
+
+	// Ensure vlog() respects the parameter (fixes shadowing / makes --verbose work).
+	verboseEnabled = verbose
 
 	var err error
+
+	selectedDirs, err := parseDirectionFlag(direction)
+	if err != nil {
+		return err
+	}
+	vlog("Selected direction(s): %v", selectedDirs)
+
 	pce, err = utils.GetTargetPCEV2(true)
 	if err != nil {
 		utils.LogError(err.Error())
 		return err
 	}
 
+	labelFilter, err := buildLabelFilter(includeLabels, excludeLabels)
+	if err != nil {
+		return err
+	}
+
 	envs, err := getEnvs()
 	if err != nil {
-		return fmt.Errorf("Failed to load environments: %v", err)
+		return fmt.Errorf("failed to load environments: %w", err)
 	}
+
 	services, err := getRansomServices()
 	if err != nil {
-		return fmt.Errorf("Failed to load ransomware services: %v", err)
+		return fmt.Errorf("failed to load ransomware services: %w", err)
 	}
 
 	friendly := time.Now().Format("Jan 02, 2006 15:04:05")
 	rulesetName := fmt.Sprintf("Auto Deny Rules - %s", friendly)
-	rulesetHref, err := createRuleset(rulesetName)
-	if err != nil {
-		log.Fatalf("Failed to create rule set: %v", err)
+
+	var rulesetHref string
+	if dryRun {
+		log.Printf("[DRY-RUN] Would create rule set %q", rulesetName)
+	} else {
+		rulesetHref, err = createRuleset(rulesetName)
+		if err != nil {
+			return fmt.Errorf("failed to create rule set: %w", err)
+		}
+		log.Printf("Created Auto Deny Rules rule set %s", rulesetHref)
 	}
-	log.Printf("Created Auto Deny Rules rule set %s", rulesetHref)
 
 	type envInfo struct {
 		env  illumioapi.Label
 		apps []illumioapi.Label
 	}
-	var envInfos []envInfo
+
+	envInfos := make([]envInfo, 0, len(envs))
 	for _, env := range envs {
-		apps, err := getWorkloadsForEnv(pce, env)
+		if !labelAllowed("env", env.Value, labelFilter) {
+			vlog("Skipping env %s due to label filter", env.Value)
+			continue
+		}
+
+		apps, err := getWorkloadsForEnv(pce, env, labelFilter)
 		if err != nil {
 			vlog("Failed to get workloads for env %s: %v", env.Value, err)
 			continue
@@ -401,7 +605,7 @@ func RunAutoDenyRules(verboseFlag bool, excludeBroadcast, excludeMulticast bool)
 
 	var totalQueries int64
 	for _, ei := range envInfos {
-		totalQueries += int64(len(services) * len(ei.apps))
+		totalQueries += int64(len(services) * len(ei.apps) * len(selectedDirs))
 	}
 	if totalQueries == 0 {
 		log.Println("No queries to run - exiting.")
@@ -409,80 +613,135 @@ func RunAutoDenyRules(verboseFlag bool, excludeBroadcast, excludeMulticast bool)
 	}
 	log.Printf("Total traffic queries to execute: %d", totalQueries)
 
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, 2) // max 2 concurrent queries
-	var denyRules []denyRuleInfo
-	var denyRulesMu sync.Mutex
-
-	targetIPListName := "Any (0.0.0.0/0 and ::/0)"
 	ipListHref, err := getIPListHref(pce, targetIPListName)
 	if err != nil {
-		log.Fatalf("Failed to locate IP-list %q: %v", targetIPListName, err)
+		return fmt.Errorf("failed to locate IP-list %q: %w", targetIPListName, err)
 	}
 	log.Printf("Using the Any IP-list href: %s", ipListHref)
 
-	var doneQueries int64
+	sem := make(chan struct{}, maxConcurrentQueries)
+
+	var (
+		wg          sync.WaitGroup
+		denyRules   []denyRuleInfo
+		denyRulesMu sync.Mutex
+		doneQueries int64
+	)
+
 	for _, ei := range envInfos {
-		for _, service := range services {
-			var appsNoTraffic []illumioapi.Label
+		ei := ei // capture
+
+		for _, svc := range services {
+			svc := svc // capture
+
+			appsNoTraffic := make(map[trafficDirection][]illumioapi.Label, len(selectedDirs))
+			for _, d := range selectedDirs {
+				appsNoTraffic[d] = []illumioapi.Label{}
+			}
 			var appsMu sync.Mutex
 
 			for _, app := range ei.apps {
-				wg.Add(1)
-				sem <- struct{}{}
-				go func(a illumioapi.Label) {
-					defer wg.Done()
-					defer func() { <-sem }()
+				app := app // capture
 
-					ok, err := submitTrafficQuery(pce, ei.env.Href, a.Href, service, excludeBroadcast, excludeMulticast)
-					if err != nil {
-						log.Printf("[Query] Env:%s  App:%s  Service:%s  →  error: %v", ei.env.Value, a.Value, service.Name, err)
-					} else if ok {
-						appsMu.Lock()
-						appsNoTraffic = append(appsNoTraffic, a)
-						appsMu.Unlock()
-					}
+				for _, dir := range selectedDirs {
+					dir := dir // capture
 
-					atomic.AddInt64(&doneQueries, 1)
-					logQueryProgress(ei.env, a, service, atomic.LoadInt64(&doneQueries), totalQueries)
-				}(app)
+					wg.Add(1)
+					sem <- struct{}{}
+
+					go func() {
+						defer wg.Done()
+						defer func() { <-sem }()
+
+						ok, err := submitTrafficQuery(
+							pce,
+							ei.env.Href,
+							app.Href,
+							svc,
+							excludeBroadcast,
+							excludeMulticast,
+							dir,
+						)
+
+						if err != nil {
+							log.Printf(
+								"[QUERY] %s Env:%s App:%s Service:%s → error: %v",
+								dir, ei.env.Value, app.Value, svc.Name, err,
+							)
+						} else if ok {
+							appsMu.Lock()
+							appsNoTraffic[dir] = append(appsNoTraffic[dir], app)
+							appsMu.Unlock()
+						}
+
+						atomic.AddInt64(&doneQueries, 1)
+						logQueryProgress(ei.env, app, svc, dir, atomic.LoadInt64(&doneQueries), totalQueries)
+					}()
+				}
 			}
 
 			wg.Wait()
 
-			if len(appsNoTraffic) > 0 {
+			for dir, apps := range appsNoTraffic {
+				if len(apps) == 0 {
+					continue
+				}
 				denyRulesMu.Lock()
-				denyRules = append(denyRules, denyRuleInfo{env: ei.env, service: service, apps: appsNoTraffic})
+				denyRules = append(denyRules, denyRuleInfo{
+					env:       ei.env,
+					service:   svc,
+					apps:      apps,
+					direction: dir,
+				})
 				denyRulesMu.Unlock()
 			}
 		}
 	}
 
 	// Create deny rules
-	totalDenyRules = int64(len(denyRules))
-	if totalDenyRules == 0 {
-		log.Println("No deny rules needed - skipping rule creation.")
-	} else {
-		log.Printf("Creating %d deny rule(s)...", totalDenyRules)
+	if len(denyRules) > 0 {
+		log.Printf("Creating %d deny rule(s)...", len(denyRules))
+		var doneDenyRules int64
+
 		for _, dr := range denyRules {
-			if err := createDenyRule(pce, rulesetHref, dr.service.Href, dr.apps, dr.env, ipListHref); err != nil {
-				log.Printf("Failed to create deny rule for env %s service %s: %v", dr.env.Value, dr.service.Name, err)
-			} else {
+			appChunks := chunkApps(dr.apps, maxAppsPerRule)
+
+			if len(appChunks) > 1 {
+				log.Printf("Service %s in env %s has %d apps — splitting into %d rules",
+					dr.service.Name, dr.env.Value, len(dr.apps), len(appChunks))
+			}
+
+			for idx, apps := range appChunks {
+				if dryRun {
+					log.Printf("[DRY-RUN] Would create deny rule %d/%d: env=%s service=%s apps=%d",
+						idx+1, len(appChunks), dr.env.Value, dr.service.Name, len(apps))
+					continue
+				}
+
+				err := createDenyRule(pce, rulesetHref, dr.service.Href, apps, dr.env, ipListHref, dr.direction)
+				if err != nil {
+					log.Printf("Failed to create deny rule %d/%d for env %s service %s: %v",
+						idx+1, len(appChunks), dr.env.Value, dr.service.Name, err)
+					continue
+				}
+
 				atomic.AddInt64(&doneDenyRules, 1)
-				percent := float64(atomic.LoadInt64(&doneDenyRules)) / float64(totalDenyRules) * 100
-				log.Printf("Created deny rule for env %s service %s (apps: %d) – Progress: %.1f%% (%d/%d)",
-					dr.env.Value, dr.service.Name, len(dr.apps), percent, atomic.LoadInt64(&doneDenyRules), totalDenyRules)
 			}
 		}
 	}
 
+	// If no deny rules were created, delete ruleset (unless dry-run).
 	if len(denyRules) == 0 {
-		log.Printf("No deny rules needed - you may delete the empty rule set %s", rulesetHref)
-		api, err := pce.DeleteHref(rulesetHref)
-		if err != nil {
-			log.Printf("Failed to delete empty rule set: %v", err)
+		if dryRun {
+			log.Printf("No deny rules needed - no rule set was created (dry-run)")
 		} else {
-			log.Printf("Deleted empty rule set %s (Status: %d)", rulesetHref, api.StatusCode)
+			log.Printf("No deny rules needed - deleting empty rule set %s", rulesetHref)
+			api, err := pce.DeleteHref(rulesetHref)
+			if err != nil {
+				log.Printf("Failed to delete empty rule set %s: %v", rulesetHref, err)
+			} else {
+				log.Printf("Deleted empty rule set %s (Status: %d)", rulesetHref, api.StatusCode)
+			}
 		}
 	}
 
