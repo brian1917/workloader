@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"regexp"
 	"sort"
@@ -20,15 +21,22 @@ import (
 // AI endpoint flag
 var aiEndpoint string
 
+// Compare mode + sampling
+var compareExisting bool
+var sampleSize int
+
 func init() {
-	// Initialize AI endpoint flag for Cobra CLI command
 	AutoAILabelCmd.Flags().StringVar(&aiEndpoint, "ai-endpoint", "", "AI API endpoint URL")
+	AutoAILabelCmd.Flags().BoolVar(&compareExisting, "compare-existing", false,
+		"Compare existing app labels vs AI recommendation (no changes applied)")
+	AutoAILabelCmd.Flags().IntVar(&sampleSize, "sample-size", 0,
+		"Random sample size for compare mode (0 = all)")
 }
 
 // Cobra command for auto AI labeling
 var AutoAILabelCmd = &cobra.Command{
 	Use:   "auto-ai-label",
-	Short: "List workloads, run traffic queries, and optionally label workloads via AI",
+	Short: "Automatically label workloads via AI recommendations based on workload metadata.",
 	Run: func(cmd *cobra.Command, args []string) {
 		runAutoAILabel()
 	},
@@ -79,11 +87,153 @@ type AIExtraInfo struct {
 	Protocol    int    `json:"protocol,omitempty"`
 }
 
+// levenshteinDistance computes the Levenshtein edit distance between two strings.
+// This implementation is optimized to use O(min(len(a),len(b))) space.
+func levenshteinDistance(a, b string) int {
+	// Make sure a is the shorter string to minimize memory use
+	if len(a) > len(b) {
+		a, b = b, a
+	}
+
+	la := len(a)
+	lb := len(b)
+
+	// If one string is empty, distance is the other's length
+	if la == 0 {
+		return lb
+	}
+	if lb == 0 {
+		return la
+	}
+
+	// Convert to rune slices if you expect non-ASCII.
+	// Since you're normalizing to [a-zA-Z0-9], byte-wise is fine.
+	prev := make([]int, la+1)
+	cur := make([]int, la+1)
+
+	for i := 0; i <= la; i++ {
+		prev[i] = i
+	}
+
+	for j := 1; j <= lb; j++ {
+		cur[0] = j
+		bj := b[j-1]
+		for i := 1; i <= la; i++ {
+			cost := 0
+			if a[i-1] != bj {
+				cost = 1
+			}
+
+			// deletion: prev[i] + 1
+			// insertion: cur[i-1] + 1
+			// substitution: prev[i-1] + cost
+			del := prev[i] + 1
+			ins := cur[i-1] + 1
+			sub := prev[i-1] + cost
+
+			cur[i] = del
+			if ins < cur[i] {
+				cur[i] = ins
+			}
+			if sub < cur[i] {
+				cur[i] = sub
+			}
+		}
+		prev, cur = cur, prev
+	}
+
+	return prev[la]
+}
+
+// levenshteinSimilarity returns a value in [0,1], where 1 means exact match.
+func levenshteinSimilarity(a, b string) float64 {
+	if a == b {
+		return 1.0
+	}
+	maxLen := len(a)
+	if len(b) > maxLen {
+		maxLen = len(b)
+	}
+	if maxLen == 0 {
+		return 1.0
+	}
+	dist := levenshteinDistance(a, b)
+	return 1.0 - (float64(dist) / float64(maxLen))
+}
+
+// normalizeForCompare keeps your original normalization but lowercases for comparisons.
+func normalizeForCompare(s string) string {
+	return strings.ToLower(normalizeLabel(s))
+}
+
+// labelsMatchCompareMode uses exact/contains/levenshtein similarity to decide match.
+// No prefix stripping is performed.
+func labelsMatchCompareMode(existing, ai string, threshold float64) (bool, string, float64) {
+	e := normalizeForCompare(existing)
+	a := normalizeForCompare(ai)
+
+	if e == "" || a == "" {
+		return false, "empty", 0
+	}
+
+	if e == a {
+		return true, "exact", 1.0
+	}
+
+	// Contains match catches "AI-IllumioCore" vs "Illumio Core" after normalization
+	if strings.Contains(e, a) || strings.Contains(a, e) {
+		return true, "contains", 1.0
+	}
+
+	sim := levenshteinSimilarity(e, a)
+	if sim >= threshold {
+		return true, "levenshtein", sim
+	}
+
+	return false, "different", sim
+}
+
+func sampleWorkloads(in []illumioapi.Workload, n int) []illumioapi.Workload {
+	if n <= 0 || n >= len(in) {
+		return in
+	}
+
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	tmp := make([]illumioapi.Workload, len(in))
+	copy(tmp, in)
+
+	r.Shuffle(len(tmp), func(i, j int) { tmp[i], tmp[j] = tmp[j], tmp[i] })
+	return tmp[:n]
+}
+
+func getExistingAppLabelFromWorkload(w *illumioapi.Workload) string {
+	if w.Labels == nil {
+		return ""
+	}
+	for _, lbl := range *w.Labels {
+		if lbl.Key == "app" {
+			return lbl.Value
+		}
+	}
+	return ""
+}
+
 // runAutoAILabel executes the main workflow
 func runAutoAILabel() {
 	pce, err := utils.GetTargetPCEV2(true)
 	if err != nil {
 		log.Fatalf("Failed to load PCE: %v", err)
+	}
+
+	// Compare mode: no apply/create, just comparisons
+	if compareExisting {
+		if aiEndpoint == "" {
+			log.Fatalf("--compare-existing requires --ai-endpoint")
+		}
+		runCompareExisting(pce)
+		log.Println("auto-ai-label compare-existing completed")
+		return
 	}
 
 	workloads := getWorkloads(pce)
@@ -99,14 +249,14 @@ func runAutoAILabel() {
 			log.Fatalf("Failed to fetch workload details: %v", err)
 		}
 
-		topService := findTopMatchingService(flows, details.Services.OpenServicePorts)
+		topService, conn := findTopMatchingService(flows, details.Services.OpenServicePorts)
 		if topService == nil {
 			fmt.Println("No matching open service found for traffic flows")
 			continue
 		}
 
 		fmt.Printf("Top matching service: connections=%d port=%d proto=%d process=%s package=%s win_service_name=%s\n",
-			flows[0].NumConnections,
+			conn,
 			topService.Port,
 			topService.Protocol,
 			topService.ProcessName,
@@ -151,6 +301,24 @@ func getWorkloads(pce illumioapi.PCE) []illumioapi.Workload {
 		}
 		fmt.Printf(" - %s (%s)\n", hostname, w.Href)
 	}
+	return wlds
+}
+
+func getWorkloadsWithAppLabels(pce illumioapi.PCE) []illumioapi.Workload {
+	params := map[string]string{
+		"managed": "true",
+		"online":  "true",
+		// Require app label exists; no enforcement_modes filter in compare mode
+		"labels": fmt.Sprintf(`[["/orgs/%d/labels?key=app&exists=true"]]`, pce.Org),
+	}
+
+	_, err := pce.GetWklds(params)
+	if err != nil {
+		log.Fatalf("Error fetching workloads: %v", err)
+	}
+
+	wlds := pce.WorkloadsSlice
+	fmt.Printf("Found %d managed+online workloads WITH app labels\n", len(wlds))
 	return wlds
 }
 
@@ -291,15 +459,15 @@ func getWorkloadDetails(pce illumioapi.PCE, workloadHref string) (*WorkloadDetai
 }
 
 // findTopMatchingService finds the first service that matches a traffic flow
-func findTopMatchingService(flows []FlowSummary, services []OpenServicePort) *OpenServicePort {
+func findTopMatchingService(flows []FlowSummary, services []OpenServicePort) (*OpenServicePort, int) {
 	for _, flow := range flows {
-		for _, svc := range services {
-			if svc.Port == flow.Port && svc.Protocol == flow.Proto {
-				return &svc
+		for i := range services {
+			if services[i].Port == flow.Port && services[i].Protocol == flow.Proto {
+				return &services[i], flow.NumConnections
 			}
 		}
 	}
-	return nil
+	return nil, 0
 }
 
 // sendToAIEndpoint sends service/workload info to AI and returns the recommended label
@@ -468,4 +636,84 @@ func handleAILabel(pce illumioapi.PCE, workloadHref, rawLabel string) {
 			log.Printf("Label applied successfully to workload %s: %s", workloadHref, labelToApply.Value)
 		}
 	}
+}
+
+func runCompareExisting(pce illumioapi.PCE) {
+	workloads := getWorkloadsWithAppLabels(pce)
+	workloads = sampleWorkloads(workloads, sampleSize)
+
+	fmt.Printf("Compare mode: evaluating %d workloads (sample-size=%d)\n", len(workloads), sampleSize)
+
+	// Stats
+	total := 0
+	match := 0
+	mismatch := 0
+	noService := 0
+	aiFail := 0
+
+	for _, w := range workloads {
+		total++
+
+		hostname := "<no hostname>"
+		if w.Hostname != nil {
+			hostname = *w.Hostname
+		}
+
+		existingApp := getExistingAppLabelFromWorkload(&w)
+		existingNorm := normalizeForCompare(existingApp)
+
+		fmt.Printf("\n[COMPARE] %s %s\n", hostname, w.Href)
+		fmt.Printf("  Existing app label: %q (norm=%q)\n", existingApp, existingNorm)
+
+		queryHref := submitTrafficQueryForDestination(pce, w.Href)
+		flows := downloadTrafficFlowsJSON(pce, queryHref)
+
+		details, err := getWorkloadDetails(pce, w.Href)
+		if err != nil {
+			log.Printf("  ERROR workload details: %v\n", err)
+			continue
+		}
+
+		topService, conn := findTopMatchingService(flows, details.Services.OpenServicePorts)
+		if topService == nil {
+			noService++
+			fmt.Println("  No matching open service found for traffic flows -> SKIP AI")
+			continue
+		}
+
+		fmt.Printf("  Matched service: connections=%d port=%d proto=%d process=%q package=%q win_service=%q\n",
+			conn, topService.Port, topService.Protocol, topService.ProcessName, topService.Package, topService.WinServiceName)
+
+		aiLabel, err := sendToAIEndpoint(aiEndpoint, w.Href, topService)
+		if err != nil {
+			aiFail++
+			fmt.Printf("  AI ERROR: %v\n", err)
+			continue
+		}
+
+		aiNorm := normalizeForCompare(aiLabel)
+		fmt.Printf("  AI label: %q (norm=%q)\n", aiLabel, aiNorm)
+
+		matchOK, reason, sim := labelsMatchCompareMode(existingApp, aiLabel, 0.85)
+
+		if matchOK {
+			match++
+			if reason == "levenshtein" {
+				fmt.Printf("  RESULT: MATCH (%s %.2f)\n", reason, sim)
+			} else {
+				fmt.Printf("  RESULT: MATCH (%s)\n", reason)
+			}
+		} else {
+			mismatch++
+			fmt.Printf("  RESULT: MISMATCH (%s %.2f)\n", reason, sim)
+		}
+
+	}
+
+	fmt.Printf("\n===== COMPARE SUMMARY =====\n")
+	fmt.Printf("Total evaluated:     %d\n", total)
+	fmt.Printf("Matches:             %d\n", match)
+	fmt.Printf("Mismatches:          %d\n", mismatch)
+	fmt.Printf("No matching service: %d\n", noService)
+	fmt.Printf("AI failures:         %d\n", aiFail)
 }
