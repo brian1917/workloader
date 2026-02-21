@@ -70,7 +70,12 @@ func nicExport() {
 			} else {
 				cidr = fmt.Sprintf("%s/%d", i.Address, *i.CidrBlock)
 			}
-			data = append(data, []string{w.Hostname, w.Href, w.GetMode(), i.Name, strconv.FormatBool(ignored), i.Address, cidr, w.GetNetMask(i.Address), i.DefaultGatewayAddress})
+			// Interface network name
+			netName := ""
+			if i.Network != nil {
+				netName = i.Network.Name
+			}
+			data = append(data, []string{w.Hostname, w.Href, w.GetMode(), i.Name, strconv.FormatBool(ignored), i.Address, cidr, w.GetNetMask(i.Address), i.DefaultGatewayAddress, netName})
 		}
 	}
 
