@@ -14,7 +14,7 @@ func RootTemplate() string {
   Cloud Commands:{{range .Commands}}{{if (or (eq .Name "tenant-add") (eq .Name "cloud-inventory") (eq .Name "azure-vnet-peering-report"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
   
-  Automation Commands:{{range .Commands}}{{if (or (eq .Name "azure-label") (eq .Name "aws-label") (eq .Name "gcp-label") (eq .Name "azure-network") (eq .Name "vmsync") (eq .Name "subnet") (eq .Name "hostparse") (eq .Name "dag-sync") (eq .Name "container-cluster-update"))}}
+  Automation Commands:{{range .Commands}}{{if (or (eq .Name "azure-label") (eq .Name "aws-label") (eq .Name "gcp-label") (eq .Name "azure-network") (eq .Name "vmsync") (eq .Name "subnet") (eq .Name "hostparse") (eq .Name "dag-sync") (eq .Name "container-cluster-update") (eq .Name "auto-deny-rules"))}}
 	{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
   Workload Management Commands:{{range .Commands}}{{if (or (eq .Name "wkld-cleanup") (eq .Name "compatibility") (eq .Name "mode") (eq .Name "upgrade") (eq .Name "unpair") (eq .Name "get-pk") (eq .Name "umwl-cleanup") (eq .Name "nic-manage") (eq .Name "containment-switch") (eq .Name "increase-ven-rate") (eq .Name "wkld-replicate") (eq .Name "wkld-label"))}}
