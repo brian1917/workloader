@@ -2,6 +2,7 @@ package processexport
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -129,6 +130,9 @@ func ExportProcesses(pce ia.PCE, outputFileName string) {
 	if outputFileName == "" {
 		outputFileName = fmt.Sprintf("workloader-process-export-%s.csv", time.Now().Format("20060102_150405"))
 	}
+
+	// Remove existing file so WriteLineOutput doesn't append to a previous run's output
+	os.Remove(outputFileName)
 
 	// Setup CSV Data
 	headers := []string{"hostname", "href", "process_path", "service_name", "port", "proto"}
