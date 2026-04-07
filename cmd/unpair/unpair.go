@@ -165,8 +165,19 @@ func unpair() {
 		wkldExport.WriteToCsv(hrefFile)
 	}
 
+	// Build label key headers from label dimensions
+	labelKeys := []string{}
+	for _, ld := range pce.LabelDimensionsSlice {
+		labelKeys = append(labelKeys, ld.Key)
+	}
+
 	// Run validation
 	vensToUnpair := []illumioapi.VEN{}
+	csvData := [][]string{}
+	csvHeaders := append([]string{"hostname", "href", "ven_href"}, labelKeys...)
+	csvHeaders = append(csvHeaders, "last_heartbeat", "hours_since_last_heartbeat")
+	csvData = append(csvData, csvHeaders)
+
 	for i, v := range processVENsFile() {
 
 		if val, ok := pce.VENs[v.Href]; !ok {
@@ -176,6 +187,7 @@ func unpair() {
 			// validate workload assignment
 			if (val.Workloads != nil && len(illumioapi.PtrToVal(val.Workloads)) != 1) || val.Workloads == nil {
 				utils.LogWarningf(true, "csv line %d - %s has invalid workload assignment. skipping", i+1, val.Href)
+				continue
 			}
 
 			// validate heartbeat
@@ -193,6 +205,18 @@ func unpair() {
 
 			// Add to the slice
 			vensToUnpair = append(vensToUnpair, illumioapi.VEN{Href: val.Href})
+
+			// Build CSV row
+			csvRow := []string{illumioapi.PtrToVal(wkld.Hostname), wkld.Href, val.Href}
+			for _, key := range labelKeys {
+				csvRow = append(csvRow, wkld.GetLabelByKey(key, pce.Labels).Value)
+			}
+			lastHB := ""
+			if wkld.Agent != nil && wkld.Agent.Status != nil {
+				lastHB = wkld.Agent.Status.LastHeartbeatOn
+			}
+			csvRow = append(csvRow, lastHB, fmt.Sprintf("%.1f", val.HoursSinceLastHeartBeat()))
+			csvData = append(csvData, csvRow)
 		}
 	}
 
@@ -204,6 +228,10 @@ func unpair() {
 		}
 		return
 	}
+
+	// Write the unpair CSV
+	outputFileName := fmt.Sprintf("workloader-unpair-%s.csv", time.Now().Format("20060102_150405"))
+	utils.WriteOutput(csvData, csvData, outputFileName)
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
