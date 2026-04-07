@@ -168,10 +168,10 @@ func eventMonitor(targetEvents []string) {
 			// Get the hostname
 			hostname := ""
 			// Look at the VEN hostname first
-			if e.EventCreatedBy.VEN.Hostname != nil && *e.EventCreatedBy.VEN.Hostname != "" {
+			if e.EventCreatedBy != nil && e.EventCreatedBy.VEN != nil && e.EventCreatedBy.VEN.Hostname != nil && *e.EventCreatedBy.VEN.Hostname != "" {
 				hostname = *e.EventCreatedBy.VEN.Hostname
 				// If VEN doesn't have it, look at agent
-			} else if e.EventCreatedBy.Agent != nil && e.EventCreatedBy.Agent.Hostname != "" {
+			} else if e.EventCreatedBy != nil && e.EventCreatedBy.Agent != nil && e.EventCreatedBy.Agent.Hostname != "" {
 				hostname = e.EventCreatedBy.Agent.Hostname
 			} else { // If agent doesn't have it, look at resource changes
 				for _, r := range illumioapi.PtrToVal(e.ResourceChanges) {
@@ -183,7 +183,7 @@ func eventMonitor(targetEvents []string) {
 			}
 
 			// Process the event and add to the uniqueVENs map
-			if e.EventCreatedBy.VEN != nil {
+			if e.EventCreatedBy != nil && e.EventCreatedBy.VEN != nil {
 				if val, exists := uniqueVENs[e.EventCreatedBy.VEN.Href]; exists {
 					val.Events[e.EventType] = val.Events[e.EventType] + 1
 				} else {
@@ -230,7 +230,13 @@ func eventMonitor(targetEvents []string) {
 	if includeEventList && len(allEvents) > 0 {
 		csvOut := [][]string{{"event_type", "timestamp", "created_by_href", "created_by_details"}}
 		for _, e := range allEvents {
-			csvOut = append(csvOut, []string{e.EventType, time.Time.String(e.Timestamp), e.EventCreatedBy.Href, e.EventCreatedBy.Name})
+			createdByHref := ""
+			createdByName := ""
+			if e.EventCreatedBy != nil {
+				createdByHref = e.EventCreatedBy.Href
+				createdByName = e.EventCreatedBy.Name
+			}
+			csvOut = append(csvOut, []string{e.EventType, time.Time.String(e.Timestamp), createdByHref, createdByName})
 		}
 		if outputFileName == "" {
 			outputFileName = "workloader-ven-health-event-list-" + time.Now().Format("20060102_150405") + ".csv"
