@@ -83,15 +83,16 @@ func (w *WkldCleanUp) Execute() {
 		mostRecentTimeStamp := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 		mostRecentVENHref := ""
 		for _, ven := range venSlice {
+			if ven.LastHeartBeatAt == "" {
+				utils.LogWarningf(true, "ven %s has no last heartbeat timestamp. skipping.", ven.Href)
+				continue
+			}
 			lastHbTime, err := time.Parse("2006-01-02T15:04:05.000Z", ven.LastHeartBeatAt)
 			if err != nil {
 				utils.LogErrorf("parsing last heartbeat time - %s", err)
 			}
 			if lastHbTime.After(mostRecentTimeStamp) {
-				mostRecentTimeStamp, err = time.Parse("2006-01-02T15:04:05.000Z", ven.LastHeartBeatAt)
-				if err != nil {
-					utils.LogErrorf("parsing new most recent heartbeat time - %s", err)
-				}
+				mostRecentTimeStamp = lastHbTime
 				mostRecentVENHref = ven.Href
 			}
 		}
