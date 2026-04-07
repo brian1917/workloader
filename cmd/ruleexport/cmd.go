@@ -7,6 +7,7 @@ package ruleexport
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -280,6 +281,8 @@ func (r *RuleExport) ExportToCsv() {
 	if input.OutputFileName == "" {
 		input.OutputFileName = fmt.Sprintf("workloader-rule-export-%s.csv", time.Now().Format("20060102_150405"))
 	}
+	// Remove existing file so WriteLineOutput doesn't append to a previous run's output
+	os.Remove(input.OutputFileName)
 	utils.WriteLineOutput(headerSlice, input.OutputFileName)
 
 	var policyVersionNumberString string
