@@ -14,10 +14,10 @@ func GetTargetPCEV2(GetLabelMaps bool) (illumioapi.PCE, error) {
 
 	// Get the PCE name
 	var name string
-	if viper.Get("target_pce") != nil && viper.Get("target_pce").(string) != "" {
-		name = viper.Get("target_pce").(string)
-	} else if viper.Get("default_pce_name") != nil && viper.Get("default_pce_name").(string) != "" {
-		name = viper.Get("default_pce_name").(string)
+	if viper.GetString("target_pce") != "" {
+		name = viper.GetString("target_pce")
+	} else if viper.GetString("default_pce_name") != "" {
+		name = viper.GetString("default_pce_name")
 	} else {
 		LogError("there is no pce set using the --pce flag and there is no default pce. either run workloader pce-add to add your first pce or workloader set-default to set an existing PCE as default.")
 	}
@@ -61,9 +61,17 @@ func GetTargetPCEV2(GetLabelMaps bool) (illumioapi.PCE, error) {
 func GetPCEbyNameV2(name string, GetLabelMaps bool) (illumioapi.PCE, error) {
 	var pce illumioapi.PCE
 	if viper.IsSet(name + ".fqdn") {
-		pce = illumioapi.PCE{FriendlyName: name, FQDN: viper.Get(name + ".fqdn").(string), Port: viper.Get(name + ".port").(int), Org: viper.Get(name + ".org").(int), User: viper.Get(name + ".user").(string), Key: viper.Get(name + ".key").(string), DisableTLSChecking: viper.Get(name + ".disableTLSChecking").(bool)}
-		if viper.Get(name+".proxy") != nil {
-			pce.Proxy = viper.Get(name + ".proxy").(string)
+		pce = illumioapi.PCE{
+			FriendlyName:       name,
+			FQDN:               viper.GetString(name + ".fqdn"),
+			Port:               viper.GetInt(name + ".port"),
+			Org:                viper.GetInt(name + ".org"),
+			User:               viper.GetString(name + ".user"),
+			Key:                viper.GetString(name + ".key"),
+			DisableTLSChecking: viper.GetBool(name + ".disableTLSChecking"),
+		}
+		if viper.GetString(name+".proxy") != "" {
+			pce.Proxy = viper.GetString(name + ".proxy")
 		}
 		if GetLabelMaps {
 			apiResp, err := pce.GetLabels(nil)
