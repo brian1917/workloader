@@ -130,8 +130,9 @@ func misLabel() {
 	}
 
 	// Build the traffic query struct
+	// Use 88-day window (PCE max is 90 days) instead of hardcoded 2013 start date
 	tq := illumioapi.TrafficQuery{
-		StartTime:                       time.Date(2013, 1, 1, 0, 0, 0, 0, time.UTC),
+		StartTime:                       time.Now().AddDate(0, 0, -88).In(time.UTC),
 		EndTime:                         time.Now(),
 		PolicyStatuses:                  []string{"allowed", "potentially_blocked", "blocked"},
 		PortProtoExclude:                exclPorts,
