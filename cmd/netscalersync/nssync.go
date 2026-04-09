@@ -165,7 +165,7 @@ func nsSync(pce illumioapi.PCE, netscaler ns.NetScaler) {
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if updatePCE && !noPrompt {
 		var prompt string
-		fmt.Printf("\r\n%s [PROMPT] - workloader will create %d virtual services (vips), create %d unmanaged workloads (snips), update %d virtual services (vips), update %d unmanaged workloads (snips), remove %d virtual services (vips), and remove %d unmanaged workloads (snips) in %s (%s). do you want to run the import (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), len(createVirtualServices), len(createUMWLs), len(updateVirtualServices), len(updateUMWLs), len(removeVirtualServices), len(removeUMWLs), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
+		fmt.Printf("\r\n%s [PROMPT] - workloader will create %d virtual services (vips), create %d unmanaged workloads (snips), update %d virtual services (vips), update %d unmanaged workloads (snips), remove %d virtual services (vips), and remove %d unmanaged workloads (snips) in %s (%s). do you want to run the import (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), len(createVirtualServices), len(createUMWLs), len(updateVirtualServices), len(updateUMWLs), len(removeVirtualServices), len(removeUMWLs), pce.FriendlyName, viper.GetString(pce.FriendlyName+".fqdn"))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo("prompt denied.", true)

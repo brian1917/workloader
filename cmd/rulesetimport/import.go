@@ -71,8 +71,8 @@ Recommended to run without --update-pce first to log what will change.`,
 		input.ImportFile = args[0]
 
 		// Get the debug value from viper
-		input.UpdatePCE = viper.Get("update_pce").(bool)
-		input.NoPrompt = viper.Get("no_prompt").(bool)
+		input.UpdatePCE = viper.GetBool("update_pce")
+		input.NoPrompt = viper.GetBool("no_prompt")
 
 		ImportRuleSetsFromCSV(input)
 	},
@@ -257,7 +257,7 @@ csvEntries:
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if input.UpdatePCE && !input.NoPrompt {
 		var prompt string
-		fmt.Printf("\r\n[PROMPT] - workloader identified %d rulesets to create and %d rulesets to update in %s (%s). Do you want to run the import (yes/no)? ", len(newRuleSets), len(updateRuleSets), input.PCE.FriendlyName, viper.Get(input.PCE.FriendlyName+".fqdn").(string))
+		fmt.Printf("\r\n[PROMPT] - workloader identified %d rulesets to create and %d rulesets to update in %s (%s). Do you want to run the import (yes/no)? ", len(newRuleSets), len(updateRuleSets), input.PCE.FriendlyName, viper.GetString(input.PCE.FriendlyName+".fqdn"))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo("prompt denied.", true)

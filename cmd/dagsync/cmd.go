@@ -163,7 +163,7 @@ The --update-pce flag is ignored for this command. The --update-panos flag is us
 		}
 
 		// Get the viper values
-		noPrompt = viper.Get("no_prompt").(bool)
+		noPrompt = viper.GetBool("no_prompt")
 
 		dagSync()
 	},

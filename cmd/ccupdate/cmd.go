@@ -51,8 +51,8 @@ When enforcement-state sent to "unmanaged":
 		containerCluster = args[0]
 
 		// Get the debug value from viper
-		updatePCE = viper.Get("update_pce").(bool)
-		noPrompt = viper.Get("no_prompt").(bool)
+		updatePCE = viper.GetBool("update_pce")
+		noPrompt = viper.GetBool("no_prompt")
 
 		// Get the PCE
 		pce, err := utils.GetTargetPCEV2(true)
@@ -210,7 +210,7 @@ func ContainerClusterUpdate(originalPce illumioapi.PCE, containerClusterName str
 			// If updatePCE is set, but not noPrompt, we will prompt the user.
 			if updatePCE && !noPrompt {
 				var prompt string
-				fmt.Printf("[PROMPT] - workloader will update the %s pairing profile in %s (%s). Do you want to run the import (yes/no)? ", pairingProfileName, pairingProfilePce.FriendlyName, viper.Get(pairingProfilePce.FriendlyName+".fqdn").(string))
+				fmt.Printf("[PROMPT] - workloader will update the %s pairing profile in %s (%s). Do you want to run the import (yes/no)? ", pairingProfileName, pairingProfilePce.FriendlyName, viper.GetString(pairingProfilePce.FriendlyName+".fqdn"))
 
 				fmt.Scanln(&prompt)
 				if strings.ToLower(prompt) != "yes" {

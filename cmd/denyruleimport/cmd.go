@@ -73,8 +73,8 @@ Recommended to run without --update-pce first to log of what will change. If --u
 		cmdInput.ImportFile = args[0]
 
 		// Get the debug value from viper
-		cmdInput.UpdatePCE = viper.Get("update_pce").(bool)
-		cmdInput.NoPrompt = viper.Get("no_prompt").(bool)
+		cmdInput.UpdatePCE = viper.GetBool("update_pce")
+		cmdInput.NoPrompt = viper.GetBool("no_prompt")
 
 		ImportBoundariesFromCSV(cmdInput)
 	},
@@ -421,7 +421,7 @@ func ImportBoundariesFromCSV(input Input) {
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if input.UpdatePCE && !input.NoPrompt {
 		var prompt string
-		fmt.Printf("\r\n[PROMPT] - workloader identified %d boundaries to create and %d boundaries to update in %s (%s). do you want to run the import (yes/no)? ", len(newBoundaries), len(updatedBoundaries), input.PCE.FriendlyName, viper.Get(input.PCE.FriendlyName+".fqdn").(string))
+		fmt.Printf("\r\n[PROMPT] - workloader identified %d boundaries to create and %d boundaries to update in %s (%s). do you want to run the import (yes/no)? ", len(newBoundaries), len(updatedBoundaries), input.PCE.FriendlyName, viper.GetString(input.PCE.FriendlyName+".fqdn"))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo("prompt denied.", true)

@@ -52,8 +52,8 @@ The forMinutes flag can be used to have workloader run the command every 10 minu
 		}
 
 		// Get Viper configuration
-		updatePCE = viper.Get("update_pce").(bool)
-		noPrompt = viper.Get("no_prompt").(bool)
+		updatePCE = viper.GetBool("update_pce")
+		noPrompt = viper.GetBool("no_prompt")
 
 		increaseVENUpdateRate()
 	},
@@ -101,7 +101,7 @@ func increaseVENUpdateRate() {
 
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
-		utils.LogInfo(fmt.Sprintf("workloader identified %d workloads requiring VEN update rate incease in %s (%s). To update, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.", len(pce.WorkloadsSlice), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string)), true)
+		utils.LogInfo(fmt.Sprintf("workloader identified %d workloads requiring VEN update rate incease in %s (%s). To update, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.", len(pce.WorkloadsSlice), pce.FriendlyName, viper.GetString(pce.FriendlyName+".fqdn")), true)
 
 		return
 	}

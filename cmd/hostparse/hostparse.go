@@ -67,9 +67,9 @@ An input CSV specifics the regex functions to use to assign labels. An example i
 		}
 
 		// Get persistent flags from Viper
-		debug = viper.Get("debug").(bool)
-		updatePCE = viper.Get("update_pce").(bool)
-		noPrompt = viper.Get("no_prompt").(bool)
+		debug = viper.GetBool("debug")
+		updatePCE = viper.GetBool("update_pce")
+		noPrompt = viper.GetBool("no_prompt")
 
 		// Get CSV file
 		if len(args) != 1 {
@@ -488,7 +488,7 @@ func hostnameParser() {
 		if noPrompt {
 			response = "yes"
 		} else if updatePCE {
-			fmt.Printf("Do you want to update Workloads and potentially create new labels in %s (%s) (yes/no)? ", pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
+			fmt.Printf("Do you want to update Workloads and potentially create new labels in %s (%s) (yes/no)? ", pce.FriendlyName, viper.GetString(pce.FriendlyName+".fqdn"))
 			fmt.Scanln(&response)
 		} else {
 			fmt.Println("List of ALL Regex Matched Hostnames even if no Workload exist on the PCE. ")

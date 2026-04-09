@@ -14,7 +14,7 @@ import (
 func LogAPIRespV2(callType string, apiResp illumioapi.APIResponse) {
 
 	// Get the original logging status in case it's flipped for a non-200 status code
-	orginalDebug := viper.Get("debug").(bool)
+	orginalDebug := viper.GetBool("debug")
 
 	// If we have a bad API response, set the debug to true
 	if apiResp.StatusCode > 299 {
@@ -28,7 +28,7 @@ func LogAPIRespV2(callType string, apiResp illumioapi.APIResponse) {
 		}
 	}
 	LogInfo(fmt.Sprintf("%s response status code: %d", callType, apiResp.StatusCode), false)
-	if viper.Get("verbose").(bool) || apiResp.StatusCode > 299 {
+	if viper.GetBool("verbose") || apiResp.StatusCode > 299 {
 		LogDebug(fmt.Sprintf("%s response body: %s", callType, apiResp.RespBody))
 	}
 

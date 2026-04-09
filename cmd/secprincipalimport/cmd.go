@@ -46,7 +46,7 @@ The following headers are required:
 			os.Exit(0)
 		}
 
-		importSecPrincipals(pce, args[0], viper.Get("update_pce").(bool), viper.Get("no_prompt").(bool))
+		importSecPrincipals(pce, args[0], viper.GetBool("update_pce"), viper.GetBool("no_prompt"))
 	},
 }
 
@@ -108,7 +108,7 @@ func importSecPrincipals(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt
 
 	if !noPrompt {
 		var prompt string
-		fmt.Printf("[PROMPT] - workloader will create %d security principals in %s (%s). Do you want to run the import (yes/no)? ", len(secPrincipals), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
+		fmt.Printf("[PROMPT] - workloader will create %d security principals in %s (%s). Do you want to run the import (yes/no)? ", len(secPrincipals), pce.FriendlyName, viper.GetString(pce.FriendlyName+".fqdn"))
 
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {

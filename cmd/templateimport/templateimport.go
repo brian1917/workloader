@@ -53,8 +53,8 @@ Use template-list command to see available templates.`,
 		template = args[0]
 
 		// Get the debug value from viper
-		updatePCE = viper.Get("update_pce").(bool)
-		noPrompt = viper.Get("no_prompt").(bool)
+		updatePCE = viper.GetBool("update_pce")
+		noPrompt = viper.GetBool("no_prompt")
 
 		importTemplate()
 	},

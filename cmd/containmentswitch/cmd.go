@@ -71,8 +71,8 @@ The --update-pce flag is required for Steps 2 through 7. If the --update-pce fla
 		}
 
 		// Get the debug value from viper
-		updatePCE = viper.Get("update_pce").(bool)
-		noPrompt = viper.Get("no_prompt").(bool)
+		updatePCE = viper.GetBool("update_pce")
+		noPrompt = viper.GetBool("no_prompt")
 
 		portLock(targetPort, args[1])
 	},
@@ -180,7 +180,7 @@ func portLock(port int, protocol string) {
 			}
 
 			var prompt string
-			fmt.Printf("\r\n%s[PROMPT] - workloader will do the following in %s (%s):\r\n", time.Now().Format("2006-01-02 15:04:05 "), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
+			fmt.Printf("\r\n%s[PROMPT] - workloader will do the following in %s (%s):\r\n", time.Now().Format("2006-01-02 15:04:05 "), pce.FriendlyName, viper.GetString(pce.FriendlyName+".fqdn"))
 			for i, c := range changes {
 				fmt.Printf("%s [PROMPT] - %d) %s\r\n", time.Now().Format("2006-01-02 15:04:05"), i+1, c)
 			}

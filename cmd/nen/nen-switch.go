@@ -66,8 +66,8 @@ switchinterface, href(optional), name, interface, label#1, label#2, label#3, etc
 		if createUMWL {
 			// Get the services
 			// Get the debug value from viper
-			input.UpdatePCE = viper.Get("update_pce").(bool)
-			input.NoPrompt = viper.Get("no_prompt").(bool)
+			input.UpdatePCE = viper.GetBool("update_pce")
+			input.NoPrompt = viper.GetBool("no_prompt")
 			input.Umwl = true
 			input.MaxCreate = -1
 			input.MaxUpdate = -1

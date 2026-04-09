@@ -40,8 +40,8 @@ The command leverages the wkld-import command. The  workloader.log file will log
 			utils.LogError(fmt.Sprintf("error getting pce - %s", err.Error()))
 		}
 
-		updatePCE := viper.Get("update_pce").(bool)
-		noPrompt := viper.Get("no_prompt").(bool)
+		updatePCE := viper.GetBool("update_pce")
+		noPrompt := viper.GetBool("no_prompt")
 
 		LabelWkld(&pce, hostname, labels, updatePCE, noPrompt)
 	},
