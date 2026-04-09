@@ -6,7 +6,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -208,7 +208,7 @@ func httpSetUp(httpAction, apiURL string, body []byte, disableTLSChecking bool, 
 	defer resp.Body.Close()
 
 	// Process response
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return response, err
 	}
