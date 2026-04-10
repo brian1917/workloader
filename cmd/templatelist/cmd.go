@@ -2,7 +2,6 @@ package templatelist
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"sort"
 	"strings"
@@ -37,7 +36,7 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 		}
 
 		// Get the files in that directory
-		files, err := ioutil.ReadDir(directory)
+		files, err := os.ReadDir(directory)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
