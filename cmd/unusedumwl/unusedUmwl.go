@@ -59,12 +59,25 @@ func unusedUmwl() {
 	csvData := [][]string{{"hostname", "name", "href", "role", "app", "env", "loc", "interfaces", "traffic_count"}}
 
 	// Iterate over UMWLs
-	for _, umwl := range umwls {
+	for i, umwl := range umwls {
 		tq.SourcesInclude = [][]string{{umwl.Href}}
 		tq.DestinationsInclude = [][]string{{umwl.Href}}
-		traffic, a, err := pce.GetTrafficAnalysis(tq)
-		utils.LogAPIResp("GetTrafficAnalysis", a)
-		if err != nil {
+
+		// Retry logic to handle EOF errors from stale connections on long-running operations
+		var traffic []illumioapi.TrafficAnalysis
+		var a illumioapi.APIResponse
+		maxRetries := 3
+		for attempt := 0; attempt < maxRetries; attempt++ {
+			traffic, a, err = pce.GetTrafficAnalysis(tq)
+			utils.LogAPIResp("GetTrafficAnalysis", a)
+			if err == nil {
+				break
+			}
+			if strings.Contains(err.Error(), "EOF") && attempt < maxRetries-1 {
+				utils.LogWarning(fmt.Sprintf("EOF error on umwl %d/%d (%s), retrying (attempt %d/%d)...", i+1, len(umwls), umwl.Href, attempt+2, maxRetries), true)
+				time.Sleep(5 * time.Second)
+				continue
+			}
 			utils.LogError(err.Error())
 		}
 
