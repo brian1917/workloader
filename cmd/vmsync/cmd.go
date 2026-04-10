@@ -78,8 +78,8 @@ Support VCenter version > 7.0.u2`,
 		}
 		//Get the debug value from viper
 		//debug = viper.Get("debug").(bool)
-		updatePCE = viper.Get("update_pce").(bool)
-		noPrompt = viper.Get("no_prompt").(bool)
+		updatePCE = viper.GetBool("update_pce")
+		noPrompt = viper.GetBool("no_prompt")
 
 		//load keymapfile, This file will have the Catagories to Label Type mapping
 		keyMap := readKeyFile(csvFile)

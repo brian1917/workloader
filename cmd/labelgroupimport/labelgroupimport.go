@@ -70,8 +70,8 @@ Recommended to run without --update-pce first to log of what will change. If --u
 		csvFile = args[0]
 
 		// Get the debug value from viper
-		updatePCE = viper.Get("update_pce").(bool)
-		noPrompt = viper.Get("no_prompt").(bool)
+		updatePCE = viper.GetBool("update_pce")
+		noPrompt = viper.GetBool("no_prompt")
 
 		labelGroupImport()
 	},
@@ -338,7 +338,7 @@ CSVEntries:
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if updatePCE && !noPrompt {
 		var prompt string
-		fmt.Printf("[PROMPT] - workloader will create %d label groups and update %d label groups in %s (%s). Do you want to run the import (yes/no)? ", len(newLabelGroups), len(updatedLabelGroups), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
+		fmt.Printf("[PROMPT] - workloader will create %d label groups and update %d label groups in %s (%s). Do you want to run the import (yes/no)? ", len(newLabelGroups), len(updatedLabelGroups), pce.FriendlyName, viper.GetString(pce.FriendlyName+".fqdn"))
 
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {

@@ -69,8 +69,8 @@ Recommended to run without --update-pce first to log of what will change. If --u
 		}
 
 		// Get the viper values
-		input.UpdatePCE = viper.Get("update_pce").(bool)
-		input.NoPrompt = viper.Get("no_prompt").(bool)
+		input.UpdatePCE = viper.GetBool("update_pce")
+		input.NoPrompt = viper.GetBool("no_prompt")
 
 		ImportServices(input)
 	},

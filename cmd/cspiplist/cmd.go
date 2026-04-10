@@ -62,8 +62,8 @@ By default no changes will be made to the PCE.  Please use --update-pce if you w
 			utils.LogError(fmt.Sprintf("error getting pce - %s", err.Error()))
 		}
 
-		updatePCE := viper.Get("update_pce").(bool)
-		noPrompt := viper.Get("no_prompt").(bool)
+		updatePCE := viper.GetBool("update_pce")
+		noPrompt := viper.GetBool("no_prompt")
 
 		// Set the CSV file
 		if len(args) > 1 {

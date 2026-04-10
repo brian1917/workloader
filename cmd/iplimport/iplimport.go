@@ -74,9 +74,9 @@ Recommended to run without --update-pce first to log of what will change. If --u
 		csvFile = args[0]
 
 		// Get the viper values
-		debug = viper.Get("debug").(bool)
-		updatePCE = viper.Get("update_pce").(bool)
-		noPrompt = viper.Get("no_prompt").(bool)
+		debug = viper.GetBool("debug")
+		updatePCE = viper.GetBool("update_pce")
+		noPrompt = viper.GetBool("no_prompt")
 
 		ImportIPLists(pce, csvFile, updatePCE, noPrompt, debug, provision)
 	},
@@ -378,7 +378,7 @@ csvEntries:
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if updatePCE && !noPrompt {
 		var prompt string
-		fmt.Printf("[PROMPT] - workloader will create %d iplists and update %d iplists in %s (%s). do you want to run the import (yes/no)? ", len(IPLsToCreate), len(IPLsToUpdate), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
+		fmt.Printf("[PROMPT] - workloader will create %d iplists and update %d iplists in %s (%s). do you want to run the import (yes/no)? ", len(IPLsToCreate), len(IPLsToUpdate), pce.FriendlyName, viper.GetString(pce.FriendlyName+".fqdn"))
 
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {

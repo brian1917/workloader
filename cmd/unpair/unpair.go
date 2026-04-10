@@ -65,8 +65,8 @@ Use the --update-pce command to run the unpair with a user prompt confirmation. 
 		}
 
 		// Get persistent flags from Viper
-		updatePCE = viper.Get("update_pce").(bool)
-		noPrompt = viper.Get("no_prompt").(bool)
+		updatePCE = viper.GetBool("update_pce")
+		noPrompt = viper.GetBool("no_prompt")
 
 		unpair()
 	},
@@ -242,7 +242,7 @@ func unpair() {
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if updatePCE && !noPrompt {
 		var prompt string
-		fmt.Printf("%s [PROMPT] - workloader identified %d vens requiring unpairing in %s (%s). Do you want to run the unpair? (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), len(vensToUnpair), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
+		fmt.Printf("%s [PROMPT] - workloader identified %d vens requiring unpairing in %s (%s). Do you want to run the unpair? (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), len(vensToUnpair), pce.FriendlyName, viper.GetString(pce.FriendlyName+".fqdn"))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo("prompt denied.", true)

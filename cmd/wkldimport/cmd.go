@@ -124,8 +124,8 @@ Recommended to run without --update-pce first to log what will change.`,
 		input.ImportFile = args[0]
 
 		// Get the debug value from viper
-		input.UpdatePCE = viper.Get("update_pce").(bool)
-		input.NoPrompt = viper.Get("no_prompt").(bool)
+		input.UpdatePCE = viper.GetBool("update_pce")
+		input.NoPrompt = viper.GetBool("no_prompt")
 
 		// Load the PCE with workloads
 		apiResps, err := input.PCE.Load(illumioapi.LoadInput{Workloads: true}, utils.UseMulti())

@@ -249,7 +249,7 @@ func ImportWkldsFromCSV(input Input) {
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if input.UpdatePCE && !input.NoPrompt {
 		var prompt string
-		fmt.Printf("\r\n%s [PROMPT] - Do you want to run the import to %s (%s) (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), input.PCE.FriendlyName, viper.Get(input.PCE.FriendlyName+".fqdn").(string))
+		fmt.Printf("\r\n%s [PROMPT] - Do you want to run the import to %s (%s) (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), input.PCE.FriendlyName, viper.GetString(input.PCE.FriendlyName+".fqdn"))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo("prompt denied", true)

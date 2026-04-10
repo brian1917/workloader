@@ -56,7 +56,7 @@ Valid role options include the following:
 			os.Exit(0)
 		}
 
-		importPermissions(pce, args[0], viper.Get("update_pce").(bool), viper.Get("no_prompt").(bool))
+		importPermissions(pce, args[0], viper.GetBool("update_pce"), viper.GetBool("no_prompt"))
 	},
 }
 
@@ -194,7 +194,7 @@ func importPermissions(pce illumioapi.PCE, csvFile string, updatePCE, noPrompt b
 
 	if !noPrompt {
 		var prompt string
-		fmt.Printf("[PROMPT] - workloader will create %d permissions and update %d permissions in %s (%s). Do you want to run the import (yes/no)? ", len(newPermissions), len(updatedPermissions), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
+		fmt.Printf("[PROMPT] - workloader will create %d permissions and update %d permissions in %s (%s). Do you want to run the import (yes/no)? ", len(newPermissions), len(updatedPermissions), pce.FriendlyName, viper.GetString(pce.FriendlyName+".fqdn"))
 
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {

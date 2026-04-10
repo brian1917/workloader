@@ -362,7 +362,7 @@ func ImportServices(input Input) {
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if input.UpdatePCE && !input.NoPrompt {
 		var prompt string
-		fmt.Printf("[PROMPT] - workloader will create %d services and update %d services in %s (%s). Do you want to run the import (yes/no)? ", len(newServices), len(updatedServices), input.PCE.FriendlyName, viper.Get(input.PCE.FriendlyName+".fqdn").(string))
+		fmt.Printf("[PROMPT] - workloader will create %d services and update %d services in %s (%s). Do you want to run the import (yes/no)? ", len(newServices), len(updatedServices), input.PCE.FriendlyName, viper.GetString(input.PCE.FriendlyName+".fqdn"))
 
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {

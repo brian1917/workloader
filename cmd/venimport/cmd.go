@@ -54,8 +54,8 @@ Recommended to run without --update-pce first to log of what will change. If --u
 		importFile = args[0]
 
 		// Get the debug value from viper
-		updatePCE = viper.Get("update_pce").(bool)
-		noPrompt = viper.Get("no_prompt").(bool)
+		updatePCE = viper.GetBool("update_pce")
+		noPrompt = viper.GetBool("no_prompt")
 
 		importVens()
 	},
@@ -167,7 +167,7 @@ func importVens() {
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if updatePCE && !noPrompt {
 		var prompt string
-		fmt.Printf("\r\n%s [PROMPT] - %d vens requiring update in %s(%s). Do you want to run the import (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), len(vensToUpdate), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
+		fmt.Printf("\r\n%s [PROMPT] - %d vens requiring update in %s(%s). Do you want to run the import (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), len(vensToUpdate), pce.FriendlyName, viper.GetString(pce.FriendlyName+".fqdn"))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo(fmt.Sprintf("prompt denied to update %d vens.", len(vensToUpdate)), true)

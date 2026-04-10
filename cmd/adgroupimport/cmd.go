@@ -57,8 +57,8 @@ Recommended to run without --update-pce first to log of what will change. If --u
 		csvFile = args[0]
 
 		// Get the viper values
-		updatePCE = viper.Get("update_pce").(bool)
-		noPrompt = viper.Get("no_prompt").(bool)
+		updatePCE = viper.GetBool("update_pce")
+		noPrompt = viper.GetBool("no_prompt")
 
 		ImportADGroups(pce, csvFile, updatePCE, noPrompt)
 	},
@@ -157,7 +157,7 @@ func ImportADGroups(pce illumioapi.PCE, inputFile string, updatePCE, noPrompt bo
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if updatePCE && !noPrompt {
 		var prompt string
-		fmt.Printf("[PROMPT] - workloader will create %d ad groups and update %d ad groups in %s (%s). Do you want to run the import (yes/no)? ", len(adGroupsToCreate), len(adGroupsToUpdate), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
+		fmt.Printf("[PROMPT] - workloader will create %d ad groups and update %d ad groups in %s (%s). Do you want to run the import (yes/no)? ", len(adGroupsToCreate), len(adGroupsToUpdate), pce.FriendlyName, viper.GetString(pce.FriendlyName+".fqdn"))
 
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {

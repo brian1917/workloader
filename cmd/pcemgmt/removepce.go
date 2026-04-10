@@ -60,7 +60,7 @@ func removePce() {
 		}
 
 		// Get all API Keys
-		apiKeys, _, err := pce.GetAllAPIKeys(viper.Get(pceName + ".userhref").(string))
+		apiKeys, _, err := pce.GetAllAPIKeys(viper.GetString(pceName + ".userhref"))
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -69,7 +69,7 @@ func removePce() {
 		saveHref := ""
 		for _, a := range apiKeys {
 			if a.Name == "workloader" && a.Description == "created by workloader" {
-				if a.AuthUsername != viper.Get(pceName+".user").(string) {
+				if a.AuthUsername != viper.GetString(pceName+".user") {
 					_, err := pce.DeleteHref(a.Href)
 					if err != nil {
 						utils.LogError(err.Error())

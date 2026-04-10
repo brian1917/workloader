@@ -74,8 +74,8 @@ Recommended to run without --update-pce first to log of what will change in a cs
 		csvFile = args[0]
 
 		// Get Viper configuration
-		updatePCE = viper.Get("update_pce").(bool)
-		noPrompt = viper.Get("no_prompt").(bool)
+		updatePCE = viper.GetBool("update_pce")
+		noPrompt = viper.GetBool("no_prompt")
 
 		subnetParser()
 	},

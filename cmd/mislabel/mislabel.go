@@ -54,7 +54,7 @@ The --update-pce and --no-prompt flags are ignored for this command.`,
 		}
 
 		// Get the debug value from viper
-		debug = viper.Get("debug").(bool)
+		debug = viper.GetBool("debug")
 
 		misLabel()
 	},

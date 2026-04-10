@@ -77,8 +77,8 @@ Recommended to run without --update-pce first to log of what will change. If --u
 		iplName = args[0]
 
 		// Get the viper values
-		updatePCE = viper.Get("update_pce").(bool)
-		noPrompt = viper.Get("no_prompt").(bool)
+		updatePCE = viper.GetBool("update_pce")
+		noPrompt = viper.GetBool("no_prompt")
 
 		IplReplace(Input{
 			PCE:         pce,
@@ -202,9 +202,9 @@ func IplReplace(input Input) {
 	if input.UpdatePCE && !input.NoPrompt {
 		var prompt string
 		if iplToBeCreated {
-			fmt.Printf("[PROMPT] - workloader will create %s ip list with %d ip entries and %d in %s(%s). do you want to run the import (yes/no)? ", input.IplName, ipCount, fqdnCount, pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
+			fmt.Printf("[PROMPT] - workloader will create %s ip list with %d ip entries and %d in %s(%s). do you want to run the import (yes/no)? ", input.IplName, ipCount, fqdnCount, pce.FriendlyName, viper.GetString(pce.FriendlyName+".fqdn"))
 		} else {
-			fmt.Printf("[PROMPT] - workloader identified %d ip entries and %d fqdn entries to replace the existing %d ip entries and %d fqdn entries in %s ip list in %s(%s). do you want to run the import (yes/no)? ", ipCount, fqdnCount, len(*pceIPL.IPRanges), len(*pceIPL.FQDNs), pceIPL.Name, pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
+			fmt.Printf("[PROMPT] - workloader identified %d ip entries and %d fqdn entries to replace the existing %d ip entries and %d fqdn entries in %s ip list in %s(%s). do you want to run the import (yes/no)? ", ipCount, fqdnCount, len(*pceIPL.IPRanges), len(*pceIPL.FQDNs), pceIPL.Name, pce.FriendlyName, viper.GetString(pce.FriendlyName+".fqdn"))
 		}
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
