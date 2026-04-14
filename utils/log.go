@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/brian1917/illumioapi"
@@ -13,6 +14,27 @@ import (
 // Logger is the global logger for Workloader
 var Logger log.Logger
 var logFile string
+
+func redactApiCreds(input string) string {
+	// Compile the regular expression.
+	// "--api-user " followed by \S* (zero or more non-whitespace characters).
+	re := regexp.MustCompile(`--api-user \S*`)
+
+	s := re.ReplaceAllString(input, "--api-user <redacted>")
+
+	re = regexp.MustCompile(`--api-secret \S*`)
+
+	s = re.ReplaceAllString(s, "--api-secret <redacted>")
+
+	re = regexp.MustCompile(`--pwd \S*`)
+
+	s = re.ReplaceAllString(s, "--pwd <redacted>")
+
+	re = regexp.MustCompile(`--email \S*`)
+
+	// Replace all occurrences in the string with the redacted version.
+	return re.ReplaceAllString(s, "--email <redacted>")
+}
 
 func SetUpLogging() {
 
