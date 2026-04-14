@@ -159,7 +159,7 @@ func LogStartCommand(fullCommand string) {
 	LogInfo(fmt.Sprintf("workloader version %s", GetVersion()), false)
 	commandName := os.Args[1]
 	LogInfo(fmt.Sprintf("started %s", commandName), false)
-	LogInfof(false, "full command: %s", fullCommand)
+	LogInfof(false, "full command: %s", redactApiCreds(fullCommand))
 	if viper.GetString("target_pce") != "" {
 		LogInfo(fmt.Sprintf("using %s pce - %s", viper.GetString("target_pce"), viper.Get(viper.GetString("target_pce")+".pce_version")), false)
 	} else {
