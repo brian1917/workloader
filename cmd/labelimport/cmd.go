@@ -30,10 +30,12 @@ const (
 // Declare local global variables
 var pce illumioapi.PCE
 var err error
-var updatePCE, noPrompt bool
+var updatePCE, noPrompt, ignoreHref bool
 var csvFile string
 
-func init() {}
+func init() {
+	LabelImportCmd.Flags().BoolVar(&ignoreHref, "ignore-href", false, "ignore the href column in the CSV. useful when importing a CSV exported from a different PCE.")
+}
 
 // IplImportCmd runs the iplist import command
 var LabelImportCmd = &cobra.Command{
@@ -71,7 +73,7 @@ Recommended to run without --update-pce first to log of what will change. If --u
 		updatePCE = viper.GetBool("update_pce")
 		noPrompt = viper.GetBool("no_prompt")
 
-		ImportLabels(pce, csvFile, updatePCE, noPrompt)
+		ImportLabels(pce, csvFile, updatePCE, noPrompt, ignoreHref)
 	},
 }
 
@@ -81,7 +83,7 @@ type csvLabel struct {
 }
 
 // ImportLabels imports IP Lists to a target PCE from a CSV file
-func ImportLabels(pce illumioapi.PCE, inputFile string, updatePCE, noPrompt bool) {
+func ImportLabels(pce illumioapi.PCE, inputFile string, updatePCE, noPrompt, ignoreHref bool) {
 
 	// Open CSV File
 	file, err := os.Open(inputFile)
@@ -140,8 +142,8 @@ func ImportLabels(pce illumioapi.PCE, inputFile string, updatePCE, noPrompt bool
 			continue
 		}
 
-		// No href provided means check if the label exists and create it if not
-		if headers[HeaderHref] == nil || line[*headers[HeaderHref]] == "" {
+		// No href provided (or ignored) means check if the label exists and create it if not
+		if ignoreHref || headers[HeaderHref] == nil || line[*headers[HeaderHref]] == "" {
 			// Check if the label already exists in the PCE
 			if val, ok := pce.Labels[line[*headers[HeaderKey]]+line[*headers[HeaderValue]]]; ok {
 				utils.LogInfo(fmt.Sprintf("csv line %d - %s (%s) already exists - %s. to edit provide the href in the csv input.", i, val.Value, val.Key, val.Href), false)
