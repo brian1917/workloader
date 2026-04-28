@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/brian1917/illumioapi"
+	"github.com/brian1917/illumioapi/v2"
 	"github.com/brian1917/workloader/utils"
 	"github.com/spf13/cobra"
 )
@@ -31,7 +31,7 @@ Export all network interfaces for all managed and unmanaged workloads.
 The update-pce and --no-prompt flags are ignored for this command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		pce, err = utils.GetTargetPCE(false)
+		pce, err = utils.GetTargetPCEV2(false)
 		if err != nil {
 			utils.LogError(err.Error())
 		}
@@ -47,15 +47,19 @@ func nicExport() {
 	data := [][]string{headerRow}
 
 	// Get all workloads
-	wklds, a, err := pce.GetWklds(nil)
-	utils.LogAPIResp("GetAllWorkloads", a)
+	a, err := pce.GetWklds(nil)
+	wklds := pce.WorkloadsSlice
+	utils.LogAPIRespV2("GetAllWorkloads", a)
 	if err != nil {
 		utils.LogError(err.Error())
 	}
 
 	// For each workload, iterate through the network interfaces and add to the data slice
 	for _, w := range wklds {
-		for _, i := range w.Interfaces {
+		if w.Interfaces == nil {
+			continue
+		}
+		for _, i := range *w.Interfaces {
 			// Check if the interface is ignored
 			ignored := false
 			for _, ignoredInt := range *w.IgnoredInterfaceNames {
@@ -70,7 +74,12 @@ func nicExport() {
 			} else {
 				cidr = fmt.Sprintf("%s/%d", i.Address, *i.CidrBlock)
 			}
-			data = append(data, []string{w.Hostname, w.Href, w.GetMode(), i.Name, strconv.FormatBool(ignored), i.Address, cidr, w.GetNetMask(i.Address), i.DefaultGatewayAddress})
+			// Interface network name
+			netName := ""
+			if i.Network != nil {
+				netName = i.Network.Name
+			}
+			data = append(data, []string{utils.PtrToStr(w.Hostname), w.Href, w.GetMode(), i.Name, strconv.FormatBool(ignored), i.Address, cidr, w.GetNetMask(i.Address), i.DefaultGatewayAddress, netName})
 		}
 	}
 

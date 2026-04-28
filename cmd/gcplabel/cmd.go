@@ -49,8 +49,8 @@ It is recommend to run without --update-pce first to the csv produced and what i
 			utils.LogError(fmt.Sprintf("error getting pce - %s", err.Error()))
 		}
 
-		updatePCE := viper.Get("update_pce").(bool)
-		noPrompt := viper.Get("no_prompt").(bool)
+		updatePCE := viper.GetBool("update_pce")
+		noPrompt := viper.GetBool("no_prompt")
 
 		GCPLabels(labelMapping, &pce, updatePCE, noPrompt)
 	},

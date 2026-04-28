@@ -91,12 +91,12 @@ func GetTenantByName(name string) (tenant illumiocloudapi.Tenant, err error) {
 		return tenant, fmt.Errorf("could not retrieve valid tenant because tenant id is blank for %s", name)
 	}
 	tenant.FriendlyName = name
-	tenant.TenantID = viper.Get(name + ".tenant_id").(string)
+	tenant.TenantID = viper.GetString(name + ".tenant_id")
 	if viper.IsSet(name + ".client_id") {
-		tenant.ClientID = viper.Get(name + ".client_id").(string)
+		tenant.ClientID = viper.GetString(name + ".client_id")
 	}
 	if viper.IsSet(name + ".client_secret") {
-		tenant.Secret = viper.Get(name + ".client_secret").(string)
+		tenant.Secret = viper.GetString(name + ".client_secret")
 	}
 	return tenant, nil
 }

@@ -53,8 +53,8 @@ Default output is a CSV file with what would be upgraded. Use the --update-pce c
 		}
 
 		// Get persistent flags from Viper
-		updatePCE = viper.Get("update_pce").(bool)
-		noPrompt = viper.Get("no_prompt").(bool)
+		updatePCE = viper.GetBool("update_pce")
+		noPrompt = viper.GetBool("no_prompt")
 
 		wkldUpgrade()
 	},
@@ -210,7 +210,7 @@ func wkldUpgrade() {
 		// If updatePCE is set, but not noPrompt, we will prompt the user.
 		if updatePCE && !noPrompt {
 			var prompt string
-			fmt.Printf("[PROMPT] - workloader identified %d workloads in %s (%s) requiring VEN updates. See %s for details. Do you want to run the upgrade? (yes/no)? ", len(targetVENs), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string), outputFileName)
+			fmt.Printf("[PROMPT] - workloader identified %d workloads in %s (%s) requiring VEN updates. See %s for details. Do you want to run the upgrade? (yes/no)? ", len(targetVENs), pce.FriendlyName, viper.GetString(pce.FriendlyName+".fqdn"), outputFileName)
 			fmt.Scanln(&prompt)
 			if strings.ToLower(prompt) != "yes" {
 				utils.LogInfo(fmt.Sprintf("prompt denied to upgrade %d workloads", len(targetVENs)), true)

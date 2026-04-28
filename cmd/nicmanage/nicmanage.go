@@ -38,8 +38,8 @@ Head input CSV requires a header row with at least two headers: wkld_href and ig
 		}
 
 		// Get the debug value from viper
-		updatePCE = viper.Get("update_pce").(bool)
-		noPrompt = viper.Get("no_prompt").(bool)
+		updatePCE = viper.GetBool("update_pce")
+		noPrompt = viper.GetBool("no_prompt")
 
 		// Set the CSV file
 		if len(args) != 1 {
@@ -178,7 +178,7 @@ func nicManage() {
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if updatePCE && !noPrompt {
 		var prompt string
-		fmt.Printf("\r\n%s [PROMPT] - Do you want to run the import to %s at %s (yes/no)?", time.Now().Format("2006-01-02 15:04:05 "), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
+		fmt.Printf("\r\n%s [PROMPT] - Do you want to run the import to %s at %s (yes/no)?", time.Now().Format("2006-01-02 15:04:05 "), pce.FriendlyName, viper.GetString(pce.FriendlyName+".fqdn"))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo(fmt.Sprintf("prompt denied to update %d workloads.", len(updatedWklds)), true)

@@ -51,6 +51,7 @@ func CloudInventory() {
 	}
 
 	apiResponses, err := tenant.GetResources(illumiocloudapi.ResourcesPostRequest{})
+	// apiResponses, err := tenant.GetResources(illumiocloudapi.ResourcesPostRequest{ObjectType: []string{"Microsoft.Network/networkWatchers/FlowLogs"}})
 	utils.LogMultiAPIRespV2(apiResponses)
 	if err != nil {
 		utils.LogErrorf("getting resources from cloud - %s", err)
@@ -81,13 +82,18 @@ func CloudInventory() {
 	}
 
 	// Output the data to a csv file
-	csvData := [][]string{{"cloud", "account_id", "account_name", "resource_id", "resource_name", "object_type", "category", "subcategory"}}
+	csvData := [][]string{{"cloud", "account_id", "account_name", "resource_id", "resource_name", "object_type", "dest_csp_id", "category", "subcategory"}}
 	if includeLicenses {
 		csvData[0] = append(csvData[0], "segmentation_licenses", "insights_licenses")
 	}
 
 	// Add the resource data
 	for _, item := range tenant.Resources {
+		x := ""
+
+		if item.Properties.DestinationCSPID != "" {
+			x = item.Properties.DestinationCSPID
+		}
 		row := []string{
 			item.Cloud,
 			item.AccountID,
@@ -95,6 +101,7 @@ func CloudInventory() {
 			item.Id,
 			item.Name,
 			item.ObjectType,
+			x,
 			item.Category,
 			item.Subcategory,
 		}

@@ -6,7 +6,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -163,7 +163,7 @@ The --update-pce flag is ignored for this command. The --update-panos flag is us
 		}
 
 		// Get the viper values
-		noPrompt = viper.Get("no_prompt").(bool)
+		noPrompt = viper.GetBool("no_prompt")
 
 		dagSync()
 	},
@@ -208,7 +208,7 @@ func httpSetUp(httpAction, apiURL string, body []byte, disableTLSChecking bool, 
 	defer resp.Body.Close()
 
 	// Process response
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return response, err
 	}

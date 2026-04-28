@@ -65,8 +65,8 @@ Use the --update-pce command to run the unpair with a user prompt confirmation. 
 		}
 
 		// Get persistent flags from Viper
-		updatePCE = viper.Get("update_pce").(bool)
-		noPrompt = viper.Get("no_prompt").(bool)
+		updatePCE = viper.GetBool("update_pce")
+		noPrompt = viper.GetBool("no_prompt")
 
 		unpair()
 	},
@@ -165,8 +165,19 @@ func unpair() {
 		wkldExport.WriteToCsv(hrefFile)
 	}
 
+	// Build label key headers from label dimensions
+	labelKeys := []string{}
+	for _, ld := range pce.LabelDimensionsSlice {
+		labelKeys = append(labelKeys, ld.Key)
+	}
+
 	// Run validation
 	vensToUnpair := []illumioapi.VEN{}
+	csvData := [][]string{}
+	csvHeaders := append([]string{"hostname", "href", "ven_href"}, labelKeys...)
+	csvHeaders = append(csvHeaders, "last_heartbeat", "hours_since_last_heartbeat")
+	csvData = append(csvData, csvHeaders)
+
 	for i, v := range processVENsFile() {
 
 		if val, ok := pce.VENs[v.Href]; !ok {
@@ -176,6 +187,7 @@ func unpair() {
 			// validate workload assignment
 			if (val.Workloads != nil && len(illumioapi.PtrToVal(val.Workloads)) != 1) || val.Workloads == nil {
 				utils.LogWarningf(true, "csv line %d - %s has invalid workload assignment. skipping", i+1, val.Href)
+				continue
 			}
 
 			// validate heartbeat
@@ -193,6 +205,18 @@ func unpair() {
 
 			// Add to the slice
 			vensToUnpair = append(vensToUnpair, illumioapi.VEN{Href: val.Href})
+
+			// Build CSV row
+			csvRow := []string{illumioapi.PtrToVal(wkld.Hostname), wkld.Href, val.Href}
+			for _, key := range labelKeys {
+				csvRow = append(csvRow, wkld.GetLabelByKey(key, pce.Labels).Value)
+			}
+			lastHB := ""
+			if wkld.Agent != nil && wkld.Agent.Status != nil {
+				lastHB = wkld.Agent.Status.LastHeartbeatOn
+			}
+			csvRow = append(csvRow, lastHB, fmt.Sprintf("%.1f", val.HoursSinceLastHeartBeat()))
+			csvData = append(csvData, csvRow)
 		}
 	}
 
@@ -205,6 +229,10 @@ func unpair() {
 		return
 	}
 
+	// Write the unpair CSV
+	outputFileName := fmt.Sprintf("workloader-unpair-%s.csv", time.Now().Format("20060102_150405"))
+	utils.WriteOutput(csvData, csvData, outputFileName)
+
 	// If updatePCE is disabled, we are just going to alert the user what will happen and log
 	if !updatePCE {
 		utils.LogInfo(fmt.Sprintf("workloader identified %d vens requiring unpairing. To do the unpair, run again using --update-pce flag. The --no-prompt flag will bypass the prompt if used with --update-pce.", len(vensToUnpair)), true)
@@ -214,7 +242,7 @@ func unpair() {
 	// If updatePCE is set, but not noPrompt, we will prompt the user.
 	if updatePCE && !noPrompt {
 		var prompt string
-		fmt.Printf("%s [PROMPT] - workloader identified %d vens requiring unpairing in %s (%s). Do you want to run the unpair? (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), len(vensToUnpair), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
+		fmt.Printf("%s [PROMPT] - workloader identified %d vens requiring unpairing in %s (%s). Do you want to run the unpair? (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), len(vensToUnpair), pce.FriendlyName, viper.GetString(pce.FriendlyName+".fqdn"))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo("prompt denied.", true)

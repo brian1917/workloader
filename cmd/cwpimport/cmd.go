@@ -47,8 +47,8 @@ Only label assignments are supported. Label restrictions will show as blank in t
 		importFile = args[0]
 
 		// Get the debug value from viper
-		updatePCE = viper.Get("update_pce").(bool)
-		noPrompt = viper.Get("no_prompt").(bool)
+		updatePCE = viper.GetBool("update_pce")
+		noPrompt = viper.GetBool("no_prompt")
 
 		// Validate remove value
 		if removeValueInput == "" {
@@ -316,7 +316,7 @@ func ImportContainerProfiles(pce illumioapi.PCE, importFile, removeValue string,
 	// Prompt
 	if updatePCE && !noPrompt {
 		var prompt string
-		fmt.Printf("\r\n%s [PROMPT] - do you want to run the import to %s (%s) (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), pce.FriendlyName, viper.Get(pce.FriendlyName+".fqdn").(string))
+		fmt.Printf("\r\n%s [PROMPT] - do you want to run the import to %s (%s) (yes/no)? ", time.Now().Format("2006-01-02 15:04:05 "), pce.FriendlyName, viper.GetString(pce.FriendlyName+".fqdn"))
 		fmt.Scanln(&prompt)
 		if strings.ToLower(prompt) != "yes" {
 			utils.LogInfo("prompt denied", true)

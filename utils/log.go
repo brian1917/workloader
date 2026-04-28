@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/brian1917/illumioapi"
@@ -14,12 +15,33 @@ import (
 var Logger log.Logger
 var logFile string
 
+func redactApiCreds(input string) string {
+	// Compile the regular expression.
+	// "--api-user " followed by \S* (zero or more non-whitespace characters).
+	re := regexp.MustCompile(`--api-user \S*`)
+
+	s := re.ReplaceAllString(input, "--api-user <redacted>")
+
+	re = regexp.MustCompile(`--api-secret \S*`)
+
+	s = re.ReplaceAllString(s, "--api-secret <redacted>")
+
+	re = regexp.MustCompile(`--pwd \S*`)
+
+	s = re.ReplaceAllString(s, "--pwd <redacted>")
+
+	re = regexp.MustCompile(`--email \S*`)
+
+	// Replace all occurrences in the string with the redacted version.
+	return re.ReplaceAllString(s, "--email <redacted>")
+}
+
 func SetUpLogging() {
 
 	// First check env variable, then config file, then use default
 	logFile = os.Getenv("WORKLOADER_LOG")
-	if logFile == "" && viper.Get("log_file") != nil && viper.Get("log_file").(string) != "" {
-		logFile = viper.Get("log_file").(string)
+	if logFile == "" && viper.GetString("log_file") != "" {
+		logFile = viper.GetString("log_file")
 	} else {
 		logFile = "workloader.log"
 	}
@@ -36,7 +58,7 @@ func LogError(msg string) {
 
 	Logger.SetPrefix(time.Now().Format("2006-01-02 15:04:05 "))
 	fmt.Printf("%s [ERROR] - %s see workloader.log for potentially more information.\r\n", time.Now().Format("2006-01-02 15:04:05 "), msg)
-	if (viper.Get("continue_on_error") != nil && viper.Get("continue_on_error").(bool)) || (viper.Get("continue_on_error_default") != nil && viper.Get("continue_on_error_default").(string) == "continue") {
+	if viper.GetBool("continue_on_error") || viper.GetString("continue_on_error_default") == "continue" {
 		Logger.Printf("[ERROR] - %s\r\n", msg)
 	} else {
 		Logger.Fatalf("[ERROR] - %s\r\n", msg)
@@ -53,7 +75,7 @@ func LogErrorfCode(exitCode int, format string, a ...any) {
 	Logger.SetPrefix(time.Now().Format("2006-01-02 15:04:05 "))
 	fmt.Printf("%s [ERROR] - %s see workloader.log for potentially more information.\r\n", time.Now().Format("2006-01-02 15:04:05 "), fmt.Sprintf(format, a...))
 	Logger.Printf("[ERROR] - %s\r\n", fmt.Sprintf(format, a...))
-	if (viper.Get("continue_on_error") != nil && viper.Get("continue_on_error").(bool)) || (viper.Get("continue_on_error_default") != nil && viper.Get("continue_on_error_default").(string) == "continue") {
+	if viper.GetBool("continue_on_error") || viper.GetString("continue_on_error_default") == "continue" {
 		return
 	}
 	os.Exit(exitCode)
@@ -92,7 +114,7 @@ func LogInfof(stdout bool, format string, a ...any) {
 func LogDebug(msg string) {
 
 	// Get the debug value from viper
-	debug := viper.Get("debug").(bool)
+	debug := viper.GetBool("debug")
 
 	if debug {
 		Logger.SetPrefix(time.Now().Format("2006-01-02 15:04:05 "))
@@ -116,7 +138,7 @@ func LogAPIResp(callType string, apiResp illumioapi.APIResponse) {
 		LogInfof(true, "%s request body: %s", callType, apiResp.ReqBody)
 	}
 	LogInfo(fmt.Sprintf("%s status code: %d", callType, apiResp.StatusCode), false)
-	if viper.Get("verbose").(bool) || apiResp.StatusCode > 299 {
+	if viper.GetBool("verbose") || apiResp.StatusCode > 299 {
 		LogDebug(fmt.Sprintf("%s response body: %s", callType, apiResp.RespBody))
 	}
 
@@ -137,12 +159,12 @@ func LogStartCommand(fullCommand string) {
 	LogInfo(fmt.Sprintf("workloader version %s", GetVersion()), false)
 	commandName := os.Args[1]
 	LogInfo(fmt.Sprintf("started %s", commandName), false)
-	LogInfof(false, "full command: %s", fullCommand)
-	if viper.IsSet("target_pce") && viper.Get("target_pce") != nil && viper.Get("target_pce").(string) != "" {
-		LogInfo(fmt.Sprintf("using %s pce - %s", viper.Get("target_pce").(string), viper.Get(viper.Get("target_pce").(string)+".pce_version")), false)
+	LogInfof(false, "full command: %s", redactApiCreds(fullCommand))
+	if viper.GetString("target_pce") != "" {
+		LogInfo(fmt.Sprintf("using %s pce - %s", viper.GetString("target_pce"), viper.Get(viper.GetString("target_pce")+".pce_version")), false)
 	} else {
-		if viper.Get("default_pce_name") != nil {
-			LogInfo(fmt.Sprintf("using default pce - %s - %s", viper.Get("default_pce_name").(string), viper.Get(viper.Get("default_pce_name").(string)+".pce_version")), false)
+		if viper.GetString("default_pce_name") != "" {
+			LogInfo(fmt.Sprintf("using default pce - %s - %s", viper.GetString("default_pce_name"), viper.Get(viper.GetString("default_pce_name")+".pce_version")), false)
 		}
 	}
 }

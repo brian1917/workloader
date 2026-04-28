@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -64,7 +64,7 @@ func httpCall(httpAction, apiURL string, body []byte, login bool) (illumioapi.AP
 	defer resp.Body.Close()
 
 	// Process response
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return response, err
 	}

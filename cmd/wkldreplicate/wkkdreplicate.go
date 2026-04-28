@@ -42,8 +42,8 @@ Managed and unmanaged workloads are replicated across all PCEs. The command crea
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// Get the debug value from viper
-		updatePCE = viper.Get("update_pce").(bool)
-		noPrompt = viper.Get("no_prompt").(bool)
+		updatePCE = viper.GetBool("update_pce")
+		noPrompt = viper.GetBool("no_prompt")
 		wkldReplicate()
 	},
 }

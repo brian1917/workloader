@@ -49,8 +49,8 @@ The update-pce and --no-prompt flags are ignored for this command.`,
 		// Get the workloads
 		pce.Load(illumioapi.LoadInput{Workloads: true}, utils.UseMulti())
 
-		updatePCE := viper.Get("update_pce").(bool)
-		noPrompt := viper.Get("no_prompt").(bool)
+		updatePCE := viper.GetBool("update_pce")
+		noPrompt := viper.GetBool("no_prompt")
 
 		FindFQDN(&pce, updatePCE, noPrompt)
 	},

@@ -14,11 +14,11 @@ import (
 func WriteOutput(csvData, stdOutData [][]string, csvFileName string) {
 
 	// Get the output format
-	outFormat := viper.Get("output_format").(string)
+	outFormat := viper.GetString("output_format")
 
 	// Write stdout if output format dictates it
 	if outFormat == "stdout" || outFormat == "both" {
-		if len(stdOutData) < viper.Get("max_entries_for_stdout").(int) {
+		if len(stdOutData) < viper.GetInt("max_entries_for_stdout") {
 			table := tablewriter.NewWriter(os.Stdout)
 			table.SetHeader(stdOutData[0])
 			for i := 1; i <= len(stdOutData)-1; i++ {

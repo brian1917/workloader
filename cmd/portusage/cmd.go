@@ -2,6 +2,7 @@ package portusage
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -200,6 +201,9 @@ func unusedPorts() {
 		}
 
 	}
+
+	// Remove existing file so WriteLineOutput doesn't append to a previous run's output
+	os.Remove(outputFileName)
 
 	// Start the file
 	utils.WriteLineOutput([]string{"hostname", "href", "port", "protocol", "async_query_href", "async_query_status", "flows"}, outputFileName)

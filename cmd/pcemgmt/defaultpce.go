@@ -26,17 +26,17 @@ var PCEListCmd = &cobra.Command{
 
 		defaultPCEName := ""
 		if viper.Get("default_pce_name") != nil {
-			defaultPCEName = viper.Get("default_pce_name").(string)
+			defaultPCEName = viper.GetString("default_pce_name")
 		}
 
 		count := 0
 		for k := range allSettings {
 			if viper.Get(k+".fqdn") != nil {
 				if k == defaultPCEName {
-					fmt.Printf("* %s (%s)\r\n", k, viper.Get(k+".fqdn").(string))
+					fmt.Printf("* %s (%s)\r\n", k, viper.GetString(k+".fqdn"))
 					count++
 				} else {
-					fmt.Printf("  %s (%s)\r\n", k, viper.Get(k+".fqdn").(string))
+					fmt.Printf("  %s (%s)\r\n", k, viper.GetString(k+".fqdn"))
 					count++
 				}
 			}

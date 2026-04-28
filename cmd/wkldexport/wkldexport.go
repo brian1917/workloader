@@ -130,6 +130,10 @@ func (e *WkldExport) CsvData() (csvData [][]string) {
 			continue
 		}
 
+		if cvenOnly && w.VEN.VenType != "containerized" {
+			continue
+		}
+
 		// Check the interfaces
 		if !validateSubnet(w, subnetInclude) {
 			continue
@@ -167,6 +171,14 @@ func (e *WkldExport) CsvData() (csvData [][]string) {
 			csvRow[HeaderAgentVersion] = w.Agent.Status.AgentVersion
 			csvRow[HeaderLastHeartbeatOn] = w.Agent.Status.LastHeartbeatOn
 			csvRow[HeaderHoursSinceLastHeartbeat] = fmt.Sprintf("%f", w.HoursSinceLastHeartBeat())
+			if csvRow[HeaderHoursSinceLastHeartbeat] == "-9999" {
+				csvRow[HeaderHoursSinceLastHeartbeat] = "NA"
+			}
+			x := fmt.Sprintf("%f", w.HoursSinceLastPolicyAAppliedAt())
+			if w.HoursSinceLastPolicyAAppliedAt() == float64(-9999) {
+				x = "NA"
+			}
+			csvRow[HeaderHoursSinceLastPolicyAppliedAt] = x
 			csvRow[HeaderAgentID] = w.Agent.GetID()
 			csvRow[HeaderActivePceFqdn] = w.Agent.ActivePceFqdn
 			if csvRow[HeaderActivePceFqdn] == "" {
