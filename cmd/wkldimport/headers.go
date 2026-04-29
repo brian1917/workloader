@@ -42,8 +42,8 @@ func (i *Input) ProcessHeaders(headers []string) {
 		return
 	}
 
-	// If href is provided and UMWL is not set, use href
-	if val, ok := i.Headers[wkldexport.HeaderHref]; ok && !i.Umwl {
+	// If href is provided, UMWL is not set, and IgnoreHref is not set, use href
+	if val, ok := i.Headers[wkldexport.HeaderHref]; ok && !i.Umwl && !i.IgnoreHref {
 		i.MatchString = wkldexport.HeaderHref
 		utils.LogInfo(fmt.Sprintf("match column set to %d because href header is present and unmanaged workload flag is not set.", val), false)
 		return

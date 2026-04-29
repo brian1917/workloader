@@ -24,7 +24,7 @@ type Input struct {
 	Umwl, KeepAllPCEInterfaces, FqdnToShort, AllowEnforcementChanges, UpdateWorkloads, DoNotLogEachCSVRow, UpdatePCE, NoPrompt bool
 	ManagedOnly                                                                                                                bool
 	UnmanagedOnly                                                                                                              bool
-	IgnoreCase                                                                                                                 bool
+	IgnoreCase, IgnoreHref                                                                                                     bool
 	MaxUpdate, MaxCreate                                                                                                       int
 }
 
@@ -47,6 +47,7 @@ func init() {
 	WkldImportCmd.Flags().StringVar(&input.RemoveValue, "remove-value", "", "value in CSV used to remove existing labels. Blank values in the CSV will not change existing. for example, to delete a label an option would be --remove-value DELETE and use DELETE in CSV to indicate where to clear existing labels on a workload.")
 	WkldImportCmd.Flags().StringVar(&input.MatchString, "match", "", "match options. blank means to follow workloader default logic. Available options are href, hostname, name, and external_data. The default logic uses href if present, then hostname if present, then name if present. The external_data option uses the unique combinatio of external_data_set and external_data_reference.")
 	WkldImportCmd.Flags().BoolVar(&input.IgnoreCase, "ignore-case", false, "ignore case on the match string.")
+	WkldImportCmd.Flags().BoolVar(&input.IgnoreHref, "ignore-href", false, "ignore the href column in the CSV. useful when importing a CSV exported from a different PCE.")
 	WkldImportCmd.Flags().BoolVar(&input.AllowEnforcementChanges, "allow-enforcement-changes", false, "allow wkld-import to update the enforcement state and visibility levels.")
 	WkldImportCmd.Flags().BoolVar(&input.UnmanagedOnly, "unmanaged-only", false, "only label unmanaged workloads in the PCE.")
 	WkldImportCmd.Flags().BoolVar(&input.ManagedOnly, "managed-only", false, "only label managed workloads in the PCE.")

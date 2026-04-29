@@ -20,6 +20,7 @@ type Input struct {
 	Provision    bool
 	UpdateOnName bool
 	Meta         bool
+	IgnoreHref   bool
 	Headers      map[string]int
 }
 
@@ -80,9 +81,7 @@ func ImportServices(input Input) {
 
 			// Get the href
 			var href, name string
-			if hrefCol, ok := input.Headers[svcexport.HeaderHref]; !ok {
-				// utils.LogError("href header required with meta flag")
-			} else {
+			if hrefCol, ok := input.Headers[svcexport.HeaderHref]; ok && !input.IgnoreHref {
 				href = data[hrefCol]
 				if href == "" {
 					utils.LogErrorf("csv line %d - no header provided.", csvLine)
@@ -269,7 +268,7 @@ func ImportServices(input Input) {
 					}
 
 					// Add the href
-					if col, ok := input.Headers[svcexport.HeaderHref]; ok {
+					if col, ok := input.Headers[svcexport.HeaderHref]; ok && !input.IgnoreHref {
 						svc.Href = data[col]
 					} else if input.UpdateOnName {
 						svc.Href = input.PCE.Services[data[nameCol]].Href
