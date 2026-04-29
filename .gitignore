@@ -1,3 +1,5 @@
+workloader
+dist/
 *.code-workspace
 *.DS_store
 *.log
