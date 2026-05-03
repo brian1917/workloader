@@ -13,11 +13,12 @@ import (
 // Declare local global variables
 var pce ia.PCE
 var err error
-var oneInterfaceMatch bool
+var oneInterfaceMatch, shortHostname bool
 var outputFileName string
 
 func init() {
 	UMWLCleanUpCmd.Flags().BoolVar(&oneInterfaceMatch, "one-interface-match", false, "consider a match if at least one interface matches. default requires all interfaces to match.")
+	UMWLCleanUpCmd.Flags().BoolVar(&shortHostname, "short-hostname", false, "match on short hostname (before the first \".\"). useful when unmanaged workload has \"abc\" and managed has \"abc.domain.com\".")
 	UMWLCleanUpCmd.Flags().StringVar(&outputFileName, "output-file", "", "optionally specify the name of the output file location. default is current location with a timestamped filename.")
 
 }
@@ -66,6 +67,7 @@ func umwlCleanUp() {
 	umwlDefaultIPMap := make(map[string]ia.Workload)
 	managedDefaultIPMap := make(map[string]ia.Workload)
 	allManagedIPMap := make(map[string]ia.Workload)
+	managedShortHostnameMap := make(map[string]ia.Workload)
 
 	// Populate the maps
 	for _, w := range pce.WorkloadsSlice {
@@ -82,7 +84,9 @@ func umwlCleanUp() {
 				for _, ip := range defaultGWIPs {
 					managedDefaultIPMap[ip] = w
 				}
-
+			}
+			if shortHostname && ia.PtrToVal(w.Hostname) != "" {
+				managedShortHostnameMap[strings.Split(ia.PtrToVal(w.Hostname), ".")[0]] = w
 			}
 		}
 	}
@@ -97,16 +101,52 @@ func umwlCleanUp() {
 	data[0] = append(append(data[0], managedLabels...), unmanagedLabels...)
 	data[0] = append(append(data[0], "href"), ldSlice...)
 
-	// Find managed workloads that have the same IP address of an unmanaged workload
-workloads:
+	// Build a combined match map. Each entry maps a managed workload to a matched unmanaged workload.
+	type matchPair struct {
+		managed       ia.Workload
+		unmanaged     ia.Workload
+		hostnameMatch bool // true if matched by hostname rather than IP
+	}
+	matchPairs := []matchPair{}
+	matchedUMWLs := make(map[string]bool) // track by href to avoid duplicates
+
+	// Match by IP address
 	for ipAddress, managedWkld := range managedDefaultIPMap {
 		if umwl, check := umwlDefaultIPMap[ipAddress]; check {
+			matchPairs = append(matchPairs, matchPair{managed: managedWkld, unmanaged: umwl, hostnameMatch: false})
+			matchedUMWLs[umwl.Href] = true
+		}
+	}
 
-			// Hit here if there's a match. First, check if all IPs match
+	// Match by short hostname (if enabled)
+	if shortHostname {
+		for _, umwl := range pce.WorkloadsSlice {
+			if umwl.GetMode() != "unmanaged" || matchedUMWLs[umwl.Href] {
+				continue
+			}
+			umwlHostname := ia.PtrToVal(umwl.Hostname)
+			if umwlHostname == "" {
+				continue
+			}
+			shortName := strings.Split(umwlHostname, ".")[0]
+			if managedWkld, ok := managedShortHostnameMap[shortName]; ok {
+				matchPairs = append(matchPairs, matchPair{managed: managedWkld, unmanaged: umwl, hostnameMatch: true})
+			}
+		}
+	}
+
+	// Process matches
+workloads:
+	for _, pair := range matchPairs {
+		managedWkld := pair.managed
+		umwl := pair.unmanaged
+		{
+
+			// Hit here if there's a match. First, check if all IPs match (skip for hostname matches)
 			// Get IP strings
 			umwlIPs, managedIPs := []string{}, []string{}
 			for _, i := range ia.PtrToVal(umwl.Interfaces) {
-				if allManagedIPMap[i.Address].Href != managedWkld.Href && !oneInterfaceMatch {
+				if !pair.hostnameMatch && allManagedIPMap[i.Address].Href != managedWkld.Href && !oneInterfaceMatch {
 					umwlIdentifier := []string{}
 					if ia.PtrToVal(umwl.Hostname) != "" {
 						umwlIdentifier = append(umwlIdentifier, fmt.Sprintf("hostname: %s", ia.PtrToVal(umwl.Hostname)))
