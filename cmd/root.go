@@ -11,6 +11,7 @@ import (
 	"github.com/brian1917/workloader/cmd/adgroupexport"
 	"github.com/brian1917/workloader/cmd/adgroupimport"
 	"github.com/brian1917/workloader/cmd/appgroupflowsummary"
+	"github.com/brian1917/workloader/cmd/autoailabel"
 	"github.com/brian1917/workloader/cmd/autodenyrules"
 	"github.com/brian1917/workloader/cmd/awslabel"
 	"github.com/brian1917/workloader/cmd/azurelabel"
@@ -213,6 +214,7 @@ func init() {
 	RootCmd.AddCommand(nen.NENACLCmd)
 	RootCmd.AddCommand(ccupdate.ContainerClusterUpdateCmd)
 	RootCmd.AddCommand(cspiplist.CspIplistCmd)
+	RootCmd.AddCommand(autoailabel.AutoAILabelCmd)
 	RootCmd.AddCommand(autodenyrules.AutoDenyRulesCmd)
 
 	// Workload management
