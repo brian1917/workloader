@@ -63,19 +63,21 @@ func unusedUmwl() {
 		tq.SourcesInclude = [][]string{{umwl.Href}}
 		tq.DestinationsInclude = [][]string{{umwl.Href}}
 
-		// Retry logic to handle EOF errors from stale connections on long-running operations
+		// Retry logic with exponential backoff for transient errors (EOF, 401, 502)
 		var traffic []illumioapi.TrafficAnalysis
 		var a illumioapi.APIResponse
-		maxRetries := 3
+		maxRetries := 5
 		for attempt := 0; attempt < maxRetries; attempt++ {
 			traffic, a, err = pce.GetTrafficAnalysis(tq)
 			utils.LogAPIResp("GetTrafficAnalysis", a)
 			if err == nil {
 				break
 			}
-			if strings.Contains(err.Error(), "EOF") && attempt < maxRetries-1 {
-				utils.LogWarning(fmt.Sprintf("EOF error on umwl %d/%d (%s), retrying (attempt %d/%d)...", i+1, len(umwls), umwl.Href, attempt+2, maxRetries), true)
-				time.Sleep(5 * time.Second)
+			retryable := strings.Contains(err.Error(), "EOF") || a.StatusCode == 401 || a.StatusCode == 502 || a.StatusCode == 503
+			if retryable && attempt < maxRetries-1 {
+				backoff := time.Duration(5*(1<<attempt)) * time.Second
+				utils.LogWarning(fmt.Sprintf("transient error (status %d) on umwl %d/%d (%s), retrying in %s (attempt %d/%d)...", a.StatusCode, i+1, len(umwls), umwl.Href, backoff, attempt+2, maxRetries), true)
+				time.Sleep(backoff)
 				continue
 			}
 			utils.LogError(err.Error())
