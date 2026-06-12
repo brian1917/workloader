@@ -16,11 +16,12 @@ import (
 // Declare local global variables
 var pce ia.PCE
 var err error
-var provision, debug, updatePCE, noPrompt bool
+var provision, debug, updatePCE, noPrompt, ignoreHref bool
 var csvFile string
 
 func init() {
 	IplImportCmd.Flags().BoolVarP(&provision, "provision", "p", false, "Provision IP Lists after creating and/or updating.")
+	IplImportCmd.Flags().BoolVar(&ignoreHref, "ignore-href", false, "ignore the href column in the CSV. useful when importing a CSV exported from a different PCE.")
 }
 
 // IplImportCmd runs the iplist import command
@@ -78,12 +79,12 @@ Recommended to run without --update-pce first to log of what will change. If --u
 		updatePCE = viper.GetBool("update_pce")
 		noPrompt = viper.GetBool("no_prompt")
 
-		ImportIPLists(pce, csvFile, updatePCE, noPrompt, debug, provision)
+		ImportIPLists(pce, csvFile, updatePCE, noPrompt, debug, provision, ignoreHref)
 	},
 }
 
 // ImportIPLists imports IP Lists to a target PCE from a CSV file
-func ImportIPLists(pce ia.PCE, csvFile string, updatePCE, noPrompt, debug, provision bool) {
+func ImportIPLists(pce ia.PCE, csvFile string, updatePCE, noPrompt, debug, provision, ignoreHref bool) {
 
 	// Parse the CSV
 	csvData, err := utils.ParseCSV(csvFile)
@@ -205,7 +206,7 @@ csvEntries:
 		if val, ok := headers[HeaderExternalDataSet]; ok && line[*val] != "" {
 			ipl.ExternalDataSet = ia.Ptr(line[*val])
 		}
-		if val, ok := headers[HeaderHref]; ok {
+		if val, ok := headers[HeaderHref]; ok && !ignoreHref {
 			ipl.Href = line[*val]
 		}
 		// Add our IPlist to our CSV Map

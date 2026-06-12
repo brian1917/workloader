@@ -19,6 +19,7 @@ func init() {
 	SvcImportCmd.Flags().BoolVarP(&input.Provision, "provision", "p", false, "Provision IP Lists after creating and/or updating.")
 	SvcImportCmd.Flags().BoolVar(&input.UpdateOnName, "update-on-name", false, "Update based on a match name vs. requiring href.")
 	SvcImportCmd.Flags().BoolVarP(&input.Meta, "meta", "m", false, "Used for updating descriptions, names, risk information. Leverages the output from svc-export --compressed")
+	SvcImportCmd.Flags().BoolVar(&input.IgnoreHref, "ignore-href", false, "ignore the href column in the CSV. useful when importing a CSV exported from a different PCE.")
 }
 
 // SvcImportCmd runs the service import command

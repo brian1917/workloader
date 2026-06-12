@@ -125,7 +125,7 @@ func AzureNetworks(pce *illumioapi.PCE, provision, updatePCE, noPrompt bool) {
 
 		utils.LogInfo("passing output into ipl-import...", true)
 
-		iplimport.ImportIPLists(*pce, outputFileName, updatePCE, noPrompt, false, provision)
+		iplimport.ImportIPLists(*pce, outputFileName, updatePCE, noPrompt, false, provision, false)
 
 	} else {
 		utils.LogInfo("no azure networks found", true)

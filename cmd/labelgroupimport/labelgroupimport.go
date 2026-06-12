@@ -15,7 +15,7 @@ import (
 
 // Global variables
 var csvFile string
-var provision, updatePCE, noPrompt bool
+var provision, updatePCE, noPrompt, ignoreHref bool
 var pce illumioapi.PCE
 var err error
 
@@ -27,6 +27,7 @@ type entry struct {
 
 func init() {
 	LabelGroupImportCmd.Flags().BoolVarP(&provision, "provision", "p", false, "Provision changes.")
+	LabelGroupImportCmd.Flags().BoolVar(&ignoreHref, "ignore-href", false, "ignore the href column in the CSV. useful when importing a CSV exported from a different PCE.")
 	LabelGroupImportCmd.Flags().SortFlags = false
 }
 
@@ -113,8 +114,8 @@ CSVEntries:
 			continue
 		}
 
-		// If the href header is not present or the value is blank, it's created
-		if headers[labelgroupexport.HeaderHref] == nil || line[*headers[labelgroupexport.HeaderHref]] == "" {
+		// If the href header is not present, blank, or ignored, it's created
+		if ignoreHref || headers[labelgroupexport.HeaderHref] == nil || line[*headers[labelgroupexport.HeaderHref]] == "" {
 			newLG := illumioapi.LabelGroup{}
 
 			// Name

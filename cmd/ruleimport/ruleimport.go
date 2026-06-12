@@ -25,7 +25,7 @@ type Input struct {
 	ProvisionComment                                                                           string
 	Headers                                                                                    map[string]int
 	DeleteFile                                                                                 string
-	Provision, UpdatePCE, NoPrompt, CreateLabels, NoTrimming, MatchOnExtDataRef, Authoritative bool
+	Provision, UpdatePCE, NoPrompt, CreateLabels, NoTrimming, MatchOnExtDataRef, Authoritative, IgnoreHref bool
 }
 
 // Decluare a global input and debug variable
@@ -39,6 +39,7 @@ func init() {
 	RuleImportCmd.Flags().BoolVar(&globalInput.MatchOnExtDataRef, "match-on-ext", false, "match on external data set and reference instead of href for updating existing rules.")
 	RuleImportCmd.Flags().BoolVar(&globalInput.Authoritative, "authoritative", false, "create a csv file of all rule hrefs not on the input file to be passed into the delete command.")
 	RuleImportCmd.Flags().StringVar(&globalInput.DeleteFile, "authoritative-delete-file", "", "name of the csv file to be passed into delete command.")
+	RuleImportCmd.Flags().BoolVar(&globalInput.IgnoreHref, "ignore-href", false, "ignore the href column in the CSV. useful when importing a CSV exported from a different PCE.")
 
 }
 
@@ -315,7 +316,7 @@ CSVEntries:
 			}
 
 		} else {
-			if c, ok := input.Headers[ruleexport.HeaderRuleHref]; ok && l[c] != "" {
+			if c, ok := input.Headers[ruleexport.HeaderRuleHref]; ok && l[c] != "" && !input.IgnoreHref {
 				rowRuleMatchStr = l[c]
 				if _, rCheck := ruleLookup[l[input.Headers[ruleexport.HeaderRuleHref]]]; !rCheck {
 					utils.LogWarning(fmt.Sprintf("csv line %d - %s rule_href does not exist. Skipping.", i+1, l[input.Headers[ruleexport.HeaderRuleHref]]), true)

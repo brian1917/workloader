@@ -19,7 +19,7 @@ type Input struct {
 	ImportFile                                   string
 	ProvisionComment                             string
 	Headers                                      map[string]int
-	Provision, UpdatePCE, NoPrompt, CreateLabels bool
+	Provision, UpdatePCE, NoPrompt, CreateLabels, IgnoreHref bool
 }
 
 // Decluare a global input and debug variable
@@ -29,6 +29,7 @@ func init() {
 	DenyRuleImportCmd.Flags().BoolVar(&cmdInput.CreateLabels, "create-labels", false, "create labels if they do not exist.")
 	DenyRuleImportCmd.Flags().BoolVar(&cmdInput.Provision, "provision", false, "provision eb creations/changes.")
 	DenyRuleImportCmd.Flags().StringVar(&cmdInput.ProvisionComment, "provision-comment", "", "comment for when provisioning changes.")
+	DenyRuleImportCmd.Flags().BoolVar(&cmdInput.IgnoreHref, "ignore-href", false, "ignore the href column in the CSV. useful when importing a CSV exported from a different PCE.")
 }
 
 // RuleImportCmd runs the upload command
@@ -146,8 +147,8 @@ func ImportBoundariesFromCSV(input Input) {
 		// Start the row href variable
 		var rowHref string
 
-		// If there is an href provided makae sure it exists
-		if c, ok := input.Headers[denyruleexport.HeaderHref]; ok && row[c] != "" {
+		// If there is an href provided and it's not ignored, make sure it exists
+		if c, ok := input.Headers[denyruleexport.HeaderHref]; ok && row[c] != "" && !input.IgnoreHref {
 			rowHref = row[c]
 			if _, ebCheck := input.PCE.EnforcementBoundaries[row[c]]; !ebCheck {
 				utils.LogWarning(fmt.Sprintf("csv line %d - %s href does not exist. skipping.", rowIndex+1, row[input.Headers[denyruleexport.HeaderHref]]), true)

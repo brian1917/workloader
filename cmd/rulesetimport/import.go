@@ -14,9 +14,9 @@ import (
 )
 
 type Input struct {
-	PCE                                        illumioapi.PCE
-	UpdatePCE, NoPrompt, Provision, NoTrimming bool
-	ImportFile, ProvisionComment               string
+	PCE                                                    illumioapi.PCE
+	UpdatePCE, NoPrompt, Provision, NoTrimming, IgnoreHref bool
+	ImportFile, ProvisionComment                           string
 }
 
 var input Input
@@ -25,6 +25,7 @@ func init() {
 	RuleSetImportCmd.Flags().BoolVar(&input.Provision, "provision", false, "Provision changes.")
 	RuleSetImportCmd.Flags().StringVar(&input.ProvisionComment, "provision-comments", "", "Provision comment.")
 	RuleSetImportCmd.Flags().BoolVar(&input.NoTrimming, "no-trimming", false, "Disable default CSV parsing with trimming of whitespaces for label names (leading and ending whitespaces)")
+	RuleSetImportCmd.Flags().BoolVar(&input.IgnoreHref, "ignore-href", false, "ignore the href column in the CSV. useful when importing a CSV exported from a different PCE.")
 }
 
 // RuleSetImportCmd runs the import command
@@ -122,8 +123,8 @@ csvEntries:
 			continue
 		}
 
-		// If the ruleset href column is provided and there is a value, make sure it's valid.
-		if rsHrefCol, ok := hm["href"]; ok && l[hm["href"]] != "" {
+		// If the ruleset href column is provided, has a value, and is not ignored, make sure it's valid.
+		if rsHrefCol, ok := hm["href"]; ok && l[hm["href"]] != "" && !input.IgnoreHref {
 			var rs illumioapi.RuleSet
 			if rs, ok = input.PCE.RuleSets[l[rsHrefCol]]; !ok {
 				utils.LogError(fmt.Sprintf("csv line %d - provided ruleset href does not exist", i+1))
