@@ -27,9 +27,13 @@ func LogAPIRespV2(callType string, apiResp illumioapi.APIResponse) {
 			LogInfof(false, "%s request body: %s", callType, apiResp.ReqBody)
 		}
 	}
-	LogInfo(fmt.Sprintf("%s response status code: %d", callType, apiResp.StatusCode), false)
+	LogInfo(fmt.Sprintf("%s response status code: %d - request id: %s", callType, apiResp.StatusCode, LogBlankValue(apiResp.RequestID)), false)
 	if viper.GetBool("verbose") || apiResp.StatusCode > 299 {
 		LogDebug(fmt.Sprintf("%s response body: %s", callType, apiResp.RespBody))
+	}
+
+	for _, r := range apiResp.RetryLog {
+		LogWarning(fmt.Sprintf("%s attempt %d failed - status code %d - request id: %s - %s", callType, r.Attempt, r.StatusCode, LogBlankValue(r.RequestID), r.Err), true)
 	}
 
 	for _, w := range apiResp.Warnings {
