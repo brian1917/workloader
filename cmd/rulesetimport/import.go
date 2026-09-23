@@ -3,6 +3,7 @@ package rulesetimport
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -50,7 +51,7 @@ Scopes should be semi-colon separated values of label_type:label_value. Label-gr
 - lg:env:non-prod
 - env:prod-exlcude
 
-If an href is provided the name, enabled, and description fields can be updated. Scopes cannot be updated.
+If an href is provided the name, enabled, description, and scope fields can be updated.
 
 If an href is not provided, the ruleset will be created.
 
@@ -129,6 +130,11 @@ csvEntries:
 			if rs, ok = input.PCE.RuleSets[l[rsHrefCol]]; !ok {
 				utils.LogError(fmt.Sprintf("csv line %d - provided ruleset href does not exist", i+1))
 			}
+			// The PCE's update (PUT) schema for rulesets does not allow read-only properties
+			// (e.g., created_at, updated_by) on deny_rules entries. UpdateRuleset() already
+			// strips Rules for this reason but does not strip DenyRules, so we do it here to
+			// avoid a 406 on any ruleset that has deny rules.
+			rs.DenyRules = nil
 			// Begin update checks
 			update := false
 			// Name
@@ -153,6 +159,15 @@ csvEntries:
 				update = true
 				*rs.Enabled = csvEnabled
 			}
+			// Scope
+			if _, ok := hm["scope"]; ok {
+				csvScopes := parseScopesString(l[hm["scope"]], input.NoTrimming, input.PCE, i+1)
+				if !scopesEqual(rs.Scopes, csvScopes) {
+					utils.LogInfo(fmt.Sprintf("csv line %d - ruleset scope needs to be updated", i+1), false)
+					update = true
+					rs.Scopes = csvScopes
+				}
+			}
 
 			if update {
 				updateRuleSets = append(updateRuleSets, newRuleSet{csvLine: i + 1, ruleSet: rs})
@@ -174,68 +189,7 @@ csvEntries:
 		rs.Enabled = &t
 
 		// Process scopes
-		csvScopesStr := l[hm["scope"]]
-		// Get rid of spaces
-		if !input.NoTrimming {
-			csvScopesStr = strings.Replace(csvScopesStr, " ;", ";", -1)
-			csvScopesStr = strings.Replace(csvScopesStr, "; ", ";", -1)
-			csvScopesStr = strings.Replace(csvScopesStr, "| ", "|", -1)
-			csvScopesStr = strings.Replace(csvScopesStr, " |", "|", -1)
-			csvScopesStr = strings.TrimSuffix(csvScopesStr, " ")
-			csvScopesStr = strings.TrimPrefix(csvScopesStr, " ")
-		}
-
-		// Create the csvScopes slice of slices
-		csvScopes := [][]string{}
-
-		// Split on "|" to get each scope
-		scopes := strings.Split(csvScopesStr, "|")
-		// Iterate over each scope to make each scope a slice
-		for _, scope := range scopes {
-			csvScopes = append(csvScopes, strings.Split(scope, ";"))
-		}
-
-		// Iterate over the slice of slices to process each scope
-
-		// Star the scopes slice
-		rs.Scopes = &[][]illumioapi.Scopes{}
-
-		if csvScopesStr != "" {
-			for _, scope := range csvScopes {
-				rsScope := []illumioapi.Scopes{}
-				for _, entity := range scope {
-					exclude := false
-					if strings.HasSuffix(entity, "-exclude") {
-						// Remove the -exclude
-						entity = strings.TrimSuffix(entity, "-exclude")
-						exclude = true
-					}
-					if strings.HasPrefix(entity, "lg:") {
-						// Remove the lg
-						entity = strings.TrimPrefix(entity, "lg:")
-						// Remove the key
-						entity = strings.TrimPrefix(entity, strings.Split(entity, ":")[0]+":")
-						// Get the label Group
-						if lg, exists := input.PCE.LabelGroups[entity]; !exists {
-							utils.LogError(fmt.Sprintf("csv line %d - %s doesn't exist as a label group", i+1, entity))
-						} else {
-							rsScope = append(rsScope, illumioapi.Scopes{Exclusion: &exclude, LabelGroup: &illumioapi.LabelGroup{Href: lg.Href}})
-						}
-						continue
-					}
-					// It's a label
-					key := strings.Split(entity, ":")[0]
-					value := strings.TrimPrefix(entity, key+":")
-					// Get the label
-					if label, exists := input.PCE.Labels[key+value]; !exists {
-						utils.LogError(fmt.Sprintf("csv line %d - %s doesn't exist as a label of type %s.", i+1, value, key))
-					} else {
-						rsScope = append(rsScope, illumioapi.Scopes{Exclusion: &exclude, Label: &illumioapi.Label{Href: label.Href}})
-					}
-				}
-				*rs.Scopes = append(*rs.Scopes, rsScope)
-			}
-		}
+		rs.Scopes = parseScopesString(l[hm["scope"]], input.NoTrimming, input.PCE, i+1)
 
 		// Append to the new ruleset
 		newRuleSets = append(newRuleSets, newRuleSet{ruleSet: rs, csvLine: i + 1})
@@ -312,4 +266,116 @@ func processHeaders(headerRow []string) map[string]int {
 		headerMap[h] = i
 	}
 	return headerMap
+}
+
+// parseScopesString converts a CSV scope column value (e.g., "app:erp;env:prod|lg:env:non-prod")
+// into the PCE's scopes structure.
+func parseScopesString(csvScopesStr string, noTrimming bool, pce illumioapi.PCE, csvLine int) *[][]illumioapi.Scopes {
+	// Get rid of spaces
+	if !noTrimming {
+		csvScopesStr = strings.Replace(csvScopesStr, " ;", ";", -1)
+		csvScopesStr = strings.Replace(csvScopesStr, "; ", ";", -1)
+		csvScopesStr = strings.Replace(csvScopesStr, "| ", "|", -1)
+		csvScopesStr = strings.Replace(csvScopesStr, " |", "|", -1)
+		csvScopesStr = strings.TrimSuffix(csvScopesStr, " ")
+		csvScopesStr = strings.TrimPrefix(csvScopesStr, " ")
+	}
+
+	// Create the csvScopes slice of slices
+	csvScopes := [][]string{}
+
+	// Split on "|" to get each scope
+	scopes := strings.Split(csvScopesStr, "|")
+	// Iterate over each scope to make each scope a slice
+	for _, scope := range scopes {
+		csvScopes = append(csvScopes, strings.Split(scope, ";"))
+	}
+
+	// Star the scopes slice
+	rsScopes := &[][]illumioapi.Scopes{}
+
+	if csvScopesStr != "" {
+		for _, scope := range csvScopes {
+			rsScope := []illumioapi.Scopes{}
+			for _, entity := range scope {
+				exclude := false
+				if strings.HasSuffix(entity, "-exclude") {
+					// Remove the -exclude
+					entity = strings.TrimSuffix(entity, "-exclude")
+					exclude = true
+				}
+				if strings.HasPrefix(entity, "lg:") {
+					// Remove the lg
+					entity = strings.TrimPrefix(entity, "lg:")
+					// Remove the key
+					entity = strings.TrimPrefix(entity, strings.Split(entity, ":")[0]+":")
+					// Get the label Group
+					if lg, exists := pce.LabelGroups[entity]; !exists {
+						utils.LogError(fmt.Sprintf("csv line %d - %s doesn't exist as a label group", csvLine, entity))
+					} else {
+						rsScope = append(rsScope, illumioapi.Scopes{Exclusion: &exclude, LabelGroup: &illumioapi.LabelGroup{Href: lg.Href}})
+					}
+					continue
+				}
+				// It's a label
+				key := strings.Split(entity, ":")[0]
+				value := strings.TrimPrefix(entity, key+":")
+				// Get the label
+				if label, exists := pce.Labels[key+value]; !exists {
+					utils.LogError(fmt.Sprintf("csv line %d - %s doesn't exist as a label of type %s.", csvLine, value, key))
+				} else {
+					rsScope = append(rsScope, illumioapi.Scopes{Exclusion: &exclude, Label: &illumioapi.Label{Href: label.Href}})
+				}
+			}
+			*rsScopes = append(*rsScopes, rsScope)
+		}
+	}
+
+	return rsScopes
+}
+
+// scopeSignature returns an order-independent signature for a ruleset's scopes so two
+// scope sets can be compared regardless of the order the PCE or CSV returns/lists them in.
+func scopeSignature(scopes *[][]illumioapi.Scopes) []string {
+	if scopes == nil {
+		return nil
+	}
+	sigs := []string{}
+	for _, group := range *scopes {
+		parts := []string{}
+		for _, s := range group {
+			exclusion := illumioapi.PtrToVal(s.Exclusion)
+			if s.Label != nil {
+				parts = append(parts, fmt.Sprintf("label:%s:%t", s.Label.Href, exclusion))
+			}
+			if s.LabelGroup != nil {
+				parts = append(parts, fmt.Sprintf("label_group:%s:%t", s.LabelGroup.Href, exclusion))
+			}
+		}
+		// A scope group with no entities means "unscoped"/no restriction. The PCE
+		// represents this inconsistently as either zero groups or a single empty
+		// group, so skip empty groups to treat both forms as equivalent.
+		if len(parts) == 0 {
+			continue
+		}
+		sort.Strings(parts)
+		sigs = append(sigs, strings.Join(parts, ","))
+	}
+	sort.Strings(sigs)
+	return sigs
+}
+
+// scopesEqual compares two scope sets ignoring ordering of scopes and of labels/label-groups within a scope.
+func scopesEqual(a, b *[][]illumioapi.Scopes) bool {
+	sigA := scopeSignature(a)
+	sigB := scopeSignature(b)
+	if len(sigA) != len(sigB) {
+		return false
+	}
+	for i := range sigA {
+		if sigA[i] != sigB[i] {
+			return false
+		}
+	}
+	return true
 }

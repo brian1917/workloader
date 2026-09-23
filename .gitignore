@@ -1,4 +1,5 @@
 workloader
+workloader.exe
 dist/
 *.code-workspace
 *.DS_store
