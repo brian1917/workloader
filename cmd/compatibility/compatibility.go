@@ -264,7 +264,7 @@ func compatibilityReport() {
 		if outputFileName == "" {
 			outputFileName = fmt.Sprintf("workloader-compatibility-%s.csv", time.Now().Format("20060102_150405"))
 		}
-		utils.WriteOutput(csvData, nil, outputFileName)
+		utils.WriteOutput(csvData, csvData, outputFileName)
 		utils.LogInfof(true, "%d compatibility reports exported.", len(csvData)-1)
 	} else {
 		// Log command execution for 0 results
